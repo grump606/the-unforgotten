@@ -5,7 +5,7 @@ shader_type canvas_item;
 
 uniform vec2 tilt = vec2(0.0);
 uniform vec2 size_px = vec2(100.0);
-uniform float max_angle = 0.35;
+uniform float max_angle = 0.23;
 uniform float perspective = 0.5;
 uniform float sheen_strength = 0.22;
 
