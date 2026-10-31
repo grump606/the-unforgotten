@@ -21,6 +21,11 @@ var download_button: Button
 var dismiss_button: Button
 ## The newer release's tag once one is known ("" until then).
 var latest_tag := ""
+## Downloads, verifies and runs the installer when the player clicks the button (see UpdateInstaller).
+var installer := UpdateInstaller.new()
+## Whether the button installs in the game (true) or only opens the releases page. False when no
+## signing key is built in, in the editor, or when the install folder is not writable; tests set it.
+var use_installer := UpdateInstaller.available()
 
 var _request: HTTPRequest
 var _dismissed := false
@@ -30,6 +35,8 @@ var _allowed := true
 
 func _init() -> void:
 	visible = false
+	add_child(installer)
+	installer.changed.connect(_on_installer_changed)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	add_child(row)
@@ -70,6 +77,10 @@ func _init() -> void:
 	offset_bottom = -5.0
 
 
+func _ready() -> void:
+	UpdateInstaller.cleanup() # leftovers of an earlier update attempt
+
+
 ## Starts the one request, unless this launch is not meant to check (headless, or the opt-out
 ## variable is set). Returns whether a request is now in flight.
 func start() -> bool:
@@ -92,6 +103,7 @@ func start() -> bool:
 
 ## Cancels any request in flight and hides a notice already shown (the player turned the check off).
 func stop() -> void:
+	installer.cancel()
 	_finish_request("stopped")
 	latest_tag = ""
 	_refresh()
@@ -112,6 +124,7 @@ func handle_response(code: int, body: PackedByteArray) -> void:
 		return
 	latest_tag = tag
 	label.text = UpdateCheck.notice_text(tag, current_version)
+	download_button.text = "Update & restart" if use_installer else "Download"
 	_refresh()
 
 
@@ -138,7 +151,35 @@ func _finish_request(reason: String) -> void:
 
 
 func _on_download() -> void:
-	open_url.call(UpdateCheck.RELEASES_PAGE) # the fixed page, never anything from the reply
+	if not use_installer:
+		open_url.call(UpdateCheck.RELEASES_PAGE) # the fixed page, never anything from the reply
+		return
+	match installer.state:
+		UpdateInstaller.State.IDLE:
+			installer.start(latest_tag)
+		UpdateInstaller.State.READY:
+			installer.install_and_restart()
+
+
+## Mirrors the installer onto the bar: progress while downloading, then straight into the install
+## when the bar is on a menu screen (a download that finished during a run waits for a click), and a
+## plain Download button after a failure.
+func _on_installer_changed() -> void:
+	match installer.state:
+		UpdateInstaller.State.DOWNLOADING:
+			label.text = "Downloading v%s... %d%%" % [latest_tag.trim_prefix("v").trim_prefix("V"), int(installer.progress * 100.0)]
+			download_button.disabled = true
+		UpdateInstaller.State.READY:
+			label.text = "Update ready"
+			download_button.text = "Restart now"
+			download_button.disabled = false
+			if _allowed:
+				installer.install_and_restart()
+		UpdateInstaller.State.FAILED:
+			label.text = "Update failed: %s" % installer.error
+			use_installer = false # fall back to the releases page
+			download_button.text = "Download"
+			download_button.disabled = false
 
 
 func _on_dismiss() -> void:

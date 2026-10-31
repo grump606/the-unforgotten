@@ -3,6 +3,8 @@ extends SceneTree
 ## UpdateNotice.handle_response. Also checks that the real request is never started headless.
 ## Run via scripts/check.ps1.
 
+const UpdateVerifierTests := preload("res://tests/update_verifier_tests.gd")
+
 var test_save := "user://ui_update_notice_test_save_%d.json" % OS.get_process_id()
 
 var test_settings := "user://ui_update_notice_test_settings_%d.json" % OS.get_process_id()
@@ -146,8 +148,85 @@ func _initialize() -> void:
 	await process_frame
 	DirAccess.remove_absolute(test_settings)
 
+	await _test_in_game_install()
+
 	print("FAILURES: %d" % _failures)
 	quit(1 if _failures > 0 else 0)
+
+
+## The bar's Update & restart flow with a fake installer: no network, no real process.
+func _test_in_game_install() -> void:
+	var key := Crypto.new().generate_rsa(2048)
+	var work := "user://ui_update_notice_install_%d" % OS.get_process_id()
+	var launched: Array = []
+	var quits := [0]
+	var notice := UpdateNotice.new()
+	notice.current_version = "0.3.0"
+	notice.use_installer = true
+	notice.installer.dry_run = true
+	notice.installer.public_key_pem = key.save_to_string(true)
+	notice.installer.work_dir = work
+	notice.installer.launch = func(path: String, args: PackedStringArray) -> int:
+		launched.append([path, args])
+		return 99
+	notice.installer.quit_game = func() -> void: quits[0] += 1
+	var opened: Array[String] = []
+	notice.open_url = func(url: String) -> void: opened.append(url)
+	root.add_child(notice)
+	await process_frame
+
+	notice.handle_response(200, _release("v0.3.1"))
+	_check(notice.visible and notice.download_button.text == "Update & restart", "with in-game install the button says Update & restart")
+	notice.download_button.pressed.emit()
+	_check(notice.installer.state == UpdateInstaller.State.DOWNLOADING and notice.download_button.disabled and notice.label.text.begins_with("Downloading v0.3.1"), "clicking starts the download and shows progress")
+	_check(opened.is_empty(), "the browser is not opened")
+	# Feed the replies the real requests would have produced.
+	var file := FileAccess.open(work.path_join("CardBattlePrototype-Setup-0.3.1.exe.part"), FileAccess.WRITE)
+	file.store_string("new version")
+	file.close()
+	var part := ProjectSettings.globalize_path(work.path_join("CardBattlePrototype-Setup-0.3.1.exe.part"))
+	notice.installer.handle_signature(HTTPRequest.RESULT_SUCCESS, 200, UpdateVerifierTests.sign_file(part, key))
+	notice.installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
+	_check(launched.size() == 1 and quits[0] == 1, "on a menu screen a verified download installs and quits by itself")
+
+	# A download that finishes while a run is under way waits for a click.
+	launched.clear()
+	quits[0] = 0
+	notice.installer.state = UpdateInstaller.State.IDLE
+	notice.set_allowed(false)
+	notice.download_button.disabled = false
+	notice.download_button.pressed.emit()
+	file = FileAccess.open(work.path_join("CardBattlePrototype-Setup-0.3.1.exe.part"), FileAccess.WRITE)
+	file.store_string("new version")
+	file.close()
+	notice.installer.handle_signature(HTTPRequest.RESULT_SUCCESS, 200, UpdateVerifierTests.sign_file(part, key))
+	notice.installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
+	_check(launched.is_empty() and quits[0] == 0 and notice.download_button.text == "Restart now", "during a run nothing restarts; the bar waits for Restart now")
+	notice.set_allowed(true)
+	notice.download_button.pressed.emit()
+	_check(launched.size() == 1 and quits[0] == 1, "Restart now installs")
+
+	# A failure falls back to the plain Download button.
+	notice.installer.state = UpdateInstaller.State.IDLE
+	notice.use_installer = true
+	notice.download_button.pressed.emit()
+	notice.installer.handle_signature(HTTPRequest.RESULT_SUCCESS, 404, PackedByteArray())
+	_check(notice.label.text.begins_with("Update failed") and notice.download_button.text == "Download" and not notice.use_installer, "a failed update shows why and falls back to Download")
+	notice.download_button.pressed.emit()
+	_check(opened == [UpdateCheck.RELEASES_PAGE], "Download after a failure opens the fixed releases page")
+
+	# Without in-game install the button is the old Download button.
+	var plain := UpdateNotice.new()
+	plain.current_version = "0.3.0"
+	plain.use_installer = false
+	plain.open_url = func(url: String) -> void: opened.append(url)
+	root.add_child(plain)
+	plain.handle_response(200, _release("v0.3.1"))
+	_check(plain.download_button.text == "Download", "without a signing key the button stays Download")
+	notice.queue_free()
+	plain.queue_free()
+	UpdateInstaller.cleanup(work)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(work))
 
 
 func _find_panels(node: Node, out: Array[CharacterPanel]) -> void:

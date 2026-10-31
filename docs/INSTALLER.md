@@ -14,6 +14,8 @@ Output: `build/CardBattlePrototype-Setup-<version>.exe` and `build/CardBattlePro
 2. Run the build script.
 3. Publish the installer and its checksum file together as a GitHub release tagged `v<version>` (for example `gh release create v0.2.0 build/CardBattlePrototype-Setup-0.2.0.exe build/CardBattlePrototype-Setup-0.2.0.exe.sha256`).
 
+When a signing key is configured the build also writes `CardBattlePrototype-Setup-<version>.exe.sig`; publish it with the other two files. It is what lets the game install the update itself. See `docs/UPDATE_SIGNING.md` for the one-time key setup and the per-release steps.
+
 ## Verifying a download
 
 The `.sha256` file holds one line in the standard `<hash>  <filename>` format, written by the build script after the installer is compiled. Download both files into the same folder, then check:

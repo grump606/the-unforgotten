@@ -32,6 +32,8 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#AppExe}
 VersionInfoVersion={#AppVersion}
+; The in-game updater relaunches the game itself (/RELAUNCH=1); do not let setup also restart a game it closed.
+RestartApplications=no
 
 [Files]
 Source: "..\build\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
@@ -46,6 +48,8 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
+; In-game update: the game starts this setup with /SILENT /RELAUNCH=1, then exits; start it again once the files are replaced.
+Filename: "{app}\{#AppExe}"; Flags: nowait; Check: ShouldRelaunch
 
 [Code]
 const
@@ -143,6 +147,12 @@ begin
       Result := False;
     end;
   end;
+end;
+
+// True when the in-game updater started this setup (/RELAUNCH=1), so the game comes back by itself.
+function ShouldRelaunch(): Boolean;
+begin
+  Result := ExpandConstant('{param:RELAUNCH|0}') = '1';
 end;
 
 function UpdateReadyMessage(): String;
