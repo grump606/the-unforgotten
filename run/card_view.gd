@@ -94,12 +94,16 @@ var clickable := false:
 		_update_mouse_filter()
 
 var _hovered := false
+var _tilt := Vector2.ZERO
 var _font: Font = ThemeDB.fallback_font
+
+const TILT_SHADER := preload("res://art/fx/card_tilt.gdshader")
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	set_process(false)
 	_update_size()
 
 
@@ -227,7 +231,32 @@ func set_hovered(inside: bool) -> void:
 func _on_hover(inside: bool) -> void:
 	if auto_hover:
 		_hovered = inside
+		if inside:
+			set_process(true)
 		queue_redraw()
+
+
+## Eases the card toward the pointer while hovered (perspective tilt with a moving sheen, see
+## art/fx/card_tilt.gdshader) and back to flat afterwards; stops processing once it is flat again.
+func _process(delta: float) -> void:
+	var goal := Vector2.ZERO
+	if _hovered and state != State.UNPLAYABLE and size.x > 0.0 and size.y > 0.0:
+		var mouse := get_local_mouse_position()
+		if Rect2(Vector2.ZERO, size).has_point(mouse):
+			goal = ((mouse / size) - Vector2(0.5, 0.5)) * 2.0
+	_tilt = _tilt.lerp(goal, 1.0 - exp(-14.0 * delta))
+	if goal == Vector2.ZERO and _tilt.length() < 0.01:
+		_tilt = Vector2.ZERO
+		material = null
+		set_process(false)
+		return
+	if material == null:
+		var mat := ShaderMaterial.new()
+		mat.shader = TILT_SHADER
+		material = mat
+	var sm := material as ShaderMaterial
+	sm.set_shader_parameter("tilt", _tilt)
+	sm.set_shader_parameter("size_px", size)
 
 
 func _raised() -> bool:
