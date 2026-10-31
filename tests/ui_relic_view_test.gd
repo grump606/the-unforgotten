@@ -172,7 +172,7 @@ func _initialize() -> void:
 	body = scene.get_node("%Body")
 	var battle: Control = body.get_child(0)
 	check(battle.has_method("_attach") and battle._relic_strip.visible and battle._relic_strip.count() == 2, "the battle screen shows the run's two relics")
-	check(RelicView.find_all(battle).size() == 2 and battle._relic_strip.get_parent() == battle._player_row, "the badges sit beside the player's HP line")
+	check(RelicView.find_all(battle).size() == 2 and battle._relic_strip.get_parent() == battle._stage, "the badges sit in the top corner of the stage")
 	check(not scene._header_strip.visible, "the header strip stays hidden during a fight")
 	var strip_rect: Rect2 = battle._relic_strip.get_global_rect()
 	check(Rect2(Vector2.ZERO, Vector2(scene.size)).encloses(strip_rect), "the battle badges are on screen")

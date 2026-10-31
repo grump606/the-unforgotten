@@ -46,7 +46,7 @@ func _shot(file: String, paths: Array, boss: bool, id: StringName, seconds: floa
 	var backdrop: BattleBackdrop = scene.find_children("*", "BattleBackdrop", true, false)[0]
 	backdrop.time = 0.0 # real frames have run; start every shot from the same moment
 	backdrop.advance(seconds)
-	for view in EnemyView.find_all(scene):
+	for view in scene.find_children("*", "Fighter", true, false):
 		view.advance(1.1)
 	for i in 3:
 		await process_frame

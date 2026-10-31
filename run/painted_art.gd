@@ -6,6 +6,7 @@ extends RefCounted
 
 const CARD_DIR := "res://art/layers/cards/%s/art.png"
 const ENEMY_DIR := "res://art/layers/%s/%s.png"
+const PLAYER_DIR := "res://art/layers/players/%s/figure.png"
 const SCREEN_DIR := "res://art/layers/screens/%s/bg.png"
 ## Back to front, with how far each layer shifts in the idle sway (see EnemyView).
 const ENEMY_LAYERS: Array[StringName] = [&"bg", &"mid", &"figure", &"fg"]
@@ -32,6 +33,41 @@ static func enemy_layers(key: StringName) -> Array:
 		layers.append(tex)
 	_cache[ck] = layers
 	return layers
+
+
+## The enemy's figure layer and the tight box around its painted pixels, as {tex, region}, or {} when
+## there is no painted figure. The battle stage draws the figure alone (no backdrop or fog layers).
+static func enemy_figure(key: StringName) -> Dictionary:
+	var ck := "figure:" + String(key)
+	if _cache.has(ck):
+		return _cache[ck]
+	var out := {}
+	var sprite := _load(ENEMY_DIR % [key, "sprite"])
+	if sprite != null:
+		out = {"tex": sprite, "region": Rect2(Vector2.ZERO, sprite.get_size()), "sprite": true}
+		_cache[ck] = out
+		return out
+	var tex := _load(ENEMY_DIR % [key, "figure"])
+	if tex != null:
+		var img := tex.get_image()
+		var used := img.get_used_rect() if img != null else Rect2i()
+		if used.size.x > 0 and used.size.y > 0:
+			out = {"tex": tex, "region": Rect2(used)}
+	_cache[ck] = out
+	return out
+
+
+## The player class figure (art/layers/players/<id>/figure.png) and its painted-pixel box, as {tex, region}, or {}.
+static func player_figure(id: StringName) -> Dictionary:
+	var ck := "player:" + String(id)
+	if _cache.has(ck):
+		return _cache[ck]
+	var out := {}
+	var tex := _load(PLAYER_DIR % id)
+	if tex != null:
+		out = {"tex": tex, "region": Rect2(Vector2.ZERO, tex.get_size())}
+	_cache[ck] = out
+	return out
 
 
 ## A full-window painted background (art/layers/screens/<name>/bg.png), or null.
