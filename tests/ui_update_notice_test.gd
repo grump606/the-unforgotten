@@ -5,6 +5,8 @@ extends SceneTree
 
 var test_save := "user://ui_update_notice_test_save_%d.json" % OS.get_process_id()
 
+var test_settings := "user://ui_update_notice_test_settings_%d.json" % OS.get_process_id()
+
 var _failures := 0
 
 
@@ -21,6 +23,7 @@ func _release(tag: Variant) -> PackedByteArray:
 func _make_scene() -> Control:
 	var scene: Control = load("res://run.tscn").instantiate()
 	scene.save_path = test_save
+	scene.settings_path = test_settings
 	root.add_child(scene)
 	return scene
 
@@ -110,6 +113,38 @@ func _initialize() -> void:
 	scene.queue_free()
 	await process_frame
 	RunSave.delete(test_save)
+
+	# The main menu toggle persists the choice (scratch settings file) and stops any request.
+	DirAccess.remove_absolute(test_settings)
+	scene = load("res://run.tscn").instantiate()
+	scene.save_path = test_save
+	scene.settings_path = test_settings
+	root.add_child(scene)
+	await process_frame
+	notice = scene._update_notice
+	var toggle := _find_button(scene.get_node("%Body"), "Check for updates: On")
+	_check(notice.user_enabled and toggle != null, "the menu offers the update toggle, on by default")
+	if toggle != null:
+		notice.handle_response(200, _release("v9.9.9"))
+		toggle.pressed.emit()
+		_check(toggle.text == "Check for updates: Off" and not notice.user_enabled, "pressing the toggle turns it off")
+		_check(not notice.visible, "turning the check off hides a shown notice")
+		_check(not Settings.load_file(test_settings).update_check_enabled, "the off choice is saved")
+		_check(not notice.start() and notice.get_children().all(func(child: Node) -> bool: return not child is HTTPRequest), "no HTTPRequest is created when disabled")
+		_check(_find_button(scene.get_node("%Body"), "New Run") != null and _find_button(scene.get_node("%Body"), "Exit") != null, "New Run and Exit remain")
+	scene.queue_free()
+	await process_frame
+	scene = load("res://run.tscn").instantiate()
+	scene.save_path = test_save
+	scene.settings_path = test_settings
+	root.add_child(scene)
+	await process_frame
+	_check(not scene._update_notice.user_enabled and _find_button(scene.get_node("%Body"), "Check for updates: Off") != null, "the off choice survives a relaunch")
+	_find_button(scene.get_node("%Body"), "Check for updates: Off").pressed.emit()
+	_check(Settings.load_file(test_settings).update_check_enabled and scene._update_notice.user_enabled, "toggling back on is saved")
+	scene.queue_free()
+	await process_frame
+	DirAccess.remove_absolute(test_settings)
 
 	print("FAILURES: %d" % _failures)
 	quit(1 if _failures > 0 else 0)

@@ -520,8 +520,9 @@ func _test_heal() -> void:
 func _test_player_link_removed_when_fight_ends() -> void:
 	var player := Combatant.new("p", 20)
 	var combat := Combat.new(player, _deck(10, _card(1, _dmg(50))), _enemies(1, 30, []))
-	_check(player.changed.get_connections().size() == 1, "player linked to the fight while it runs")
+	_check(player.changed.get_connections().size() == 0, "an unstarted fight holds no link to the player")
 	combat.start()
+	_check(player.changed.get_connections().size() == 1, "player linked to the fight while it runs")
 	combat.play_card(0)
 	_check(player.changed.get_connections().size() == 0, "player link removed when the fight ends")
 

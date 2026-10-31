@@ -192,8 +192,18 @@ func _initialize() -> void:
 	check(hovered_count == 0, "no card stays hovered when the pointer is elsewhere")
 	node._restore_hover(nv[0].get_global_rect().get_center())
 	check(nv[0]._hovered and not nv[1]._hovered, "hover moves to the card now under the pointer")
+	# An end-turn (enemy phase) emits many state_changed signals but renders once.
+	c2.player.hp = c2.player.max_hp
+	var emitted := [0]
+	c2.state_changed.connect(func() -> void: emitted[0] += 1)
+	var refreshes_before: int = node.refresh_count
+	node._on_end_turn_pressed()
+	var refreshes: int = node.refresh_count - refreshes_before
+	check(emitted[0] > 1, "setup: the enemy phase emits several state changes (%d)" % emitted[0])
+	check(refreshes == 1, "an end turn refreshes the screen once, not per mutation (%d refreshes for %d changes)" % [refreshes, emitted[0]])
+	check(node._energy_label.text == "Energy %d/%d" % [c2.energy, Combat.ENERGY_PER_TURN], "the screen shows the final state after the end turn")
 	c2.phase = Combat.Phase.ENEMY_TURN
-	var h := c2.piles.hand.size()
+	var h :=c2.piles.hand.size()
 	key(node, KEY_1)
 	key(node, KEY_E)
 	check(c2.piles.hand.size() == h, "enemy phase ignored")

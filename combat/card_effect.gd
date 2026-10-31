@@ -18,6 +18,9 @@ extends Resource
 ## kill the player: see CardData.hp_cost).
 ## HEAL_PER_HAUNTED: heal `amount` for each living enemy that is Haunted.
 ## DAMAGE_PER_HAUNT: damage equal to the target's Haunt times `amount`.
+## ADDING A KIND: append it to Kind (never reorder), then touch only: is_damage()/reach() and
+## describe() here, the handler in Combat._apply, and Vendor.effect_value. tests/mechanics_tests.gd
+## walks every Kind and fails if any of those is missing.
 enum Kind { DAMAGE, BLOCK, DRAW, EXPOSE, HOLD, DAMAGE_PER_BLOCK, DAMAGE_IF_BLOCK, THORNS, GAIN_ENERGY, DAMAGE_PER_PLAY, HAUNT, LOSE_HP, HEAL_PER_HAUNTED, DAMAGE_PER_HAUNT }
 
 @export var kind: Kind = Kind.DAMAGE
@@ -36,9 +39,24 @@ static func make(effect_kind: Kind, effect_amount: int, effect_bonus: int = 0, e
 	return effect
 
 
+## Who a card effect lands on when played (see reach()).
+enum Reach { SELF, ENEMIES, BOTH }
+
+
 ## True for the kinds that hit a target for `raw_damage`.
 func is_damage() -> bool:
 	return kind in [Kind.DAMAGE, Kind.DAMAGE_PER_BLOCK, Kind.DAMAGE_IF_BLOCK, Kind.DAMAGE_PER_PLAY, Kind.DAMAGE_PER_HAUNT]
+
+
+## Where a played card applies this effect: the card's chosen enemies (ENEMIES), the player
+## (SELF), or both (BOTH: EXPOSE, which on a SELF-targeted card exposes the player and on
+## any other card exposes its targets). Enemy intents ignore this and always act on the player.
+func reach() -> Reach:
+	if is_damage() or kind == Kind.HAUNT:
+		return Reach.ENEMIES
+	if kind == Kind.EXPOSE:
+		return Reach.BOTH
+	return Reach.SELF
 
 
 ## Damage of one hit before Expose and Block (0 for a non-damage kind). Pure, so the

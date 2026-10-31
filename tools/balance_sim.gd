@@ -6,7 +6,7 @@ extends SceneTree
 ## Card choice lives in tools/sim_policy.gd (shared with run_sim.gd). Uses only the
 ## public Combat API and never mutates shared resources.
 
-const PLAYER_START_HP := 40 # keep in sync with battle.gd
+const PLAYER_START_HP: int = preload("res://battle.gd").PLAYER_START_HP # single source: battle.gd
 const TURN_CAP := 50 # a fight still running after this many turns is a stall
 const DEFAULT_FIGHTS := 500
 const DEFAULT_SEED := 1

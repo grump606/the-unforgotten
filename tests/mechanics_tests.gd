@@ -17,6 +17,8 @@ func run() -> int:
 	_test_describe()
 	_test_real_cards()
 	_test_pickpocket_cards()
+	_test_every_kind_is_covered()
+	_test_player_listener_lifecycle()
 	return _failures
 
 
@@ -366,3 +368,69 @@ func _test_pickpocket_cards() -> void:
 	_check(chain.energy == Combat.ENERGY_PER_TURN, "Sleight and Pocket Watch together cost no energy")
 	chain.play_card(chain.piles.hand.find(last_pocket), 0)
 	_check(chain.enemies[0].hp == 100 - (4 + 3 * 2) * 3 / 2, "Last Pocket as the third card on an Exposed target deals (4 + 6) x 1.5 = 15")
+
+
+## Every CardEffect.Kind must have a describe text, a vendor valuation and a Combat handler. Adding a
+## kind without all three fails here, naming the kind.
+func _test_every_kind_is_covered() -> void:
+	for kind_name in CardEffect.Kind.keys():
+		var kind: CardEffect.Kind = CardEffect.Kind[kind_name]
+		var effect := _fx(kind, 2, 5, 3)
+		_check(effect.describe() != "", "describe text exists for %s" % kind_name)
+		_check(Vendor.effect_value(effect) != Vendor.UNVALUED, "vendor valuation exists for %s" % kind_name)
+		_check(effect.reach() in [CardEffect.Reach.SELF, CardEffect.Reach.ENEMIES, CardEffect.Reach.BOTH], "reach exists for %s" % kind_name)
+		# Handler: playing the effect must change something observable.
+		var filler: Array[CardData] = []
+		for i in 12:
+			filler.append(_self_card(0, [_fx(CardEffect.Kind.BLOCK, 1)]))
+		var combat := Combat.new(Combatant.new("p", 40, 30), filler, _enemies(1, 100, []))
+		combat.start()
+		combat.player.gain_block(5)
+		combat.enemies[0].apply_status(Combatant.Status.HAUNTED, 3)
+		var card := _attack_card(0, [effect])
+		combat.piles.hand.append(card)
+		var before := _snapshot(combat)
+		_check(_play(combat, card), "%s card plays" % kind_name)
+		_check(_snapshot(combat) != before, "Combat has a handler for %s" % kind_name)
+		combat.abandon()
+
+
+func _snapshot(combat: Combat) -> Array:
+	var enemy := combat.enemies[0]
+	return [
+		combat.player.hp, combat.player.block, combat.player.hold, combat.player.thorns,
+		combat.energy, combat.piles.hand.size(),
+		combat.player.status_turns(Combatant.Status.EXPOSED),
+		enemy.hp, enemy.block, enemy.status_turns(Combatant.Status.HAUNTED), enemy.status_turns(Combatant.Status.EXPOSED),
+	]
+
+
+## The player link is made by start() and removed on every way a fight can finish, so a fight that
+## is built and dropped (or abandoned before starting) leaves the long-lived player untouched.
+func _test_player_listener_lifecycle() -> void:
+	var player := Combatant.new("p", 40)
+	var deck: Array[CardData] = [_self_card(0, [_fx(CardEffect.Kind.BLOCK, 1)])]
+	var base := player.changed.get_connections().size()
+	var unstarted := Combat.new(player, deck, _enemies(1, 10, []))
+	_check(player.changed.get_connections().size() == base, "an unstarted Combat leaves no listener on the player")
+	unstarted.abandon()
+	_check(unstarted.phase == Combat.Phase.ENDED and player.changed.get_connections().size() == base, "abandon() before start is safe and leaves no listener")
+	var started := Combat.new(player, deck, _enemies(1, 10, []))
+	started.start()
+	_check(player.changed.get_connections().size() == base + 1, "start() connects exactly one listener")
+	var emitted := [0]
+	started.state_changed.connect(func() -> void: emitted[0] += 1)
+	player.gain_block(1)
+	_check(emitted[0] > 0, "a started Combat forwards player changes to state_changed")
+	started.abandon()
+	_check(player.changed.get_connections().size() == base, "abandon() after start removes the listener")
+	started.abandon()
+	var ended := Combat.new(player, [_attack_card(0, [_fx(CardEffect.Kind.DAMAGE, 9)])], _enemies(1, 5, []))
+	ended.start()
+	_check(ended.play_card(0, 0) and ended.phase == Combat.Phase.ENDED, "the fight ends on lethal damage")
+	_check(player.changed.get_connections().size() == base, "a fight that ends normally removes its listener")
+	ended.abandon()
+	var before_start := Combat.new(player, deck, _enemies(1, 10, []))
+	before_start.abandon()
+	before_start.start()
+	_check(before_start.phase == Combat.Phase.ENDED and player.changed.get_connections().size() == base, "start() after abandon() is refused and connects nothing")

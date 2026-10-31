@@ -76,10 +76,14 @@ var stop_index: int = 0
 var finished: bool = false
 ## Only meaningful when `finished`: true if the player reached the last stop alive.
 var escaped: bool = false
-## Earned by winning fights (Vendor.gold_for_win), spent at VENDOR stops. The
-## vendor tracks gold during a visit; the purchase methods below copy it back so
-## this is always current.
-var gold: int = 0
+## Earned by winning fights (Vendor.gold_for_win), spent at VENDOR stops. Stored in `_wallet`,
+## which the visit's Vendor spends from directly, so this is always current.
+var gold: int:
+	get:
+		return _wallet.gold
+	set(value):
+		_wallet.gold = value
+var _wallet := Vendor.Wallet.new()
 ## Ids of every card shown at a card reward so far this run; later rewards avoid them
 ## (see _roll_rewards). Saved with the run.
 var offered_ids: Array[StringName] = []
@@ -291,48 +295,40 @@ func vendor() -> Vendor:
 	if stop == null or stop.type != StopType.VENDOR:
 		return null
 	if _vendor == null:
-		_vendor = Vendor.new(deck, _rng, gold, StarterContent.reward_pool(character.id), _unowned_relics())
+		_vendor = Vendor.new(deck, _rng, 0, StarterContent.reward_pool(character.id), _unowned_relics(), _wallet)
 	return _vendor
 
 
-## Vendor purchases: RunState owns gold, so each pushes the run's gold into the
-## Vendor before acting and copies it back after. A failed purchase changes
-## nothing; when not at a vendor stop they fail.
+## Vendor purchases: the Vendor spends from the run's wallet, so `gold` is always current. A
+## failed purchase changes nothing; when not at a vendor stop they fail.
 func vendor_buy_card(offer_index: int) -> Vendor.Result:
-	var v := _vendor_with_run_gold()
+	var v := vendor()
 	if v == null:
 		return Vendor.Result.fail("not at a vendor")
-	var result := v.buy_card(offer_index)
-	gold = v.gold
-	return result
+	return v.buy_card(offer_index)
 
 
 func vendor_remove_card(deck_index: int) -> Vendor.Result:
-	var v := _vendor_with_run_gold()
+	var v := vendor()
 	if v == null:
 		return Vendor.Result.fail("not at a vendor")
-	var result := v.remove_card(deck_index)
-	gold = v.gold
-	return result
+	return v.remove_card(deck_index)
 
 
 func vendor_buy_heal() -> Vendor.Result:
-	var v := _vendor_with_run_gold()
+	var v := vendor()
 	if v == null:
 		return Vendor.Result.fail("not at a vendor")
-	var result := v.buy_heal(player)
-	gold = v.gold
-	return result
+	return v.buy_heal(player)
 
 
 ## Buys the visit's relic: it joins `relics` and a MAX_HP relic raises the player's max HP
 ## (once, here; a restored save already holds the raised max HP).
 func vendor_buy_relic() -> Vendor.Result:
-	var v := _vendor_with_run_gold()
+	var v := vendor()
 	if v == null:
 		return Vendor.Result.fail("not at a vendor")
 	var result := v.buy_relic(player)
-	gold = v.gold
 	if result.ok:
 		relics.append(result.relic)
 	return result
@@ -354,13 +350,6 @@ func _unowned_relics() -> Array[RelicData]:
 		if not relics.has(relic):
 			left.append(relic)
 	return left
-
-
-func _vendor_with_run_gold() -> Vendor:
-	var v := vendor()
-	if v != null:
-		v.gold = gold
-	return v
 
 
 func _advance() -> void:

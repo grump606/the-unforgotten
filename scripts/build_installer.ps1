@@ -1,5 +1,5 @@
 # Exports the Windows build and wraps it in an Inno Setup installer.
-# Output: build/CardBattlePrototype-Setup-<version>.exe
+# Output: build/CardBattlePrototype-Setup-<version>.exe and build/CardBattlePrototype-Setup-<version>.exe.sha256
 # Needs the Godot 4.7.2 export templates and Inno Setup 6 (see docs/INSTALLER.md).
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -30,4 +30,12 @@ if ($LASTEXITCODE -ne 0 -or -not (Test-Path $exe)) { throw 'Godot export failed'
 & $iscc "/DAppVersion=$version" 'installer\setup.iss'
 if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compile failed' }
 
-Get-Item "build\CardBattlePrototype-Setup-$version.exe" | Select-Object Name, Length
+$setup = Join-Path $root "build\CardBattlePrototype-Setup-$version.exe"
+if (-not (Test-Path $setup)) { throw "Installer not found: $setup" }
+# Standard "<hash>  <filename>" format (two spaces), readable by sha256sum -c; ASCII, no BOM.
+$hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $setup).Hash.ToLowerInvariant()
+$sumFile = "$setup.sha256"
+[System.IO.File]::WriteAllText($sumFile, "$hash  $(Split-Path -Leaf $setup)`n", (New-Object System.Text.UTF8Encoding($false)))
+Write-Host "SHA-256 $hash"
+
+Get-Item $setup, $sumFile | Select-Object Name, Length

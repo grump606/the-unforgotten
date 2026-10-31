@@ -540,19 +540,41 @@ func _test_vendor_gold_and_stale_state() -> void:
 	state.gold = 100  # changed after the vendor already exists
 	var bought := state.vendor_buy_card(0)
 	_check(bought.ok and state.gold == 100 - bought.spent, "gold changed while a vendor exists is honoured, not overwritten")
+	_check(vendor.gold == state.gold, "one source of truth: the vendor's gold is the run's gold after a purchase")
+	state.gold = 7  # below every price: each purchase must be refused and change nothing
+	_check(vendor.gold == 7, "setting the run's gold is seen by the existing vendor at once")
+	var deck_snapshot := state.deck.duplicate()
+	var hp_before := state.player.hp
+	state.player.hp = maxi(1, state.player.max_hp - 5)
+	var hp_hurt := state.player.hp
+	var relics_before := state.relics.size()
+	var refused := [state.vendor_buy_card(1), state.vendor_remove_card(0), state.vendor_buy_heal(), state.vendor_buy_relic()]
+	for r in refused:
+		_check(not r.ok and r.spent == 0, "a purchase without gold is refused")
+	_check(state.gold == 7 and vendor.gold == 7 and state.deck == deck_snapshot and state.player.hp == hp_hurt and state.relics.size() == relics_before, "failed purchases change nothing (gold, deck, HP, relics)")
+	state.player.hp = hp_before
+	vendor.gold = 3  # writing through the vendor is writing the run's gold
+	_check(state.gold == 3, "the run's gold follows the vendor's")
 	state.leave_vendor()
 	_check(state.vendor() == null, "the vendor is gone after leaving")
+	_check(state.gold == 3, "leaving the vendor keeps the gold")
 	_check(vendor != null and state.stop_index == 6, "setup: moved past the vendor stop")
 
 
 func _test_start_combat_twice_releases_first() -> void:
 	var state := _at_first_fight(27)
 	var first := state.start_combat()
+	_check(state.player.changed.get_connections().is_empty(), "an unstarted fight holds no link to the player")
+	first.start()
+	_check(state.player.changed.get_connections().size() == 1, "setup: the started fight is linked to the player")
 	var second := state.start_combat()
 	_check(first != null and second != null and first != second, "asking again builds a new fight")
 	_check(first.phase == Combat.Phase.ENDED, "the previous fight is abandoned")
-	_check(state.player.changed.get_connections().size() == 1, "only the current fight stays linked to the player")
+	_check(state.player.changed.get_connections().is_empty(), "the abandoned fight released its link and the new one is not started yet")
+	second.start()
+	_check(state.player.changed.get_connections().size() == 1, "only the current started fight stays linked to the player")
 	second.abandon()
+	_check(state.player.changed.get_connections().is_empty(), "abandoning the current fight releases the link")
 
 
 func _test_rewards_rolled_eagerly_and_copied() -> void:

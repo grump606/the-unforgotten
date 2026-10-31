@@ -50,7 +50,7 @@ Every phase ends with `scripts/check.ps1` passing and a commit. Combat mechanics
 - New `Character` resource: id, display name, max HP, starting deck as card ids, story set.
 - `StarterContent.character(id)`, `reward_pool(character)` (class plus neutral), a class-weighted reward draw.
 - `RunState.new(seed, character_id)` with a default so existing tests keep working; `Vendor` takes the class pool.
-- `RunSave` version 2 stores `character`; version 1 is rejected with a message.
+- `RunSave` version 2 stored `character`; version 1 is rejected with a message (the current version is 3, and version 2 saves are migrated on load).
 - Characters are built from existing cards only: Deserter and Pickpocket get theirs, the Medium temporarily gets a neutral-only deck.
 - Done when: all three characters start a run, rewards and vendor stock show only that class plus neutral, save and resume round-trips the character.
 

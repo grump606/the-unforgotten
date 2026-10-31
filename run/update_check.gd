@@ -21,10 +21,11 @@ const TAG_PATTERN := "^[vV]?[0-9]{1,4}(\\.[0-9]{1,4}){0,3}\\z"
 static var _tag_regex: RegEx
 
 
-## Whether this launch should ask GitHub: not in a headless run (tests, CI, the sims) and not when
-## the opt-out variable is set to anything. The arguments are passed in so tests can vary them.
-static func check_enabled(display_name: String, disable_env_value: String) -> bool:
-	return display_name != "headless" and disable_env_value == ""
+## Whether this launch should ask GitHub: not in a headless run (tests, CI, the sims), not when
+## the opt-out variable is set to anything, and not when the player turned it off in the main
+## menu (Settings.update_check_enabled). The arguments are passed in so tests can vary them.
+static func check_enabled(display_name: String, disable_env_value: String, setting_enabled := true) -> bool:
+	return display_name != "headless" and disable_env_value == "" and setting_enabled
 
 
 ## True when `tag` is a plain version ("v0.3.1", "0.4", "V2"), and nothing else.

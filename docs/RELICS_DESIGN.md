@@ -49,7 +49,7 @@ Prices and amounts are placeholders for tuning.
 - `Combat.create(...)` takes an optional trailing `relics: Array[RelicData] = []`; the combat hooks above live in `Combat` so the pure rules stay testable. Passing none behaves exactly as today.
 - `RunState.relics: Array[RelicData]`. Acquire effects (MAX_HP) are applied once on purchase; WIN_GOLD and WIN_HEAL are applied in `complete_combat`.
 - `Vendor` stocks one relic offer per visit from `relic_pool(character)` minus relics already owned (none if the pool is exhausted), priced by `RelicData.price`. `buy_relic()` follows the card rules: a failed purchase changes nothing; gold never goes negative. RunState wraps it as `vendor_buy_relic()`.
-- Save: `RunSave` stores relic ids under `"relics"` (VERSION stays 2, field optional, unknown or duplicate ids rejected). The stop-line signature is unchanged. A restored MAX_HP is already in the saved player max HP, so it must not be applied twice.
+- Save: `RunSave` stores relic ids under `"relics"` (added at save version 2; required since version 3, which migrates older saves, unknown or duplicate ids rejected). The stop-line signature is unchanged. A restored MAX_HP is already in the saved player max HP, so it must not be applied twice.
 
 ## UI (second step)
 

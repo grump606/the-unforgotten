@@ -8,7 +8,9 @@ The game contacts `api.github.com` once per launch: a single HTTPS `GET https://
 
 ## Turning it off
 
-Set the environment variable `CARD_BATTLE_NO_UPDATE_CHECK` to any non-empty value before launching, for example `$env:CARD_BATTLE_NO_UPDATE_CHECK = "1"`. The check is also skipped on its own in headless runs (tests, CI, the sims), so those never touch the network.
+In the game: the main menu has a **Check for updates: On/Off** button. It is saved in `user://settings.json` as `{"update_check_enabled": false}` and applies from then on. Turning it off cancels any request in flight and hides a notice already shown; no request is made at all while it is off. Turning it on asks GitHub right away. It defaults to on. The settings file is treated as untrusted: it is capped at 4 KB and the value must be a real boolean, otherwise the default (on) is used, with no error.
+
+From outside the game: set the environment variable `CARD_BATTLE_NO_UPDATE_CHECK` to any non-empty value before launching, for example `$env:CARD_BATTLE_NO_UPDATE_CHECK = "1"`. The check is also skipped on its own in headless runs (tests, CI, the sims), so those never touch the network. The variable and headless always win: the check runs only if none of the three says no.
 
 ## Behaviour and safety
 
@@ -24,4 +26,5 @@ The running version is `application/config/version` in `project.godot`. Versions
 
 - `run/update_check.gd` (`UpdateCheck`): the pure logic (enable rules, tag validation, version compare, reply parsing, notice text).
 - `run/update_notice.gd` (`UpdateNotice`): the bar and the `HTTPRequest`. `handle_response(code, body)` takes a reply directly, which is how tests and `tools/update_sheet.gd` (screenshots) work without a network.
-- Tests: `tests/update_check_tests.gd` (in `run_tests.gd`) and `tests/ui_update_notice_test.gd` (`scripts/check.ps1`).
+- `run/settings.gd` (`Settings`): load/save of `user://settings.json`. `run.gd` reads it at launch (`settings_path`, which tests point at a scratch file) and the menu toggle writes it.
+- Tests: `tests/update_check_tests.gd` (in `run_tests.gd`; it also runs `tests/settings_tests.gd`) and `tests/ui_update_notice_test.gd` (`scripts/check.ps1`).

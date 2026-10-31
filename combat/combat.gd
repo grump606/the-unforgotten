@@ -69,7 +69,6 @@ func _init(player_combatant: Combatant, deck: Array[CardData], enemy_datas: Arra
 	# The player outlives fights; statuses must not.
 	player.clear_statuses()
 	piles = CardPiles.new(deck, rng)
-	player.changed.connect(_player_changed_link)
 	for enemy_data in enemy_datas:
 		var enemy := EnemyUnit.new(enemy_data)
 		enemy.changed.connect(state_changed.emit)
@@ -82,6 +81,9 @@ func start() -> void:
 		# ended or abandoned fight.
 		push_error("Combat.start: the fight was already started or has ended")
 		return
+	# Connected here, not in _init, so a fight that is built and never started holds no listener.
+	if not player.changed.is_connected(_player_changed_link):
+		player.changed.connect(_player_changed_link)
 	_begin_player_turn()
 
 
@@ -92,9 +94,15 @@ func abandon() -> void:
 	if phase == Phase.ENDED:
 		return
 	phase = Phase.ENDED
-	player.changed.disconnect(_player_changed_link)
+	_disconnect_player()
 	player.clear_block()
 	player.clear_statuses()
+
+
+## Safe in every state: an unstarted fight never connected, and an ended one already disconnected.
+func _disconnect_player() -> void:
+	if player.changed.is_connected(_player_changed_link):
+		player.changed.disconnect(_player_changed_link)
 
 
 func living_enemies() -> Array[EnemyUnit]:
@@ -138,18 +146,13 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 	energy -= card.cost
 	plays_this_turn += 1
 	for effect in card.effects:
-		match effect.kind:
-			CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.HAUNT, CardEffect.Kind.DAMAGE_PER_HAUNT:
-				for target in targets:
-					_apply(effect, player, target)
-			CardEffect.Kind.EXPOSE:
-				# SELF cards expose the player; others expose their targets.
-				if mode == CardData.TargetMode.SELF:
-					_apply(effect, player, player)
-				for target in targets:
-					_apply(effect, player, target)
-			_:
-				_apply(effect, player, player)
+		var reach := effect.reach()
+		# SELF cards expose the player; other EXPOSE cards expose their targets.
+		if reach == CardEffect.Reach.SELF or (reach == CardEffect.Reach.BOTH and mode == CardData.TargetMode.SELF):
+			_apply(effect, player, player)
+		if reach != CardEffect.Reach.SELF:
+			for target in targets:
+				_apply(effect, player, target)
 	if not relics.is_empty():
 		_apply_play_relics()
 	card_played.emit(card, targets)
@@ -262,15 +265,14 @@ func _apply_turn_start_relics() -> void:
 ## An enemy intent with EXPOSE exposes the player; see `_pending_player_expose`
 ## for when it takes effect.
 func _apply(effect: CardEffect, source: Combatant, target: Combatant) -> void:
+	if effect.is_damage():
+		# plays_this_turn already counts the card being played.
+		target.take_damage(effect.raw_damage(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_this_turn))
+		# Thorns: an enemy attack on the player also hurts the attacker.
+		if effect.kind == CardEffect.Kind.DAMAGE and target == player and source != player and player.thorns > 0:
+			source.take_damage(player.thorns)
+		return
 	match effect.kind:
-		CardEffect.Kind.DAMAGE:
-			target.take_damage(effect.amount)
-			# Thorns: an enemy attack on the player also hurts the attacker.
-			if target == player and source != player and player.thorns > 0:
-				source.take_damage(player.thorns)
-		CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT:
-			# plays_this_turn already counts the card being played.
-			target.take_damage(effect.raw_damage(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_this_turn))
 		CardEffect.Kind.HOLD:
 			source.add_hold(effect.amount)
 		CardEffect.Kind.THORNS:
@@ -297,6 +299,8 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant) -> void:
 				target.apply_status(Combatant.Status.EXPOSED, effect.amount)
 			elif target == player:
 				_pending_player_expose += maxi(effect.amount, 0)
+		_:
+			push_error("Combat._apply: no handler for CardEffect kind %d" % effect.kind)
 
 
 func _check_end() -> bool:
@@ -314,5 +318,5 @@ func _check_end() -> bool:
 	player.clear_statuses()
 	state_changed.emit()
 	combat_ended.emit(victory)
-	player.changed.disconnect(_player_changed_link)
+	_disconnect_player()
 	return true

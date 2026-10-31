@@ -21,6 +21,7 @@ func run() -> int:
 	_test_notice_text()
 	_test_check_enabled()
 	_test_fixed_urls()
+	_failures += load("res://tests/settings_tests.gd").new().run()
 	return _failures
 
 
@@ -96,6 +97,9 @@ func _test_check_enabled() -> void:
 	_check(not UpdateCheck.check_enabled("windows", "1"), "the opt-out variable disables the check")
 	_check(not UpdateCheck.check_enabled("windows", "anything"), "any value of the opt-out variable disables it")
 	_check(not UpdateCheck.check_enabled("headless", "1"), "headless and opted out is still off")
+	_check(UpdateCheck.check_enabled("windows", "", true), "the setting on still checks")
+	_check(not UpdateCheck.check_enabled("windows", "", false), "the saved setting off disables the check")
+	_check(not UpdateCheck.check_enabled("headless", "", true) and not UpdateCheck.check_enabled("windows", "1", true), "headless and the env var win over an on setting")
 
 
 func _test_fixed_urls() -> void:

@@ -11,6 +11,8 @@ signal changed
 var current_version: String = str(ProjectSettings.get_setting("application/config/version", ""))
 ## What Download does with the fixed releases URL; tests replace it so no browser opens.
 var open_url: Callable = func(url: String) -> void: OS.shell_open(url)
+## The player's saved choice (Settings.update_check_enabled); false means no request is ever made.
+var user_enabled := true
 ## Print why a check ended without a notice (debug only; normal play stays quiet).
 var debug := false
 
@@ -71,7 +73,7 @@ func _init() -> void:
 ## Starts the one request, unless this launch is not meant to check (headless, or the opt-out
 ## variable is set). Returns whether a request is now in flight.
 func start() -> bool:
-	if _request != null or not UpdateCheck.check_enabled(DisplayServer.get_name(), OS.get_environment(UpdateCheck.DISABLE_ENV)):
+	if _request != null or not UpdateCheck.check_enabled(DisplayServer.get_name(), OS.get_environment(UpdateCheck.DISABLE_ENV), user_enabled):
 		return false
 	_request = HTTPRequest.new()
 	_request.body_size_limit = UpdateCheck.MAX_BODY_BYTES
@@ -86,6 +88,13 @@ func start() -> bool:
 		_finish_request("request could not start")
 		return false
 	return true
+
+
+## Cancels any request in flight and hides a notice already shown (the player turned the check off).
+func stop() -> void:
+	_finish_request("stopped")
+	latest_tag = ""
+	_refresh()
 
 
 ## Whether the screen showing now is one where the notice belongs; it shows only when allowed.

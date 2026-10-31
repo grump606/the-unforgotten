@@ -95,14 +95,9 @@ const TRIO_EXCLUDED_PATHS: Array[String] = [LOST_SHADE_PATH]
 ## 1 + RAMP_PER_FIGHT * fight, where `fight` is the 0-based number of the regular fight on the line
 ## (bosses are hand-tuned and never ramped). Block and statuses are not scaled.
 const RAMP_PER_FIGHT := 0.012
-## Tier 1 (after the mid-boss) leans on the bigger enemies: a bigger chance of a big-plus-small pair,
-## and a single is drawn from this list (each entry is one equal chance, so repeats weight it).
-## RESERVED: the stop line has no single-enemy fight after the mid-boss (and its shape is pinned by
-## the save signature), so this list is not drawn from today; it is kept for a future act-2 single.
+## Tier 1 (after the mid-boss) leans on the bigger enemies: a bigger chance of a big-plus-small pair
+## (the stop line has no single-enemy fight after the mid-boss, so singles use one pool at every tier).
 const TIER1_BIG_PAIR_CHANCE := 0.2
-const TIER1_SINGLE_PATHS: Array[String] = [
-	WARDEN_PATH, WARDEN_PATH, COLOSSUS_PATH, COLOSSUS_PATH, WHISPERER_PATH, CINDER_HOUND_PATH, MOURNING_CROW_PATH, LOST_SHADE_PATH,
-]
 
 
 ## Card definitions are immutable data, so deck slots of the same card share one instance.
@@ -258,7 +253,7 @@ static func varied_encounter(enemy_count: int, rng: RandomNumberGenerator, tier:
 	var big_pair_chance := TIER1_BIG_PAIR_CHANCE if tier >= 1 else BIG_PAIR_CHANCE
 	match count:
 		1:
-			paths.append(_pick_path(TIER1_SINGLE_PATHS if tier >= 1 else ALL_ENEMY_PATHS, rng))
+			paths.append(_pick_path(ALL_ENEMY_PATHS, rng))
 		2:
 			if rng.randf() < big_pair_chance:
 				paths.append(_pick_path(PAIR_BIG_ENEMY_PATHS, rng))

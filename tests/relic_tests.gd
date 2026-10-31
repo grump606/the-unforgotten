@@ -410,6 +410,7 @@ func _test_save_round_trip() -> void:
 	var restored := RunSave.from_dict(RunSave.to_dict(tough)).run
 	_check(restored != null and restored.player.max_hp == tough.player.max_hp, "restored max HP equals the saved max HP")
 	var old := RunSave.to_dict(RunState.new(3))
+	old["version"] = 2 # v3 requires the relics field; a v2 save without it is migrated
 	old.erase("relics")
 	var legacy := RunSave.from_dict(old)
 	_check(legacy.run != null and legacy.run.relics.is_empty(), "a save without relics loads with none")

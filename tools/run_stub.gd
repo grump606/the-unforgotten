@@ -4,7 +4,7 @@ extends SceneTree
 ## described in docs/RUN_INTEGRATION.md. Uses only the public Combat API.
 ## Run: godot --headless --path . -s res://tools/run_stub.gd -- --seed 1
 
-const PLAYER_START_HP := 40
+const PLAYER_START_HP: int = preload("res://battle.gd").PLAYER_START_HP # single source: battle.gd
 const REST_HEAL := 8
 const TURN_CAP := 50 # a fight still running after this many turns is a stall (treated as a loss)
 const USAGE := "Usage: godot --headless --path . -s res://tools/run_stub.gd -- [--seed S]\n  --seed S    run seed, integer (default 1)"

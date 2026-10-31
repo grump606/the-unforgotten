@@ -7,10 +7,18 @@ const BUTTON_WIDTH := 220.0
 var continue_button: Button
 var new_run_button: Button
 var exit_button: Button
+var updates_button: Button
+
+
+## The label of the update-check toggle for the current setting.
+static func update_toggle_text(enabled: bool) -> String:
+	return "Check for updates: %s" % ("On" if enabled else "Off")
 
 
 ## `saved` is the run found on disk, or null. `on_continue` is already bound to it by the caller.
-func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit: Callable) -> void:
+## `on_toggle_updates` (when valid) adds the update-check toggle; it is called on each press and
+## returns the new setting, which the button label then shows.
+func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit: Callable, update_check_on := true, on_toggle_updates := Callable()) -> void:
 	var box := panel("Card Battle Prototype")
 	if saved != null:
 		box.add_child(make_label("Saved run: stop %d/%d, %s, HP %d/%d, Gold %d, Deck %d" % [
@@ -23,4 +31,12 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 		if button != null:
 			button.custom_minimum_size = Vector2(BUTTON_WIDTH, 36)
 			button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	if on_toggle_updates.is_valid():
+		updates_button = Button.new()
+		updates_button.text = update_toggle_text(update_check_on)
+		box.add_child(updates_button)
+		updates_button.tooltip_text = "Whether the game asks GitHub for a newer release at launch"
+		updates_button.custom_minimum_size = Vector2(BUTTON_WIDTH, 30)
+		updates_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		updates_button.pressed.connect(func() -> void: updates_button.text = update_toggle_text(on_toggle_updates.call()))
 	(continue_button if continue_button != null else new_run_button).grab_focus()

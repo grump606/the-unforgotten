@@ -5,8 +5,9 @@ extends RefCounted
 ##
 ## Wiring: `var vendor := Vendor.new(run_deck, run_rng, run_gold)`. The Vendor
 ## MUTATES `run_deck` (the exact array passed in) on buy_card/remove_card, and
-## tracks gold in `vendor.gold`; the caller copies `vendor.gold` back into the run
-## when the visit ends. Every purchase returns a Result (`ok`, `reason`, and what
+## spends gold from a Wallet. Standalone it makes its own from `starting_gold`; a run passes
+## its own wallet, so the run's gold and the vendor's gold are the same number (one owner).
+## Every purchase returns a Result (`ok`, `reason`, and what
 ## changed); a failed purchase changes nothing and gold never goes negative.
 ## Caller bugs (bad index, null player) also push_error; "cannot afford" and
 ## "already sold" are normal outcomes and only return a failed Result.
@@ -31,6 +32,8 @@ const MID_FROM := 6
 const PRICEY_FROM := 12
 ## How much one drawn card adds to a card's value.
 const DRAW_VALUE := 4
+## How much one point of energy gained adds.
+const ENERGY_VALUE := 4
 
 
 ## Gold awarded for winning a fight against `enemy_count` enemies.
@@ -42,20 +45,53 @@ static func gold_for_win(enemy_count: int) -> int:
 	return enemy_count * GOLD_PER_ENEMY + GOLD_WIN_BONUS
 
 
-## Raw strength of a card: damage and block count 1 per point, expose 2 per turn,
-## draw DRAW_VALUE per card (free cycling is the strongest effect, so it prices
-## above plain block), plus 2 per energy of cost.
+## Value of a kind with no valuation; effect_value returns this so the every-kind test can catch it.
+const UNVALUED := -999999
+
+## Raw strength of a card: 2 per energy of cost plus the value of each effect (effect_value).
 static func card_value(card: CardData) -> int:
 	var value := card.cost * 2
 	for effect in card.effects:
-		match effect.kind:
-			CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK:
-				value += effect.amount
-			CardEffect.Kind.EXPOSE:
-				value += effect.amount * 2
-			CardEffect.Kind.DRAW:
-				value += effect.amount * DRAW_VALUE
+		var effect_points := effect_value(effect)
+		if effect_points == UNVALUED:
+			push_error("Vendor.card_value: no valuation for CardEffect kind %d" % effect.kind)
+			continue
+		value += effect_points
 	return value
+
+
+## Deliberate value of one effect, in the same points as damage (1 per point). Scaling
+## kinds assume a typical board: about 5 Block held, a card or two played earlier in the
+## turn, a Haunt of about 4. Every CardEffect.Kind needs a branch here (a test enforces it).
+static func effect_value(effect: CardEffect) -> int:
+	var amount := effect.amount
+	match effect.kind:
+		CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK, CardEffect.Kind.HOLD:
+			return amount
+		CardEffect.Kind.EXPOSE:
+			return amount * 2
+		CardEffect.Kind.DRAW:
+			return amount * DRAW_VALUE
+		CardEffect.Kind.DAMAGE_PER_BLOCK:
+			return amount * 5
+		CardEffect.Kind.DAMAGE_IF_BLOCK:
+			return (amount + effect.bonus) / 2
+		CardEffect.Kind.THORNS:
+			return amount * 2
+		CardEffect.Kind.GAIN_ENERGY:
+			return amount * ENERGY_VALUE
+		CardEffect.Kind.DAMAGE_PER_PLAY:
+			return amount + effect.bonus * 2
+		CardEffect.Kind.HAUNT:
+			# Total damage over its decay: amount + (amount - 1) + ... + 1.
+			return amount * (amount + 1) / 2
+		CardEffect.Kind.LOSE_HP:
+			return -amount
+		CardEffect.Kind.HEAL_PER_HAUNTED:
+			return amount * 2
+		CardEffect.Kind.DAMAGE_PER_HAUNT:
+			return amount * 4
+	return UNVALUED
 
 
 ## The single price rule: value < MID_FROM -> PRICE_CHEAP, value < PRICEY_FROM ->
@@ -87,8 +123,21 @@ class Result extends RefCounted:
 		return result
 
 
-## Remaining gold; never negative.
-var gold: int
+## A single gold balance that can be shared by reference (RunState and its Vendor).
+class Wallet extends RefCounted:
+	var gold := 0
+
+	func _init(starting_gold: int = 0) -> void:
+		gold = starting_gold
+
+
+var _wallet: Wallet
+## Remaining gold (lives in the wallet); never negative.
+var gold: int:
+	get:
+		return _wallet.gold
+	set(value):
+		_wallet.gold = maxi(value, 0)
 var _deck: Array[CardData]
 var _offers: Array[Dictionary] = []  # {card: CardData, price: int, sold: bool}
 var _relic_offer: Dictionary = {}  # {relic: RelicData, price: int, sold: bool}, empty when none is stocked
@@ -99,11 +148,14 @@ var _healed := false
 ## `card_pool` is what the stock is drawn from (a character's pool); empty means every card.
 ## `relic_pool` is the relics that may be offered (the caller leaves out the ones already
 ## owned); one is picked after the card stock, and none is offered when it is empty.
-func _init(deck: Array[CardData], rng: RandomNumberGenerator, starting_gold: int, card_pool: Array[CardData] = [], relic_pool: Array[RelicData] = []) -> void:
+func _init(deck: Array[CardData], rng: RandomNumberGenerator, starting_gold: int, card_pool: Array[CardData] = [], relic_pool: Array[RelicData] = [], wallet: Wallet = null) -> void:
 	_deck = deck
-	if starting_gold < 0:
-		push_error("Vendor: starting gold must be >= 0, got %d" % starting_gold)
-	gold = maxi(starting_gold, 0)
+	if wallet != null:
+		_wallet = wallet  # shared: `starting_gold` is ignored
+	else:
+		if starting_gold < 0:
+			push_error("Vendor: starting gold must be >= 0, got %d" % starting_gold)
+		_wallet = Wallet.new(maxi(starting_gold, 0))
 	if rng == null:
 		push_error("Vendor: rng is required")
 		return

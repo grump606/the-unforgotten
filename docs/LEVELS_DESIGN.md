@@ -53,7 +53,7 @@ Retuned from 108 HP to 96 HP (attacks unchanged at 19 and 13, Block 10, Expose 2
 
 ## Progressive difficulty
 
-1. **Tier-aware pools** (`StarterContent.varied_encounter(count, rng, tier = 0, fight = 0)`): tier 1 raises the chance that a pair is Gate Warden plus a small enemy from 15% to 20% (`TIER1_BIG_PAIR_CHANCE`) and singles draw from `TIER1_SINGLE_PATHS`, which leans on Warden and Colossus. The line has no single-enemy fight in act 2 and its shape is pinned by the save signature, so only the pair chance is exercised today; the singles pool is deliberately kept as reserved (commented as such in `starter_content.gd`) rather than removed, since removing it would touch tests and the draw branch for no gain. The random draws are identical in number and order to tier 0, so seeds stay in step.
+1. **Tier-aware pools** (`StarterContent.varied_encounter(count, rng, tier = 0, fight = 0)`): tier 1 raises the chance that a pair is Gate Warden plus a small enemy from 15% to 20% (`TIER1_BIG_PAIR_CHANCE`). Singles use the same pool at every tier (the line has no single-enemy fight in act 2, and the old reserved tier-1 single list was removed). The random draws are identical in number and order to tier 0, so seeds stay in step.
 2. **Stat ramp**: `StarterContent.ramp_factor(fight) = 1 + 0.012 * fight`, applied by `StarterContent.scaled()` to a regular encounter's max HP and DAMAGE intents, rounded, minimum 1. Block and statuses are not scaled. It builds new `EnemyData` and `CardEffect` objects, so shared resources and the global RNG are untouched. Fight 0 is x1.00, fight 7 is x1.084.
 
 Why such a small ramp: the combat numbers are on breakpoints (a Shove does 6, a Wisp has 16 HP, the small enemies hit for 3 to 9). The sim showed 7 percent per fight (fight 7 at x1.49) took the Deserter's escape rate to 0.2 percent, 3.5 percent to about 45 percent trio loss rates, and even 2 percent per fight (x1.14) pushed the fight-5 trio from 10 to 26 percent loss. Most of the felt difficulty comes from attrition (HP carried across eight fights) and the act-2 pools; the ramp is a gentle nudge on top.
@@ -155,11 +155,11 @@ Result against the goals:
 - Brakeman, greedy: 27 / 21 / 1 percent, about 25 for the Deserter, under for the Pickpocket (was 36 for both).
 - Brakeman, smart: 3.6 / 1.9 / 0.4 percent, BELOW the 8 to 15 target. Not reached on purpose: across every Brakeman shape tried the greedy loss was 3.5 to 7 times the smart loss, so smart at 8 percent meant greedy at 30 to 50. The Medium cannot be raised at all by Brakeman numbers (HP 130, block 28 changed nothing; raising damage to hit 8 percent put the Deserter at 45). The Medium's Haunt and burst kill the Brakeman before its damage matters, and the only Medium-specific lever (lower max HP) would hurt its greedy escape. Needs a class-aware answer (a Brakeman trait that counters Haunt) rather than numbers.
 - Curve: per-stop loss still rises within each act with no cliff; the Conductor is the hardest fight for the Deserter and Medium, and the Pickpocket (as before) breezes through it with the smart bot.
-- The tier-1 single pool stays reserved (see Progressive difficulty).
+- Singles have no tier-1 pool (the reserved list was removed; add one when act 2 gets a single).
 
 ## Saves
 
-`RunSave.line_signature` now records `type:enemy_count:beat:boss:mid_boss:tier` per stop. A save from the old 12-stop line has a different signature and is rejected with "save is from a different stop line", which the game reports as "could not be loaded", rather than pointing `stop_index` at a different stop. The save version stays 2 (the signature is the guard).
+`RunSave.line_signature` now records `type:enemy_count:beat:boss:mid_boss:tier` per stop. A save from the old 12-stop line has a different signature and is rejected with "save is from a different stop line", which the game reports as "could not be loaded", rather than pointing `stop_index` at a different stop. The signature was the guard when the save version was 2 (the version is now 3; see `RunSave.migrate`).
 
 ## Tools
 

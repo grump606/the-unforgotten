@@ -13,6 +13,8 @@ var _run: RunState
 var _header_strip: RelicStrip
 ## Where the in-progress run is saved; tests point this at a scratch file.
 var save_path := RunSave.DEFAULT_PATH
+## Where the player's settings (the update-check opt-out) are kept; tests point this at a scratch file.
+var settings_path := Settings.DEFAULT_PATH
 ## One-off message shown above the header line: a bad save on launch, or a save/delete failure.
 var _notice := ""
 var _notice_shown := false
@@ -44,6 +46,7 @@ func _ready() -> void:
 	_header_row.add_child(_header_strip)
 	_build_pause_menu()
 	_update_notice = UpdateNotice.new()
+	_update_notice.user_enabled = Settings.load_file(settings_path).update_check_enabled
 	add_child(_update_notice)
 	_update_notice.start() # asynchronous and silent on any failure; skipped headless (docs/UPDATE_CHECK.md)
 	_body.resized.connect(_select.recenter)
@@ -71,7 +74,25 @@ func _show_main_menu() -> void:
 	_header.text = prefix + "Main menu"
 	_notice_shown = _notice != ""
 	_main_menu.attach(loaded.run, _body, _show_stop)
-	_main_menu.show(loaded.run, _continue_run.bind(loaded.run), _new_run.bind(_show_main_menu), func() -> void: exit_callable.call())
+	_main_menu.show(loaded.run, _continue_run.bind(loaded.run), _new_run.bind(_show_main_menu), func() -> void: exit_callable.call(),
+		_update_notice.user_enabled, _toggle_update_check)
+
+
+## The main menu's update-check toggle: flips the saved setting and returns the new value. Turning it
+## off cancels any request in flight and hides a shown notice; turning it on asks right away.
+func _toggle_update_check() -> bool:
+	var enabled := not _update_notice.user_enabled
+	_update_notice.user_enabled = enabled
+	var settings := Settings.new()
+	settings.update_check_enabled = enabled
+	var error := settings.save(settings_path)
+	if error != "":
+		push_warning("Could not save settings (%s)." % error)
+	if enabled:
+		_update_notice.start()
+	else:
+		_update_notice.stop()
+	return enabled
 
 
 func _continue_run(saved: RunState) -> void:

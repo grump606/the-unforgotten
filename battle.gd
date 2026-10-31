@@ -44,6 +44,10 @@ var relics: Array[RelicData] = []
 var _combat: Combat
 var _relic_strip: RelicStrip
 var _victory := false
+var _batch_depth := 0
+var _refresh_pending := false
+## Number of full refreshes so far (read by tests to check refreshes are coalesced).
+var refresh_count := 0
 ## Index into Combat.enemies that cards will target.
 var _target_index: int = 0
 ## One view per enemy of the current fight, in Combat.enemies order.
@@ -85,7 +89,7 @@ func _start_combat() -> void:
 ## Shows and starts `combat`, replacing any previous fight on this screen.
 func _attach(combat: Combat) -> void:
 	_combat = combat
-	_combat.state_changed.connect(_refresh)
+	_combat.state_changed.connect(_on_state_changed)
 	_combat.combat_ended.connect(_on_combat_ended)
 	_combat.card_played.connect(_on_card_played)
 	_combat.enemy_acted.connect(_on_enemy_acted)
@@ -95,10 +99,34 @@ func _attach(combat: Combat) -> void:
 	if boss_fight:
 		_log_label.append_text("[b]%s fight[/b]\n" % boss_label)
 	_new_fight_button.hide()
+	_begin_batch()
 	_combat.start()
+	_end_batch()
+
+
+## Combat emits state_changed on every mutation, so one action (a card play, the whole enemy
+## phase) can emit dozens. Inside a batch the refresh is deferred and runs once when the batch
+## ends; outside a batch (tests or code mutating state directly) it stays immediate.
+func _on_state_changed() -> void:
+	if _batch_depth > 0:
+		_refresh_pending = true
+	else:
+		_refresh()
+
+
+func _begin_batch() -> void:
+	_batch_depth += 1
+
+
+func _end_batch() -> void:
+	_batch_depth -= 1
+	if _batch_depth == 0 and _refresh_pending:
+		_refresh()
 
 
 func _refresh() -> void:
+	_refresh_pending = false
+	refresh_count += 1
 	var player := _combat.player
 	_player_label.text = "%s  HP %d/%d  Block %d%s" % [player.display_name, player.hp, player.max_hp, player.block, _status_text(player)]
 	_player_label.tooltip_text = _status_tooltip(player)
@@ -189,7 +217,9 @@ func _discard_node(node: Node) -> void:
 func _play_hand_card(hand_index: int) -> void:
 	if _combat == null:
 		return
+	_begin_batch()
 	_combat.play_card(hand_index, _target_index)
+	_end_batch()
 
 
 func _status_tooltip(combatant: Combatant) -> String:
@@ -280,7 +310,9 @@ func _select_target(index: int) -> void:
 func _on_end_turn_pressed() -> void:
 	if _combat == null:
 		return
+	_begin_batch()
 	_combat.end_player_turn()
+	_end_batch()
 
 
 ## Moves the selection to the next living enemy in `direction` (+1 or -1).
