@@ -10,18 +10,18 @@ extends RefCounted
 ## The maintainer's public key (PEM). Empty until docs/UPDATE_SIGNING.md has been followed.
 ## scripts/build_installer.ps1 reads this constant, so it is the single source.
 const PUBLIC_KEY_PEM := """-----BEGIN PUBLIC KEY-----
-MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAn1LmsIpyg5XQ6vuVQGu1
-4yi3JBSDSfFpu1oyBvTp4xN90Qh0eXQQsDNP/Zgapw4zXuTwyGw5VRz+ph5uQnc4
-lFgChAh1TBF7lWn6006FnBvCCe7EDgJR34mlhO3n3LqHE1Tnae5l0IqKHkj+O4Pz
-89VpJkCi7x7g6S2bvXeCftAsWzunyJvi8x08edx5cQMyazuc/01Y7Fzhn1UrGPWb
-+MEnUC4Xy48pq6nshRC7bDyf55a9c0iCoM/U5OH1V0C+aTnoXUccr7wdeEnf44t0
-CrLBNF5qCLD7LtAM4oGlu1um38Bry9zygXt9brIBOl+FRW9bAxrK4i1FXSyApdnI
-g1VrTZPg/bVLSitT4At53eA6OuVGuIvFAdJhpYnAGr/4zw7NsebIdQC9EfjzpS3s
-Zcc6kVcXfobb4Iitf/oC7TgLDfeDFNCeW7rwF0uHdo7mYsGdBNTh2fK1vCqCbmkN
-nmwO9qSQs9x0LnBf9GW4G3719b/FPh+uiWEajdy2stDRVhi6Gal/EbCj8TVcYy49
-RJr++E9RU9s8JrbJDpBVpcftJug+0XcB4CMeaKgoEg1vD1eWJskYK5XsXrs9737R
-9C1hxbj41MQBQb4CVLsl2ZlgkHAQz3rV4o9+EtsKUuwKUMUNNsonceulHqBlYHDb
-vxe8h7jOmyJNmcY1oXoXXJ8CAwEAAQ==
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAyVjVLMIuVqmrVbfNh61L
+d+L/Hncf2880qSFyvPxtLfgOgWi0Vb+iOPggognR3Ins4HcWJTGS2WUz2zerNtFb
+0ejMmXjXLBkdmmA8/jIYHArjWw6arASzt49tQMsR5RoPdG06byALSSG4cFxeJmZE
+AWUfvpGGhCXmKj2JYPq2rqCB9XrKSWeo3qtuZhSS2ZRR3qBMtP3PxKzRIES5H38E
+HxAHvjotjZ6wJdZMmbHxvwm2IL0LRsoXo40gQvcs1AFvUSl1FL1roMqyncwn3PM/
+rM4SVDooenCBLxEWRjkZuFpaTpkxmGgQL271kpvnih7RSk/AXV6p+8iOdriaEVPY
+kQibRN8DJDpmf0fPeZ+zBBGpFKkfKulzN7TVhminKlLHN//oBuOxw5gUVh5BuReJ
+esnHhKrPgclTXr07dSNe/4oEFfOw/qWKGcXet3IKwkWkrZYf/hDOMKAdtvZ45A71
+HezITBMrmYcz+j+4MKjnlCff+6U6GyKDJktx4D7F+arvCRF2PtNlBZZkttCUc6DW
+rEbwYJ3zwkGsLrG+OSONT44ieQLr+y7U32nDdSxVw1ZRCK0xrT+hCJawVrKHFVXv
+VvYqZM9/Qk31CSK3aP27uy8biFhNDgiWJ6NMUty6F4BNGMm+UD/GvaD2BZUdbPJn
+vWiGXpNxC8I6CjnoSHfqq2ECAwEAAQ==
 -----END PUBLIC KEY-----
 """
 
