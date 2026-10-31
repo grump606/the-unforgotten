@@ -29,63 +29,86 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 16.0
-offset_top = 16.0
+offset_top = 12.0
 offset_right = -16.0
-offset_bottom = -16.0
+offset_bottom = -12.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="EnemyRow" type="HBoxContainer" parent="Layout"]
+[node name="Stage" type="Control" parent="Layout"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 164)
-layout_mode = 2
-theme_override_constants/separation = 14
-alignment = 1
-
-[node name="LogLabel" type="RichTextLabel" parent="Layout"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 120)
+custom_minimum_size = Vector2(0, 290)
 layout_mode = 2
 size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="LogPanel" type="PanelContainer" parent="Layout/Stage"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(300, 150)
+layout_mode = 0
+offset_right = 300.0
+offset_bottom = 150.0
+
+[node name="LogLabel" type="RichTextLabel" parent="Layout/Stage/LogPanel"]
+unique_name_in_owner = true
+layout_mode = 2
 scroll_following = true
 
-[node name="ResultLabel" type="Label" parent="Layout"]
+[node name="ResultLabel" type="Label" parent="Layout/Stage"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 6.0
+offset_bottom = 32.0
+grow_horizontal = 2
+horizontal_alignment = 1
+mouse_filter = 2
+
+[node name="BottomRow" type="HBoxContainer" parent="Layout"]
+custom_minimum_size = Vector2(0, 176)
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="LeftBox" type="VBoxContainer" parent="Layout/BottomRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+alignment = 1
+
+[node name="PileLabel" type="Label" parent="Layout/BottomRow/LeftBox"]
 unique_name_in_owner = true
 layout_mode = 2
 horizontal_alignment = 1
+autowrap_mode = 3
 
-[node name="PlayerRow" type="HBoxContainer" parent="Layout"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="PlayerLabel" type="Label" parent="Layout/PlayerRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 4
-mouse_filter = 0
-
-[node name="EnergyLabel" type="Label" parent="Layout"]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="PileLabel" type="Label" parent="Layout"]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="HandBox" type="HFlowContainer" parent="Layout"]
+[node name="HandBox" type="HFlowContainer" parent="Layout/BottomRow"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 168)
 layout_mode = 2
+size_flags_horizontal = 3
 alignment = 1
 
-[node name="EndTurnButton" type="Button" parent="Layout"]
+[node name="RightBox" type="VBoxContainer" parent="Layout/BottomRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+alignment = 1
+
+[node name="EndTurnButton" type="Button" parent="Layout/BottomRow/RightBox"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 text = "End Turn"
 
-[node name="NewFightButton" type="Button" parent="Layout"]
+[node name="NewFightButton" type="Button" parent="Layout/BottomRow/RightBox"]
 unique_name_in_owner = true
 visible = false
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 text = "New Fight"
+
+[node name="LogButton" type="Button" parent="Layout/BottomRow/RightBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Log"

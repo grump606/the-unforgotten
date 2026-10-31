@@ -11,6 +11,7 @@ var _host: Control
 ## below the header line. `on_play` receives the chosen character id; a valid `back` adds a Back button.
 func show(host: Control, on_play: Callable, back := Callable()) -> void:
 	_host = host
+	add_backdrop(SelectScene.new())
 	_center = CenterContainer.new()
 	body.add_child(_center)
 	var column := VBoxContainer.new()

@@ -13,16 +13,24 @@ const BADGE_SCALE := 0.85
 const EXPOSED_MULTIPLIER_TEXT := "%.1fx" % (float(Combatant.EXPOSED_NUM) / Combatant.EXPOSED_DEN)
 const EXPOSED_TOOLTIP := "Takes " + EXPOSED_MULTIPLIER_TEXT + " damage, rounded down, for %d more turns."
 
+## Gap between enemies on the stage, and the share of the stage width the player stands in.
+const ENEMY_GAP := 16.0
+const PLAYER_X := 0.19
+## The enemies stand in this band of the stage width (as fractions), centered as a group.
+const ENEMY_BAND := Vector2(0.40, 0.98)
+## Seconds between one enemy's attack and the next in the enemy phase.
+const ENEMY_STAGGER := 0.4
+
 @onready var _backdrop: BattleBackdrop = %Backdrop
-@onready var _enemy_row: HBoxContainer = %EnemyRow
-@onready var _player_row: HBoxContainer = %PlayerRow
-@onready var _player_label: Label = %PlayerLabel
-@onready var _energy_label: Label = %EnergyLabel
+@onready var _stage: Control = %Stage
+@onready var _left_box: VBoxContainer = %LeftBox
 @onready var _pile_label: Label = %PileLabel
 @onready var _hand_box: HFlowContainer = %HandBox
 @onready var _end_turn_button: Button = %EndTurnButton
 @onready var _result_label: Label = %ResultLabel
+@onready var _log_panel: PanelContainer = %LogPanel
 @onready var _log_label: RichTextLabel = %LogLabel
+@onready var _log_button: Button = %LogButton
 @onready var _new_fight_button: Button = %NewFightButton
 
 ## Emitted in embedded mode (see external_combat) when the player presses
@@ -50,14 +58,28 @@ var _refresh_pending := false
 var refresh_count := 0
 ## Index into Combat.enemies that cards will target.
 var _target_index: int = 0
-## One view per enemy of the current fight, in Combat.enemies order.
-var _enemy_views: Array[EnemyView] = []
+## One figure per enemy of the current fight, in Combat.enemies order, standing on the stage.
+var _enemy_views: Array[Fighter] = []
+var _player_view: Fighter
+var _energy_orb: EnergyOrb
+## Enemy attacks seen in the current batch; each lunges a little after the previous one.
+var _attacks_this_batch := 0
+## The player's HP when the last enemy attack was handled, so each attack's share of the damage is known.
+var _seen_player_hp := 0
 
 
 func _ready() -> void:
 	_backdrop.set_variant(boss_fight, character_id)
 	_relic_strip = RelicStrip.create(relics, BADGE_SCALE)
-	_player_row.add_child(_relic_strip)
+	_relic_strip.position = Vector2(4, 4)
+	_stage.add_child(_relic_strip)
+	_energy_orb = EnergyOrb.new()
+	_left_box.add_child(_energy_orb)
+	_left_box.move_child(_energy_orb, 0)
+	_stage.resized.connect(_layout_stage)
+	_log_button.pressed.connect(_toggle_log)
+	_log_button.focus_mode = Control.FOCUS_NONE
+	_log_panel.hide()
 	_end_turn_button.pressed.connect(_on_end_turn_pressed)
 	_new_fight_button.pressed.connect(_on_continue_pressed)
 	# Keys are handled in _unhandled_key_input; focusable buttons would let
@@ -115,6 +137,10 @@ func _on_state_changed() -> void:
 
 
 func _begin_batch() -> void:
+	if _batch_depth == 0:
+		_attacks_this_batch = 0
+		if _combat != null:
+			_seen_player_hp = _combat.player.hp
 	_batch_depth += 1
 
 
@@ -127,11 +153,9 @@ func _end_batch() -> void:
 func _refresh() -> void:
 	_refresh_pending = false
 	refresh_count += 1
-	var player := _combat.player
-	_player_label.text = "%s  HP %d/%d  Block %d%s" % [player.display_name, player.hp, player.max_hp, player.block, _status_text(player)]
-	_player_label.tooltip_text = _status_tooltip(player)
-	_energy_label.text = "Energy %d/%d" % [_combat.energy, Combat.ENERGY_PER_TURN]
-	_pile_label.text = "Draw %d | Discard %d" % [_combat.piles.draw_pile.size(), _combat.piles.discard_pile.size()]
+	_sync_player()
+	_energy_orb.set_energy(_combat.energy, Combat.ENERGY_PER_TURN)
+	_pile_label.text = "Draw %d\nDiscard %d" % [_combat.piles.draw_pile.size(), _combat.piles.discard_pile.size()]
 	_keep_target_alive()
 	_sync_enemies()
 	_rebuild_hand()
@@ -147,30 +171,81 @@ func _keep_target_alive() -> void:
 				return
 
 
-## Keeps one EnemyView per enemy of the current fight (so their animations survive a refresh) and
-## updates each from its unit. The row centers them; a dead enemy shows as defeated and cannot be clicked.
+## Keeps the player's figure for the current fight (so its animations survive a refresh) and updates it.
+func _sync_player() -> void:
+	var player := _combat.player
+	if _player_view == null or _player_view.unit != player:
+		if _player_view != null:
+			_discard_node(_player_view)
+		_player_view = Fighter.new()
+		_player_view.set_player(player, character_id)
+		_stage.add_child(_player_view)
+		_layout_stage()
+	_player_view.tooltip_text = "%s\n%s" % [player.display_name, _status_tooltip(player)]
+	_player_view.refresh()
+
+
+## Keeps one Fighter per enemy of the current fight (so their animations survive a refresh) and
+## updates each from its unit. A dead enemy fades out and cannot be clicked.
 func _sync_enemies() -> void:
 	var same := _enemy_views.size() == _combat.enemies.size()
 	if same:
 		for i in _enemy_views.size():
 			same = same and _enemy_views[i].unit == _combat.enemies[i]
 	if not same:
-		for child in _enemy_row.get_children():
-			_discard_node(child)
+		for view in _enemy_views:
+			_discard_node(view)
 		_enemy_views.clear()
 		for i in _combat.enemies.size():
-			var view := EnemyView.new()
+			var view := Fighter.new()
 			view.phase = i * 1.9
 			view.set_enemy(_combat.enemies[i])
 			view.pressed.connect(_select_target.bind(i))
-			_enemy_row.add_child(view)
+			_stage.add_child(view)
 			_enemy_views.append(view)
+		_layout_stage()
 	for i in _enemy_views.size():
 		var enemy := _combat.enemies[i]
 		var view := _enemy_views[i]
 		view.set_targeted(i == _target_index and not enemy.is_dead())
-		view.tooltip_text = "" if enemy.is_dead() else _status_tooltip(enemy)
+		view.tooltip_text = "" if enemy.is_dead() else _enemy_tooltip(enemy)
 		view.refresh()
+
+
+## Stands the player on the left and the enemies in a group on the right, all on one ground line along
+## the bottom of the stage (enemy 0 nearest the player).
+func _layout_stage() -> void:
+	var w := _stage.size.x
+	var h := _stage.size.y
+	if _player_view != null:
+		_player_view.position = Vector2(w * PLAYER_X - _player_view.size.x / 2.0, h - _player_view.size.y)
+	if _enemy_views.is_empty():
+		return
+	var total := ENEMY_GAP * (_enemy_views.size() - 1)
+	for view in _enemy_views:
+		total += view.size.x
+	var band_center := w * (ENEMY_BAND.x + ENEMY_BAND.y) / 2.0
+	var x := minf(band_center - total / 2.0, w - total - 8.0)
+	for view in _enemy_views:
+		view.position = Vector2(x, h - view.size.y)
+		x += view.size.x + ENEMY_GAP
+	_log_panel.position = Vector2(w - _log_panel.size.x, 0)
+
+
+func _toggle_log() -> void:
+	_log_panel.visible = not _log_panel.visible
+
+
+## Tooltip of an enemy: what it will do next, then its statuses.
+func _enemy_tooltip(enemy: EnemyUnit) -> String:
+	var lines: Array[String] = [enemy.display_name]
+	var intent := enemy.current_intent()
+	if intent != null:
+		lines.append("Next: " + intent.describe())
+	var status := _status_tooltip(enemy)
+	if status != "":
+		lines.append(status)
+	return "\n".join(lines)
 
 
 func _rebuild_hand() -> void:
@@ -285,21 +360,6 @@ func _damage_preview(card: CardData) -> String:
 	return text
 
 
-func _status_text(combatant: Combatant) -> String:
-	var text := ""
-	var exposed := combatant.status_turns(Combatant.Status.EXPOSED)
-	if exposed > 0:
-		text += "  Exposed %d" % exposed
-	var haunted := combatant.status_turns(Combatant.Status.HAUNTED)
-	if haunted > 0:
-		text += "  Haunt %d" % haunted
-	if combatant.hold > 0:
-		text += "  Hold %d" % combatant.hold
-	if combatant.thorns > 0:
-		text += "  Thorns %d" % combatant.thorns
-	return text
-
-
 func _select_target(index: int) -> void:
 	if _combat == null or index < 0 or index >= _combat.enemies.size() or _combat.enemies[index].is_dead():
 		return
@@ -372,6 +432,13 @@ func _on_combat_ended(victory: bool) -> void:
 
 
 func _on_card_played(card: CardData, targets: Array[EnemyUnit]) -> void:
+	if _player_view != null and not targets.is_empty() and card.effects.any(func(e: CardEffect) -> bool: return e.is_damage()):
+		_player_view.play_attack()
+		# The hit lands at the top of the lunge, not the moment the card is played.
+		for target in targets:
+			var at := _combat.enemies.find(target)
+			if at >= 0 and at < _enemy_views.size():
+				_enemy_views[at].react_delay = Fighter.LUNGE_TIME * 0.5
 	if targets.is_empty():
 		_log_label.append_text("Played %s\n" % card.display_name)
 		return
@@ -385,7 +452,13 @@ func _on_enemy_acted(enemy: EnemyUnit, intent: CardEffect) -> void:
 	_log_label.append_text("%s: %s\n" % [enemy.display_name, intent.describe()])
 	var index := _combat.enemies.find(enemy)
 	if intent.is_damage() and index >= 0 and index < _enemy_views.size():
-		_enemy_views[index].play_attack()
+		var delay := _attacks_this_batch * ENEMY_STAGGER
+		_enemy_views[index].play_attack(delay)
+		_attacks_this_batch += 1
+		# The player flinches when this attack's lunge peaks, not all at once at the end of the phase.
+		if _player_view != null:
+			_player_view.schedule_hit(maxi(_seen_player_hp - _combat.player.hp, 0), delay + Fighter.LUNGE_TIME * 0.5)
+	_seen_player_hp = _combat.player.hp
 
 
 ## Re-applies the hover look to the hand card under the pointer after a rebuild (the new views

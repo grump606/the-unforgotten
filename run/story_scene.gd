@@ -34,17 +34,23 @@ func mood() -> StringName:
 
 func _draw_scene(w: float, h: float) -> void:
 	var win := Rect2(0, BAR, w, h - 2.0 * BAR)
-	match mood():
-		&"boarding":
-			_draw_boarding(win)
-		&"conductor":
-			_draw_conductor(win)
-		&"platform":
-			_draw_platform(win)
-		&"last_light":
-			_draw_last_light(win)
-		_:
-			_draw_generic(win)
+	var mood_name := mood()
+	var key := &"story_generic" if mood_name == &"tunnel" else StringName("story_" + String(mood_name))
+	if _draw_painted_bg(key, win, 1.08, 0.4):
+		if mood_name == &"conductor":
+			_draw_conductor_figure(win)
+	else:
+		match mood_name:
+			&"boarding":
+				_draw_boarding(win)
+			&"conductor":
+				_draw_conductor(win)
+			&"platform":
+				_draw_platform(win)
+			&"last_light":
+				_draw_last_light(win)
+			_:
+				_draw_generic(win)
 	# The letterbox bars cover anything that spilled over the window.
 	draw_rect(Rect2(0, 0, w, BAR), Color.BLACK)
 	draw_rect(Rect2(0, h - BAR, w, BAR), Color.BLACK)
@@ -154,7 +160,12 @@ func _draw_conductor(win: Rect2) -> void:
 			draw_rect(Rect2(x - wd * 0.5, floor_y - ht, wd, 4.0 + 3.0 * s), Color(AMBER, 0.12))
 	_draw_lantern(Vector2(win.size.x * 0.2, win.position.y), 40.0, 1, 0.8, 0.8)
 	_draw_lantern(Vector2(win.size.x * 0.8, win.position.y), 40.0, 2, 0.8, 0.8)
-	# The Conductor in his own pool of light, baton swinging time, with drifting tickets.
+	_draw_conductor_figure(win)
+
+
+## The Conductor (also drawn over the painted carriage) in his own pool of light, baton swinging time,
+## with drifting tickets.
+func _draw_conductor_figure(win: Rect2) -> void:
 	var feet := Vector2(win.size.x * 0.83, win.end.y - 18.0)
 	_halo(feet + Vector2(0, -90), 190.0, AMBER, 0.02 * flicker(2), 0.8)
 	# The same figure as his enemy portrait, mirrored to face the card and raised to the aisle's scale.

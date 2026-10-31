@@ -28,7 +28,12 @@ func lamp_level() -> float:
 
 
 func _draw_scene(w: float, h: float) -> void:
-	if escaped:
+	var painted := _draw_painted_bg(&"end_escape" if escaped else &"end_defeat", Rect2(0, 0, w, h), 1.1, 0.5)
+	if painted:
+		if not escaped:
+			# The lamp going out darkens the picture, as it did the code-drawn scene.
+			draw_rect(Rect2(0, 0, w, h), Color(0.01, 0.01, 0.02, 0.55 * (1.0 - lamp_level())))
+	elif escaped:
 		_draw_escape(w, h)
 	else:
 		_draw_defeat(w, h)

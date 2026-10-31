@@ -19,7 +19,13 @@ static func update_toggle_text(enabled: bool) -> String:
 ## `on_toggle_updates` (when valid) adds the update-check toggle; it is called on each press and
 ## returns the new setting, which the button label then shows.
 func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit: Callable, update_check_on := true, on_toggle_updates := Callable()) -> void:
+	add_backdrop(MenuScene.new())
 	var box := panel("Card Battle Prototype")
+	var title := box.get_child(0) as Label
+	title.add_theme_font_size_override("font_size", 40)
+	title.add_theme_color_override("font_color", Color(1.0, 0.86, 0.6))
+	title.add_theme_color_override("font_outline_color", Color(0.02, 0.01, 0.02, 0.9))
+	title.add_theme_constant_override("outline_size", 8)
 	if saved != null:
 		box.add_child(make_label("Saved run: stop %d/%d, %s, HP %d/%d, Gold %d, Deck %d" % [
 			saved.stop_index + 1, saved.stops.size(), saved.player.display_name, saved.player.hp, saved.player.max_hp, saved.gold, saved.deck.size(),

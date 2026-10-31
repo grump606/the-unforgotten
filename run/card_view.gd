@@ -94,11 +94,16 @@ var clickable := false:
 		_update_mouse_filter()
 
 var _hovered := false
+var _tilt := Vector2.ZERO
 var _font: Font = ThemeDB.fallback_font
+
+const TILT_SHADER := preload("res://art/fx/card_tilt.gdshader")
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	set_process(false)
 	_update_size()
 
 
@@ -226,7 +231,32 @@ func set_hovered(inside: bool) -> void:
 func _on_hover(inside: bool) -> void:
 	if auto_hover:
 		_hovered = inside
+		if inside:
+			set_process(true)
 		queue_redraw()
+
+
+## Eases the card toward the pointer while hovered (perspective tilt with a moving sheen, see
+## art/fx/card_tilt.gdshader) and back to flat afterwards; stops processing once it is flat again.
+func _process(delta: float) -> void:
+	var goal := Vector2.ZERO
+	if _hovered and state != State.UNPLAYABLE and size.x > 0.0 and size.y > 0.0:
+		var mouse := get_local_mouse_position()
+		if Rect2(Vector2.ZERO, size).has_point(mouse):
+			goal = ((mouse / size) - Vector2(0.5, 0.5)) * 2.0
+	_tilt = _tilt.lerp(goal, 1.0 - exp(-14.0 * delta))
+	if goal == Vector2.ZERO and _tilt.length() < 0.01:
+		_tilt = Vector2.ZERO
+		material = null
+		set_process(false)
+		return
+	if material == null:
+		var mat := ShaderMaterial.new()
+		mat.shader = TILT_SHADER
+		material = mat
+	var sm := material as ShaderMaterial
+	sm.set_shader_parameter("tilt", _tilt)
+	sm.set_shader_parameter("size_px", size)
 
 
 func _raised() -> bool:
@@ -276,8 +306,12 @@ func _draw() -> void:
 	# Art window with the procedural icon.
 	var win := Rect2(10, 57, BASE.x - 20, 50)
 	_box(win, p.window, 4, 1, Color(frame, 0.8))
-	_draw_window_motif(win, p)
-	_draw_card_icons(win, p)
+	var art := PaintedArt.card_texture(card.id)
+	if art != null:
+		_draw_painted_window(art, win, p, muted)
+	else:
+		_draw_window_motif(win, p)
+		_draw_card_icons(win, p)
 
 	# Effect text.
 	var body := Rect2(9, 110, BASE.x - 18, 56)
@@ -477,6 +511,27 @@ func _draw_window_motif(win: Rect2, p: Dictionary) -> void:
 			var pt := Vector2(win.position.x + 11 + i * 9, win.position.y + 9)
 			draw_circle(pt, 2.6, Color(0.92, 0.55, 0.5))
 			draw_colored_polygon(PackedVector2Array([pt + Vector2(-3.5, 8), pt + Vector2(3.5, 8), pt + Vector2(0, 3)]), Color(0.92, 0.55, 0.5))
+
+
+## Painted art fills the window; the effect icons shrink into badges so the card still reads at a glance.
+func _draw_painted_window(art: Texture2D, win: Rect2, p: Dictionary, muted: bool) -> void:
+	var inner := win.grow(-1.0)
+	draw_texture_rect(art, inner, false, Color(0.55, 0.55, 0.55, 1.0) if muted else Color.WHITE)
+	_box(win, Color(0, 0, 0, 0), 4, 1, Color(p.frame, 0.8))
+	var primary := primary_kind(card)
+	var badge_col: Color = p.window
+	var x := win.position.x + 11.0
+	var y := win.end.y - 11.0
+	if primary >= 0:
+		draw_circle(Vector2(x, y), 9.5, Color(badge_col, 0.82))
+		draw_arc(Vector2(x, y), 9.5, 0, TAU, 20, Color(1, 1, 1, 0.4), 1.0, true)
+		_draw_icon(primary, Vector2(x, y), 5.6, badge_col, icon_variant(card))
+	x = win.end.x - 11.0
+	for kind in secondary_kinds(card):
+		draw_circle(Vector2(x, y), 9.5, Color(badge_col, 0.82))
+		draw_arc(Vector2(x, y), 9.5, 0, TAU, 20, Color(1, 1, 1, 0.4), 1.0, true)
+		_draw_icon(kind, Vector2(x, y), 5.4, badge_col)
+		x -= 21.0
 
 
 func _draw_card_icons(win: Rect2, p: Dictionary) -> void:

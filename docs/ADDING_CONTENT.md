@@ -16,7 +16,7 @@ Set `effects` from `CardEffect.Kind` (`combat/card_effect.gd`; a card may have s
 ## An enemy
 1. Add `data/enemies/<name>.tres`.
 2. Add a `<NAME>_PATH` constant. Regular enemy: append to `ALL_ENEMY_PATHS`, then put it in `SMALL_ENEMY_PATHS` (joins pairs and trios; also add to `TRIO_EXCLUDED_PATHS` to keep it out of trios), `PAIR_BIG_ENEMY_PATHS` or `SOLO_ONLY_ENEMY_PATHS`. Boss: add to `BOSS_ENEMY_PATHS` and give it its own encounter function.
-3. Add its display name to `EnemyView.ART_KEYS` (`run/enemy_view.gd`), with an `ART_COLORS` entry and a drawing for the key. Art is keyed by display name, so display names must be unique.
+3. Add its display name to `Fighter.ART_KEYS` (`run/fighter.gd`) with a figure height in `Fighter.HEIGHTS`, and put its painted sprite at `art/layers/<key>/sprite.png` (see `docs/STAGE_DESIGN.md`; without one the stage falls back to the old figure layer, then a ghost). Art is keyed by display name, so display names must be unique.
 
 ## A character
 1. Add `data/characters/<id>.tres` (`id` must equal the file name and registry key) with a starting deck.

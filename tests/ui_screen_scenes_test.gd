@@ -183,7 +183,8 @@ func _initialize() -> void:
 	check(new_run != null, "the End card still offers New Run")
 	new_run.pressed.emit()
 	await process_frame
-	check(scene.find_children("*", "ScreenScene", true, false).is_empty() and _find_button(body, "Play as") != null, "New Run leaves the select screen with no scene")
+	var select_scenes: Array[Node] = scene.find_children("*", "ScreenScene", true, false)
+	check(select_scenes.size() == 1 and select_scenes[0] is SelectScene and _find_button(body, "Play as") != null, "New Run opens the select screen with only its own backdrop")
 	scene.queue_free()
 	RunSave.delete(test_save)
 	print("DONE fails=", fails)

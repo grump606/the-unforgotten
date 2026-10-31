@@ -50,6 +50,7 @@ var _gold_changed_at := -10.0
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	# A local generator with a fixed seed: the look is repeatable and the run's RNG is untouched.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1913
@@ -201,6 +202,10 @@ func _lit(c: Color, light: float) -> Color:
 
 
 func _draw_wall(w: float, h: float) -> void:
+	var painted := PaintedArt.screen_texture(&"vendor")
+	if painted != null:
+		PaintedArt.draw_cover(self, painted, Rect2(0, 0, w, h), 1.05, Vector2(sin(Time.get_ticks_msec() * 0.0001), 0.0) * 0.3, Color(0.8, 0.8, 0.8))
+		return
 	# Dark planks, warmer in the middle where the lanterns reach.
 	var top := Color(WALL.r * 0.5, WALL.g * 0.5, WALL.b * 0.5)
 	draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]), PackedColorArray([top, top, WALL, WALL]))

@@ -88,10 +88,10 @@ func _initialize() -> void:
 	c.player.clear_statuses()
 	c.enemies[0].apply_status(Combatant.Status.EXPOSED, 2)
 	c.player.apply_status(Combatant.Status.EXPOSED, 3)
-	check(node._player_label.tooltip_text == "Takes 1.5x damage, rounded down, for 3 more turns.", "player tooltip: " + node._player_label.tooltip_text)
-	var enemy_views := EnemyView.find_all(node._enemy_row)
+	check(node._player_view.tooltip_text.contains("Takes 1.5x damage, rounded down, for 3 more turns."), "player tooltip: " + node._player_view.tooltip_text)
+	var enemy_views: Array[Fighter] = node._enemy_views
 	check(enemy_views.size() == 3 and enemy_views[0].tooltip_text.contains("2 more turns"), "enemy tooltip")
-	check(enemy_views[1].tooltip_text == "", "no tooltip unexposed")
+	check(not enemy_views[1].tooltip_text.contains("more turns"), "no status tooltip unexposed")
 	var all_txt := ""
 	for b in node._hand_box.get_children():
 		all_txt += (b as CardView).preview + "\n---\n"
@@ -201,7 +201,7 @@ func _initialize() -> void:
 	var refreshes: int = node.refresh_count - refreshes_before
 	check(emitted[0] > 1, "setup: the enemy phase emits several state changes (%d)" % emitted[0])
 	check(refreshes == 1, "an end turn refreshes the screen once, not per mutation (%d refreshes for %d changes)" % [refreshes, emitted[0]])
-	check(node._energy_label.text == "Energy %d/%d" % [c2.energy, Combat.ENERGY_PER_TURN], "the screen shows the final state after the end turn")
+	check(node._energy_orb.text == "%d/%d" % [c2.energy, Combat.ENERGY_PER_TURN], "the screen shows the final state after the end turn")
 	c2.phase = Combat.Phase.ENEMY_TURN
 	var h :=c2.piles.hand.size()
 	key(node, KEY_1)
