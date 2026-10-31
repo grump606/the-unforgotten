@@ -26,6 +26,7 @@ var _noise: Array[float] = []
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	process_mode = Node.PROCESS_MODE_ALWAYS # the tree is paused while this is on screen
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	# A local generator with a fixed seed: the look is repeatable and the run's RNG is untouched.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 606
@@ -84,11 +85,18 @@ func _draw() -> void:
 	var sway := sin(time * 0.55)
 	draw_set_transform(c + Vector2(sway * 4.0, sin(time * 1.1) * 2.0), sway * 0.006, Vector2.ONE)
 	draw_rect(Rect2(-c - Vector2(60, 60), size + Vector2(120, 120)), WALL)
-	_draw_wall(w, h, c, lamp)
-	_draw_window(Rect2(Vector2(w * 0.22, h * 0.10) - c, Vector2(w * 0.56, h * 0.44)))
-	_draw_opposite_bench(w, h, c, lamp)
-	_draw_lamp(w, h, c, lamp)
-	_draw_foreground(w, h, c, lamp)
+	var painted := PaintedArt.screen_texture(&"pause")
+	if painted != null:
+		# The painted carriage replaces the wall, window, bench, lamp and foreground; the lamp flicker
+		# becomes a brightness wobble. The class props below still draw on top.
+		PaintedArt.draw_cover(self, painted, Rect2(-c - Vector2(60, 60), size + Vector2(120, 120)), 1.0, Vector2.ZERO, Color(0.8, 0.8, 0.8))
+		draw_rect(Rect2(-c - Vector2(60, 60), size + Vector2(120, 120)), Color(0.01, 0.01, 0.02, (1.0 - lamp) * 0.3))
+	else:
+		_draw_wall(w, h, c, lamp)
+		_draw_window(Rect2(Vector2(w * 0.22, h * 0.10) - c, Vector2(w * 0.56, h * 0.44)))
+		_draw_opposite_bench(w, h, c, lamp)
+		_draw_lamp(w, h, c, lamp)
+		_draw_foreground(w, h, c, lamp)
 	match variant:
 		&"deserter":
 			_draw_coat(w, h, c, lamp)

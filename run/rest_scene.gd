@@ -26,8 +26,9 @@ func _draw_scene(w: float, h: float) -> void:
 	var floor_y := h * 0.88
 	var stove := Vector2(w * 0.74, floor_y)
 	var seat_y := floor_y - 44.0
-	_draw_wall(w, h, floor_y)
-	_draw_windows(w, h)
+	if not _draw_painted_bg(&"rest", Rect2(0, 0, w, h), 1.08, 0.4, Color(0.8, 0.8, 0.8)):
+		_draw_wall(w, h, floor_y)
+		_draw_windows(w, h)
 	_halo(Vector2(w * 0.5, 96.0), 330.0, AMBER, 0.012 * flicker(0), 0.8)
 	_draw_lantern(Vector2(w * 0.5, 0.0), 82.0, 0, 1.0, 0.5)
 	_draw_bench(w * 0.08, w * 0.56, seat_y, floor_y)

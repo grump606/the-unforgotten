@@ -23,6 +23,7 @@ var _mote_count := 0
 
 func _init(seed_value := 1, mote_count := 30) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	clip_contents = true # lines and halos that run past the edge stay inside the body
 	# A local generator with a fixed seed: the look is repeatable and the run's RNG is untouched.
 	var rng := RandomNumberGenerator.new()
@@ -77,6 +78,17 @@ func _draw() -> void:
 
 func _draw_scene(_w: float, _h: float) -> void:
 	pass
+
+
+## Draws the painted background `bg_name` (art/layers/screens/<bg_name>/bg.png) over `rect` with a slow
+## drifting pan. Returns false, drawing nothing, when that picture is not there (draw the code art instead).
+func _draw_painted_bg(bg_name: StringName, rect: Rect2, zoom := 1.08, drift := 0.4, tint := Color.WHITE) -> bool:
+	var tex := PaintedArt.screen_texture(bg_name)
+	if tex == null:
+		return false
+	var pan := Vector2(sin(time * 0.17), cos(time * 0.11) * 0.5) * drift
+	PaintedArt.draw_cover(self, tex, rect, zoom, pan, tint)
+	return true
 
 
 # --- helpers ---------------------------------------------------------------------------

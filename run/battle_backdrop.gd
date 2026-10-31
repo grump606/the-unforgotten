@@ -55,6 +55,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	visibility_changed.connect(_on_visibility_changed)
 	_on_visibility_changed()
 
@@ -132,6 +133,10 @@ func _draw() -> void:
 		return
 	var level := lamp_level()
 	var sw := sway()
+	var painted := PaintedArt.screen_texture(painted_name())
+	if painted != null:
+		_draw_painted(painted, w, h, level, sw)
+		return
 	var vp := Vector2(w * VANISH.x + sw * 5.0, h * VANISH.y)
 	var far := Vector2(w * FAR_HALF.x, h * FAR_HALF.y)
 	# The picture sways about the centre; the overscan keeps the corners covered.
@@ -146,6 +151,23 @@ func _draw() -> void:
 	_draw_lamps(o, vp, far, w, h, level)
 	_draw_motes(o, w, h)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	_draw_scrim(w, h)
+
+
+## Key of the painted background for this fight (art/layers/screens/<key>/bg.png).
+func painted_name() -> StringName:
+	if boss:
+		return &"battle_boss"
+	return StringName("battle_" + String(character_id)) if TINTS.has(character_id) else &"battle_neutral"
+
+
+## The painted corridor: slowly drifting and swaying, dimmed to keep the UI readable, with the lamp
+## flicker as a brightness wobble and the drifting motes on top.
+func _draw_painted(tex: Texture2D, w: float, h: float, level: float, sw: float) -> void:
+	var pan := Vector2(sw * 0.5, sin(time * 0.3) * 0.25)
+	PaintedArt.draw_cover(self, tex, Rect2(Vector2.ZERO, size), 1.1, pan, Color(0.72, 0.72, 0.72))
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.01, 0.01, 0.02, (1.0 - level) * 0.25))
+	_draw_motes(Vector2.ZERO, w, h)
 	_draw_scrim(w, h)
 
 
