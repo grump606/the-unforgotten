@@ -5,7 +5,7 @@ extends ScreenScene
 ## the buttons (their painted stage sprites, breathing slowly). A soft dark column keeps the buttons
 ## readable. Without the painting it falls back to a plain night gradient with a warm glow.
 
-## id, x as a fraction of the width, height as a fraction of the height, faces right
+## id, x as a fraction of the width, height as a fraction of the height, should face right
 const HEROES := [
 	[&"deserter", 0.13, 0.50, true],
 	[&"pickpocket", 0.27, 0.43, true],
@@ -53,8 +53,9 @@ func _draw_hero(k: int, w: float, h: float) -> void:
 	var height: float = h * entry[2]
 	var width := height * tex.get_width() / tex.get_height()
 	var feet := Vector2(w * entry[1], h * GROUND)
-	# The art faces left as drawn; mirror it for the heroes that face right.
-	var flip := -1.0 if entry[3] else 1.0
+	# Mirror a hero whose art faces the other way from where it should look (see Fighter.PLAYER_ART_FACING).
+	var art_right: bool = float(Fighter.PLAYER_ART_FACING.get(entry[0], -1.0)) > 0.0
+	var flip := 1.0 if entry[3] == art_right else -1.0
 	_ellipse(feet, width * 0.42, 9.0, Color(0, 0, 0, 0.4), 20)
 	draw_set_transform(feet, 0.0, Vector2(flip, 1.0 + breath(k) * 0.012))
 	# A little dimmer than the stage so the heroes sit in the platform's dark.

@@ -42,9 +42,9 @@ const CLASS_COLORS := {
 	&"medium": [Color(0.30, 0.22, 0.42), Color(0.72, 0.52, 1.0)],
 }
 ## Which way each painted class figure faces as drawn (+1 right, -1 left); the stage mirrors it to face right.
-const PLAYER_ART_FACING := {&"deserter": -1.0, &"pickpocket": -1.0, &"medium": -1.0}
+const PLAYER_ART_FACING := {&"deserter": -1.0, &"pickpocket": 1.0, &"medium": -1.0}
 ## Painted enemy sprites that face right as drawn (everything else faces left); the stage mirrors them.
-const SPRITE_FACES_RIGHT: Array[StringName] = [&"crow"]
+const SPRITE_FACES_RIGHT: Array[StringName] = [&"crow", &"conductor", &"shade"]
 const HP_BACK := Color(0.10, 0.04, 0.05)
 const SHADOW := Color(0, 0, 0, 0.38)
 
