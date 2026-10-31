@@ -84,6 +84,7 @@ var _font: Font = ThemeDB.fallback_font
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP # also needed for the status tooltip
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	# A local generator with a fixed seed: the look is repeatable and the run's RNG is untouched.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 606
@@ -326,6 +327,14 @@ func _draw_window(win: Rect2, p: Dictionary, dead: bool) -> void:
 	var accent: Color = p.accent
 	var frame: Color = p.frame
 	_box(win, p.window, 4, 1, Color(frame, 0.8))
+	var layers := PaintedArt.enemy_layers(art_key)
+	if not layers.is_empty():
+		_draw_painted_portrait(layers, win, frame)
+		if _flash > 0.0:
+			_box(win, Color(1, 1, 1, _flash * 0.4), 4)
+		if dead:
+			_box(win, Color(0, 0, 0, 0.45), 4)
+		return
 	var cx := win.get_center().x
 	var ground := win.end.y - 6.0
 	# Tunnel ribs, a darker floor with two rails and sleepers.
@@ -355,6 +364,29 @@ func _draw_window(win: Rect2, p: Dictionary, dead: bool) -> void:
 		_box(win, Color(1, 1, 1, _flash * 0.4), 4)
 	if dead:
 		_box(win, Color(0, 0, 0, 0.45), 4)
+
+
+## Painted layers (back to front) cropped to the window's aspect. Each shifts with a slow idle sway by
+## its depth, which gives the 2.5D parallax; the figure also takes the breath, lunge and hit shake.
+func _draw_painted_portrait(layers: Array, win: Rect2, frame: Color) -> void:
+	var inner := win.grow(-1.0)
+	var margin := 40.0
+	var src_w := 960.0 - margin * 2.0
+	var src_h := src_w * inner.size.y / inner.size.x
+	var sway := Vector2(sin(time * 0.7), cos(time * 0.5) * 0.5)
+	var lunge := sin(_lunge * PI)
+	var shake := Vector2(sin(time * 70.0) * 2.5 * _flash, 0.0)
+	var bob := breath() * 1.2
+	for i in layers.size():
+		var tex: Texture2D = layers[i]
+		var depth: float = PaintedArt.ENEMY_DEPTHS[i]
+		var off := sway * Vector2(14.0, 5.0) * depth
+		if PaintedArt.ENEMY_LAYERS[i] == &"figure":
+			# Moving the crop (not the rect) keeps the figure inside the window.
+			off -= Vector2(shake.x, bob + lunge * 4.0) * (src_w / inner.size.x)
+		var region := Rect2(margin + off.x, (tex.get_height() - src_h) * 0.5 + off.y, src_w, src_h)
+		draw_texture_rect_region(tex, inner, region)
+	_box(win, Color(0, 0, 0, 0), 4, 1, Color(frame, 0.8))
 
 
 ## The upper half of a circle, drawn only where it lies inside `win`.
