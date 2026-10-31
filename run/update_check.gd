@@ -84,3 +84,46 @@ static func newer_tag(code: int, body: PackedByteArray, current: String) -> Stri
 ## "Update available: v0.3.1 (you have 0.3.0)". The tag must already be valid.
 static func notice_text(tag: String, current: String) -> String:
 	return "Update available: v%s (you have %s)" % [tag.trim_prefix("v").trim_prefix("V"), current.trim_prefix("v").trim_prefix("V")]
+
+
+## --- In-game install (see docs/UPDATE_CHECK.md, "Updating in the game") ---
+## Where a release's files live. The host and path are fixed here; only a tag that already passed
+## is_valid_tag is ever spliced in, so nothing from the reply can choose where the game downloads from.
+const DOWNLOAD_BASE := "https://github.com/grump606/card-battle-prototype/releases/download/"
+## The installer is ~30 MB; anything past this is refused while downloading.
+const MAX_INSTALLER_BYTES := 150 * 1024 * 1024
+## An RSA-4096 signature is 512 bytes.
+const MAX_SIGNATURE_BYTES := 1024
+## The exported game's file name; self-update only runs from a build with exactly this name.
+const GAME_EXE_NAME := "CardBattlePrototype.exe"
+
+
+## "CardBattlePrototype-Setup-0.3.5.exe" for tag "v0.3.5" ("" for an invalid tag).
+static func installer_name(tag: String) -> String:
+	if not is_valid_tag(tag):
+		return ""
+	return "CardBattlePrototype-Setup-%s.exe" % tag.trim_prefix("v").trim_prefix("V")
+
+
+## The installer's download URL for `tag`, or "" for an invalid tag.
+static func installer_url(tag: String) -> String:
+	var file := installer_name(tag)
+	return "" if file == "" else "%s%s/%s" % [DOWNLOAD_BASE, _canonical_tag(tag), file]
+
+
+## The detached signature's URL (the installer's URL plus ".sig"), or "" for an invalid tag.
+static func signature_url(tag: String) -> String:
+	var url := installer_url(tag)
+	return "" if url == "" else url + ".sig"
+
+
+## Release tags are published as "v<version>"; a reply tag without the v still maps to that path.
+static func _canonical_tag(tag: String) -> String:
+	return "v" + tag.trim_prefix("v").trim_prefix("V")
+
+
+## Whether this process may replace itself: an exported build (never the editor, whose executable
+## is Godot itself) running under the expected name. `can_write_dir` is whether the install folder
+## accepts new files, since an all-users install needs rights the silent installer would not ask for.
+static func can_self_update(is_editor: bool, exe_path: String, can_write_dir: bool) -> bool:
+	return not is_editor and can_write_dir and exe_path.get_file().to_lower() == GAME_EXE_NAME.to_lower()

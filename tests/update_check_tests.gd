@@ -22,6 +22,9 @@ func run() -> int:
 	_test_check_enabled()
 	_test_fixed_urls()
 	_failures += load("res://tests/settings_tests.gd").new().run()
+	_test_install_urls()
+	_failures += load("res://tests/update_verifier_tests.gd").new().run()
+	_failures += load("res://tests/update_installer_tests.gd").new().run()
 	return _failures
 
 
@@ -100,6 +103,21 @@ func _test_check_enabled() -> void:
 	_check(UpdateCheck.check_enabled("windows", "", true), "the setting on still checks")
 	_check(not UpdateCheck.check_enabled("windows", "", false), "the saved setting off disables the check")
 	_check(not UpdateCheck.check_enabled("headless", "", true) and not UpdateCheck.check_enabled("windows", "1", true), "headless and the env var win over an on setting")
+
+
+func _test_install_urls() -> void:
+	var base := "https://github.com/grump606/card-battle-prototype/releases/download/v0.3.5/CardBattlePrototype-Setup-0.3.5.exe"
+	_check(UpdateCheck.installer_name("v0.3.5") == "CardBattlePrototype-Setup-0.3.5.exe", "the installer name follows the build script naming")
+	_check(UpdateCheck.installer_url("v0.3.5") == base, "the installer URL is the fixed release path")
+	_check(UpdateCheck.installer_url("0.3.5") == base and UpdateCheck.installer_url("V0.3.5") == base, "a tag without or with a capital V maps to the same v-tagged path")
+	_check(UpdateCheck.signature_url("v0.3.5") == base + ".sig", "the signature sits next to the installer")
+	for bad in ["", "latest", "1.2.3-beta", "v1/../../x", "v1.2\nx", "http://evil/x", "v1.2.3.4.5", "../1.0"]:
+		_check(UpdateCheck.installer_url(bad) == "" and UpdateCheck.signature_url(bad) == "" and UpdateCheck.installer_name(bad) == "", "an invalid tag never builds a URL: %s" % bad.c_escape())
+	_check(UpdateCheck.installer_url("v0.3.5").begins_with(UpdateCheck.DOWNLOAD_BASE), "every download URL starts with the fixed base")
+	_check(UpdateCheck.can_self_update(false, "C:/Games/CardBattlePrototype.exe", true), "an exported, correctly named, writable install can update itself")
+	_check(not UpdateCheck.can_self_update(true, "C:/Games/CardBattlePrototype.exe", true), "the editor never updates itself")
+	_check(not UpdateCheck.can_self_update(false, "C:/Godot/Godot_v4.7.2.exe", true), "another executable name never updates itself")
+	_check(not UpdateCheck.can_self_update(false, "C:/Program Files/G/CardBattlePrototype.exe", false), "a folder the player cannot write never updates itself")
 
 
 func _test_fixed_urls() -> void:
