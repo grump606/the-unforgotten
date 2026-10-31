@@ -10,13 +10,13 @@ from PIL import Image
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 PICKS = {
-    "bash": 82, "bleed_the_veil": 81, "brace": 82, "cold_steel": 81, "cold_whisper": 81, "confess": 82,
-    "counter_stance": 81, "cutting_word": 82, "dig_in": 81, "flurry": 81, "glimpse_exit": 81,
-    "grave_chill": 82, "guarded_strike": 81, "hamstring": 81, "heavy_blow": 81, "hold_the_line": 82,
+    "bash": 82, "bleed_the_veil": 81, "brace": 92, "cold_steel": 81, "cold_whisper": 81, "confess": 82,
+    "counter_stance": 92, "cutting_word": 82, "dig_in": 81, "flurry": 92, "glimpse_exit": 81,
+    "grave_chill": 82, "guarded_strike": 81, "hamstring": 92, "heavy_blow": 81, "hold_the_line": 82,
     "iron_resolve": 81, "last_pocket": 82, "last_stand": 82, "lift": 82, "lingering_dread": 82,
     "mark_the_weak": 82, "penance": 82, "pocket_watch": 82, "reckoning": 81, "seance": 81,
-    "second_wind": 82, "shoulder_charge": 81, "shove": 82, "sleight": 82, "slip_past": 82,
-    "spirit_tithe": 82, "spree": 81, "steady_breath": 82, "sweep": 82,
+    "second_wind": 82, "shoulder_charge": 91, "shove": 82, "sleight": 82, "slip_past": 82,
+    "spirit_tithe": 82, "spree": 81, "steady_breath": 82, "sweep": 92,
 }
 
 for cid, seed in PICKS.items():

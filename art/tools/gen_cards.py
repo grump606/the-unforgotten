@@ -20,29 +20,29 @@ PALETTE = {
     "pickpocket": "deep teal and tarnished brass tones",
     "medium": "bruised violet and bone white tones",
 }
-SEEDS = (81, 82)
+SEEDS = tuple(int(s) for s in os.environ.get("CARD_SEEDS", "81,82").split(","))
 
 # id: (class, subject)
 CARDS = {
-    "brace": ("", "a soldier crouched behind a raised iron shield bracing against a blow"),
-    "flurry": ("", "a blur of rapid blade slashes in the dark"),
+    "brace": ("", "a medieval knight crouched behind a raised heavy iron shield, bracing against a blow, seen from the front"),
+    "flurry": ("", "a fencer lunging with three rapid sword thrusts, motion trails of steel in the dark, a hooded duelist"),
     "glimpse_exit": ("", "a lit doorway at the far end of a dark corridor"),
     "shove": ("", "two strong hands shoving a figure backwards"),
     "slip_past": ("", "a shadowy figure slipping past a distracted guard"),
-    "sweep": ("", "a low sweeping arc of a blade cutting through the air"),
+    "sweep": ("", "a warrior in a long coat swinging a great scythe in a wide low arc, several figures knocked back"),
     "bash": ("deserter", "a soldier smashing an iron shield into an enemy"),
     "cold_steel": ("deserter", "a bare steel blade glinting in cold light"),
-    "counter_stance": ("deserter", "a soldier poised to parry with a sword raised"),
+    "counter_stance": ("deserter", "a medieval soldier in a long greatcoat with a sword raised in a defensive parry, seen from the front"),
     "dig_in": ("deserter", "a soldier planting his boots in mud behind sandbags"),
     "guarded_strike": ("deserter", "a sword thrust from behind a shield"),
     "heavy_blow": ("deserter", "a huge hammer swung down in a heavy overhead blow"),
     "hold_the_line": ("deserter", "a line of soldiers with shields locked together"),
     "iron_resolve": ("deserter", "a clenched iron gauntlet fist"),
     "last_stand": ("deserter", "a lone wounded soldier standing among the fallen"),
-    "shoulder_charge": ("deserter", "a soldier charging shoulder first"),
+    "shoulder_charge": ("deserter", "a heavily armoured knight charging forward shoulder first, a pauldron smashing through a wooden door"),
     "steady_breath": ("deserter", "a soldier with closed eyes breathing out cold steam"),
     "cutting_word": ("pickpocket", "a razor blade and a sly whispering smirk"),
-    "hamstring": ("pickpocket", "a small knife slashing at a cord at ankle height"),
+    "hamstring": ("pickpocket", "a thief with a small curved knife slashing the back of a guard leg, the guard stumbling"),
     "last_pocket": ("pickpocket", "a hand sliding into the last coat pocket"),
     "lift": ("pickpocket", "a nimble hand lifting a wallet from a coat"),
     "mark_the_weak": ("pickpocket", "a chalk mark scrawled on the back of a coat"),
