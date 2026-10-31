@@ -1,7 +1,7 @@
 class_name ConductorFigure
 extends RefCounted
-## The Conductor drawn as a standalone figure, shared by his enemy portrait (EnemyView) and the
-## story scene so he looks like the same character everywhere (see docs/ENEMY_ART_DESIGN.md).
+## The Conductor drawn as a standalone figure, shared by his old enemy portrait and the
+## story scene so he looks like the same character everywhere (see docs/STAGE_DESIGN.md).
 ## Pure drawing: every call takes the CanvasItem to draw on, the animation time and the glow level.
 
 const BODY := Color(0.24, 0.13, 0.19)

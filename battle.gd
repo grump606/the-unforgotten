@@ -64,6 +64,8 @@ var _player_view: Fighter
 var _energy_orb: EnergyOrb
 ## Enemy attacks seen in the current batch; each lunges a little after the previous one.
 var _attacks_this_batch := 0
+## The player's HP when the last enemy attack was handled, so each attack's share of the damage is known.
+var _seen_player_hp := 0
 
 
 func _ready() -> void:
@@ -137,6 +139,8 @@ func _on_state_changed() -> void:
 func _begin_batch() -> void:
 	if _batch_depth == 0:
 		_attacks_this_batch = 0
+		if _combat != null:
+			_seen_player_hp = _combat.player.hp
 	_batch_depth += 1
 
 
@@ -430,6 +434,11 @@ func _on_combat_ended(victory: bool) -> void:
 func _on_card_played(card: CardData, targets: Array[EnemyUnit]) -> void:
 	if _player_view != null and not targets.is_empty() and card.effects.any(func(e: CardEffect) -> bool: return e.is_damage()):
 		_player_view.play_attack()
+		# The hit lands at the top of the lunge, not the moment the card is played.
+		for target in targets:
+			var at := _combat.enemies.find(target)
+			if at >= 0 and at < _enemy_views.size():
+				_enemy_views[at].react_delay = Fighter.LUNGE_TIME * 0.5
 	if targets.is_empty():
 		_log_label.append_text("Played %s\n" % card.display_name)
 		return
@@ -443,8 +452,13 @@ func _on_enemy_acted(enemy: EnemyUnit, intent: CardEffect) -> void:
 	_log_label.append_text("%s: %s\n" % [enemy.display_name, intent.describe()])
 	var index := _combat.enemies.find(enemy)
 	if intent.is_damage() and index >= 0 and index < _enemy_views.size():
-		_enemy_views[index].play_attack(_attacks_this_batch * ENEMY_STAGGER)
+		var delay := _attacks_this_batch * ENEMY_STAGGER
+		_enemy_views[index].play_attack(delay)
 		_attacks_this_batch += 1
+		# The player flinches when this attack's lunge peaks, not all at once at the end of the phase.
+		if _player_view != null:
+			_player_view.schedule_hit(maxi(_seen_player_hp - _combat.player.hp, 0), delay + Fighter.LUNGE_TIME * 0.5)
+	_seen_player_hp = _combat.player.hp
 
 
 ## Re-applies the hover look to the hand card under the pointer after a rebuild (the new views

@@ -97,6 +97,23 @@ func _initialize() -> void:
 	for i in 20:
 		a.advance(0.1)
 	check(a.lunge_amount() == 0.0, "and the fighter settles back")
+	# Reactions can wait for the attack that causes them.
+	var slow := Fighter.new()
+	holder.add_child(slow)
+	var slow_unit := Combatant.new("Wanderer", 40)
+	slow.set_player(slow_unit, &"deserter")
+	slow.schedule_hit(7, 0.5)
+	slow_unit.take_damage(7)
+	slow.refresh()
+	check(slow.float_count() == 0 and slow._flash == 0.0, "a scheduled hit waits, and refresh does not react to it twice")
+	slow.advance(0.6)
+	check(slow.float_count() == 1 and slow._flash > 0.5, "then the scheduled hit lands")
+	slow.react_delay = 0.3
+	slow_unit.take_damage(3)
+	slow.refresh()
+	check(slow.float_count() == 1 and slow.react_delay == 0.0, "react_delay holds the next detected hit back once")
+	slow.advance(0.4)
+	check(slow.float_count() == 2, "and it lands after the delay")
 	enemy.take_damage(9999)
 	a.refresh()
 	for i in 20:
@@ -232,6 +249,7 @@ func _initialize() -> void:
 	for i in delays.size():
 		for j in i:
 			staggered = staggered or not is_equal_approx(delays[i], delays[j])
+	check(duel._player_view._reactions.size() <= duel._enemy_views.size(), "the player gets one scheduled reaction per attacker at most")
 	check(staggered or delays.filter(func(d: float) -> bool: return d > 0.0).is_empty() or delays.size() < 2, "enemy attacks are staggered")
 	duel.queue_free()
 	await process_frame

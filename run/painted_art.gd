@@ -8,7 +8,7 @@ const CARD_DIR := "res://art/layers/cards/%s/art.png"
 const ENEMY_DIR := "res://art/layers/%s/%s.png"
 const PLAYER_DIR := "res://art/layers/players/%s/figure.png"
 const SCREEN_DIR := "res://art/layers/screens/%s/bg.png"
-## Back to front, with how far each layer shifts in the idle sway (see EnemyView).
+## Back to front, with how far each layer shifts in the idle sway (the old enemy portrait sway).
 const ENEMY_LAYERS: Array[StringName] = [&"bg", &"mid", &"figure", &"fg"]
 const ENEMY_DEPTHS := [0.1, 0.4, 0.8, 1.6]
 

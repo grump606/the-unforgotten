@@ -343,7 +343,7 @@ func _test_registry_entries_load() -> void:
 
 
 ## Every regular enemy must be placed in an encounter pool (or be a documented solo-only enemy), and
-## every enemy (regular or boss) needs portrait art keyed by its display name in EnemyView.ART_KEYS.
+## every enemy (regular or boss) needs stage art keyed by its display name in Fighter.ART_KEYS.
 func _test_enemy_registry_wiring() -> void:
 	for path in StarterContent.ALL_ENEMY_PATHS:
 		var placed: bool = StarterContent.SMALL_ENEMY_PATHS.has(path) or StarterContent.PAIR_BIG_ENEMY_PATHS.has(path) or StarterContent.SOLO_ONLY_ENEMY_PATHS.has(path)
@@ -361,6 +361,6 @@ func _test_enemy_registry_wiring() -> void:
 			continue
 		_check(not names.has(enemy.display_name), "enemy display name is unique: %s" % enemy.display_name)
 		names[enemy.display_name] = true
-		_check(EnemyView.ART_KEYS.has(enemy.display_name), "EnemyView.ART_KEYS has an entry for '%s' (see docs/ADDING_CONTENT.md)" % enemy.display_name)
-		if EnemyView.ART_KEYS.has(enemy.display_name):
-			_check(EnemyView.ART_COLORS.has(EnemyView.ART_KEYS[enemy.display_name]), "EnemyView.ART_COLORS has colours for '%s'" % enemy.display_name)
+		_check(Fighter.ART_KEYS.has(enemy.display_name), "Fighter.ART_KEYS has an entry for '%s' (see docs/ADDING_CONTENT.md)" % enemy.display_name)
+		if Fighter.ART_KEYS.has(enemy.display_name):
+			_check(Fighter.HEIGHTS.has(Fighter.ART_KEYS[enemy.display_name]), "Fighter.HEIGHTS has a figure height for '%s'" % enemy.display_name)

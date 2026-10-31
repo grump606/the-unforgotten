@@ -19,6 +19,12 @@ const FADE_TIME := 0.7
 const FLOAT_TIME := 1.1
 const BAR_H := 16.0
 
+## Enemy display name -> art key (sprite files, figure height). Any other name uses the generic ghost.
+const ART_KEYS := {
+	"Gate Warden": &"warden", "Lost Shade": &"shade", "Skittering Wisp": &"wisp", "Hollow Colossus": &"colossus",
+	"Pale Whisperer": &"whisperer", "Cinder Hound": &"hound", "Mourning Crow": &"crow", "The Conductor": &"conductor",
+	"The Brakeman": &"brakeman",
+}
 ## Figure height in pixels per enemy (the player and unknown names use DEFAULT_HEIGHT).
 const HEIGHTS := {
 	&"warden": 170.0, &"shade": 150.0, &"wisp": 100.0, &"colossus": 200.0, &"whisperer": 175.0,
@@ -74,6 +80,14 @@ var _last_hp := 0
 var _last_block := 0
 ## {text, color, age, drift} entries rising from the figure.
 var _floats: Array[Dictionary] = []
+## Seconds to wait before the next refresh() plays the reactions it detects (the battle sets it so a hit
+## lands when the attacker's lunge does). refresh() resets it.
+var react_delay := 0.0
+## Reactions waiting for their moment: {t, amount} (amount 0 is a fully blocked hit, below 0 a heal).
+var _reactions: Array[Dictionary] = []
+## HP the battle already scheduled hits for, so refresh() does not react to the same loss twice.
+var _scheduled_loss := 0
+var _scheduled_block := false
 
 
 func _init() -> void:
@@ -102,7 +116,7 @@ func set_enemy(enemy: EnemyUnit) -> void:
 	facing = -1.0
 	_art_facing = -1.0
 	unit = enemy
-	art_key = EnemyView.art_key_for(enemy.display_name)
+	art_key = art_key_for(enemy.display_name)
 	figure_height = float(HEIGHTS.get(art_key, DEFAULT_HEIGHT)) * HEIGHT_SCALE
 	_tex = null
 	var fig := PaintedArt.enemy_figure(art_key)
@@ -144,6 +158,11 @@ func _reset() -> void:
 	queue_redraw()
 
 
+## The art key for an enemy name; unknown names get the generic ghost.
+static func art_key_for(enemy_name: String) -> StringName:
+	return ART_KEYS.get(enemy_name, &"ghost")
+
+
 ## Width of the figure as drawn.
 func figure_width() -> float:
 	if _tex != null:
@@ -183,19 +202,48 @@ func refresh() -> void:
 	if unit == null:
 		return
 	if unit.hp < _last_hp:
-		var lost := _last_hp - unit.hp
-		_flash = 1.0
-		_recoil = 1.0
-		_float("-%d" % lost, Color(1.0, 0.42, 0.38))
+		var extra := maxi(_last_hp - unit.hp - _scheduled_loss, 0)
+		if extra > 0:
+			_react(extra, react_delay)
 	elif unit.hp > _last_hp:
-		_float("+%d" % (unit.hp - _last_hp), Color(0.55, 1.0, 0.55))
+		_react(_last_hp - unit.hp, react_delay)
 	if unit.block > _last_block:
 		_pop = 1.0
-	elif unit.block < _last_block and unit.hp >= _last_hp:
-		_float("Blocked", CardView.kind_color(CardEffect.Kind.BLOCK).lightened(0.3))
+	elif unit.block < _last_block and unit.hp >= _last_hp and not _scheduled_block:
+		_react(0, react_delay)
 	_last_hp = unit.hp
 	_last_block = unit.block
+	_scheduled_loss = 0
+	_scheduled_block = false
+	react_delay = 0.0
 	queue_redraw()
+
+
+## Plays a hit (or, with 0, a fully blocked hit) after `delay` seconds, and tells the next refresh() not to
+## react to it again. The battle uses it so each enemy's hit on the player lands with that enemy's lunge.
+func schedule_hit(amount: int, delay: float) -> void:
+	_scheduled_loss += amount
+	if amount == 0:
+		_scheduled_block = true
+	_react(amount, delay)
+
+
+func _react(amount: int, delay: float) -> void:
+	if delay <= 0.0:
+		_play_reaction(amount)
+	else:
+		_reactions.append({"t": delay, "amount": amount})
+
+
+func _play_reaction(amount: int) -> void:
+	if amount > 0:
+		_flash = 1.0
+		_recoil = 1.0
+		_float("-%d" % amount, Color(1.0, 0.42, 0.38))
+	elif amount < 0:
+		_float("+%d" % -amount, Color(0.55, 1.0, 0.55))
+	else:
+		_float("Blocked", CardView.kind_color(CardEffect.Kind.BLOCK).lightened(0.3))
 
 
 ## A lunge toward the opponent, starting after `delay` seconds (so a row of enemies attack one by one).
@@ -225,6 +273,11 @@ func advance(delta: float) -> void:
 	_flash = maxf(_flash - delta / FLASH_TIME, 0.0)
 	_recoil = maxf(_recoil - delta / RECOIL_TIME, 0.0)
 	_pop = maxf(_pop - delta / POP_TIME, 0.0)
+	for r in _reactions:
+		r.t -= delta
+	for r in _reactions.filter(func(r: Dictionary) -> bool: return r.t <= 0.0):
+		_play_reaction(r.amount)
+	_reactions = _reactions.filter(func(r: Dictionary) -> bool: return r.t > 0.0)
 	fade = move_toward(fade, 1.0 if is_defeated() else 0.0, delta / FADE_TIME)
 	for f in _floats:
 		f.age += delta

@@ -4,7 +4,7 @@ Standalone: nothing in the game loads from `art/` yet. Preview with `godot --pat
 
 ## Direction
 
-Painted, moody, "last train out of a haunted station": soot, oxblood, brass and ember light. Keep the existing palette tokens so painted art still sits on the code-drawn frames (card class colours in `CardView.PALETTES`, enemy colours in `EnemyView.ART_COLORS`). One warm light source per picture (amber slit, ember heart, lantern), cool shadows, readable silhouette at 66 px tall.
+Painted, moody, "last train out of a haunted station": soot, oxblood, brass and ember light. Keep the existing palette tokens so painted art still sits on the code-drawn frames (card class colours in `CardView.PALETTES`, enemy colours in the old code-drawn art). One warm light source per picture (amber slit, ember heart, lantern), cool shadows, readable silhouette at 66 px tall.
 
 The look is 2.5D: each picture is split into transparent PNG layers that move at different speeds (`fx/layered_art.gd`), and cards tilt in perspective with a moving sheen (`fx/card_tilt.gd`). Shaders stay GL Compatibility safe.
 
@@ -33,7 +33,7 @@ Enemies: warden, shade, wisp, colossus, whisperer, hound, crow, conductor, brake
 ## Applying it later
 
 1. Drop painted layers into `art/layers/...` and let Godot import them.
-2. In `EnemyView`, replace the `_art_<key>` draw call with a `LayeredArt` child sized to the portrait window (`set_layers(paths, [0.1, 0.4, 0.8, 1.6])`); keep the status chips and HP bar as they are.
+2. (Done) Enemies are now drawn as full-body stage sprites by `Fighter`; see `docs/STAGE_DESIGN.md`.
 3. In `CardView`, do the same for the art window and call `CardTilt.attach(card)` on hover-capable cards (battle hand, rewards, vendor). Keep the frame, banner and text code-drawn so cards stay data-driven.
 4. Backdrop and screens use `LayeredArt` full-window with a smaller `strength`.
 
