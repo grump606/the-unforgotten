@@ -13,7 +13,7 @@ PICKS = {
     "battle_boss": 102, "battle_deserter": 102, "battle_medium": 102, "battle_neutral": 102,
     "battle_pickpocket": 102, "end_defeat": 101, "end_escape": 113, "pause": 102, "rest": 102,
     "story_boarding": 102, "story_conductor": 102, "story_generic": 101, "story_last_light": 113,
-    "story_platform": 101, "vendor": 102,
+    "story_platform": 101, "vendor": 102, "menu": 201,
 }
 
 for name, seed in PICKS.items():
