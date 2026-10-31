@@ -8,7 +8,7 @@ to the second. mid.png and fg.png are left alone. Needs rembg (pip install "remb
 import os
 import sys
 
-from PIL import Image
+from PIL import Image, ImageChops
 from rembg import remove
 
 W, H = 960, 320
@@ -27,6 +27,14 @@ def main():
     canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     canvas.paste(fig, ((W - fig.width) // 2, H - fig.height), fig)
     canvas.save(os.path.join(out, "figure.png"))
+    for name, gain, thr in (("mid", 0.8, 30), ("fg", 1.5, 70)):
+        src = os.path.join(work, name + "_raw.png")
+        if os.path.exists(src):
+            img = Image.open(src).convert("RGB").resize((W, H), Image.LANCZOS)
+            r, g, b = img.split()
+            alpha = ImageChops.lighter(ImageChops.lighter(r, g), b).point(lambda v: min(255, int(max(0, v - thr) * gain)))
+            img.putalpha(alpha)
+            img.save(os.path.join(out, name + ".png"))
     print("wrote", out)
 
 
