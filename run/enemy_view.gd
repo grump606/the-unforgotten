@@ -6,8 +6,11 @@ extends Control
 ## grander frame. Idle animation only runs while visible, and only through advance(delta), so
 ## tests can step it deterministically (no global RNG, no wall clock).
 
-const BASE := Vector2(220, 164)
-const BOSS_BASE := Vector2(300, 164)
+## Height of the portrait window; the rows below it move down by PORTRAIT_EXTRA (it was 66 px).
+const PORTRAIT_H := 96.0
+const PORTRAIT_EXTRA := PORTRAIT_H - 66.0
+const BASE := Vector2(220, 164 + PORTRAIT_EXTRA)
+const BOSS_BASE := Vector2(300, 164 + PORTRAIT_EXTRA)
 ## Room above the frame for the target marker.
 const MARKER := 9.0
 const FLASH_TIME := 0.35
@@ -263,7 +266,7 @@ func _draw() -> void:
 	_draw_chips()
 
 	# HP bar on the left, Block chip on the right.
-	var row_y := MARKER + 97
+	var row_y := MARKER + 97 + PORTRAIT_EXTRA
 	var bar := Rect2(8, row_y, w - 16 - 80, 16)
 	_box(bar, HP_BACK, 4, 1, Color(frame, 0.8))
 	var ratio := clampf(float(unit.hp) / maxf(float(unit.max_hp), 1.0), 0.0, 1.0)
@@ -273,10 +276,10 @@ func _draw() -> void:
 	_draw_block_chip(Rect2(bar.end.x + 4, row_y, 76, 16), p)
 
 	# Intent strip.
-	var strip := Rect2(8, MARKER + 117, w - 16, 31)
+	var strip := Rect2(8, MARKER + 117 + PORTRAIT_EXTRA, w - 16, 31)
 	_draw_intent(strip, p, dead)
 	if dead:
-		draw_set_transform(Vector2(w / 2.0, MARKER + 60), -0.12, Vector2.ONE)
+		draw_set_transform(Vector2(w / 2.0, MARKER + 60 + PORTRAIT_EXTRA * 0.5), -0.12, Vector2.ONE)
 		var stamp := Rect2(-52, -12, 104, 24)
 		_box(stamp, Color(0.05, 0.04, 0.06, 0.8), 4, 2, Color(ink, 0.85))
 		_text("DEFEATED", stamp, 14, ink, true)
@@ -370,9 +373,12 @@ func _draw_window(win: Rect2, p: Dictionary, dead: bool) -> void:
 ## its depth, which gives the 2.5D parallax; the figure also takes the breath, lunge and hit shake.
 func _draw_painted_portrait(layers: Array, win: Rect2, frame: Color) -> void:
 	var inner := win.grow(-1.0)
-	var margin := 40.0
-	var src_w := 960.0 - margin * 2.0
-	var src_h := src_w * inner.size.y / inner.size.x
+	# Crop the 960x320 layers to the window's aspect, leaving room for the sway on every side.
+	var margin := 16.0
+	var aspect := inner.size.x / inner.size.y
+	var src_h := 320.0 - margin * 2.0
+	var src_w := minf(src_h * aspect, 960.0 - margin * 2.0)
+	src_h = src_w / aspect
 	var sway := Vector2(sin(time * 0.7), cos(time * 0.5) * 0.5)
 	var lunge := sin(_lunge * PI)
 	var shake := Vector2(sin(time * 70.0) * 2.5 * _flash, 0.0)
@@ -384,7 +390,7 @@ func _draw_painted_portrait(layers: Array, win: Rect2, frame: Color) -> void:
 		if PaintedArt.ENEMY_LAYERS[i] == &"figure":
 			# Moving the crop (not the rect) keeps the figure inside the window.
 			off -= Vector2(shake.x, bob + lunge * 4.0) * (src_w / inner.size.x)
-		var region := Rect2(margin + off.x, (tex.get_height() - src_h) * 0.5 + off.y, src_w, src_h)
+		var region := Rect2((tex.get_width() - src_w) * 0.5 + off.x, (tex.get_height() - src_h) * 0.5 + off.y, src_w, src_h)
 		draw_texture_rect_region(tex, inner, region)
 	_box(win, Color(0, 0, 0, 0), 4, 1, Color(frame, 0.8))
 
@@ -403,7 +409,7 @@ func _clipped_arc(c: Vector2, r: float, win: Rect2, col: Color) -> void:
 ## The portrait window, in this view's coordinates.
 func window_rect() -> Rect2:
 	var w := BOSS_BASE.x if is_boss else BASE.x
-	return Rect2(8, MARKER + 27, w - 16, 66)
+	return Rect2(8, MARKER + 27, w - 16, PORTRAIT_H)
 
 
 ## The middle of the portrait window where the figure stands; status chips never enter it.

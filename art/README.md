@@ -23,7 +23,7 @@ Paint a little beyond the frame (about 5%) so shifting never reveals an edge.
 
 | Asset | Canvas | Shown at | Folder |
 |---|---|---|---|
-| Enemy portrait | 960x320 (3:1) | portrait window 200x66 (boss 280x66) | `layers/<enemy>/` |
+| Enemy portrait | 960x320 (3:1) | portrait window 200x96 (boss 284x96), cropped to its aspect | `layers/<enemy>/` |
 | Card art | 800x300 | card art window 136x50 | `layers/cards/<card_id>/` |
 | Battle backdrop | 2304x1296 (16:9 at 2x) | full window | `layers/backdrop/<class>/` |
 | Screens (vendor, rest, story, menu) | 2304x1296 | full window | `layers/screens/<name>/` |
