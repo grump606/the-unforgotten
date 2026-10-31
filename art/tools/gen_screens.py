@@ -19,6 +19,7 @@ CORRIDOR = ("view straight down a long dark ghost-train corridor at night, symme
 
 SCREENS = {
     "menu": "a lone old steam train waiting at a dark misty station platform at night, its windows glowing amber, a distant pale gate of white light at the far end of the tracks, iron pillars, gas lamps, fog, symmetrical wide composition with open dark space in the centre, no people",
+    "select": "a long dark station platform at night seen at an angle, three train carriage doors standing open with warm light spilling out, drifting fog, gas lamps, iron pillars, quiet and expectant, no people",
     "battle_neutral": CORRIDOR + ", cold steel blue and amber tones",
     "battle_deserter": CORRIDOR + ", rust orange and steel grey tones",
     "battle_pickpocket": CORRIDOR + ", deep teal and brass tones",

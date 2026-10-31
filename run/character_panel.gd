@@ -10,9 +10,11 @@ signal play_pressed(character_id: StringName)
 
 const BORDER_WIDTH := 4
 const PAD := 5
-const PORTRAIT_HEIGHT := 76.0
+const PORTRAIT_HEIGHT := 88.0
 ## The figures are drawn in a box this tall and scaled down to the portrait.
 const FIGURE_HEIGHT := 84.0
+## The painted portrait shows this top share of the class sprite: head, shoulders and chest.
+const PAINTED_CROP := 0.32
 ## Starting-deck cards: four per row, small enough that three panels sit comfortably across 1152 px
 ## and the whole group fits the window height without crowding the edges.
 const DECK_CARD_SCALE := 0.5
@@ -257,6 +259,35 @@ func _draw_portrait(origin: Vector2, sz: Vector2) -> void:
 				draw_arc(Vector2(cx, sz.y * 0.55), r, 0, TAU, 40, motif, 1.0, true)
 		_:
 			draw_arc(Vector2(cx, sz.y * 0.5), 30.0, 0, TAU, 40, motif, 1.0, true)
+	var painted := _draw_painted_portrait(sz)
+	if not painted:
+		_draw_figure_code(origin, cx)
+	draw_set_transform(origin)
+	_draw_emblem(Vector2(17, 17))
+	_box(Rect2(Vector2.ZERO, sz), Color(0, 0, 0, 0), 5, 1, Color(_p.frame, 0.8))
+
+
+## The painted class sprite, cropped to head and shoulders and centred in the window; false when the
+## class has no sprite (then the code-drawn bust is used). A lit panel brightens it a little.
+func _draw_painted_portrait(sz: Vector2) -> bool:
+	var fig := PaintedArt.player_figure(class_id)
+	if fig.is_empty():
+		return false
+	var tex: Texture2D = fig.tex
+	var region := Rect2(0.0, 0.0, tex.get_width(), tex.get_height() * PAINTED_CROP)
+	var scale_to := (sz.y - 2.0) / region.size.y
+	var width := minf(region.size.x * scale_to, sz.x - 2.0)
+	var dest := Rect2((sz.x - width) / 2.0, 1.0, width, sz.y - 2.0)
+	# If the sprite is wider than the window, crop the sides evenly instead of squashing it.
+	region.size.x = width / scale_to
+	region.position.x = (tex.get_width() - region.size.x) / 2.0
+	var tint := Color(1.12, 1.12, 1.12) if is_lit() else Color(0.9, 0.9, 0.92)
+	draw_texture_rect_region(tex, dest, region, tint)
+	return true
+
+
+## The code-drawn bust used when there is no painted sprite.
+func _draw_figure_code(origin: Vector2, cx: float) -> void:
 	var fit := PORTRAIT_HEIGHT / FIGURE_HEIGHT
 	draw_set_transform(origin + Vector2(cx * (1.0 - fit), 0.0), 0.0, Vector2(fit, fit))
 	match class_id:
@@ -266,9 +297,6 @@ func _draw_portrait(origin: Vector2, sz: Vector2) -> void:
 			_draw_pickpocket(cx)
 		&"medium":
 			_draw_medium(cx)
-	draw_set_transform(origin)
-	_draw_emblem(Vector2(17, 17))
-	_box(Rect2(Vector2.ZERO, sz), Color(0, 0, 0, 0), 5, 1, Color(_p.frame, 0.8))
 
 
 func _draw_deserter(cx: float) -> void:
