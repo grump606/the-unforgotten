@@ -26,12 +26,12 @@ SCREENS = {
     "rest": "empty dim train carriage interior at night, bare wooden floor, small dark windows, a single hanging lamp, warm quiet mood, no furniture",
     "vendor": "interior of a dim station ticket office, dark wooden panelling and brass fittings, a warm lantern glow, empty counter area",
     "pause": "dark empty train carriage interior seen from the aisle, rain on the windows, a faint lamp, very dim",
-    "end_escape": "dawn breaking over a distant sunlit town seen from a station platform edge, warm golden light through mist, hopeful, empty tracks",
+    "end_escape": "view from inside a dark tunnel mouth out onto a bright pale dawn landscape, soft white-gold light flooding in, mist, rails leading into the light, hopeful, bright sky",
     "end_defeat": "abandoned dark platform in cold fog, a single dying lamp, rusted tracks vanishing into black, bleak",
     "story_platform": "empty night station platform with iron pillars and gas lamps, fog, long perspective",
     "story_boarding": "an open train carriage door on a misty platform, warm light spilling out, steps up into the carriage, night",
     "story_conductor": "a dark carriage vestibule with a brass lamp and a closed door at the end, ominous red light",
-    "story_last_light": "the last gas lamp glowing at the end of an empty platform in thick fog, night, lonely",
+    "story_last_light": "long dark railway tunnel with iron ribs receding to a bright pale blue-white glow at the far end, rails in the centre, symmetrical, ominous",
     "story_generic": "dim moody train window view of a passing night landscape, faint lamplight reflections",
 }
 
