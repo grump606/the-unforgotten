@@ -30,8 +30,8 @@ var progress := 0.0
 var tag := ""
 ## The running game's version; a manifest must be for something newer. Tests set it.
 var current_version: String = str(ProjectSettings.get_setting("application/config/version", ""))
-## The key signatures must verify against; tests substitute a generated one.
-var public_key_pem: String = UpdateVerifier.PUBLIC_KEY_PEM
+## The keys signatures may verify against (any one will do); tests substitute generated ones.
+var public_key_pems: Array = UpdateVerifier.PUBLIC_KEY_PEMS
 ## Where downloads go. user:// is inside the player's own profile.
 var work_dir := "user://update"
 ## Starts a program: (path, args) -> process id, or <= 0 on failure. Tests replace it.
@@ -86,7 +86,7 @@ func start(release_tag: String) -> bool:
 	tag = release_tag
 	if not UpdateCheck.is_valid_tag(tag):
 		return _fail("the release version is not valid")
-	if not UpdateVerifier.is_configured(public_key_pem):
+	if not UpdateVerifier.is_configured(public_key_pems):
 		return _fail("this version cannot verify updates")
 	cleanup(work_dir)
 	if DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(work_dir)) != OK:
@@ -135,7 +135,7 @@ func handle_manifest(result: int, code: int, body: PackedByteArray) -> void:
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
 		_fail("the update manifest could not be downloaded")
 		return
-	var why := UpdateVerifier.verify_manifest(body, _manifest_signature, tag, current_version, public_key_pem)
+	var why := UpdateVerifier.verify_manifest(body, _manifest_signature, tag, current_version, public_key_pems)
 	if why != "":
 		_fail("the update failed verification (%s)" % why)
 		return

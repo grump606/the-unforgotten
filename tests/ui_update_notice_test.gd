@@ -170,7 +170,7 @@ func _test_in_game_install() -> void:
 	notice.current_version = "0.3.0"
 	notice.use_installer = true
 	notice.installer.dry_run = true
-	notice.installer.public_key_pem = key.save_to_string(true)
+	notice.installer.public_key_pems = [key.save_to_string(true)]
 	notice.installer.work_dir = work
 	notice.installer.launch = func(path: String, args: PackedStringArray) -> int:
 		launched.append([path, args])
