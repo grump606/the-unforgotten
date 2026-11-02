@@ -20,9 +20,9 @@ if (-not $version) { throw 'config/version not found in project.godot' }
 Write-Host "Building version $version"
 
 # Fail before the long build if a signing key is configured but cannot be used (docs/UPDATE_SIGNING.md).
-$publicPem = ([regex]::Match((Get-Content -Raw -LiteralPath 'run\update_verifier.gd'), '-----BEGIN PUBLIC KEY-----[\s\S]*?-----END PUBLIC KEY-----')).Value -replace '\n', "`n" -replace "`r", ''
+$publicPems = @([regex]::Matches((Get-Content -Raw -LiteralPath 'run\update_verifier.gd'), '-----BEGIN PUBLIC KEY-----[\s\S]*?-----END PUBLIC KEY-----') | ForEach-Object { $_.Value -replace '\n', "`n" -replace "`r", '' })
 $openssl = $null
-if ($publicPem) {
+if ($publicPems.Count -gt 0) {
     if (-not $env:UPDATE_SIGNING_KEY -or -not (Test-Path -LiteralPath $env:UPDATE_SIGNING_KEY)) {
         throw 'run/update_verifier.gd has a public key, so set $env:UPDATE_SIGNING_KEY to the path of the private key file (.pfx or .pem). See docs/UPDATE_SIGNING.md.'
     }
@@ -60,14 +60,19 @@ $sigFile = "$setup.sig"
 $manifestFile = "$setup.manifest"
 $manifestSigFile = "$setup.manifest.sig"
 . (Join-Path $PSScriptRoot 'update_signing.ps1')
-if ($publicPem) {
+if ($publicPems.Count -gt 0) {
     # Must match UpdateCheck.make_manifest in run/update_check.gd byte for byte: LF endings, UTF-8 without BOM.
     $manifest = "the-unforgotten-update 1`nname=$(Split-Path -Leaf $setup)`nversion=$version`nsha256=$hash`n"
     [System.IO.File]::WriteAllText($manifestFile, $manifest, (New-Object System.Text.UTF8Encoding($false)))
 
-    $pubFile = Join-Path ([IO.Path]::GetTempPath()) "update_pub_$PID.pem"
+    # Every trusted key the game ships with (run/update_verifier.gd): a signature must verify against at least one.
+    $pubFiles = @()
     try {
-        [System.IO.File]::WriteAllText($pubFile, $publicPem + "`n", (New-Object System.Text.UTF8Encoding($false)))
+        for ($i = 0; $i -lt $publicPems.Count; $i++) {
+            $f = Join-Path ([IO.Path]::GetTempPath()) "update_pub_${PID}_$i.pem"
+            [System.IO.File]::WriteAllText($f, $publicPems[$i] + "`n", (New-Object System.Text.UTF8Encoding($false)))
+            $pubFiles += $f
+        }
         # The passphrase comes from UPDATE_SIGNING_PASS when set (the interactive prompt does not work in every
         # PowerShell host); otherwise openssl asks for it.
         $passArgs = if ($env:UPDATE_SIGNING_PASS) { @("-passin", "env:UPDATE_SIGNING_PASS") } else { @() }
@@ -81,19 +86,24 @@ if ($publicPem) {
                 & $openssl dgst -sha256 -sign $signKey @passArgs -out $sig $file
                 if ($LASTEXITCODE -ne 0 -or -not (Test-Path $sig)) { throw 'Signing failed (wrong passphrase or key?)' }
             }
-            & $openssl dgst -sha256 -verify $pubFile -signature $sig $file
-            if ($LASTEXITCODE -ne 0) { throw "The signature for $(Split-Path -Leaf $file) does not verify against the public key in run/update_verifier.gd: wrong private key?" }
+            $matched = -1
+            for ($i = 0; $i -lt $pubFiles.Count -and $matched -lt 0; $i++) {
+                & $openssl dgst -sha256 -verify $pubFiles[$i] -signature $sig $file | Out-Null
+                if ($LASTEXITCODE -eq 0) { $matched = $i }
+            }
+            if ($matched -lt 0) { throw "The signature for $(Split-Path -Leaf $file) does not verify against any public key in run/update_verifier.gd: wrong private key?" }
+            Write-Host "$(Split-Path -Leaf $sig): verified against embedded key #$($matched + 1) of $($pubFiles.Count)"
         }
         Sign-AndVerify $manifestFile $manifestSigFile
         Sign-AndVerify $setup $sigFile
     } finally {
-        Remove-Item -LiteralPath $pubFile -ErrorAction SilentlyContinue
+        foreach ($f in $pubFiles) { Remove-Item -LiteralPath $f -ErrorAction SilentlyContinue }
     }
     Write-Host "Signed: $manifestSigFile, $sigFile"
 } else {
-    Write-Warning 'No public key in run/update_verifier.gd: nothing signed, so in-game updates stay off (see docs/UPDATE_SIGNING.md).'
+    Write-Warning 'No public keys in run/update_verifier.gd: nothing signed, so in-game updates stay off (see docs/UPDATE_SIGNING.md).'
 }
 
 $outputs = @($setup, $sumFile)
-if ($publicPem) { $outputs += @($sigFile, $manifestFile, $manifestSigFile) }
+if ($publicPems.Count -gt 0) { $outputs += @($sigFile, $manifestFile, $manifestSigFile) }
 Get-Item $outputs | Select-Object Name, Length
