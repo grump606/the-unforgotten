@@ -31,7 +31,7 @@ or `sha256sum -c TheUnforgotten-Setup-<version>.exe.sha256` where available. A c
 - Per-user install by default (no admin prompt), Start Menu entry, optional desktop shortcut, uninstaller.
 - Same app id on every build, so running a newer setup upgrades in place; saves live in Godot's user data folder and are untouched.
 - Running an older setup over a newer install is refused with a message.
-- On launch it asks the GitHub API for the latest release. If that is newer than the setup being run, it offers to open the download page. Skipped silently when offline, in silent mode, or when the repository is private (GitHub answers 404 without credentials). A token is deliberately not embedded in the installer.
+- On launch it asks the GitHub API for the latest release. If that is newer than the setup being run, it offers to open the download page. Skipped silently when offline, in silent mode, or when the repository is private (GitHub answers 404 without credentials). A token is deliberately not embedded in the installer. The reply is validated the way the game does it (`run/update_check.gd`): the response must be at most 65536 characters and the tag must be an optional `v`, then 1-4 dot-separated groups of 1-4 digits, at most 24 characters, nothing else. Anything else counts as no update info and setup proceeds silently.
 
 ## Limits
 
