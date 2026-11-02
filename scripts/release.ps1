@@ -21,6 +21,15 @@ if ((git rev-parse HEAD) -ne (git rev-parse origin/main)) { throw 'Local main di
 
 $version = (Select-String -Path 'project.godot' -Pattern '^config/version="([^"]+)"').Matches.Groups[1].Value
 if (-not $version) { throw 'config/version not found in project.godot' }
+$presets = Get-Content -Raw -LiteralPath 'export_presets.cfg'
+$expected = "$version.0"
+foreach ($key in 'application/file_version', 'application/product_version') {
+    $m = [regex]::Match($presets, '(?m)^' + [regex]::Escape($key) + '="([^"]*)"')
+    if (-not $m.Success) { throw "$key not found in export_presets.cfg" }
+    if ($m.Groups[1].Value -ne $expected) {
+        throw "Version mismatch: project.godot has config/version=`"$version`" but export_presets.cfg has $key=`"$($m.Groups[1].Value)`" (expected `"$expected`"). Update export_presets.cfg to match."
+    }
+}
 $tag = "v$version"
 if (git tag --list $tag) { throw "Tag $tag already exists: bump config/version first." }
 $existing = @(gh release list --limit 200 --json tagName --jq '.[].tagName')

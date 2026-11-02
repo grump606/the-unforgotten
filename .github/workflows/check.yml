@@ -25,6 +25,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
+      - name: Parse PowerShell scripts
+        shell: pwsh
+        run: |
+          $errors = 0
+          foreach ($f in Get-ChildItem scripts -Filter *.ps1) {
+            $tokens = $null; $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
+            foreach ($e in $parseErrors) { Write-Host "::error file=scripts/$($f.Name),line=$($e.Extent.StartLineNumber)::$($e.Message)"; $errors++ }
+          }
+          if ($errors) { throw "$errors PowerShell parse error(s)" }
+
       - name: Cache Godot engine
         id: godot-cache
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
