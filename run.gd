@@ -74,6 +74,11 @@ func _show_main_menu() -> void:
 	if loaded.run == null and not loaded.missing:
 		_notice = "Saved run could not be loaded (%s)." % loaded.error
 		push_warning(_notice)
+	elif loaded.recovered_from != "":
+		# The newest checkpoint was unreadable and an older one was loaded; say so instead of
+		# letting the player wonder why a stop is missing.
+		_notice = "Your latest checkpoint could not be read, so the one before it was loaded."
+		push_warning("Save recovered from %s." % loaded.recovered_from)
 	var prefix := _notice + "\n" if _notice != "" else ""
 	_header.text = prefix + "A voice beyond the quiet"
 	_notice_shown = _notice != ""

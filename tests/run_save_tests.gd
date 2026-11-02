@@ -362,6 +362,11 @@ func _test_backup_recovery() -> void:
 	_write("{ not json")
 	var loaded := RunSave.load_file(test_path)
 	_check(loaded.run != null and RunSave.to_dict(loaded.run) == RunSave.to_dict(first), "a corrupt main falls back to the .bak")
+	_check(loaded.recovered_from == test_path + ".bak" and loaded.error == "", "a recovered load says which file it came from")
+	_write(_json(second))
+	loaded = RunSave.load_file(test_path)
+	_check(loaded.run != null and loaded.recovered_from == "", "a good main file reports no recovery")
+	_write("{ not json")
 	# A corrupt main must not overwrite the good .bak on the next save.
 	_check(RunSave.save(second, test_path) == "", "saving over a corrupt main works")
 	bak = RunSave.load_file(test_path + ".bak")
@@ -371,6 +376,7 @@ func _test_backup_recovery() -> void:
 	_write(_json(second), test_path + ".tmp")
 	loaded = RunSave.load_file(test_path)
 	_check(loaded.run != null and RunSave.to_dict(loaded.run) == RunSave.to_dict(second), "a missing main recovers from a complete .tmp")
+	_check(loaded.recovered_from == test_path + ".tmp", "a .tmp recovery is reported")
 	# Missing main, truncated .tmp, good .bak: the backup is used.
 	_write("{\"version\":3,", test_path + ".tmp")
 	loaded = RunSave.load_file(test_path)
