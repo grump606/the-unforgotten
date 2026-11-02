@@ -8,6 +8,8 @@ separate mechanism from Windows code signing (Authenticode), which this project 
 Until a public key is built in, the game does **not** install updates itself: the notice keeps its
 plain Download button.
 
+> **Status (v0.5.0): signing is switched off.** `PUBLIC_KEY_PEM` in `run/update_verifier.gd` is empty, so releases carry no `.sig`, the build script writes none, and the in-game updater only offers the download page. To turn it back on, create a key below and put its public half back in that constant. Older installs (v0.4.0 and earlier) still hold the old public key and will not auto-install an unsigned release.
+
 ## One-time setup
 
 The easy way: open a normal **Windows PowerShell window** (Start menu, not an editor or assistant
