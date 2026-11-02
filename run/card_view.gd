@@ -343,6 +343,8 @@ func _box(rect: Rect2, fill: Color, radius: int, border := 0, border_color := Co
 	sb.border_color = border_color
 	sb.anti_aliasing = true
 	draw_style_box(sb, rect)
+	if fill.a >= 0.5 and rect.size.x > 30.0 and rect.size.y > 15.0:
+		TactileArt.draw_grain(self, rect.grow(-3.0), 0.12)
 
 
 ## Draws text inside a rectangle: centered both ways when `centered`, else left aligned and

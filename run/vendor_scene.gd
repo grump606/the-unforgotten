@@ -181,11 +181,14 @@ func _draw() -> void:
 		_draw_shelves(w, edge)
 		_draw_lanterns(w)
 	_draw_shopkeeper(head, edge)
-	_draw_counter(w, h, edge, base)
-	_draw_till(w * 0.12, base - 10.0)
-	_draw_luggage(w * 0.88, base - 12.0)
-	_draw_bell(w * 0.78, base - 12.0)
-	_draw_service_props()
+	if PaintedArt.screen_texture(&"vendor") != null:
+		_draw_offer_backing()
+	else:
+		_draw_counter(w, h, edge, base)
+		_draw_till(w * 0.12, base - 10.0)
+		_draw_luggage(w * 0.88, base - 12.0)
+		_draw_bell(w * 0.78, base - 12.0)
+		_draw_service_props()
 	_draw_motes(w, h)
 	_draw_scrim(w, h)
 
@@ -208,7 +211,7 @@ func _lit(c: Color, light: float) -> Color:
 func _draw_wall(w: float, h: float) -> void:
 	var painted := PaintedArt.screen_texture(&"vendor")
 	if painted != null:
-		PaintedArt.draw_cover(self, painted, Rect2(0, 0, w, h), 1.05, Vector2(sin(Time.get_ticks_msec() * 0.0001), 0.0) * 0.3, Color(0.8, 0.8, 0.8))
+		PaintedArt.draw_cover(self, painted, Rect2(0, 0, w, h), 1.05, Vector2(sin(time * 0.1), 0.0) * 0.3, Color(0.8, 0.8, 0.8))
 		return
 	# Dark planks, warmer in the middle where the lanterns reach.
 	var top := Color(WALL.r * 0.5, WALL.g * 0.5, WALL.b * 0.5)
@@ -521,3 +524,23 @@ func _draw_scrim(w: float, h: float) -> void:
 	draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, 50), Vector2(0, 50)]), PackedColorArray([dark, dark, clear, clear]))
 	if dimmed:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.01, 0.008, 0.012, 0.6))
+
+
+## A quiet cloth-toned backing lets the painted counter and keepsakes remain visible.
+func _draw_offer_backing() -> void:
+	var offers := _anchor_rect(counter_anchor)
+	if offers.size == Vector2.ZERO:
+		return
+	var backing := StyleBoxFlat.new()
+	backing.bg_color = Color(0.09, 0.11, 0.15, 0.68)
+	backing.border_color = Color(PALE, 0.24)
+	backing.set_border_width_all(1)
+	backing.set_corner_radius_all(4)
+	var area := offers.grow_individual(14, 10, 14, 12)
+	draw_style_box(backing, area)
+	# A few faded stitches echo the repaired cloth in the keeper's mantle.
+	for side in [area.position.x + 5.0, area.end.x - 5.0]:
+		var y := area.position.y + 9.0
+		while y < area.end.y - 8.0:
+			draw_line(Vector2(side, y), Vector2(side, y + 3), Color(PALE, 0.18), 1.0)
+			y += 11.0

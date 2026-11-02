@@ -196,6 +196,7 @@ func _draw() -> void:
 	_box(whole, frame, 10)
 	var stock: Color = _p.stock
 	_box(whole.grow(-BORDER_WIDTH), stock.lerp(CardView.BACKDROP, 0.6), 7)
+	TactileArt.draw_grain(self, whole.grow(-BORDER_WIDTH - 4), 0.10)
 	_draw_frame_decor(whole)
 	var area := Rect2(Vector2.ONE * (PAD + BORDER_WIDTH), Vector2(size.x - 2.0 * (PAD + BORDER_WIDTH), PORTRAIT_HEIGHT))
 	draw_set_transform(area.position)
@@ -235,37 +236,17 @@ func _rim(pts: PackedVector2Array, color: Color) -> void:
 
 
 func _draw_portrait(origin: Vector2, sz: Vector2) -> void:
-	var accent: Color = _p.accent
 	var window: Color = _p.window
 	var cx := sz.x / 2.0
 	_box(Rect2(Vector2.ZERO, sz), window, 5, 1, Color(_p.frame, 0.8))
-	# A lamp glow behind the shoulder and the class motif of the card art window.
-	for i in 4:
-		draw_circle(Vector2(sz.x * 0.2, 6), 22.0 + i * 16.0, Color(CardView.BADGE, 0.035))
-	var motif := Color(accent, 0.10)
-	match class_id:
-		&"deserter":
-			var x := 0.0
-			while x < sz.x:
-				draw_line(Vector2(x, sz.y), Vector2(minf(x + 44, sz.x), maxf(sz.y - (sz.x - x), 0.0)), motif, 3.0)
-				x += 18
-		&"pickpocket":
-			var y := 6.0
-			while y < sz.y - 3:
-				draw_line(Vector2(4, y), Vector2(sz.x - 4, y), motif, 1.0)
-				y += 6
-		&"medium":
-			for r in [24.0, 40.0, 56.0]:
-				draw_arc(Vector2(cx, sz.y * 0.55), r, 0, TAU, 40, motif, 1.0, true)
-		_:
-			draw_arc(Vector2(cx, sz.y * 0.5), 30.0, 0, TAU, 40, motif, 1.0, true)
+	# Matte cloth grain stays inside the portrait; the painted bust supplies its own lighting.
+	TactileArt.draw_grain(self, Rect2(Vector2(4, 4), sz - Vector2(8, 8)), 0.10)
 	var painted := _draw_painted_portrait(sz)
 	if not painted:
 		_draw_figure_code(origin, cx)
 	draw_set_transform(origin)
 	_draw_emblem(Vector2(17, 17))
 	_box(Rect2(Vector2.ZERO, sz), Color(0, 0, 0, 0), 5, 1, Color(_p.frame, 0.8))
-
 
 ## The painted class sprite, cropped to head and shoulders and centred in the window; false when the
 ## class has no sprite (then the code-drawn bust is used). A lit panel brightens it a little.
