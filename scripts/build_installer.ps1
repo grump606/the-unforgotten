@@ -24,7 +24,7 @@ $publicPem = ([regex]::Match((Get-Content -Raw -LiteralPath 'run\update_verifier
 $openssl = $null
 if ($publicPem) {
     if (-not $env:UPDATE_SIGNING_KEY -or -not (Test-Path -LiteralPath $env:UPDATE_SIGNING_KEY)) {
-        throw 'run/update_verifier.gd has a public key, so set $env:UPDATE_SIGNING_KEY to the path of the (temporarily extracted) private key file. See docs/UPDATE_SIGNING.md.'
+        throw 'run/update_verifier.gd has a public key, so set $env:UPDATE_SIGNING_KEY to the path of the private key file (.pfx or .pem). See docs/UPDATE_SIGNING.md.'
     }
     $openssl = @((Get-Command openssl -ErrorAction SilentlyContinue).Source, "$env:ProgramFiles\Git\usr\bin\openssl.exe") | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
     if (-not $openssl) { throw 'openssl not found (it ships with Git for Windows: Program Files\Git\usr\bin).' }
@@ -53,6 +53,7 @@ Write-Host "SHA-256 $hash"
 # so the game will install it. The public half is the PEM in run/update_verifier.gd; with none
 # embedded there is nothing to sign for and the game just offers the download page.
 $sigFile = "$setup.sig"
+. (Join-Path $PSScriptRoot 'update_signing.ps1')
 if ($publicPem) {
     $pubFile = Join-Path ([IO.Path]::GetTempPath()) "update_pub_$PID.pem"
     try {
@@ -62,25 +63,16 @@ if ($publicPem) {
         $passArgs = if ($env:UPDATE_SIGNING_PASS) { @("-passin", "env:UPDATE_SIGNING_PASS") } else { @() }
         $signKey = $env:UPDATE_SIGNING_KEY
         if ($signKey -match '\.(pfx|p12)$') {
-            # SigningKeyMaker output: pull the private key out of the PFX into a temporary unencrypted PEM
-            # (deleted in the finally block below).
-            $pemKey = Join-Path ([IO.Path]::GetTempPath()) "update_key_$PID.pem"
-            & $openssl pkcs12 -in $signKey -nocerts -nodes @passArgs -out $pemKey
-            if ($LASTEXITCODE -ne 0) {
-                # .NET's default PFX encryption can need OpenSSL 3's legacy provider.
-                & $openssl pkcs12 -legacy -in $signKey -nocerts -nodes @passArgs -out $pemKey
-            }
-            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $pemKey)) { throw 'Could not read the private key from the PFX (wrong passphrase?)' }
-            $signKey = $pemKey
-            $passArgs = @()
+            # SigningKeyMaker output: sign in memory with .NET (scripts/update_signing.ps1); the private key is never written to disk.
+            Sign-FileWithPfx -PfxPath $signKey -Passphrase $env:UPDATE_SIGNING_PASS -FilePath $setup -SigPath $sigFile
+        } else {
+            & $openssl dgst -sha256 -sign $signKey @passArgs -out $sigFile $setup
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $sigFile)) { throw 'Signing failed (wrong passphrase or key?)' }
         }
-        & $openssl dgst -sha256 -sign $signKey @passArgs -out $sigFile $setup
-        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $sigFile)) { throw 'Signing failed (wrong passphrase or key?)' }
         & $openssl dgst -sha256 -verify $pubFile -signature $sigFile $setup
         if ($LASTEXITCODE -ne 0) { throw 'The signature does not verify against the public key in run/update_verifier.gd: wrong private key?' }
     } finally {
         Remove-Item -LiteralPath $pubFile -ErrorAction SilentlyContinue
-        if ($pemKey) { Remove-Item -LiteralPath $pemKey -Force -ErrorAction SilentlyContinue }
     }
     Write-Host "Signed: $sigFile"
 } else {
