@@ -41,6 +41,9 @@ signal fight_finished(victory: bool)
 ## instead of a standalone random one. The screen then ends with a Continue
 ## button that emits fight_finished rather than starting a new fight.
 var external_combat: Combat = null
+## Standalone fights only, set before adding to the tree: a value >= 0 replays the same encounter and combat
+## (the CARD_BATTLE_SEED environment variable does the same). -1 keeps the fight random.
+var seed_override: int = -1
 ## Also set before adding to the tree: picks the backdrop look (the Conductor fight, the class tint).
 var boss_fight := false
 ## Shown as the first log line of a boss fight ("Boss" or "Mid-boss"); both use the boss backdrop.
@@ -96,12 +99,38 @@ func _ready() -> void:
 
 ## Standalone mode (no external_combat): a random balance-test fight with the extended deck. Kept on
 ## purpose: the UI tests (ui_battle_test, ui_relic_view_test) and a bare F6 of battle.tscn rely on it.
+## With a seed (seed_override, or CARD_BATTLE_SEED) the encounter and the combat replay exactly.
 func _start_combat() -> void:
 	var player := Combatant.new("Wanderer", PLAYER_START_HP)
-	var enemy_count := randi_range(1, Combat.MAX_ENEMIES)
 	var encounter_rng := RandomNumberGenerator.new()
+	var combat_seed: int
+	var chosen_seed := _standalone_seed()
+	if chosen_seed >= 0:
+		# One seeded stream decides the enemy count, the encounter and the combat seed, in a fixed order.
+		encounter_rng.seed = chosen_seed
+		var seeded_count := encounter_rng.randi_range(1, Combat.MAX_ENEMIES)
+		var seeded_enemies := StarterContent.varied_encounter(seeded_count, encounter_rng)
+		combat_seed = encounter_rng.randi()
+		# New Fight then plays the next seed rather than repeating this one.
+		seed_override = chosen_seed + 1
+		_start_with(player, seeded_enemies, combat_seed)
+		return
+	var enemy_count := randi_range(1, Combat.MAX_ENEMIES)
 	encounter_rng.randomize()
-	var combat := Combat.create(player, StarterContent.extended_deck(), StarterContent.varied_encounter(enemy_count, encounter_rng), randi())
+	_start_with(player, StarterContent.varied_encounter(enemy_count, encounter_rng), randi())
+
+
+## The seed for a standalone fight, or -1 for a random one: seed_override first, then the
+## CARD_BATTLE_SEED environment variable (read only here, so runs never see it).
+func _standalone_seed() -> int:
+	if seed_override >= 0:
+		return seed_override
+	var text := OS.get_environment("CARD_BATTLE_SEED")
+	return int(text) if text.is_valid_int() and int(text) >= 0 else -1
+
+
+func _start_with(player: Combatant, enemies: Array[EnemyData], combat_seed: int) -> void:
+	var combat := Combat.create(player, StarterContent.extended_deck(), enemies, combat_seed)
 	if combat == null:
 		_result_label.text = "Could not build this fight (content failed to load). See the Output log."
 		_new_fight_button.show()

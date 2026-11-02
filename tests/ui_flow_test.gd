@@ -200,7 +200,7 @@ func _initialize() -> void:
 				var fight_stop := run_state.current_stop()
 				if fight_stop.mid_boss:
 					mid_boss_fought = true
-					_check(combat.enemies.size() == 1 and combat.enemies[0].display_name == "Bellkeeper", "the mid-boss stop fights The Brakeman alone")
+					_check(combat.enemies.size() == 1 and combat.enemies[0].data.id == &"the_brakeman", "the mid-boss stop fights The Brakeman alone")
 					_check(battle.boss_fight and battle._backdrop.boss and header.text.contains("Mid-boss"), "the mid-boss fight has the boss backdrop and says Mid-boss in the header")
 				elif fight_stop.boss:
 					_check(battle.boss_fight and battle._backdrop.boss and header.text.contains("Boss") and not header.text.contains("Mid-boss"), "the final boss fight has the boss backdrop and says Boss in the header")
@@ -317,7 +317,7 @@ func _initialize() -> void:
 	_check(_count_buttons(body, "Play as") == 3, "New Run still opens the select screen after going Back")
 	_find(body, "Play as The Pickpocket").pressed.emit()
 	await process_frame
-	_check(scene._run.character.id == &"pickpocket" and scene._run.player.max_hp == StarterContent.character(&"pickpocket").max_hp and scene._run.player.display_name == "The Pickpocket", "picking the Pickpocket starts a Pickpocket run")
+	_check(scene._run.character.id == &"pickpocket" and scene._run.player.max_hp == StarterContent.character(&"pickpocket").max_hp and scene._run.player.display_name == StarterContent.character(&"pickpocket").display_name, "picking the Pickpocket starts a Pickpocket run")
 	_check(scene._run.stop_index == 0 and not scene._run.finished and scene._run.gold == 0, "a character pick starts a fresh run")
 	_check(_panel_count(body) == 1, "New Run leaves exactly one panel in the body")
 	_check(FileAccess.file_exists(test_save), "a new run is saved at its first stop")
