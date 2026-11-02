@@ -3,7 +3,8 @@ extends RefCounted
 ## Player preferences kept in user://settings.json, apart from the run save. Today: whether the
 ## launch-time update check may contact GitHub (docs/UPDATE_CHECK.md). The file is untrusted
 ## input: it is size-capped and type-checked, and anything wrong falls back to the defaults
-## instead of ever failing. Unknown keys are ignored.
+## instead of ever failing. Unknown keys are not interpreted but are kept in `extras` and written
+## back by save, so a file written by a newer game version keeps its fields when this one saves.
 
 const DEFAULT_PATH := "user://settings.json"
 const MAX_FILE_BYTES := 4096
@@ -11,20 +12,29 @@ const MAX_FILE_BYTES := 4096
 ## Defaults to on, which is how the game behaved before this setting existed.
 var update_check_enabled := true
 
+## Keys this version does not know, carried through load and save untouched.
+var extras := {}
+
 
 ## Settings from parsed JSON. Anything that is not an object, or a field that is not a real
 ## boolean, leaves the default in place.
 static func from_dict(data: Variant) -> Settings:
 	var settings := Settings.new()
 	if typeof(data) == TYPE_DICTIONARY:
-		var value: Variant = (data as Dictionary).get("update_check_enabled")
+		var dict := data as Dictionary
+		var value: Variant = dict.get("update_check_enabled")
 		if typeof(value) == TYPE_BOOL:
 			settings.update_check_enabled = value
+		for key in dict:
+			if key != "update_check_enabled":
+				settings.extras[key] = dict[key]
 	return settings
 
 
 static func to_dict(settings: Settings) -> Dictionary:
-	return {"update_check_enabled": settings.update_check_enabled}
+	var data := settings.extras.duplicate(true)
+	data["update_check_enabled"] = settings.update_check_enabled
+	return data
 
 
 ## Never fails: a missing, unreadable, oversized or damaged file falls back to path.bak, then to

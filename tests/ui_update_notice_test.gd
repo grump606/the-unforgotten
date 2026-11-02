@@ -142,7 +142,13 @@ func _initialize() -> void:
 	root.add_child(scene)
 	await process_frame
 	_check(not scene._update_notice.user_enabled and _find_button(scene.get_node("%Body"), "Check for updates: Off") != null, "the off choice survives a relaunch")
+	# A field this version does not know (say, from a newer game) must survive the toggle.
+	var seeded := FileAccess.open(test_settings, FileAccess.WRITE)
+	seeded.store_string("{\"update_check_enabled\": false, \"future_field\": 7}")
+	seeded.close()
 	_find_button(scene.get_node("%Body"), "Check for updates: Off").pressed.emit()
+	var after: Variant = JSON.parse_string(FileAccess.get_file_as_string(test_settings))
+	_check(typeof(after) == TYPE_DICTIONARY and after.get("future_field") == 7.0, "toggling keeps the other fields in the settings file")
 	_check(Settings.load_file(test_settings).update_check_enabled and scene._update_notice.user_enabled, "toggling back on is saved")
 	scene.queue_free()
 	await process_frame
