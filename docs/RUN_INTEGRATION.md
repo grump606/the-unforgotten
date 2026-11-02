@@ -61,7 +61,7 @@ Still open (minor, caller-side workarounds below):
 
 ## How the stub demonstrates the seam
 
-`godot --headless --path . -s res://tools/run_stub.gd -- --seed 1` builds one `Combatant` (40 HP) and the extended deck, then chains fights with 1, 2 and 3 enemies from `varied_encounter`, using one run RNG for encounters, per-fight combat seeds and rewards. Between fights it heals 8 (clamped) and appends one reward card (a random distinct card type from the extended deck). It stops on a loss or a stall. Per-fight lines show HP in and out, and the next fight's "HP before" equals the previous line's post-rest HP (compare consecutive lines of the output). After `start()` the stub asserts block is 0 and EXPOSED is 0, failing with exit 1 if state leaked. Same seed gives identical output; a bad `--seed` prints usage and exits 2.
+`godot --headless --path . -s res://tools/run_stub.gd -- --seed 1 [--character ID]` builds one `Combatant` with the chosen character's max HP (default Deserter, 52) and starting deck, then chains fights with 1, 2 and 3 enemies from `varied_encounter`, using one run RNG for encounters, per-fight combat seeds and rewards. Between fights it heals 8 (clamped) and appends one reward card (a random distinct card type from the starting deck). It stops on a loss or a stall. Per-fight lines show HP in and out, and the next fight's "HP before" equals the previous line's post-rest HP (compare consecutive lines of the output). After `start()` the stub asserts block is 0 and EXPOSED is 0, failing with exit 1 if state leaked. Same seed gives identical output; bad arguments (a non-integer `--seed`, an unknown `--character`) print usage and exit 2.
 
 ## Status
 
