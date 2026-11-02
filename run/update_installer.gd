@@ -180,7 +180,7 @@ func _begin_request(url: String, file: String, size_limit: int, timeout: float, 
 		_request.download_file = ProjectSettings.globalize_path(file)
 	_request.request_completed.connect(done)
 	add_child(_request)
-	if _request.request(url, PackedStringArray(["User-Agent: card-battle-prototype"])) != OK:
+	if _request.request(url, PackedStringArray(["User-Agent: the-unforgotten"])) != OK:
 		_drop_request()
 		return false
 	return true

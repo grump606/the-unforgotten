@@ -82,7 +82,7 @@ func _test_happy_path(key: CryptoKey, pem: String) -> void:
 	_check(installer.state == UpdateInstaller.State.READY and installer.progress == 1.0, "a correctly signed download is ready")
 	_check(probe.launched.is_empty() and probe.quits == 0, "nothing runs before the player restarts")
 	_check(installer.install_and_restart(), "install_and_restart succeeds")
-	_check(probe.launched.size() == 1 and (probe.launched[0][0] as String).ends_with("CardBattlePrototype-Setup-0.3.9.exe"), "the verified installer is what runs")
+	_check(probe.launched.size() == 1 and (probe.launched[0][0] as String).ends_with("TheUnforgotten-Setup-0.3.9.exe"), "the verified installer is what runs")
 	_check(probe.launched[0][1] == UpdateInstaller.INSTALLER_ARGS and "/RELAUNCH=1" in UpdateInstaller.INSTALLER_ARGS and "/SILENT" in UpdateInstaller.INSTALLER_ARGS, "it runs silently and asks to relaunch the game")
 	_check(probe.quits == 1, "the game quits once the installer is running")
 	installer.free()

@@ -92,7 +92,7 @@ func start() -> bool:
 	_request.request_completed.connect(_on_request_completed)
 	add_child(_request)
 	var headers := PackedStringArray([
-		"User-Agent: card-battle-prototype/%s" % current_version,
+		"User-Agent: the-unforgotten/%s" % current_version,
 		"Accept: application/vnd.github+json",
 	])
 	if _request.request(UpdateCheck.LATEST_RELEASE_API, headers) != OK:

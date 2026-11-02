@@ -1,6 +1,6 @@
-# Card Battle Prototype
+# The Unforgotten
 
-> **Naming note (v0.5.0):** the game is now presented as "The Unforgotten" (see [`docs/RESKIN.md`](docs/RESKIN.md)). Enemy and relic display names changed, IDs and rules did not, and this README still uses the original names in places.
+> **Renamed (v0.6.0):** this project was called "Card Battle Prototype" and lived at `grump606/card-battle-prototype` (now a private backup). Old design docs may still use the original enemy and relic names; see [`docs/RESKIN.md`](docs/RESKIN.md) for the map. Saves from v0.5.1 and earlier still load.
 
 A small turn-based card battler (afterlife-escape theme) built with Godot 4.7, GDScript, targeting Windows PC. The player fights 1 to 3 enemies with a deck of cards; enemies repeat a fixed cycle of intents.
 
@@ -24,7 +24,7 @@ Open the project in Godot 4.7 and press F5, or:
 & $env:GODOT --path .
 ```
 
-On launch the game checks GitHub once for a newer release and shows a dismissible notice if there is one; once a signing key is built in (`docs/UPDATE_SIGNING.md`) the notice offers Update & restart, which downloads, verifies and installs the new version itself (`docs/UPDATE_CHECK.md`); set `CARD_BATTLE_NO_UPDATE_CHECK=1` to turn that off (`docs/UPDATE_CHECK.md`).
+On launch the game checks GitHub once for a newer release and shows a dismissible notice if there is one; once a signing key is built in (`docs/UPDATE_SIGNING.md`) the notice offers Update & restart, which downloads, verifies and installs the new version itself (`docs/UPDATE_CHECK.md`); set `THE_UNFORGOTTEN_NO_UPDATE_CHECK=1` to turn that off (`docs/UPDATE_CHECK.md`).
 
 ## Test
 

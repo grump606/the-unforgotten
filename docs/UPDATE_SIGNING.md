@@ -16,7 +16,7 @@ The easy way: open a normal **Windows PowerShell window** (Start menu, not an ed
 prompt) and run
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File D:\Projects\card-battle-prototype\scripts\make_signing_key.ps1
+powershell -ExecutionPolicy Bypass -File scripts/make_signing_key.ps1
 ```
 
 It creates the pair in `%TEMP%\signing`, tests that a signature made with the private key verifies
@@ -80,7 +80,7 @@ powershell -File scripts\build_installer.ps1
 4. Publish all three files in the release (the `.sig` is what the game downloads):
 
 ```powershell
-gh release create v<version> build\CardBattlePrototype-Setup-<version>.exe build\CardBattlePrototype-Setup-<version>.exe.sha256 build\CardBattlePrototype-Setup-<version>.exe.sig
+gh release create v<version> build\TheUnforgotten-Setup-<version>.exe build\TheUnforgotten-Setup-<version>.exe.sha256 build\TheUnforgotten-Setup-<version>.exe.sig
 ```
 
 A release without the `.sig` is simply not installable in-game: the update fails with a message and
