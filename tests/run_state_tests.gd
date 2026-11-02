@@ -32,7 +32,13 @@ func run() -> int:
 	_test_progressive_difficulty()
 	_test_reward_memory_and_skip_gold()
 	_test_reward_alternatives()
+	_test_stop_type_values_match_painted_art()
 	return _failures
+
+
+## PaintedArt.warm_for_stop matches on bare ints (no RunState dependency); pin them here.
+func _test_stop_type_values_match_painted_art() -> void:
+	_check(RunState.StopType.COMBAT == 0 and RunState.StopType.REST == 1 and RunState.StopType.STORY == 2 and RunState.StopType.VENDOR == 3, "StopType values match what PaintedArt.warm_for_stop assumes")
 
 
 func _check(condition: bool, label: String) -> void:

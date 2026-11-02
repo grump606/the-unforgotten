@@ -92,7 +92,7 @@ static func notice_text(tag: String, current: String) -> String:
 const DOWNLOAD_BASE := "https://github.com/grump606/the-unforgotten/releases/download/"
 ## The installer is ~30 MB; anything past this is refused while downloading.
 const MAX_INSTALLER_BYTES := 150 * 1024 * 1024
-## An RSA-4096 signature is 512 bytes.
+## An RSA-3072 signature is 384 bytes; the limit leaves headroom.
 const MAX_SIGNATURE_BYTES := 1024
 ## The exported game's file name; self-update only runs from a build with exactly this name.
 const GAME_EXE_NAME := "TheUnforgotten.exe"
