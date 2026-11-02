@@ -53,6 +53,7 @@ try {
     Invoke-Step 'ui battle backdrop' @('--headless', '--path', '.', '-s', 'res://tests/ui_battle_backdrop_test.gd')
     Invoke-Step 'ui vendor scene' @('--headless', '--path', '.', '-s', 'res://tests/ui_vendor_scene_test.gd')
     Invoke-Step 'ui screen scenes' @('--headless', '--path', '.', '-s', 'res://tests/ui_screen_scenes_test.gd')
+    Invoke-Step 'ui scene noise' @('--headless', '--path', '.', '-s', 'res://tests/ui_scene_noise_test.gd')
     Invoke-Step 'ui relic view' @('--headless', '--path', '.', '-s', 'res://tests/ui_relic_view_test.gd')
     Invoke-Step 'ui update notice' @('--headless', '--path', '.', '-s', 'res://tests/ui_update_notice_test.gd')
     Invoke-Step 'reskin restoration' @('--headless', '--path', '.', '-s', 'res://tests/reskin_presentation_test.gd')

@@ -106,18 +106,55 @@ static func draw_cover(ci: CanvasItem, tex: Texture2D, rect: Rect2, zoom := 1.0,
 	ci.draw_texture_rect_region(tex, rect, Rect2(origin, src), tint)
 
 
+## Warms the cache for a screen background (art/layers/screens/<name>/bg.png) so its first draw does
+## not decode and mipmap it on the main thread.
+static func preload_screen(screen_name: StringName) -> void:
+	_load(SCREEN_DIR % screen_name)
+
+
+## Warms the cache for each res:// path in `paths` (missing files cache as null, like _load).
+static func preload_paths(paths: Array) -> void:
+	for path in paths:
+		_load(String(path))
+
+
+## Warms what the screen after a run stop will draw. `stop_type` is a RunState.StopType value (an int
+## here so this helper has no dependency on the run); `character_id` picks the class battle backdrop.
+## Call it when the previous screen is shown, e.g. when the map arrives at a stop, so the decode cost
+## is paid before the player moves on instead of as a stutter on the next screen.
+static func warm_for_stop(stop_type: int, character_id: StringName = &"") -> void:
+	match stop_type:
+		0: # RunState.StopType.COMBAT
+			preload_screen(StringName("battle_" + String(character_id)) if character_id != &"" else &"battle_neutral")
+			preload_screen(&"battle_neutral")
+			preload_screen(&"battle_boss")
+		1: # REST
+			preload_screen(&"rest")
+		2: # STORY
+			for dir in DirAccess.get_directories_at("res://art/layers/screens"):
+				if dir.begins_with("story_"):
+					preload_screen(StringName(dir))
+		3: # VENDOR
+			preload_screen(&"vendor")
+			preload_paths(["res://art/layers/screens/vendor/keeper.png"])
+
+
 static func _load(path: String) -> Texture2D:
 	if _cache.has(path):
 		return _cache[path]
 	var tex: Texture2D = null
 	if ResourceLoader.exists(path):
-		var src := load(path) as Texture2D
+		# CACHE_MODE_IGNORE: the imported (compressed) texture is not kept by the loader's cache, so
+		# only the mipmapped ImageTexture below stays resident once `src` and `img` go out of scope.
+		var src := ResourceLoader.load(path, "Texture2D", ResourceLoader.CACHE_MODE_IGNORE) as Texture2D
 		if src != null:
 			var img := src.get_image()
+			src = null
 			if img != null:
 				if img.is_compressed():
 					img.decompress()
 				img.generate_mipmaps()
 				tex = ImageTexture.create_from_image(img)
+				img = null # the texture owns its own copy; do not hold the full-size image
 	_cache[path] = tex
 	return tex
