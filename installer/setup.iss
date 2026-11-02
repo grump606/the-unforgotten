@@ -10,9 +10,9 @@
 #ifndef AppVersion
   #define AppVersion "0.0.0"
 #endif
-#define AppName "Card Battle Prototype"
-#define AppExe "CardBattlePrototype.exe"
-#define Repo "grump606/card-battle-prototype"
+#define AppName "The Unforgotten"
+#define AppExe "TheUnforgotten.exe"
+#define Repo "grump606/the-unforgotten"
 
 [Setup]
 AppId={{7B1E5C52-3D0A-4F6B-9C41-6A2D8E0F1B73}
@@ -24,7 +24,7 @@ DefaultGroupName={#AppName}
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=..\build
-OutputBaseFilename=CardBattlePrototype-Setup-{#AppVersion}
+OutputBaseFilename=TheUnforgotten-Setup-{#AppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -38,6 +38,12 @@ RestartApplications=no
 
 [Files]
 Source: "..\build\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
+
+; The game was renamed from Card Battle Prototype (v0.6.0): remove the old exe and shortcuts when upgrading in place.
+[InstallDelete]
+Type: files; Name: "{app}\CardBattlePrototype.exe"
+Type: filesandordirs; Name: "{autoprograms}\Card Battle Prototype"
+Type: files; Name: "{autodesktop}\Card Battle Prototype.lnk"
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
@@ -102,7 +108,7 @@ begin
     Http := CreateOleObject('WinHttp.WinHttpRequest.5.1');
     Http.SetTimeouts(3000, 3000, 3000, 3000);
     Http.Open('GET', 'https://api.github.com/repos/{#Repo}/releases/latest', False);
-    Http.SetRequestHeader('User-Agent', 'CardBattlePrototype-Setup');
+    Http.SetRequestHeader('User-Agent', 'TheUnforgotten-Setup');
     Http.Send('');
     if Http.Status <> 200 then Exit;
     Body := Http.ResponseText;

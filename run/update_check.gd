@@ -7,13 +7,13 @@ extends RefCounted
 
 ## The only request the game makes, and the only page it will ever open. Both are fixed here and
 ## never built from the reply.
-const LATEST_RELEASE_API := "https://api.github.com/repos/grump606/card-battle-prototype/releases/latest"
-const RELEASES_PAGE := "https://github.com/grump606/card-battle-prototype/releases/latest"
+const LATEST_RELEASE_API := "https://api.github.com/repos/grump606/the-unforgotten/releases/latest"
+const RELEASES_PAGE := "https://github.com/grump606/the-unforgotten/releases/latest"
 ## A reply larger than this is ignored (HTTPRequest.body_size_limit is set to it too).
 const MAX_BODY_BYTES := 65536
 const TIMEOUT_SECONDS := 5.0
 ## Set to any value to turn the check off.
-const DISABLE_ENV := "CARD_BATTLE_NO_UPDATE_CHECK"
+const DISABLE_ENV := "THE_UNFORGOTTEN_NO_UPDATE_CHECK"
 ## 1 to 4 dotted groups of at most 4 ASCII digits, with an optional leading v. `\z`, not `$`, so a
 ## trailing newline is not accepted; [0-9], not `\d`, so other scripts' digits are not either.
 const TAG_PATTERN := "^[vV]?[0-9]{1,4}(\\.[0-9]{1,4}){0,3}\\z"
@@ -89,20 +89,20 @@ static func notice_text(tag: String, current: String) -> String:
 ## --- In-game install (see docs/UPDATE_CHECK.md, "Updating in the game") ---
 ## Where a release's files live. The host and path are fixed here; only a tag that already passed
 ## is_valid_tag is ever spliced in, so nothing from the reply can choose where the game downloads from.
-const DOWNLOAD_BASE := "https://github.com/grump606/card-battle-prototype/releases/download/"
+const DOWNLOAD_BASE := "https://github.com/grump606/the-unforgotten/releases/download/"
 ## The installer is ~30 MB; anything past this is refused while downloading.
 const MAX_INSTALLER_BYTES := 150 * 1024 * 1024
 ## An RSA-4096 signature is 512 bytes.
 const MAX_SIGNATURE_BYTES := 1024
 ## The exported game's file name; self-update only runs from a build with exactly this name.
-const GAME_EXE_NAME := "CardBattlePrototype.exe"
+const GAME_EXE_NAME := "TheUnforgotten.exe"
 
 
-## "CardBattlePrototype-Setup-0.3.5.exe" for tag "v0.3.5" ("" for an invalid tag).
+## "TheUnforgotten-Setup-0.3.5.exe" for tag "v0.3.5" ("" for an invalid tag).
 static func installer_name(tag: String) -> String:
 	if not is_valid_tag(tag):
 		return ""
-	return "CardBattlePrototype-Setup-%s.exe" % tag.trim_prefix("v").trim_prefix("V")
+	return "TheUnforgotten-Setup-%s.exe" % tag.trim_prefix("v").trim_prefix("V")
 
 
 ## The installer's download URL for `tag`, or "" for an invalid tag.

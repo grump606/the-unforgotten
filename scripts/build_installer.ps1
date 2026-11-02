@@ -1,5 +1,5 @@
 # Exports the Windows build and wraps it in an Inno Setup installer.
-# Output: build/CardBattlePrototype-Setup-<version>.exe, its .sha256 and, when a signing key is configured, its .sig
+# Output: build/TheUnforgotten-Setup-<version>.exe, its .sha256 and, when a signing key is configured, its .sig
 # Needs the Godot 4.7.2 export templates and Inno Setup 6 (see docs/INSTALLER.md).
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -31,7 +31,7 @@ if ($publicPem) {
 }
 
 New-Item -ItemType Directory -Force build | Out-Null
-$exe = Join-Path $root 'build\CardBattlePrototype.exe'
+$exe = Join-Path $root 'build\TheUnforgotten.exe'
 if (Test-Path $exe) { Remove-Item $exe }
 
 & $godot --headless --path . --import | Out-Null
@@ -41,7 +41,7 @@ if ($LASTEXITCODE -ne 0 -or -not (Test-Path $exe)) { throw 'Godot export failed'
 & $iscc "/DAppVersion=$version" 'installer\setup.iss'
 if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compile failed' }
 
-$setup = Join-Path $root "build\CardBattlePrototype-Setup-$version.exe"
+$setup = Join-Path $root "build\TheUnforgotten-Setup-$version.exe"
 if (-not (Test-Path $setup)) { throw "Installer not found: $setup" }
 # Standard "<hash>  <filename>" format (two spaces), readable by sha256sum -c; ASCII, no BOM.
 $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $setup).Hash.ToLowerInvariant()

@@ -1,7 +1,7 @@
 # Windows installer
 
 Build: `powershell -ExecutionPolicy Bypass -File scripts/build_installer.ps1`
-Output: `build/CardBattlePrototype-Setup-<version>.exe` and `build/CardBattlePrototype-Setup-<version>.exe.sha256` (the `build/` folder is git-ignored).
+Output: `build/TheUnforgotten-Setup-<version>.exe` and `build/TheUnforgotten-Setup-<version>.exe.sha256` (the `build/` folder is git-ignored).
 
 ## One-time setup on a build machine
 
@@ -12,19 +12,19 @@ Output: `build/CardBattlePrototype-Setup-<version>.exe` and `build/CardBattlePro
 
 1. Bump `config/version` in `project.godot` (dotted numbers, e.g. `0.2.0`). Also set `application/file_version` and `application/product_version` in `export_presets.cfg` to the same number with a trailing `.0` (e.g. `0.2.0.0`); they are what the exe's Properties dialog shows.
 2. Run the build script.
-3. Publish the installer and its checksum file together as a GitHub release tagged `v<version>` (for example `gh release create v0.2.0 build/CardBattlePrototype-Setup-0.2.0.exe build/CardBattlePrototype-Setup-0.2.0.exe.sha256`).
+3. Publish the installer and its checksum file together as a GitHub release tagged `v<version>` (for example `gh release create v0.2.0 build/TheUnforgotten-Setup-0.2.0.exe build/TheUnforgotten-Setup-0.2.0.exe.sha256`).
 
-When a signing key is configured the build also writes `CardBattlePrototype-Setup-<version>.exe.sig`; publish it with the other two files. It is what lets the game install the update itself. See `docs/UPDATE_SIGNING.md` for the one-time key setup and the per-release steps.
+When a signing key is configured the build also writes `TheUnforgotten-Setup-<version>.exe.sig`; publish it with the other two files. It is what lets the game install the update itself. See `docs/UPDATE_SIGNING.md` for the one-time key setup and the per-release steps.
 
 ## Verifying a download
 
 The `.sha256` file holds one line in the standard `<hash>  <filename>` format, written by the build script after the installer is compiled. Download both files into the same folder, then check:
 
 ```powershell
-(Get-FileHash -Algorithm SHA256 .\CardBattlePrototype-Setup-<version>.exe).Hash.ToLower() -eq ((Get-Content .\CardBattlePrototype-Setup-<version>.exe.sha256) -split '\s+')[0]
+(Get-FileHash -Algorithm SHA256 .\TheUnforgotten-Setup-<version>.exe).Hash.ToLower() -eq ((Get-Content .\TheUnforgotten-Setup-<version>.exe.sha256) -split '\s+')[0]
 ```
 
-or `sha256sum -c CardBattlePrototype-Setup-<version>.exe.sha256` where available. A checksum published next to the file only detects a corrupted download; it does not prove who built it (the exe is unsigned, see Limits).
+or `sha256sum -c TheUnforgotten-Setup-<version>.exe.sha256` where available. A checksum published next to the file only detects a corrupted download; it does not prove who built it (the exe is unsigned, see Limits).
 
 ## What the installer does
 
