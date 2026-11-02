@@ -28,11 +28,9 @@ func _init(seed_value := 1, mote_count := 30) -> void:
 	# A local generator with a fixed seed: the look is repeatable and the run's RNG is untouched.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
-	for i in NOISE_SIZE:
-		_noise.append(rng.randf())
+	_noise = SceneNoise.noise(rng, NOISE_SIZE)
 	_mote_count = mote_count
-	for i in mote_count:
-		_motes.append_array([rng.randf(), rng.randf(), rng.randf_range(0.012, 0.04), rng.randf() * TAU, rng.randf_range(0.8, 1.8)])
+	_motes = SceneNoise.motes(rng, mote_count, 0.012, 0.04, 0.8, 1.8)
 
 
 func _ready() -> void:
