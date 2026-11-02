@@ -28,7 +28,7 @@ func show() -> void:
 	add_backdrop(stall)
 	stall.set_gold(run.gold)
 	stall.dimmed = removing
-	var box := panel("A weathered keeper watches you across the lost things." if run.gold >= Vendor.PRICE_CHEAP else "\"Empty pockets? Look, then. Looking is free.\"")
+	var box := panel("What will you carry with you?" if run.gold >= Vendor.PRICE_CHEAP else "\"Empty pockets? Look, then. Looking is free.\"")
 	style_banner(box.get_child(0) as Label)
 	if not removing:
 		var head := Control.new() # room for the shopkeeper's hood above the speech banner
@@ -103,10 +103,10 @@ func _relic_slot(offer: Dictionary) -> Control:
 	var affordable := run.gold >= price
 	var plate := PanelContainer.new()
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.03, 0.03, 0.9)
-	style.set_border_width_all(2)
-	style.border_color = Color(0.78, 0.55, 0.24)
-	style.set_corner_radius_all(6)
+	style.bg_color = Color(0.09, 0.11, 0.15, 0.92)
+	style.set_border_width_all(1)
+	style.border_color = Color("#9b9e90")
+	style.set_corner_radius_all(3)
 	style.set_content_margin_all(10)
 	plate.add_theme_stylebox_override("panel", style)
 	var column := VBoxContainer.new()
@@ -121,14 +121,14 @@ func _relic_slot(offer: Dictionary) -> Control:
 	column.add_child(view)
 	var name_label := make_label(relic.display_name)
 	name_label.add_theme_font_size_override("font_size", 17)
-	name_label.add_theme_color_override("font_color", Color(1.0, 0.93, 0.78))
+	name_label.add_theme_color_override("font_color", Color("#D7D0BC"))
 	column.add_child(name_label)
 	var text := make_label(relic.description)
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.add_theme_color_override("font_color", Color(0.86, 0.82, 0.74))
+	text.add_theme_color_override("font_color", Color("#bcc5bd"))
 	column.add_child(text)
 	var price_label := make_label("Sold" if sold else "%d gold" % price)
-	price_label.add_theme_color_override("font_color", Color(1.0, 0.93, 0.78))
+	price_label.add_theme_color_override("font_color", Color("#D7D0BC"))
 	column.add_child(price_label)
 	var buy := add_button(column, "Buy relic", buy_relic)
 	buy.disabled = sold or not affordable

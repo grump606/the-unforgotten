@@ -110,6 +110,7 @@ func _draw() -> void:
 		var inner := center + Vector2.from_angle(angle) * 15.2
 		var outer := center + Vector2.from_angle(angle + 0.04) * 16.8
 		draw_line(inner, outer, Color(ink, 0.38), 0.8, true)
+	TactileArt.draw_grain(self, Rect2(7.5, 7.5, 21, 21), 0.16)
 	_draw_glyph(relic.kind, ink, accent, stock)
 	if _hovered:
 		draw_circle(center, 15.5, Color(1, 1, 1, 0.14))
