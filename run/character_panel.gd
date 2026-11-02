@@ -248,6 +248,7 @@ func _draw_portrait(origin: Vector2, sz: Vector2) -> void:
 	_draw_emblem(Vector2(17, 17))
 	_box(Rect2(Vector2.ZERO, sz), Color(0, 0, 0, 0), 5, 1, Color(_p.frame, 0.8))
 
+
 ## The painted class sprite, cropped to head and shoulders and centred in the window; false when the
 ## class has no sprite (then the code-drawn bust is used). A lit panel brightens it a little.
 func _draw_painted_portrait(sz: Vector2) -> bool:

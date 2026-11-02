@@ -1,7 +1,16 @@
 class_name TactileArt
 extends RefCounted
+## The painted "cloth" finish of the interface (art/layers/ui): a grain overlay for panels, a textured
+## button/banner style and the painted energy orb. Everything is optional: with the files missing the
+## callers keep their flat, code-drawn look.
+
+const SURFACE_PATH := "res://art/layers/ui/surface.png"
+const ORB_PATH := "res://art/layers/ui/energy_orb.png"
+
 static var _orb := {}
 
+
+## A StyleBox that draws a flat box and then a faint grain texture over it.
 class PaintedStyle extends StyleBox:
 	var backing: StyleBoxFlat
 	var grain: Texture2D
@@ -12,13 +21,17 @@ class PaintedStyle extends StyleBox:
 		if inset.has_area():
 			RenderingServer.canvas_item_add_texture_rect(canvas, inset, grain.get_rid(), false, Color(1, 1, 1, 0.10))
 
-static func surface() -> Texture2D:
-	return PaintedArt._load("res://art/layers/ui/surface.png")
 
+## The grain / paper texture, or null when the file is missing.
+static func surface() -> Texture2D:
+	return PaintedArt.texture(SURFACE_PATH)
+
+
+## The painted energy orb and the box around its painted pixels, as {tex, region}, or {} when missing.
 static func energy_orb() -> Dictionary:
 	if not _orb.is_empty():
 		return _orb
-	var tex := PaintedArt._load("res://art/layers/ui/energy_orb.png")
+	var tex := PaintedArt.texture(ORB_PATH)
 	if tex != null:
 		var image := tex.get_image()
 		var used := image.get_used_rect()
@@ -26,11 +39,15 @@ static func energy_orb() -> Dictionary:
 			_orb = {"tex": tex, "region": Rect2(used)}
 	return _orb
 
+
+## Draws the grain over `area` of `item` at `opacity`; does nothing without the texture.
 static func draw_grain(item: CanvasItem, area: Rect2, opacity := 0.12) -> void:
 	var tex := surface()
 	if tex != null and area.has_area():
 		item.draw_texture_rect(tex, area, false, Color(1, 1, 1, opacity))
 
+
+## `flat` with the grain drawn over it, or `flat` itself when the texture is missing.
 static func textured_style(flat: StyleBoxFlat) -> StyleBox:
 	var tex := surface()
 	if tex == null:

@@ -139,6 +139,11 @@ static func warm_for_stop(stop_type: int, character_id: StringName = &"") -> voi
 			preload_paths(["res://art/layers/screens/vendor/keeper.png"])
 
 
+## Any texture under res:// through the shared cache (mipmapped), or null when it is missing.
+static func texture(path: String) -> Texture2D:
+	return _load(path)
+
+
 static func _load(path: String) -> Texture2D:
 	if _cache.has(path):
 		return _cache[path]
