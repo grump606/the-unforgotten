@@ -4,19 +4,19 @@ On launch the game asks GitHub whether a newer release exists. If one does, a sm
 
 ## Privacy
 
-The game contacts `api.github.com` once per launch: a single HTTPS `GET https://api.github.com/repos/grump606/card-battle-prototype/releases/latest` with a `User-Agent: card-battle-prototype/<version>` header and an `Accept` header. Nothing else is sent: no identifiers, no save data, no tokens, no telemetry. GitHub sees the usual connection details (IP address) like for any web request. The check itself only reads the reply and downloads nothing. Installing an update in the game is a separate step that only runs when the player clicks (see "Updating in the game" below).
+The game contacts `api.github.com` once per launch: a single HTTPS `GET https://api.github.com/repos/grump606/the-unforgotten/releases/latest` with a `User-Agent: the-unforgotten/<version>` header and an `Accept` header. Nothing else is sent: no identifiers, no save data, no tokens, no telemetry. GitHub sees the usual connection details (IP address) like for any web request. The check itself only reads the reply and downloads nothing. Installing an update in the game is a separate step that only runs when the player clicks (see "Updating in the game" below).
 
 ## Turning it off
 
 In the game: the main menu has a **Check for updates: On/Off** button. It is saved in `user://settings.json` as `{"update_check_enabled": false}` and applies from then on. Turning it off cancels any request in flight and hides a notice already shown; no request is made at all while it is off. Turning it on asks GitHub right away. It defaults to on. The settings file is treated as untrusted: it is capped at 4 KB and the value must be a real boolean, otherwise the default (on) is used, with no error.
 
-From outside the game: set the environment variable `CARD_BATTLE_NO_UPDATE_CHECK` to any non-empty value before launching, for example `$env:CARD_BATTLE_NO_UPDATE_CHECK = "1"`. The check is also skipped on its own in headless runs (tests, CI, the sims), so those never touch the network. The variable and headless always win: the check runs only if none of the three says no.
+From outside the game: set the environment variable `THE_UNFORGOTTEN_NO_UPDATE_CHECK` to any non-empty value before launching, for example `$env:THE_UNFORGOTTEN_NO_UPDATE_CHECK = "1"`. The check is also skipped on its own in headless runs (tests, CI, the sims), so those never touch the network. The variable and headless always win: the check runs only if none of the three says no.
 
 ## Behaviour and safety
 
 - The request is asynchronous (a worker thread, 5 s timeout, reply capped at 64 KB), so the game never waits on it.
 - Every failure is silent: offline, timeout, HTTP error or rate limit (anything but 200), a reply that is not JSON, a missing or odd `tag_name`. No notice, no dialog, no warning in the log.
-- The reply is untrusted. Only `tag_name` is read, and only if it matches `^[vV]?[0-9]{1,4}(\.[0-9]{1,4}){0,3}$`. The page Download opens is the constant `https://github.com/grump606/card-battle-prototype/releases/latest`; no URL from the reply is ever used.
+- The reply is untrusted. Only `tag_name` is read, and only if it matches `^[vV]?[0-9]{1,4}(\.[0-9]{1,4}){0,3}$`. The page Download opens is the constant `https://github.com/grump606/the-unforgotten/releases/latest`; no URL from the reply is ever used.
 
 ## Version comparison
 
@@ -31,9 +31,9 @@ The running version is `application/config/version` in `project.godot`. Versions
 
 ## Updating in the game
 
-When a signing key is built in (`docs/UPDATE_SIGNING.md`) and the game is an exported, writable install named `CardBattlePrototype.exe`, the notice's button reads **Update & restart** instead of Download. Nothing happens until the player clicks it. Then, with progress shown on the bar:
+When a signing key is built in (`docs/UPDATE_SIGNING.md`) and the game is an exported, writable install named `TheUnforgotten.exe`, the notice's button reads **Update & restart** instead of Download. Nothing happens until the player clicks it. Then, with progress shown on the bar:
 
-1. The game downloads `CardBattlePrototype-Setup-<version>.exe.sig` (at most 1 KB) and then the installer (at most 150 MB) from `https://github.com/grump606/card-battle-prototype/releases/download/v<version>/`. The URL is built from the already-validated tag and that fixed prefix; nothing from the reply chooses where it downloads from.
+1. The game downloads `TheUnforgotten-Setup-<version>.exe.sig` (at most 1 KB) and then the installer (at most 150 MB) from `https://github.com/grump606/the-unforgotten/releases/download/v<version>/`. The URL is built from the already-validated tag and that fixed prefix; nothing from the reply chooses where it downloads from.
 2. It checks the signature: an RSA PKCS#1 v1.5 signature over the installer's SHA-256, made with the maintainer's private key, verified against the public key embedded in `run/update_verifier.gd`. A mismatch, a missing `.sig`, a damaged file or no embedded key all stop here and delete the download.
 3. It checks the signature again immediately before running the file (it sits in the player's profile folder in between), then starts the installer silently (`/SILENT /SUPPRESSMSGBOXES /NORESTART /RELAUNCH=1`) and quits. The installer replaces the game files in place (same AppId) and `installer/setup.iss` starts the game again because of `/RELAUNCH=1`.
 

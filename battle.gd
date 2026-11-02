@@ -42,7 +42,7 @@ signal fight_finished(victory: bool)
 ## button that emits fight_finished rather than starting a new fight.
 var external_combat: Combat = null
 ## Standalone fights only, set before adding to the tree: a value >= 0 replays the same encounter and combat
-## (the CARD_BATTLE_SEED environment variable does the same). -1 keeps the fight random.
+## (the THE_UNFORGOTTEN_SEED environment variable does the same). -1 keeps the fight random.
 var seed_override: int = -1
 ## Also set before adding to the tree: picks the backdrop look (the Conductor fight, the class tint).
 var boss_fight := false
@@ -99,7 +99,7 @@ func _ready() -> void:
 
 ## Standalone mode (no external_combat): a random balance-test fight with the extended deck. Kept on
 ## purpose: the UI tests (ui_battle_test, ui_relic_view_test) and a bare F6 of battle.tscn rely on it.
-## With a seed (seed_override, or CARD_BATTLE_SEED) the encounter and the combat replay exactly.
+## With a seed (seed_override, or THE_UNFORGOTTEN_SEED) the encounter and the combat replay exactly.
 func _start_combat() -> void:
 	var player := Combatant.new("Wanderer", PLAYER_START_HP)
 	var encounter_rng := RandomNumberGenerator.new()
@@ -121,11 +121,11 @@ func _start_combat() -> void:
 
 
 ## The seed for a standalone fight, or -1 for a random one: seed_override first, then the
-## CARD_BATTLE_SEED environment variable (read only here, so runs never see it).
+## THE_UNFORGOTTEN_SEED environment variable (read only here, so runs never see it).
 func _standalone_seed() -> int:
 	if seed_override >= 0:
 		return seed_override
-	var text := OS.get_environment("CARD_BATTLE_SEED")
+	var text := OS.get_environment("THE_UNFORGOTTEN_SEED")
 	return int(text) if text.is_valid_int() and int(text) >= 0 else -1
 
 
