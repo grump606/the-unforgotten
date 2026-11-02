@@ -268,13 +268,8 @@ func _raised() -> bool:
 func _draw() -> void:
 	if card == null:
 		return
-	var p: Dictionary = PALETTES[class_id].duplicate()
 	var muted := state == State.UNPLAYABLE
-	if muted:
-		for key in ["stock", "frame", "banner", "window", "accent"]:
-			p[key] = _mute(p[key])
-	elif _raised():
-		p["frame"] = (p["frame"] as Color).lightened(0.15)
+	var p := _palette(class_id, muted, not muted and _raised())
 	var top := 0.0 if _raised() else LIFT
 	draw_set_transform(Vector2(0, top * view_scale), 0.0, Vector2(view_scale, view_scale))
 	var stock: Color = p.stock
@@ -330,7 +325,26 @@ func _draw() -> void:
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
-func _mute(c: Color) -> Color:
+## The class palette adjusted for muted / raised, built once per combination (not per redraw).
+static var _derived_palettes: Dictionary = {}
+
+
+static func _palette(id: StringName, muted: bool, raised: bool) -> Dictionary:
+	if not muted and not raised:
+		return PALETTES[id]
+	var key := "%s|%d" % [id, 1 if muted else 2]
+	if not _derived_palettes.has(key):
+		var p: Dictionary = PALETTES[id].duplicate()
+		if muted:
+			for k in ["stock", "frame", "banner", "window", "accent"]:
+				p[k] = _mute(p[k])
+		else:
+			p["frame"] = (p["frame"] as Color).lightened(0.15)
+		_derived_palettes[key] = p
+	return _derived_palettes[key]
+
+
+static func _mute(c: Color) -> Color:
 	var g := c.get_luminance()
 	return Color(g, g, g).lerp(c, 0.45) * Color(0.78, 0.78, 0.78, 1.0)
 
