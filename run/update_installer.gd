@@ -1,13 +1,16 @@
 class_name UpdateInstaller
 extends Node
-## Downloads a newer release's installer, verifies its signature and hands over to it: the installer
-## replaces the game files and relaunches the game. Started only by the player's click (see
-## UpdateNotice). Every step is checked and any failure leaves the game running as it was.
+## Downloads a newer release's installer, verifies it against a signed manifest and hands over to it:
+## the installer replaces the game files and relaunches the game. Started only by the player's click
+## (see UpdateNotice). Every step is checked and any failure leaves the game running as it was.
 ##
 ## Trust chain (docs/UPDATE_CHECK.md): the URLs are built from a validated tag against a fixed host
-## (UpdateCheck.installer_url); the download is size-capped; and it is run ONLY if its detached RSA
-## signature verifies against the public key built into the game (UpdateVerifier). It is verified
-## once on arrival and again right before it is launched.
+## (UpdateCheck.installer_url); the downloads are size-capped; and the installer is run ONLY if
+## (1) the manifest's detached RSA signature verifies against the public key built into the game,
+## (2) the manifest names this release's file and version and is newer than the running game, and
+## (3) the installer's SHA-256 equals the one in the manifest (UpdateVerifier). (3) is checked on
+## arrival and again right before launch. Signing name and version, not just bytes, is what stops an
+## older genuinely signed installer being replayed as an update.
 
 signal changed
 
@@ -25,6 +28,8 @@ var error := ""
 ## Download progress 0..1 (0 while the size is unknown).
 var progress := 0.0
 var tag := ""
+## The running game's version; a manifest must be for something newer. Tests set it.
+var current_version: String = str(ProjectSettings.get_setting("application/config/version", ""))
 ## The key signatures must verify against; tests substitute a generated one.
 var public_key_pem: String = UpdateVerifier.PUBLIC_KEY_PEM
 ## Where downloads go. user:// is inside the player's own profile.
@@ -38,7 +43,9 @@ var quit_game: Callable = func() -> void: get_tree().quit()
 var dry_run := false
 var requested: Array[String] = []
 
-var _signature := PackedByteArray()
+var _manifest_signature := PackedByteArray()
+## The SHA-256 (lowercase hex) the signed manifest promises for the installer.
+var _expected_sha256 := ""
 var _installer_path := ""
 var _request: HTTPRequest
 
@@ -72,7 +79,7 @@ static func cleanup(dir: String = "user://update") -> void:
 
 
 ## Begins downloading the release `release_tag`. Returns false (state FAILED, `error` set) when it
-## cannot start; true when the signature request is in flight. Ignored while already downloading.
+## cannot start; true when the first request is in flight. Ignored while already downloading.
 func start(release_tag: String) -> bool:
 	if state == State.DOWNLOADING or state == State.READY:
 		return false
@@ -88,7 +95,8 @@ func start(release_tag: String) -> bool:
 	progress = 0.0
 	error = ""
 	state = State.DOWNLOADING
-	if not _begin_request(UpdateCheck.signature_url(tag), "", UpdateCheck.MAX_SIGNATURE_BYTES, SIGNATURE_TIMEOUT, _on_signature_completed):
+	_expected_sha256 = ""
+	if not _begin_request(UpdateCheck.manifest_signature_url(tag), "", UpdateCheck.MAX_SIGNATURE_BYTES, SIGNATURE_TIMEOUT, _on_manifest_signature_completed):
 		return _fail("could not start the download")
 	changed.emit()
 	return true
@@ -104,8 +112,8 @@ func cancel() -> void:
 		changed.emit()
 
 
-## The signature arrived (or failed to): store it and fetch the installer.
-func handle_signature(result: int, code: int, body: PackedByteArray) -> void:
+## The manifest's signature arrived (or failed to): store it and fetch the manifest.
+func handle_manifest_signature(result: int, code: int, body: PackedByteArray) -> void:
 	if state != State.DOWNLOADING:
 		return
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
@@ -114,12 +122,29 @@ func handle_signature(result: int, code: int, body: PackedByteArray) -> void:
 	if body.is_empty() or body.size() > UpdateCheck.MAX_SIGNATURE_BYTES:
 		_fail("the update signature is not valid")
 		return
-	_signature = body
+	_manifest_signature = body
+	if not _begin_request(UpdateCheck.manifest_url(tag), "", UpdateCheck.MAX_MANIFEST_BYTES, SIGNATURE_TIMEOUT, _on_manifest_completed):
+		_fail("could not start the download")
+
+
+## The manifest arrived: it must be signed and describe exactly this release. Only then is the
+## installer fetched, and its expected hash is whatever the signed manifest says.
+func handle_manifest(result: int, code: int, body: PackedByteArray) -> void:
+	if state != State.DOWNLOADING:
+		return
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+		_fail("the update manifest could not be downloaded")
+		return
+	var why := UpdateVerifier.verify_manifest(body, _manifest_signature, tag, current_version, public_key_pem)
+	if why != "":
+		_fail("the update failed verification (%s)" % why)
+		return
+	_expected_sha256 = UpdateCheck.parse_manifest(body)["sha256"]
 	if not _begin_request(UpdateCheck.installer_url(tag), _installer_path + ".part", UpdateCheck.MAX_INSTALLER_BYTES, DOWNLOAD_TIMEOUT, _on_installer_completed):
 		_fail("could not start the download")
 
 
-## The installer finished downloading to `<path>.part`: move it into place and verify it.
+## The installer finished downloading to `<path>.part`: move it into place and check its hash.
 func handle_installer(result: int, code: int) -> void:
 	if state != State.DOWNLOADING:
 		return
@@ -131,7 +156,7 @@ func handle_installer(result: int, code: int) -> void:
 	if DirAccess.rename_absolute(ProjectSettings.globalize_path(part), ProjectSettings.globalize_path(_installer_path)) != OK:
 		_fail("the downloaded update could not be saved")
 		return
-	var why := UpdateVerifier.verify_file(_installer_path, _signature, public_key_pem)
+	var why := UpdateVerifier.verify_file_hash(_installer_path, _expected_sha256)
 	if why != "":
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(_installer_path))
 		_fail("the download failed verification (%s)" % why)
@@ -146,7 +171,7 @@ func handle_installer(result: int, code: int) -> void:
 func install_and_restart() -> bool:
 	if state != State.READY:
 		return false
-	var why := UpdateVerifier.verify_file(_installer_path, _signature, public_key_pem)
+	var why := UpdateVerifier.verify_file_hash(_installer_path, _expected_sha256)
 	if why != "":
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(_installer_path))
 		return _fail("the update failed verification (%s)" % why)
@@ -186,8 +211,12 @@ func _begin_request(url: String, file: String, size_limit: int, timeout: float, 
 	return true
 
 
-func _on_signature_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
-	handle_signature(result, code, body)
+func _on_manifest_signature_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	handle_manifest_signature(result, code, body)
+
+
+func _on_manifest_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	handle_manifest(result, code, body)
 
 
 func _on_installer_completed(result: int, code: int, _headers: PackedStringArray, _body: PackedByteArray) -> void:

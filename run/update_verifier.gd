@@ -1,9 +1,11 @@
 class_name UpdateVerifier
 extends RefCounted
-## Checks a downloaded installer against a detached RSA signature before the game will run it.
-## The release publishes `<installer>.sig`: an RSA PKCS#1 v1.5 signature over the installer's
+## Checks a downloaded installer against a signed manifest before the game will run it.
+## The release publishes `<installer>.manifest` (name, version, installer SHA-256: UpdateCheck.
+## parse_manifest) and `<installer>.manifest.sig`: an RSA PKCS#1 v1.5 signature over the manifest's
 ## SHA-256 digest, made offline with the maintainer's private key (scripts/build_installer.ps1,
-## docs/UPDATE_SIGNING.md). Only the matching PUBLIC key is embedded here, so a tampered or swapped
+## docs/UPDATE_SIGNING.md). (`<installer>.sig`, a signature over the bare installer, is still
+## published for v0.6.1 and earlier, which only know that scheme.) Only the matching PUBLIC key is embedded here, so a tampered or swapped
 ## release, or a hijacked GitHub account, cannot produce an update the game will install.
 ## With no key embedded, verification always fails and in-game install stays off.
 
@@ -27,8 +29,8 @@ static func is_configured(public_key_pem: String = PUBLIC_KEY_PEM) -> bool:
 	return public_key_pem.strip_edges() != ""
 
 
-## "" when `signature` is a valid signature of the file at `path` by `public_key_pem`'s key; else why not.
-static func verify_file(path: String, signature: PackedByteArray, public_key_pem: String = PUBLIC_KEY_PEM) -> String:
+## "" when `signature` is a valid signature of `data` by `public_key_pem`'s key; else why not.
+static func verify_bytes(data: PackedByteArray, signature: PackedByteArray, public_key_pem: String = PUBLIC_KEY_PEM) -> String:
 	if not is_configured(public_key_pem):
 		return "no update signing key is built into this version"
 	if signature.is_empty() or signature.size() > UpdateCheck.MAX_SIGNATURE_BYTES:
@@ -36,15 +38,42 @@ static func verify_file(path: String, signature: PackedByteArray, public_key_pem
 	var key := CryptoKey.new()
 	if key.load_from_string(public_key_pem, true) != OK:
 		return "the built-in update key could not be read"
-	var digest := _sha256_file(path)
+	var ctx := HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	ctx.update(data)
+	var ok := Crypto.new().verify(HashingContext.HASH_SHA256, ctx.finish(), signature, key)
+	return "" if ok else "the signature does not match"
+
+
+## "" when `manifest` is genuinely signed AND describes exactly this release: the file name for `tag`,
+## the same version as `tag`, and a version newer than `current_version`. Checking the signed
+## version and name is what stops a validly signed older installer being replayed as an update.
+static func verify_manifest(manifest: PackedByteArray, signature: PackedByteArray, tag: String, current_version: String, public_key_pem: String = PUBLIC_KEY_PEM) -> String:
+	var why := verify_bytes(manifest, signature, public_key_pem)
+	if why != "":
+		return why
+	var fields := UpdateCheck.parse_manifest(manifest)
+	if fields.is_empty():
+		return "the update manifest is malformed"
+	if fields["name"] != UpdateCheck.installer_name(tag):
+		return "the manifest is for a different file"
+	if UpdateCheck.parse_version(fields["version"]) != UpdateCheck.parse_version(tag):
+		return "the manifest is for a different version"
+	if not UpdateCheck.is_newer(fields["version"], current_version):
+		return "the manifest is not for a newer version"
+	return ""
+
+
+## "" when the file at `path` has SHA-256 `expected_hex` (lowercase); else why not.
+static func verify_file_hash(path: String, expected_hex: String) -> String:
+	var digest := sha256_file(path)
 	if digest.is_empty():
 		return "the downloaded file could not be read"
-	var ok := Crypto.new().verify(HashingContext.HASH_SHA256, digest, signature, key)
-	return "" if ok else "the signature does not match the download"
+	return "" if digest.hex_encode() == expected_hex else "the download does not match the signed hash"
 
 
 ## SHA-256 of the file at `path`, streamed so a large file is never held whole; empty on any read error.
-static func _sha256_file(path: String) -> PackedByteArray:
+static func sha256_file(path: String) -> PackedByteArray:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return PackedByteArray()

@@ -156,6 +156,7 @@ func _on_download() -> void:
 		return
 	match installer.state:
 		UpdateInstaller.State.IDLE:
+			installer.current_version = current_version
 			installer.start(latest_tag)
 		UpdateInstaller.State.READY:
 			installer.install_and_restart()
