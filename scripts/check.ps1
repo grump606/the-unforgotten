@@ -46,6 +46,7 @@ try {
     Invoke-Step 'tests' @('--headless', '--path', '.', '-s', $testScript)
     Invoke-Step 'smoke' @('--headless', '--path', '.', '-s', 'res://tests/smoke_main.gd')
     Invoke-Step 'ui battle' @('--headless', '--path', '.', '-s', 'res://tests/ui_battle_test.gd')
+    Invoke-Step 'battle seed' @('--headless', '--path', '.', '-s', 'res://tests/battle_seed_test.gd')
     Invoke-Step 'ui flow' @('--headless', '--path', '.', '-s', 'res://tests/ui_flow_test.gd')
     Invoke-Step 'ui card view' @('--headless', '--path', '.', '-s', 'res://tests/ui_card_view_test.gd')
     Invoke-Step 'ui stage' @('--headless', '--path', '.', '-s', 'res://tests/ui_stage_test.gd')
