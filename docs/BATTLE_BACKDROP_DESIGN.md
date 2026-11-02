@@ -1,5 +1,7 @@
 # Battle backdrop
 
+> **Naming note (v0.5.0):** the game was reskinned as "The Unforgotten". Enemy and relic display names changed (for example Brakeman = Bellkeeper, Conductor = Eraser, Gate Warden = Threshold Keeper). IDs, files and rules did not. This document still uses the original names; see [`docs/RESKIN.md`](RESKIN.md) for the full map.
+
 An animated, code-drawn background behind the battle UI (`run/battle_backdrop.gd`, `class_name BattleBackdrop`). No image assets. It is the first child of `battle.tscn` (node `Backdrop`, full rect, mouse ignored), so it sits under everything and the standalone F6 battle shows it too.
 
 ## Composition and palette
