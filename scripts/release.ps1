@@ -23,7 +23,9 @@ $version = (Select-String -Path 'project.godot' -Pattern '^config/version="([^"]
 if (-not $version) { throw 'config/version not found in project.godot' }
 $tag = "v$version"
 if (git tag --list $tag) { throw "Tag $tag already exists: bump config/version first." }
-if (gh release view $tag 2>$null) { throw "Release $tag already exists on GitHub: bump config/version first." }
+$existing = @(gh release list --limit 200 --json tagName --jq '.[].tagName')
+if ($LASTEXITCODE -ne 0) { throw 'gh release list failed: run "gh auth status".' }
+if ($existing -contains $tag) { throw "Release $tag already exists on GitHub: bump config/version first." }
 
 if (-not $KeyPath -or -not (Test-Path -LiteralPath $KeyPath)) {
     throw 'Signing key not found. Pass -KeyPath or set $env:UPDATE_SIGNING_KEY to the .pfx (or .pem) path.'
