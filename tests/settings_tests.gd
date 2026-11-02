@@ -46,6 +46,15 @@ func run() -> int:
 		_check(Settings.load_file(_path).update_check_enabled, "bad content '%s' falls back to on" % text)
 	_write("{\"update_check_enabled\": false, \"extra\": 1}")
 	_check(not Settings.load_file(_path).update_check_enabled, "unknown keys are ignored")
+	_write("{\"update_check_enabled\": false, \"extra\": 1, \"nested\": {\"a\": [1, 2]}}")
+	var kept := Settings.load_file(_path)
+	_check(kept.extras.has("extra") and kept.extras.has("nested"), "unknown keys are kept in extras")
+	kept.update_check_enabled = true
+	_check(kept.save(_path) == "", "a settings file with unknown keys saves")
+	var reread: Variant = JSON.parse_string(FileAccess.get_file_as_string(_path))
+	_check(typeof(reread) == TYPE_DICTIONARY and reread.get("update_check_enabled") == true and reread.get("extra") == 1.0 and reread.get("nested") == {"a": [1.0, 2.0]}, "unknown keys survive a save")
+	_check(Settings.to_dict(Settings.new()).size() == 1, "fresh settings write only the known key")
+	DirAccess.remove_absolute(_path + ".bak")  # the save above made one; the cases below test the defaults
 	_write("{\"update_check_enabled\": false, \"pad\": \"%s\"}" % "x".repeat(Settings.MAX_FILE_BYTES))
 	_check(Settings.load_file(_path).update_check_enabled, "an oversized file falls back to the defaults")
 	_check(Settings.from_dict(null).update_check_enabled and Settings.from_dict([]).update_check_enabled, "non-object data gives the defaults")

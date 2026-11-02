@@ -92,7 +92,7 @@ func _show_main_menu() -> void:
 func _toggle_update_check() -> bool:
 	var enabled := not _update_notice.user_enabled
 	_update_notice.user_enabled = enabled
-	var settings := Settings.new()
+	var settings := Settings.load_file(settings_path)  # keep every other field as it is
 	settings.update_check_enabled = enabled
 	var error := settings.save(settings_path)
 	if error != "":
