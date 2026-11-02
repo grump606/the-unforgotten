@@ -32,7 +32,7 @@ func _initialize() -> void:
 			check(backdrop.size() == 1 and backdrop[0].painted_name() == DestinationArt.battle_key(index), "restored fight selects destination painting")
 			var battle: Control = body.get_child(0)
 			for enemy in battle._combat.enemies:
-				check(Fighter.ART_KEYS.has(enemy.display_name), "renamed enemy has art alias")
+				check(Fighter.ART_KEYS.has(enemy.data.id), "enemy has art by id")
 			battle._combat.abandon()
 			body.queue_free()
 			await process_frame
