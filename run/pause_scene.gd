@@ -1,6 +1,7 @@
 class_name PauseScene
 extends Control
-## Animated backdrop for the pause menu, drawn entirely in code: a dark carriage seen from a
+## Animated backdrop for the pause menu: a painted picture (art/layers/screens/pause) when it
+## exists, with a code-drawn fallback of a dark carriage seen from a
 ## bench, a tunnel sliding past the window, a flickering lamp and a slow sway, plus one small
 ## per-character detail (see docs/PAUSE_SCREEN_DESIGN.md). It only animates while visible in
 ## the tree and is driven by advance(delta), so tests can step it deterministically.
@@ -30,8 +31,7 @@ func _init() -> void:
 	# A local generator with a fixed seed: the look is repeatable and the run's RNG is untouched.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 606
-	for i in NOISE_SIZE:
-		_noise.append(rng.randf())
+	_noise = SceneNoise.noise(rng, NOISE_SIZE)
 
 
 func _ready() -> void:

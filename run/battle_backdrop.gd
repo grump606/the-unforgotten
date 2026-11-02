@@ -1,6 +1,6 @@
 class_name BattleBackdrop
 extends Control
-## Animated backdrop for the battle screen, drawn entirely in code: the inside of a ghost-train
+## Animated backdrop for the battle screen, painted per class, boss and destination (art/layers/screens/battle_*), with a code-drawn fallback: the inside of a ghost-train
 ## corridor seen head-on at night, windows and ribs rushing past, swaying lamps, drifting motes
 ## (see docs/BATTLE_BACKDROP_DESIGN.md). It stays dark and low-contrast so the UI above it reads,
 ## only animates while visible in the tree and is driven by advance(delta), so tests can step it.
@@ -33,7 +33,7 @@ const ACCENT_GLOW := 0.07
 
 ## Seconds of animation so far; only advance() moves it.
 var time := 0.0
-## True for the Conductor fight: redder lamps, a pale glow ahead, stronger sway.
+## True for the final-boss fight (the Eraser; id the_conductor): redder lamps, a pale glow ahead, stronger sway.
 var boss := false
 ## One of the TINTS keys; anything else (including empty) draws the neutral scene.
 var character_id: StringName = &""
@@ -50,10 +50,8 @@ func _init() -> void:
 	# A local generator with a fixed seed: the look is repeatable and the run's RNG is untouched.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1906
-	for i in NOISE_SIZE:
-		_noise.append(rng.randf())
-	for i in MOTE_COUNT:
-		_motes.append_array([rng.randf(), rng.randf(), rng.randf_range(0.015, 0.05), rng.randf() * TAU, rng.randf_range(0.8, 1.9)])
+	_noise = SceneNoise.noise(rng, NOISE_SIZE)
+	_motes = SceneNoise.motes(rng, MOTE_COUNT, 0.015, 0.05, 0.8, 1.9)
 
 
 func _ready() -> void:

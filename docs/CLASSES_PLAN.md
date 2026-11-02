@@ -1,5 +1,7 @@
 # Classes build plan
 
+> **Naming note (v0.5.0):** the game was reskinned as "The Unforgotten". Enemy and relic display names changed (for example Brakeman = Bellkeeper, Conductor = Eraser, Gate Warden = Threshold Keeper). IDs, files and rules did not. This document still uses the original names; see [`docs/RESKIN.md`](RESKIN.md) for the full map.
+
 Three playable characters (Deserter, Pickpocket, Medium), each with a class card pool, sharing a neutral pool. Status: Phases 1 (character infrastructure), 2 (character select screen), 3 (Deserter), 4 (Pickpocket), 5 (Medium) and 6 (bots and balance) done; Phase 7 (story) not started. Greedy escape rate over 600 runs and seeds 1 to 3: Deserter 42.7%, Pickpocket 43.9%, Medium 45.2%; smart about 75% / 62% / 56%. Phase 6 nerfed the Deserter's Hold cards (Hold the Line 5/2, Dig In 2/2, Last Stand 14/10) because HP alone could not fix them without making the Deserter frailer than the Medium.
 
 ## Decisions assumed (change any before Phase 1)

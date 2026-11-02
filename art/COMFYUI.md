@@ -1,5 +1,7 @@
 # Local generation (ComfyUI + SDXL)
 
+> **Naming note (v0.5.0):** the game was reskinned as "The Unforgotten". Enemy and relic display names changed (for example Brakeman = Bellkeeper, Conductor = Eraser, Gate Warden = Threshold Keeper). IDs, files and rules did not. This document still uses the original names; see [`docs/RESKIN.md`](../docs/RESKIN.md) for the full map.
+
 Installed outside the repo: `D:\Tools\comfyui\ComfyUI_windows_portable` (ComfyUI v0.43.0, SDXL base 1.0 in `ComfyUI\models\checkpoints`). RTX 2080 SUPER, 8 GB. `rembg` is pip-installed into its embedded Python and pulled a ~1 GB model on first use.
 
 Start the server (port 8188):

@@ -1,6 +1,6 @@
 # Vendor scene
 
-An animated, code-drawn stall behind the vendor panel (`run/vendor_scene.gd`, `class_name VendorScene`). No image assets. `run.gd` adds one as the first child of the body at a vendor stop (full rect, mouse ignored) and then the panel on top; every other screen is unchanged.
+An animated stall behind the vendor panel (`run/vendor_scene.gd`, `class_name VendorScene`). Since v0.5.0 the wall, shelves and lamps come from a painted backdrop (`art/layers/screens/vendor/bg.png`) and the shopkeeper is a painted figure (`keeper.png`, drawn by `_draw_painted_keeper`); everything below that describes code-drawn shelves, lanterns and a hooded void-faced keeper is now only the fallback used when those files are missing. The counter, till, props, motes and scrim are still code-drawn. `run.gd` adds one as the first child of the body at a vendor stop (full rect, mouse ignored) and then the panel on top; every other screen is unchanged.
 
 ## Composition and palette
 
@@ -39,3 +39,7 @@ None. When the player cannot afford the cheapest offer (`Vendor.PRICE_CHEAP`) th
 About 400 `draw_*` calls a frame (rects, lines, small polygons, circles and three strings; no textures, no shaders), redrawn only from `advance()`, which does nothing unless the node is visible in the tree (`_process` is switched off while hidden; the paused tree stops it too). The generator is local with a fixed seed, so the run RNG is untouched.
 
 `tests/ui_vendor_scene_test.gd` (in `scripts/check.ps1`) covers building, determinism, hidden/detached freeze, mouse ignore, the till, and a real vendor stop with one stall beneath clickable offers. `tools/vendor_sheet.gd` takes the screenshots (not headless).
+
+## Painted keeper (v0.5.0)
+
+`PaintedArt.keeper_figure()` loads `art/layers/screens/vendor/keeper.png` (transparent PNG) and the box around its painted pixels. `_draw_painted_keeper` scales it so the face sits at the head anchor (`FACE_FROM_BOTTOM`), lets the hands drop behind the counter edge, applies a tiny vertical stretch for breathing and tints it with the lantern flicker. It has one frame: no blink and no low-gold variant. The prompt used to generate it is in `art/CHATGPT_VENDOR_BRIEF.md`.

@@ -1,5 +1,7 @@
 # Rest, story and end-card scenes
 
+> **Naming note (v0.5.0):** the game was reskinned as "The Unforgotten". Enemy and relic display names changed (for example Brakeman = Bellkeeper, Conductor = Eraser, Gate Warden = Threshold Keeper). IDs, files and rules did not. This document still uses the original names; see [`docs/RESKIN.md`](RESKIN.md) for the full map.
+
 Three code-drawn animated scenes behind the remaining plain screens, all built on `run/screen_scene.gd` (`ScreenScene`): `RestScene` (`run/rest_scene.gd`), `StoryScene` (`run/story_scene.gd`) and `EndScene` (`run/end_scene.gd`). No image assets. `run.gd` adds one as the first child of the body (`_add_backdrop`, full rect, mouse ignored, clipped to its rect) and then the panel on top, as at the vendor. Buttons keep their text and callbacks.
 
 The base owns what is shared: `time`, a seeded noise table and mote field (local `RandomNumberGenerator`, fixed seed per scene, the run RNG is untouched), `advance(delta)` (does nothing unless visible in the tree; `_process` is off while hidden or paused), `wobble`/`flicker`, and helpers (ellipse, soft halo, gradient, lantern, scrim).

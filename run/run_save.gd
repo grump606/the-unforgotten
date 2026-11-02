@@ -23,6 +23,9 @@ class Result extends RefCounted:
 	var error := ""
 	## True when there was simply no save file (not worth a warning).
 	var missing := false
+	## The fallback file (path.tmp or path.bak) the run came from, "" when the main file loaded.
+	## Set means the newest checkpoint could not be read and an older one is in use.
+	var recovered_from := ""
 
 	static func fail(why: String) -> Result:
 		var result := Result.new()
@@ -71,88 +74,148 @@ static func from_dict(data: Variant) -> Result:
 	if typeof(data) != TYPE_DICTIONARY:
 		return Result.fail("save is not an object")
 	var d: Dictionary = data
-	var version: Variant = _int(d, "version", 0, 1000000)
-	if version == null:
-		return Result.fail("save has no valid version")
-	if version > VERSION:
-		return Result.fail("this save was made by a newer version of the game (save format %d, this game reads up to %d)" % [version, VERSION])
-	if version < MIN_VERSION:
-		return Result.fail("this save was made by an older version of the game that can no longer be read (save format %d, this game reads %d to %d)" % [version, MIN_VERSION, VERSION])
-	d = migrate(d, version)
+	var error := _check_header(d)
+	if error != "":
+		return Result.fail(error)
+	d = migrate(d, _int(d, "version", 0, 1000000))
 	var character_id: Variant = d.get("character")
-	if typeof(character_id) != TYPE_STRING or not StarterContent.CHARACTER_PATHS.has(StringName(character_id)):
-		return Result.fail("this save names a character that no longer exists")
+	error = _check_character(character_id)
+	if error != "":
+		return Result.fail(error)
 	var run := RunState.new(0, StringName(character_id))
 	if run.character.id != StringName(character_id):
 		return Result.fail("character content failed to load")
+	# Each validator stores what it accepts in `got` and returns why a field was rejected ("" if fine).
+	# The order matters: the deck check leaves the card table the offered check needs.
+	var got := {}
+	for check in [_check_numbers, _check_rng_state, _check_deck, _check_offered, _check_relics]:
+		error = check.call(d, run, got)
+		if error != "":
+			return Result.fail(error)
+	run.relics = got["relics"]
+	run.offered_ids = got["offered"]
+	run.reward_remove_used = d["reward_remove_used"]
+	run.reward_heal_used = d["reward_heal_used"]
+	run.player = Combatant.new(run.character.display_name, got["max_hp"], got["hp"])
+	run.deck = got["deck"]
+	run.gold = got["gold"]
+	run.stop_index = got["stop_index"]
+	run.restore_rng_state((got["rng_state"] as String).to_int())
+	return _ok(run)
+
+
+## Version gate. Returns "" when the save's format can be read (after migrate()).
+static func _check_header(d: Dictionary) -> String:
+	var version: Variant = _int(d, "version", 0, 1000000)
+	if version == null:
+		return "save has no valid version"
+	if version > VERSION:
+		return "this save was made by a newer version of the game (save format %d, this game reads up to %d)" % [version, VERSION]
+	if version < MIN_VERSION:
+		return "this save was made by an older version of the game that can no longer be read (save format %d, this game reads %d to %d)" % [version, MIN_VERSION, VERSION]
+	return ""
+
+
+static func _check_character(character_id: Variant) -> String:
+	if typeof(character_id) != TYPE_STRING or not StarterContent.CHARACTER_PATHS.has(StringName(character_id)):
+		return "this save names a character that no longer exists"
+	return ""
+
+
+## max_hp, hp, gold, the stop line and stop_index. hp is bounded by max_hp, so that order stays.
+static func _check_numbers(d: Dictionary, run: RunState, got: Dictionary) -> String:
 	var max_hp: Variant = _int(d, "max_hp", 1, MAX_HP)
 	if max_hp == null:
-		return Result.fail("bad max_hp")
+		return "bad max_hp"
 	var hp: Variant = _int(d, "hp", 1, max_hp)
 	if hp == null:
-		return Result.fail("bad hp")
+		return "bad hp"
 	var gold: Variant = _int(d, "gold", 0, MAX_GOLD)
 	if gold == null:
-		return Result.fail("bad gold")
+		return "bad gold"
 	var line: Variant = d.get("line")
 	if typeof(line) != TYPE_STRING or line != line_signature(run):
-		return Result.fail("this save is from an older version of the game's route and cannot be continued")
+		return "this save is from an older version of the game's route and cannot be continued"
 	var stop_index: Variant = _int(d, "stop_index", 0, run.stops.size() - 1)
 	if stop_index == null:
-		return Result.fail("bad stop_index")
+		return "bad stop_index"
+	got["max_hp"] = max_hp
+	got["hp"] = hp
+	got["gold"] = gold
+	got["stop_index"] = stop_index
+	return ""
+
+
+## True only for the exact text str() gives an int64: no padding, no plus sign, nothing outside
+## int64. Anything else would silently become a different state through to_int().
+static func _is_canonical_int64_text(text: String) -> bool:
+	var max_length := 20 if text.begins_with("-") else 19
+	return text.length() <= max_length and str(text.to_int()) == text
+
+
+static func _check_rng_state(d: Dictionary, _run: RunState, got: Dictionary) -> String:
 	var rng_text: Variant = d.get("rng_state")
-	# Canonical text only: a number outside int64 or with padding would silently become a
-	# different state through to_int().
-	if typeof(rng_text) != TYPE_STRING or (rng_text as String).length() > (20 if (rng_text as String).begins_with("-") else 19) or str((rng_text as String).to_int()) != rng_text:
-		return Result.fail("bad rng_state")
+	if typeof(rng_text) != TYPE_STRING or not _is_canonical_int64_text(rng_text):
+		return "bad rng_state"
+	got["rng_state"] = rng_text
+	return ""
+
+
+## Also leaves the id -> card table in `got` for the offered check.
+static func _check_deck(d: Dictionary, run: RunState, got: Dictionary) -> String:
 	var raw_deck: Variant = d.get("deck")
 	if typeof(raw_deck) != TYPE_ARRAY or (raw_deck as Array).is_empty() or (raw_deck as Array).size() > MAX_DECK:
-		return Result.fail("bad deck")
+		return "bad deck"
 	var known := {}
 	for card in StarterContent.reward_pool(run.character.id):
 		known[String(card.id)] = card
 	if known.is_empty():
-		return Result.fail("card content failed to load")
+		return "card content failed to load"
 	var deck: Array[CardData] = []
 	for entry in raw_deck:
 		if typeof(entry) != TYPE_STRING or not known.has(entry):
-			return Result.fail("this save contains a card that no longer exists")
+			return "this save contains a card that no longer exists"
 		deck.append(known[entry])
-	# These fields are required in v3 (migrate() supplies them for v2 saves).
+	got["known_cards"] = known
+	got["deck"] = deck
+	return ""
+
+
+## The offered list and the two reward flags. These are required in v3 (migrate() supplies them
+## for v2 saves).
+static func _check_offered(d: Dictionary, _run: RunState, got: Dictionary) -> String:
+	var known: Dictionary = got["known_cards"]
 	var offered: Array[StringName] = []
 	var raw_offered: Variant = d.get("offered")
 	if typeof(raw_offered) != TYPE_ARRAY or (raw_offered as Array).size() > known.size():
-		return Result.fail("bad offered list")
+		return "bad offered list"
 	for entry in raw_offered:
 		if typeof(entry) != TYPE_STRING or not known.has(entry) or offered.has(StringName(entry)):
-			return Result.fail("offered list has an unknown or repeated card")
+			return "offered list has an unknown or repeated card"
 		offered.append(StringName(entry))
 	for key in ["reward_remove_used", "reward_heal_used"]:
 		if typeof(d.get(key)) != TYPE_BOOL:
-			return Result.fail("bad %s" % key)
-	# The saved max HP already includes any MAX_HP relic, so restoring the relic list must not
-	# apply it again.
+			return "bad %s" % key
+	got["offered"] = offered
+	return ""
+
+
+## The saved max HP already includes any MAX_HP relic, so restoring the relic list must not apply
+## it again.
+static func _check_relics(d: Dictionary, run: RunState, got: Dictionary) -> String:
 	var relics: Array[RelicData] = []
 	var raw_relics: Variant = d.get("relics")
 	var known_relics := {}
 	for relic in StarterContent.relic_pool(run.character.id):
 		known_relics[String(relic.id)] = relic
 	if typeof(raw_relics) != TYPE_ARRAY or (raw_relics as Array).size() > known_relics.size():
-		return Result.fail("bad relics list")
+		return "bad relics list"
 	for entry in raw_relics:
 		if typeof(entry) != TYPE_STRING or not known_relics.has(entry) or relics.has(known_relics[entry]):
-			return Result.fail("this save contains a relic that no longer exists, or the same relic twice")
+			return "this save contains a relic that no longer exists, or the same relic twice"
 		relics.append(known_relics[entry])
-	run.relics = relics
-	run.offered_ids = offered
-	run.reward_remove_used = d["reward_remove_used"]
-	run.reward_heal_used = d["reward_heal_used"]
-	run.player = Combatant.new(run.character.display_name, max_hp, hp)
-	run.deck = deck
-	run.gold = gold
-	run.stop_index = stop_index
-	run.restore_rng_state((rng_text as String).to_int())
-	return _ok(run)
+	got["relics"] = relics
+	return ""
 
 
 ## Upgrades a save dict of `version` to the current format, returning a copy. A v2 save may lack
@@ -212,6 +275,7 @@ static func load_file(path: String = DEFAULT_PATH) -> Result:
 			continue
 		var fallback := _read(candidate)
 		if fallback.run != null:
+			fallback.recovered_from = candidate
 			return fallback
 		if report.missing:
 			report = fallback

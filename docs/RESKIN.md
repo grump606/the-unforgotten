@@ -19,7 +19,7 @@ Display names changed; the file and ID on the left did not.
 | `the_conductor` (final boss) | The Conductor | Eraser |
 | `ticket_stub_charm` | Ticket Stub Charm | Folded Farewell |
 
-`Fighter.ART_KEYS` maps the new display names to the sprite keys, so a renamed enemy needs an entry there (a test fails if one is missing). Class pitches and all story beats (`data/story/`, including the per-character versions) were rewritten.
+`Fighter.ART_KEYS` maps enemy ids to the sprite keys, so renaming an enemy needs no art change (a test fails if a new enemy has no entry). Class pitches and all story beats (`data/story/`, including the per-character versions) were rewritten.
 
 ## What was added
 
