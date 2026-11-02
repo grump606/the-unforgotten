@@ -75,7 +75,7 @@ Every phase ends with `scripts/check.ps1` passing and a commit. Combat mechanics
 - Done when: unit tests cover Haunt decay and ordering against enemy intents, that a Haunt kill removes that enemy's attack, and that HP-cost cards cannot be played to death.
 
 **Phase 6: Sim and balance.** Size: M. Edits `tools/`.
-- A `--character` option for `run_sim.gd` and `balance_sim.gd`.
+- A `--character` option for `run_sim.gd` and `balance_sim.gd` (done).
 - Teach both policies the new effect kinds.
 - Tune each class: greedy bot 40 to 50% escape rate, and the three classes within about 10 points of each other. Smart bot reported for each.
 

@@ -7,32 +7,50 @@ extends SceneTree
 const PLAYER_START_HP: int = preload("res://battle.gd").PLAYER_START_HP # single source: battle.gd
 const REST_HEAL := 8
 const TURN_CAP := 50 # a fight still running after this many turns is a stall (treated as a loss)
-const USAGE := "Usage: godot --headless --path . -s res://tools/run_stub.gd -- [--seed S]\n  --seed S    run seed, integer (default 1)"
+const USAGE := "Usage: godot --headless --path . -s res://tools/run_stub.gd -- [--seed S] [--character ID]\n  --seed S        run seed, integer (default 1)\n  --character ID  max HP and starting deck come from this character: deserter, pickpocket or medium (default deserter)"
 
 var _outcome := 0 # 0 running, 1 victory, -1 defeat
 
 
 func _initialize() -> void:
-	var run_seed: Variant = _parse_seed(OS.get_cmdline_user_args())
-	if run_seed == null:
+	var opts := _parse_args(OS.get_cmdline_user_args())
+	if opts.is_empty():
 		quit(2)
 		return
-	quit(_run(run_seed as int))
+	quit(_run(opts["seed"], StringName(opts["character"])))
 
 
-## Returns the seed (int) or null (after printing usage) on bad input.
-func _parse_seed(args: PackedStringArray) -> Variant:
-	if args.is_empty():
-		return 1
-	if args.size() != 2 or args[0] != "--seed" or not args[1].is_valid_int():
-		printerr("run_stub: expected '--seed <integer>', got: %s\n%s" % [" ".join(args), USAGE])
-		return null
-	return args[1].to_int()
+## Returns {seed, character} or an empty dictionary (after printing usage) on bad input.
+func _parse_args(args: PackedStringArray) -> Dictionary:
+	var opts := {"seed": 1, "character": String(StarterContent.DEFAULT_CHARACTER_ID)}
+	var i := 0
+	while i < args.size():
+		var name := args[i]
+		if (name != "--seed" and name != "--character") or i + 1 >= args.size():
+			printerr("run_stub: unexpected or incomplete argument '%s'\n%s" % [name, USAGE])
+			return {}
+		var value := args[i + 1]
+		if name == "--seed":
+			if not value.is_valid_int():
+				printerr("run_stub: --seed needs an integer value\n%s" % USAGE)
+				return {}
+			opts["seed"] = value.to_int()
+		else:
+			if not StarterContent.CHARACTER_PATHS.has(StringName(value)):
+				printerr("run_stub: --character must be one of %s\n%s" % [", ".join(StarterContent.character_ids()), USAGE])
+				return {}
+			opts["character"] = value
+		i += 2
+	return opts
 
 
 ## Returns the process exit code: 0 run finished (won or lost), 1 internal failure.
-func _run(run_seed: int) -> int:
-	var deck := StarterContent.extended_deck()
+func _run(run_seed: int, character_id: StringName) -> int:
+	var character := StarterContent.character(character_id)
+	if character == null:
+		return 1
+	var deck: Array[CardData] = []
+	deck.assign(character.starting_deck)
 	if deck.is_empty():
 		printerr("run_stub: extended deck failed to load")
 		return 1
@@ -46,8 +64,8 @@ func _run(run_seed: int) -> int:
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run_seed
-	var player := Combatant.new("Wanderer", PLAYER_START_HP)
-	print("Run stub: seed %d, player HP %d, deck %d" % [run_seed, player.hp, deck.size()])
+	var player := Combatant.new(character.display_name, character.max_hp)
+	print("Run stub: seed %d, character %s, player HP %d, deck %d" % [run_seed, character_id, player.hp, deck.size()])
 
 	for fight_no in range(1, Combat.MAX_ENEMIES + 1):
 		var enemy_datas := StarterContent.varied_encounter(fight_no, rng)
