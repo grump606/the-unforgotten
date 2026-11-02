@@ -360,8 +360,29 @@ func _initialize() -> void:
 	var resumed: RunState = resumed_scene._run
 	_check(resumed != null and resumed.stop_index == 1 and resumed.gold == 9 and resumed.player.hp == 30, "Continue resumes the saved run")
 	_check(_panel_count(resumed_body) == 1, "Continue shows exactly one panel")
+	_check(not resumed_scene.get_node("%HeaderLabel").text.contains("checkpoint"), "a normal load shows no recovery notice")
 	resumed_scene.queue_free()
 	await process_frame
+
+	# A damaged main file with a good .bak: Continue still works and the player is told.
+	saved.stop_index = 0
+	_check(RunSave.save(saved, test_save) == "", "a second save makes the first a backup")
+	var damaged := FileAccess.open(test_save, FileAccess.WRITE)
+	damaged.store_string("{ not json")
+	damaged.close()
+	var recovered_scene: Control = load("res://run.tscn").instantiate()
+	recovered_scene.save_path = test_save
+	root.add_child(recovered_scene)
+	await process_frame
+	var recovered_body: Control = recovered_scene.get_node("%Body")
+	_check(_find(recovered_body, "Continue") != null, "a recovered save still offers Continue")
+	_check(recovered_scene.get_node("%HeaderLabel").text.contains("latest checkpoint could not be read"), "a recovered save shows a notice")
+	_find(recovered_body, "Continue").pressed.emit()
+	await process_frame
+	_check(recovered_scene._run != null and not recovered_scene.get_node("%HeaderLabel").text.contains("checkpoint"), "the notice is gone once the run continues")
+	recovered_scene.queue_free()
+	await process_frame
+	RunSave.delete(test_save)
 
 	# Every character can be picked, and the header then shows who is playing.
 	for id in StarterContent.character_ids():

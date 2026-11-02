@@ -27,26 +27,37 @@ static func to_dict(settings: Settings) -> Dictionary:
 	return {"update_check_enabled": settings.update_check_enabled}
 
 
-## Never fails: a missing, unreadable, oversized or damaged file gives the defaults.
+## Never fails: a missing, unreadable, oversized or damaged file falls back to path.bak, then to
+## the defaults.
 static func load_file(path: String = DEFAULT_PATH) -> Settings:
+	var main := _read(path)
+	if main != null:
+		return main
+	var backup := _read(path + ".bak")
+	return backup if backup != null else Settings.new()
+
+
+## The settings in one file, or null when it is missing, unreadable, oversized or not JSON.
+static func _read(path: String) -> Settings:
 	if not FileAccess.file_exists(path):
-		return Settings.new()
+		return null
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
-		return Settings.new()
+		return null
 	if file.get_length() > MAX_FILE_BYTES:
 		file.close()
-		return Settings.new()
+		return null
 	var text := file.get_as_text()
 	file.close()
 	var json := JSON.new()
 	if json.parse(text) != OK:
-		return Settings.new()
+		return null
 	return from_dict(json.data)
 
 
 ## Returns "" on success, else why it failed. Writes a temp file and renames it into place, so a
-## crash mid-write never leaves a half-written settings file.
+## crash mid-write never leaves a half-written settings file. The temp file is removed on every
+## failure, and a file that currently parses is kept as path.bak (a damaged one never replaces it).
 func save(path: String = DEFAULT_PATH) -> String:
 	var tmp := path + ".tmp"
 	var file := FileAccess.open(tmp, FileAccess.WRITE)
@@ -56,8 +67,15 @@ func save(path: String = DEFAULT_PATH) -> String:
 	var write_error := file.get_error()
 	file.close()
 	if write_error != OK:
+		DirAccess.remove_absolute(tmp)
 		return "write failed (error %d)" % write_error
+	if Settings._read(path) != null:
+		var bak := path + ".bak"
+		if FileAccess.file_exists(bak):
+			DirAccess.remove_absolute(bak)
+		DirAccess.copy_absolute(path, bak)
 	var rename_error := DirAccess.rename_absolute(tmp, path)
 	if rename_error != OK:
+		DirAccess.remove_absolute(tmp)
 		return "cannot move settings into place (error %d)" % rename_error
 	return ""
