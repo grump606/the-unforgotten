@@ -54,7 +54,9 @@ func run() -> int:
 
 	# The shipped key must be a readable public-only RSA key, or in-game updates would silently never work.
 	var shipped := CryptoKey.new()
-	_check(UpdateVerifier.is_configured(), "a signing public key is embedded in the game")
+	if not UpdateVerifier.is_configured():
+		_cleanup()
+		return _failures   # unsigned releases: no key embedded, in-game install is off
 	_check(shipped.load_from_string(UpdateVerifier.PUBLIC_KEY_PEM, true) == OK, "the embedded key parses as a public key")
 	_check(UpdateVerifier.PUBLIC_KEY_PEM.contains("BEGIN PUBLIC KEY") and not UpdateVerifier.PUBLIC_KEY_PEM.contains("PRIVATE"), "the embedded key is a public key block, never a private one")
 	_cleanup()

@@ -7,23 +7,9 @@ extends RefCounted
 ## release, or a hijacked GitHub account, cannot produce an update the game will install.
 ## With no key embedded, verification always fails and in-game install stays off.
 
-## The maintainer's public key (PEM). Empty until docs/UPDATE_SIGNING.md has been followed.
+## The maintainer's public key (PEM). Deliberately empty since v0.5.0: releases are not signed, so in-game install stays off and the update notice offers the download page. To turn it back on, follow docs/UPDATE_SIGNING.md.
 ## scripts/build_installer.ps1 reads this constant, so it is the single source.
-const PUBLIC_KEY_PEM := """-----BEGIN PUBLIC KEY-----
-MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAyVjVLMIuVqmrVbfNh61L
-d+L/Hncf2880qSFyvPxtLfgOgWi0Vb+iOPggognR3Ins4HcWJTGS2WUz2zerNtFb
-0ejMmXjXLBkdmmA8/jIYHArjWw6arASzt49tQMsR5RoPdG06byALSSG4cFxeJmZE
-AWUfvpGGhCXmKj2JYPq2rqCB9XrKSWeo3qtuZhSS2ZRR3qBMtP3PxKzRIES5H38E
-HxAHvjotjZ6wJdZMmbHxvwm2IL0LRsoXo40gQvcs1AFvUSl1FL1roMqyncwn3PM/
-rM4SVDooenCBLxEWRjkZuFpaTpkxmGgQL271kpvnih7RSk/AXV6p+8iOdriaEVPY
-kQibRN8DJDpmf0fPeZ+zBBGpFKkfKulzN7TVhminKlLHN//oBuOxw5gUVh5BuReJ
-esnHhKrPgclTXr07dSNe/4oEFfOw/qWKGcXet3IKwkWkrZYf/hDOMKAdtvZ45A71
-HezITBMrmYcz+j+4MKjnlCff+6U6GyKDJktx4D7F+arvCRF2PtNlBZZkttCUc6DW
-rEbwYJ3zwkGsLrG+OSONT44ieQLr+y7U32nDdSxVw1ZRCK0xrT+hCJawVrKHFVXv
-VvYqZM9/Qk31CSK3aP27uy8biFhNDgiWJ6NMUty6F4BNGMm+UD/GvaD2BZUdbPJn
-vWiGXpNxC8I6CjnoSHfqq2ECAwEAAQ==
------END PUBLIC KEY-----
-"""
+const PUBLIC_KEY_PEM := ""
 
 
 static func is_configured(public_key_pem: String = PUBLIC_KEY_PEM) -> bool:
