@@ -19,16 +19,14 @@ const FADE_TIME := 0.7
 const FLOAT_TIME := 1.1
 const BAR_H := 16.0
 
-## Enemy display name -> art key (sprite files, figure height). Any other name uses the generic ghost.
+## Enemy id (EnemyData.id) -> art key (sprite files, figure height). Keyed by id, never by display name, so
+## renaming an enemy cannot break its art. Any other id uses the generic ghost.
 const ART_KEYS := {
-	"Gate Warden": &"warden", "Lost Shade": &"shade", "Skittering Wisp": &"wisp", "Hollow Colossus": &"colossus",
-	"Pale Whisperer": &"whisperer", "Cinder Hound": &"hound", "Mourning Crow": &"crow", "The Conductor": &"conductor",
-	"The Brakeman": &"brakeman",
-	"Threshold Keeper": &"warden", "The Unnamed": &"shade", "Stray Recollection": &"wisp",
-	"Memorial Giant": &"colossus", "The Husher": &"whisperer", "Ash Hound": &"hound",
-	"Keepsake Crow": &"crow", "Bellkeeper": &"brakeman", "Eraser": &"conductor",
+	&"gate_warden": &"warden", &"lost_shade": &"shade", &"skittering_wisp": &"wisp", &"hollow_colossus": &"colossus",
+	&"pale_whisperer": &"whisperer", &"cinder_hound": &"hound", &"mourning_crow": &"crow",
+	&"the_conductor": &"conductor", &"the_brakeman": &"brakeman",
 }
-## Figure height in pixels per enemy (the player and unknown names use DEFAULT_HEIGHT).
+## Figure height in pixels per enemy (the player and unknown ids use DEFAULT_HEIGHT).
 const HEIGHTS := {
 	&"warden": 170.0, &"shade": 150.0, &"wisp": 100.0, &"colossus": 200.0, &"whisperer": 175.0,
 	&"hound": 115.0, &"crow": 105.0, &"conductor": 210.0, &"brakeman": 215.0, &"ghost": 140.0,
@@ -119,7 +117,7 @@ func set_enemy(enemy: EnemyUnit) -> void:
 	facing = -1.0
 	_art_facing = -1.0
 	unit = enemy
-	art_key = art_key_for(enemy.display_name)
+	art_key = art_key_for(enemy.data.id)
 	figure_height = float(HEIGHTS.get(art_key, DEFAULT_HEIGHT)) * HEIGHT_SCALE
 	_tex = null
 	var fig := PaintedArt.enemy_figure(art_key)
@@ -161,9 +159,9 @@ func _reset() -> void:
 	queue_redraw()
 
 
-## The art key for an enemy name; unknown names get the generic ghost.
-static func art_key_for(enemy_name: String) -> StringName:
-	return ART_KEYS.get(enemy_name, &"ghost")
+## The art key for an enemy id; unknown ids get the generic ghost.
+static func art_key_for(enemy_id: StringName) -> StringName:
+	return ART_KEYS.get(enemy_id, &"ghost")
 
 
 ## Width of the figure as drawn.

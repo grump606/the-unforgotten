@@ -360,8 +360,8 @@ func _advance() -> void:
 		escaped = true
 
 
-## The train line, 21 stops in two acts: four regular fights, the Brakeman halfway (stop 9), four
-## harder fights, then the Conductor. Three vendors, four rests and the four story beats in order.
+## The line, 21 stops in two acts (a train line in the original theme, a memorial city since v0.5.0): four regular fights, the Brakeman (now Bellkeeper) halfway (stop 9), four
+## harder fights, then the Conductor (now Eraser). Three vendors, four rests and the four story beats in order.
 ## Tier (act) and fight number are filled in here; see docs/LEVELS_DESIGN.md.
 func _default_line() -> Array[Stop]:
 	var line: Array[Stop] = [

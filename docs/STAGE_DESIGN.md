@@ -1,5 +1,7 @@
 # Battle stage (side view)
 
+> **Naming note (v0.5.0):** the game was reskinned as "The Unforgotten". Enemy and relic display names changed (for example Brakeman = Bellkeeper, Conductor = Eraser, Gate Warden = Threshold Keeper). IDs, files and rules did not. This document still uses the original names; see [`docs/RESKIN.md`](RESKIN.md) for the full map.
+
 The battle screen is a Slay the Spire style stage: the player stands bottom-left facing right, up to three enemies stand on the right facing left, all on one ground line over the painted battle backdrop. The hand, hotkeys and cards are unchanged. It replaced the older HUD panels per enemy (`EnemyView`, now removed).
 
 ## Layout (`battle.tscn`, `battle.gd`)
@@ -16,7 +18,7 @@ Animation runs only through `advance(delta)` (tests step it): idle breath, lunge
 
 ## Art
 
-- Enemies: `art/layers/<key>/sprite.png`, a trimmed transparent full-body cutout. Without it the stage draws the old 4-layer `figure.png` (cropped to its painted pixels), then a ghost. `Fighter.ART_KEYS` maps display names to keys; `Fighter.HEIGHTS` is the figure height per key (scaled by `HEIGHT_SCALE`, 1.2). Sprites that face right as drawn are listed in `SPRITE_FACES_RIGHT` (the stage mirrors them); everything else faces left. The Skittering Wisp still uses its old fireball figure.
+- Enemies: `art/layers/<key>/sprite.png`, a trimmed transparent full-body cutout. Without it the stage draws the old 4-layer `figure.png` (cropped to its painted pixels), then a ghost. `Fighter.ART_KEYS` maps enemy ids (`EnemyData.id`) to keys; `Fighter.HEIGHTS` is the figure height per key (scaled by `HEIGHT_SCALE`, 1.2). Sprites that face right as drawn are listed in `SPRITE_FACES_RIGHT` (the stage mirrors them); everything else faces left. The Skittering Wisp still uses its old fireball figure.
 - Player classes: `art/layers/players/<id>/figure.png`, drawn mirrored to face right (`PLAYER_ART_FACING`). The standalone fight and any class without a sprite use a code-drawn cloak in the class colours.
 - Generation: ComfyUI + the cbpstyle LoRA through `art/tools/gen_players.py` and `gen_enemy_sprites.py` (contact sheets in `art/work/`), then `assemble_players.py` and `assemble_enemy_sprites.py` trim and write the game files. See `art/COMFYUI.md`.
 - The Conductor's code-drawn figure (`run/conductor_figure.gd`) is still used by the story scene.

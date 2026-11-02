@@ -402,7 +402,7 @@ func _test_seed_determinism() -> void:
 	var same_enemies := fight_a != null and fight_b != null and fight_a.enemies.size() == fight_b.enemies.size()
 	if same_enemies:
 		for i in fight_a.enemies.size():
-			same_enemies = same_enemies and fight_a.enemies[i].display_name == fight_b.enemies[i].display_name
+			same_enemies = same_enemies and fight_a.enemies[i].data.id == fight_b.enemies[i].data.id
 	_check(same_enemies, "same seed builds the same first fight")
 	if fight_a != null:
 		fight_a.abandon()
@@ -590,7 +590,7 @@ func _test_rewards_rolled_eagerly_and_copied() -> void:
 	var same := fight_shown != null and fight_skipped != null and fight_shown.enemies.size() == fight_skipped.enemies.size()
 	if same:
 		for i in fight_shown.enemies.size():
-			same = same and fight_shown.enemies[i].display_name == fight_skipped.enemies[i].display_name
+			same = same and fight_shown.enemies[i].data.id == fight_skipped.enemies[i].data.id
 	_check(same, "a seed plays out the same whether or not the reward screen was shown")
 	if fight_shown != null:
 		fight_shown.abandon()
@@ -676,7 +676,7 @@ func _test_boss_stop() -> void:
 	var state := _at_boss(51)
 	_check(not state.finished and state.current_stop().boss, "setup: standing at the boss stop")
 	var fight := state.start_combat()
-	_check(fight != null and fight.enemies.size() == 1 and fight.enemies[0].display_name == "Eraser", "the boss stop fights the Conductor alone")
+	_check(fight != null and fight.enemies.size() == 1 and fight.enemies[0].data.id == &"the_conductor", "the boss stop fights the Conductor alone")
 	if fight != null:
 		fight.abandon()
 
@@ -713,7 +713,7 @@ func _test_mid_boss_stop() -> void:
 	var state := _at_mid_boss(61)
 	_check(not state.finished and state.stop_index == 9 and state.current_stop().mid_boss, "setup: standing at the mid-boss stop")
 	var fight := state.start_combat()
-	_check(fight != null and fight.enemies.size() == 1 and fight.enemies[0].display_name == "Bellkeeper", "the mid-boss stop fights the Brakeman alone")
+	_check(fight != null and fight.enemies.size() == 1 and fight.enemies[0].data.id == &"the_brakeman", "the mid-boss stop fights the Brakeman alone")
 	if fight != null:
 		_check(fight.enemies[0].max_hp == StarterContent.mid_boss_encounter()[0].max_hp, "the mid-boss is not stat-ramped")
 		fight.abandon()
@@ -781,7 +781,7 @@ func _test_progressive_difficulty() -> void:
 	var same := fa != null and fb != null and fa.enemies.size() == fb.enemies.size()
 	if same:
 		for i in fa.enemies.size():
-			same = same and fa.enemies[i].max_hp == fb.enemies[i].max_hp and fa.enemies[i].display_name == fb.enemies[i].display_name
+			same = same and fa.enemies[i].max_hp == fb.enemies[i].max_hp and fa.enemies[i].data.id == fb.enemies[i].data.id
 	_check(same, "a seeded late fight is reproducible")
 
 

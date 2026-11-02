@@ -200,7 +200,7 @@ func _initialize() -> void:
 				var fight_stop := run_state.current_stop()
 				if fight_stop.mid_boss:
 					mid_boss_fought = true
-					_check(combat.enemies.size() == 1 and combat.enemies[0].display_name == "Bellkeeper", "the mid-boss stop fights The Brakeman alone")
+					_check(combat.enemies.size() == 1 and combat.enemies[0].data.id == &"the_brakeman", "the mid-boss stop fights The Brakeman alone")
 					_check(battle.boss_fight and battle._backdrop.boss and header.text.contains("Mid-boss"), "the mid-boss fight has the boss backdrop and says Mid-boss in the header")
 				elif fight_stop.boss:
 					_check(battle.boss_fight and battle._backdrop.boss and header.text.contains("Boss") and not header.text.contains("Mid-boss"), "the final boss fight has the boss backdrop and says Boss in the header")
@@ -317,7 +317,7 @@ func _initialize() -> void:
 	_check(_count_buttons(body, "Play as") == 3, "New Run still opens the select screen after going Back")
 	_find(body, "Play as The Pickpocket").pressed.emit()
 	await process_frame
-	_check(scene._run.character.id == &"pickpocket" and scene._run.player.max_hp == StarterContent.character(&"pickpocket").max_hp and scene._run.player.display_name == "The Pickpocket", "picking the Pickpocket starts a Pickpocket run")
+	_check(scene._run.character.id == &"pickpocket" and scene._run.player.max_hp == StarterContent.character(&"pickpocket").max_hp and scene._run.player.display_name == StarterContent.character(&"pickpocket").display_name, "picking the Pickpocket starts a Pickpocket run")
 	_check(scene._run.stop_index == 0 and not scene._run.finished and scene._run.gold == 0, "a character pick starts a fresh run")
 	_check(_panel_count(body) == 1, "New Run leaves exactly one panel in the body")
 	_check(FileAccess.file_exists(test_save), "a new run is saved at its first stop")
@@ -360,8 +360,29 @@ func _initialize() -> void:
 	var resumed: RunState = resumed_scene._run
 	_check(resumed != null and resumed.stop_index == 1 and resumed.gold == 9 and resumed.player.hp == 30, "Continue resumes the saved run")
 	_check(_panel_count(resumed_body) == 1, "Continue shows exactly one panel")
+	_check(not resumed_scene.get_node("%HeaderLabel").text.contains("checkpoint"), "a normal load shows no recovery notice")
 	resumed_scene.queue_free()
 	await process_frame
+
+	# A damaged main file with a good .bak: Continue still works and the player is told.
+	saved.stop_index = 0
+	_check(RunSave.save(saved, test_save) == "", "a second save makes the first a backup")
+	var damaged := FileAccess.open(test_save, FileAccess.WRITE)
+	damaged.store_string("{ not json")
+	damaged.close()
+	var recovered_scene: Control = load("res://run.tscn").instantiate()
+	recovered_scene.save_path = test_save
+	root.add_child(recovered_scene)
+	await process_frame
+	var recovered_body: Control = recovered_scene.get_node("%Body")
+	_check(_find(recovered_body, "Continue") != null, "a recovered save still offers Continue")
+	_check(recovered_scene.get_node("%HeaderLabel").text.contains("latest checkpoint could not be read"), "a recovered save shows a notice")
+	_find(recovered_body, "Continue").pressed.emit()
+	await process_frame
+	_check(recovered_scene._run != null and not recovered_scene.get_node("%HeaderLabel").text.contains("checkpoint"), "the notice is gone once the run continues")
+	recovered_scene.queue_free()
+	await process_frame
+	RunSave.delete(test_save)
 
 	# Every character can be picked, and the header then shows who is playing.
 	for id in StarterContent.character_ids():

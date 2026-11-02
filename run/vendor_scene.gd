@@ -1,8 +1,9 @@
 class_name VendorScene
 extends Control
-## Animated stall behind the vendor panel, drawn entirely in code: a ghostly shopkeeper under a
-## hood behind a weathered keepsake stall, cloth bundles and shielded lanterns,
-## a till that shows the player's gold and a little prop beside each service button (see
+## Animated stall behind the vendor panel. A painted backdrop (art/layers/screens/vendor) and a
+## painted shopkeeper (art/layers/screens/vendor/keeper.png) are used when present; the code-drawn
+## wall, shelves, lanterns and hooded ghostly keeper are only the fallbacks. Cloth bundles, a till
+## that shows the player's gold and a little prop beside each service button (see
 ## docs/VENDOR_ART_DESIGN.md). It ignores the mouse, only animates while visible in the tree and
 ## is driven by advance(delta), so tests can step it.
 
@@ -56,10 +57,8 @@ func _init() -> void:
 	# A local generator with a fixed seed: the look is repeatable and the run's RNG is untouched.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1913
-	for i in NOISE_SIZE:
-		_noise.append(rng.randf())
-	for i in MOTE_COUNT:
-		_motes.append_array([rng.randf(), rng.randf(), rng.randf_range(0.01, 0.035), rng.randf() * TAU, rng.randf_range(0.8, 1.8)])
+	_noise = SceneNoise.noise(rng, NOISE_SIZE)
+	_motes = SceneNoise.motes(rng, MOTE_COUNT, 0.01, 0.035, 0.8, 1.8)
 	for side in 2:
 		for tier in 2:
 			var x := 0.0

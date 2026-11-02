@@ -107,16 +107,16 @@ func _test_extended_deck() -> void:
 func _test_existing_content_unchanged() -> void:
 	var deck := StarterContent.deck()
 	_check(deck.size() == 10, "starter deck still 10 cards")
-	_check(StarterContent.warden().display_name == "Threshold Keeper", "warden unchanged")
-	_check(StarterContent.lost_shade().display_name == "The Unnamed", "lost shade unchanged")
-	_check(StarterContent.early_encounter(1)[0].display_name == "Threshold Keeper", "early_encounter(1) unchanged")
+	_check(StarterContent.warden().id == &"gate_warden", "warden unchanged")
+	_check(StarterContent.lost_shade().id == &"lost_shade", "lost shade unchanged")
+	_check(StarterContent.early_encounter(1)[0].id == &"gate_warden", "early_encounter(1) unchanged")
 	_check(StarterContent.early_encounter(3).size() == 3, "early_encounter(3) unchanged")
 
 
 func _names(enemies: Array[EnemyData]) -> Array:
 	var names: Array = []
 	for enemy in enemies:
-		names.append(enemy.display_name)
+		names.append(enemy.id)
 	return names
 
 
@@ -135,8 +135,8 @@ func _test_varied_encounter() -> void:
 			_check(first.size() == expected_count, "varied_encounter(%d) size %d" % [requested, first.size()])
 			_check(_names(first) == _names(second), "varied_encounter deterministic for seed %d" % seed_value)
 			for enemy in first:
-				seen[enemy.display_name] = true
-	for expected_name in ["Threshold Keeper", "The Unnamed", "Stray Recollection", "Memorial Giant", "The Husher", "Ash Hound", "Keepsake Crow"]:
+				seen[enemy.id] = true
+	for expected_name in [&"gate_warden", &"lost_shade", &"skittering_wisp", &"hollow_colossus", &"pale_whisperer", &"cinder_hound", &"mourning_crow"]:
 		_check(seen.has(expected_name), "varied_encounter uses enemy: %s" % expected_name)
 	var one_rng := RandomNumberGenerator.new()
 	one_rng.seed = 1
@@ -148,7 +148,7 @@ func _test_varied_encounter() -> void:
 
 ## Packs must stay survivable: trios are all small enemies, pairs have at most one big one.
 func _test_encounter_composition() -> void:
-	var big_names := [StarterContent.warden().display_name, (StarterContent._load_enemy(StarterContent.COLOSSUS_PATH)).display_name]
+	var big_names := [StarterContent.warden().id, (StarterContent._load_enemy(StarterContent.COLOSSUS_PATH)).id]
 	var saw_big_pair := false
 	var saw_small_pair := false
 	for seed_value in 100:
@@ -156,12 +156,12 @@ func _test_encounter_composition() -> void:
 		rng.seed = seed_value
 		var trio := StarterContent.varied_encounter(3, rng)
 		for enemy in trio:
-			_check(not big_names.has(enemy.display_name), "trio has no big enemy (seed %d)" % seed_value)
-			_check(enemy.display_name != StarterContent.lost_shade().display_name, "trio has no Lost Shade (seed %d)" % seed_value)
+			_check(not big_names.has(enemy.id), "trio has no big enemy (seed %d)" % seed_value)
+			_check(enemy.id != StarterContent.lost_shade().id, "trio has no Lost Shade (seed %d)" % seed_value)
 		var pair := StarterContent.varied_encounter(2, rng)
 		var big_count := 0
 		for enemy in pair:
-			if big_names.has(enemy.display_name):
+			if big_names.has(enemy.id):
 				big_count += 1
 		_check(big_count <= 1, "pair has at most one big enemy (seed %d)" % seed_value)
 		saw_big_pair = saw_big_pair or big_count == 1
@@ -171,38 +171,38 @@ func _test_encounter_composition() -> void:
 
 ## The Colossus is a solo-only elite: it was unwinnable beside another enemy in the sim.
 func _test_colossus_never_in_pairs_or_trios() -> void:
-	var colossus_name: String = StarterContent._load_enemy(StarterContent.COLOSSUS_PATH).display_name
+	var colossus_name: StringName = StarterContent._load_enemy(StarterContent.COLOSSUS_PATH).id
 	var solo_seen := false
 	for seed_value in 300:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = seed_value
 		for count in [2, 3]:
 			for enemy in StarterContent.varied_encounter(count, rng):
-				_check(enemy.display_name != colossus_name, "the colossus never shares a fight (seed %d, %d enemies)" % [seed_value, count])
+				_check(enemy.id != colossus_name, "the colossus never shares a fight (seed %d, %d enemies)" % [seed_value, count])
 		for enemy in StarterContent.varied_encounter(1, rng):
-			solo_seen = solo_seen or enemy.display_name == colossus_name
+			solo_seen = solo_seen or enemy.id == colossus_name
 	_check(solo_seen, "the colossus does appear as a solo fight")
 
 
 func _test_boss_encounter() -> void:
 	var boss := StarterContent.boss_encounter()
-	_check(boss.size() == 1 and boss[0].display_name == "Eraser", "boss_encounter is the Conductor alone")
+	_check(boss.size() == 1 and boss[0].id == &"the_conductor", "boss_encounter is the Conductor alone")
 	_check(boss[0] != StarterContent.boss_encounter()[0], "each boss encounter owns its own copy of the data")
 	var pool_names := []
 	for enemy in StarterContent.enemy_pool():
-		pool_names.append(enemy.display_name)
-	_check(not pool_names.has("Eraser"), "the boss is not in the random enemy pool")
+		pool_names.append(enemy.id)
+	_check(not pool_names.has(&"the_conductor"), "the boss is not in the random enemy pool")
 	for seed_value in 100:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = seed_value
 		for count in [1, 2, 3]:
 			for enemy in StarterContent.varied_encounter(count, rng):
-				_check(enemy.display_name != "Eraser", "the boss never appears in a random encounter (seed %d)" % seed_value)
+				_check(enemy.id != &"the_conductor", "the boss never appears in a random encounter (seed %d)" % seed_value)
 
 
 func _test_mid_boss_encounter() -> void:
 	var mid := StarterContent.mid_boss_encounter()
-	_check(mid.size() == 1 and mid[0].display_name == "Bellkeeper", "mid_boss_encounter is the Brakeman alone")
+	_check(mid.size() == 1 and mid[0].id == &"the_brakeman", "mid_boss_encounter is the Brakeman alone")
 	_check(mid[0] != StarterContent.mid_boss_encounter()[0], "each mid-boss encounter owns its own copy of the data")
 	var boss := StarterContent.boss_encounter()[0]
 	var tougher_than_all := true
@@ -215,15 +215,15 @@ func _test_mid_boss_encounter() -> void:
 	_check(kinds.has(CardEffect.Kind.DAMAGE) and kinds.has(CardEffect.Kind.BLOCK) and kinds.has(CardEffect.Kind.EXPOSE), "the Brakeman mixes attacks, block and a status")
 	var pool_names := []
 	for enemy in StarterContent.enemy_pool():
-		pool_names.append(enemy.display_name)
-	_check(not pool_names.has("Bellkeeper"), "the mid-boss is not in the random enemy pool")
+		pool_names.append(enemy.id)
+	_check(not pool_names.has(&"the_brakeman"), "the mid-boss is not in the random enemy pool")
 	for seed_value in 60:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = seed_value
 		for tier in [0, 1]:
 			for count in [1, 2, 3]:
 				for enemy in StarterContent.varied_encounter(count, rng, tier, seed_value % 8):
-					_check(enemy.display_name != "Bellkeeper" and enemy.display_name != "Eraser", "no boss appears in a random encounter")
+					_check(enemy.id != &"the_brakeman" and enemy.id != &"the_conductor", "no boss appears in a random encounter")
 	# Tier 1 draws the same number of random values as tier 0, so the run RNG stays in step.
 	for count in [1, 2, 3]:
 		var a := RandomNumberGenerator.new()
@@ -242,9 +242,9 @@ func _test_mid_boss_encounter() -> void:
 		var r1 := RandomNumberGenerator.new()
 		r1.seed = seed_value
 		for enemy in StarterContent.varied_encounter(2, r0, 0, 0):
-			big_t0 += 1 if enemy.display_name == "Threshold Keeper" else 0
+			big_t0 += 1 if enemy.id == &"gate_warden" else 0
 		for enemy in StarterContent.varied_encounter(2, r1, 1, 0):
-			big_t1 += 1 if enemy.display_name == "Threshold Keeper" else 0
+			big_t1 += 1 if enemy.id == &"gate_warden" else 0
 	_check(big_t1 > big_t0, "tier 1 pairs field the Gate Warden more often (%d vs %d of 400)" % [big_t1, big_t0])
 
 
@@ -343,7 +343,7 @@ func _test_registry_entries_load() -> void:
 
 
 ## Every regular enemy must be placed in an encounter pool (or be a documented solo-only enemy), and
-## every enemy (regular or boss) needs stage art keyed by its display name in Fighter.ART_KEYS.
+## every enemy (regular or boss) needs stage art keyed by its id in Fighter.ART_KEYS.
 func _test_enemy_registry_wiring() -> void:
 	for path in StarterContent.ALL_ENEMY_PATHS:
 		var placed: bool = StarterContent.SMALL_ENEMY_PATHS.has(path) or StarterContent.PAIR_BIG_ENEMY_PATHS.has(path) or StarterContent.SOLO_ONLY_ENEMY_PATHS.has(path)
@@ -361,6 +361,7 @@ func _test_enemy_registry_wiring() -> void:
 			continue
 		_check(not names.has(enemy.display_name), "enemy display name is unique: %s" % enemy.display_name)
 		names[enemy.display_name] = true
-		_check(Fighter.ART_KEYS.has(enemy.display_name), "Fighter.ART_KEYS has an entry for '%s' (see docs/ADDING_CONTENT.md)" % enemy.display_name)
-		if Fighter.ART_KEYS.has(enemy.display_name):
-			_check(Fighter.HEIGHTS.has(Fighter.ART_KEYS[enemy.display_name]), "Fighter.HEIGHTS has a figure height for '%s'" % enemy.display_name)
+		_check(enemy.id != &"" and enemy.id == StringName(path.get_file().get_basename()), "enemy id matches its file name: %s" % path)
+		_check(Fighter.ART_KEYS.has(enemy.id), "Fighter.ART_KEYS has an entry for '%s' (see docs/ADDING_CONTENT.md)" % enemy.id)
+		if Fighter.ART_KEYS.has(enemy.id):
+			_check(Fighter.HEIGHTS.has(Fighter.ART_KEYS[enemy.id]), "Fighter.HEIGHTS has a figure height for '%s'" % enemy.id)
