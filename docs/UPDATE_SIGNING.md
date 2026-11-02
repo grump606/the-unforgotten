@@ -59,6 +59,15 @@ Remove-Item Env:KEYPASS
 
 ## Every release
 
+The short way (works with the `.pfx` or a `.pem` key): bump `config/version`, merge to `main`, then in a normal PowerShell window
+
+```powershell
+setx UPDATE_SIGNING_KEY "C:\path\to\signing-private.pfx"   # once; open a new window afterwards
+powershell -ExecutionPolicy Bypass -File scripts\release.ps1 -Publish
+```
+
+`scripts/release.ps1` checks that you are on an up-to-date `main` with a free tag, finds Godot, asks for the passphrase, builds and signs, clears the passphrase, and asks before running `gh release create`. Leave out `-Publish` to build only. The manual steps below do the same by hand.
+
 1. Take `update_signing_private.pem` out of the password manager into a temporary folder.
 2. In PowerShell:
 
@@ -66,7 +75,7 @@ Remove-Item Env:KEYPASS
 $env:UPDATE_SIGNING_KEY = 'C:\path\to\update_signing_private.pem'
 $s = Read-Host "Key passphrase" -AsSecureString
 $env:UPDATE_SIGNING_PASS = [System.Net.NetworkCredential]::new('', $s).Password
-powershell -File scripts\build_installer.ps1
+powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
 ```
 
    If `UPDATE_SIGNING_PASS` is not set, OpenSSL asks for the passphrase itself, which works in Git Bash
