@@ -20,6 +20,7 @@ func show(on_finished: Callable, on_start_over: Callable) -> void:
 	battle.boss_fight = stop.boss or stop.mid_boss
 	battle.boss_label = "Mid-boss" if stop.mid_boss else "Boss"
 	battle.character_id = run.character.id if run.character != null else &""
+	battle.destination_key = DestinationArt.battle_key(run.stop_index)
 	battle.relics = run.relics
 	battle.fight_finished.connect(on_finished)
 	body.add_child(battle)

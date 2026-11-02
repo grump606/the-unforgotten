@@ -4,8 +4,6 @@
 
 [resource]
 script = ExtResource("1_beat")
-title = "The Silent Station"
-text = "The train sighs to a halt at a platform lit by a single guttering lamp. Your fingers still itch for the Brakeman's iron wheel. Rows of shapes stand waiting, perfectly still.
-
-Every pocket you try is sewn shut, and nobody stops you trying. Only the Conductor is left worth lifting from."
-button_text = "Check your pockets"
+title = "The Name You Kept"
+text = "Beyond the Bellkeeper's court lie gardens full of unmarked stones. For a moment, you remember the sound of your own name.\n\nThe people resting here look peaceful. None of them look up when you ask where the path leads.\n\nYou speak your name quietly and hide it away like something precious."
+button_text = "Keep walking"

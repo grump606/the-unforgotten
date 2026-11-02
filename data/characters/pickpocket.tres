@@ -14,6 +14,6 @@
 script = ExtResource("1_char")
 id = &"pickpocket"
 display_name = "The Pickpocket"
-pitch = "Lifted one purse too many. Quick and fragile, cycles cards and punishes marked targets."
+pitch = "Carries a house key and a memory of home. Cycles cards and punishes marked targets."
 max_hp = 36
 starting_deck = Array[ExtResource("2_card")]([ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("4_slip_past"), ExtResource("4_slip_past"), ExtResource("5_glimpse_exit"), ExtResource("6_mark_the_weak"), ExtResource("7_lift"), ExtResource("8_sleight"), ExtResource("9_last_pocket")])

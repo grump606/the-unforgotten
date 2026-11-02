@@ -4,8 +4,6 @@
 
 [resource]
 script = ExtResource("1_beat")
-title = "The Last Light"
-text = "Far ahead, past the final bend, the tunnel thins into a pale glow. The carriage rattles louder, hungrier.
-
-Something waits between you and the light. For once there is nowhere behind you to run to. You plant your feet."
-button_text = "Stand and face it"
+title = "The Breathing Door"
+text = "At the edge of the dead country, a pale opening rises and falls like a sleeping chest. The voice is clear now.\n\nBetween you and it stands a figure carrying a book with every name but yours crossed out. You step forward before it can finish the page.\n\nYour hand settles against the dented guard. One last line to break."
+button_text = "Face the Eraser"

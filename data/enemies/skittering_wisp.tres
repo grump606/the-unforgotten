@@ -20,6 +20,6 @@ amount = 16
 
 [resource]
 script = ExtResource("1_enemy")
-display_name = "Skittering Wisp"
+display_name = "Stray Recollection"
 max_hp = 16
 intents = Array[ExtResource("2_effect")]([SubResource("Resource_i1"), SubResource("Resource_i2"), SubResource("Resource_i3")])

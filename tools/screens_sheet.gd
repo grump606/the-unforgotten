@@ -33,6 +33,7 @@ func _initialize() -> void:
 		await _shot(scene, "story_%d.png" % beat, 3.0)
 	scene._run.player.hp = 12
 	for escaped in [true, false]:
+		scene._run.stop_index = scene._run.stops.size() if escaped else 19
 		scene._run.finished = true
 		scene._run.escaped = escaped
 		scene._show_stop()
@@ -57,12 +58,12 @@ func _go_to(scene: Control, type: int, beat: int) -> void:
 	var run: RunState = scene._run
 	for i in run.stops.size():
 		if run.stops[i].type == type:
-			run.stop_index = i
 			if type == RunState.StopType.STORY:
-				run.stops[i].beat_index = beat # the run only uses three of the four beats; show any
 				if run.stops[i].beat_index == beat:
+					run.stop_index = i
 					break
 			else:
+				run.stop_index = i
 				break
 	run.player.hp = run.player.max_hp - 18
 	scene._show_stop()

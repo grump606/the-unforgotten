@@ -64,11 +64,11 @@ func _initialize() -> void:
 	_check(notice.visible and notice.latest_tag == "v0.3.1", "a newer release shows the notice")
 	_check(notice.label.text == "Update available: v0.3.1 (you have 0.3.0)", "the notice says what is available (got '%s')" % notice.label.text)
 	_check(notice.download_button != null and notice.download_button.visible and notice.dismiss_button != null, "the notice has Download and dismiss buttons")
-	_check(scene.get_node("%HeaderLabel").text.contains("Main menu"), "the main menu is showing, untouched")
-	_find_button(scene.get_node("%Body"), "New Run").pressed.emit()
+	_check(scene.get_node("%HeaderLabel").text.contains("A voice beyond the quiet"), "the main menu is showing, untouched")
+	_find_button(scene.get_node("%Body"), "New Journey").pressed.emit()
 	await process_frame
 	await process_frame
-	_check(notice.visible and scene._run == null and scene.get_node("%HeaderLabel").text.contains("Choose your passenger"), "the notice stays on the select screen")
+	_check(notice.visible and scene._run == null and scene.get_node("%HeaderLabel").text.contains("Choose who answers the voice"), "the notice stays on the select screen")
 	_check(notice.get_parent() == scene and not scene.get_node("%Body").is_ancestor_of(notice), "the notice sits outside the body")
 	var window := scene.get_global_rect()
 	_check(window.encloses(notice.get_global_rect()), "the notice fits inside the window")
@@ -100,7 +100,7 @@ func _initialize() -> void:
 	await process_frame
 	notice = scene._update_notice
 	notice.current_version = "0.3.0"
-	_check(scene.get_node("%HeaderLabel").text.contains("Main menu") and _find_button(scene.get_node("%Body"), "Continue") != null, "setup: the main menu offers Continue")
+	_check(scene.get_node("%HeaderLabel").text.contains("A voice beyond the quiet") and _find_button(scene.get_node("%Body"), "Continue") != null, "setup: the main menu offers Continue")
 	notice.handle_response(200, _release("v0.3.1"))
 	await process_frame
 	_check(notice.visible, "the main menu shows the notice")
@@ -133,7 +133,7 @@ func _initialize() -> void:
 		_check(not notice.visible, "turning the check off hides a shown notice")
 		_check(not Settings.load_file(test_settings).update_check_enabled, "the off choice is saved")
 		_check(not notice.start() and notice.get_children().all(func(child: Node) -> bool: return not child is HTTPRequest), "no HTTPRequest is created when disabled")
-		_check(_find_button(scene.get_node("%Body"), "New Run") != null and _find_button(scene.get_node("%Body"), "Exit") != null, "New Run and Exit remain")
+		_check(_find_button(scene.get_node("%Body"), "New Journey") != null and _find_button(scene.get_node("%Body"), "Exit") != null, "New Run and Exit remain")
 	scene.queue_free()
 	await process_frame
 	scene = load("res://run.tscn").instantiate()

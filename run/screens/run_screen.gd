@@ -109,23 +109,23 @@ static func card_view(card: CardData, view_scale: float, on_pressed := Callable(
 ## A dark ribbon with a brass edge, so the words read over the art.
 static func style_banner(label: Label) -> void:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.03, 0.03, 0.9)
+	style.bg_color = Color(0.09, 0.11, 0.16, 0.94)
 	style.set_border_width_all(2)
-	style.border_color = Color(0.78, 0.55, 0.24)
+	style.border_color = Color("#526979")
 	style.set_corner_radius_all(6)
 	style.set_content_margin_all(5)
 	label.add_theme_stylebox_override("normal", style)
-	label.add_theme_color_override("font_color", Color(1.0, 0.93, 0.78))
+	label.add_theme_color_override("font_color", Color("#d7d0bc"))
 
 
 ## A brass-edged counter button; the stock focus outline is kept visible for the keyboard.
 static func style_service(button: Button) -> void:
-	var states := {"normal": Color(0.17, 0.105, 0.06), "hover": Color(0.27, 0.17, 0.08), "pressed": Color(0.12, 0.07, 0.04), "disabled": Color(0.09, 0.07, 0.06)}
+	var states := {"normal": Color("#171d28"), "hover": Color("#33444d"), "pressed": Color("#101720"), "disabled": Color("#182026")}
 	for state in states:
 		var style := StyleBoxFlat.new()
 		style.bg_color = states[state]
 		style.set_border_width_all(2)
-		style.border_color = Color(0.42, 0.34, 0.26) if state == "disabled" else Color(0.82, 0.6, 0.28)
+		style.border_color = Color("#526979") if state == "disabled" else Color("#9b9e90")
 		style.set_corner_radius_all(5)
 		style.content_margin_left = 14
 		style.content_margin_right = 14
@@ -135,10 +135,10 @@ static func style_service(button: Button) -> void:
 	var focus := StyleBoxFlat.new()
 	focus.draw_center = false
 	focus.set_border_width_all(2)
-	focus.border_color = Color(1.0, 0.95, 0.7)
+	focus.border_color = Color("#e8b773")
 	focus.set_corner_radius_all(5)
 	focus.set_expand_margin_all(2)
 	button.add_theme_stylebox_override("focus", focus)
-	button.add_theme_color_override("font_color", Color(1.0, 0.93, 0.78))
+	button.add_theme_color_override("font_color", Color("#d7d0bc"))
 	button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.9))
 	button.add_theme_color_override("font_disabled_color", Color(0.62, 0.57, 0.52))

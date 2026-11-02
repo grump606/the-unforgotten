@@ -37,6 +37,8 @@ var time := 0.0
 var boss := false
 ## One of the TINTS keys; anything else (including empty) draws the neutral scene.
 var character_id: StringName = &""
+## Optional route-selected painting; an empty key retains standalone/class previews.
+var destination_key: StringName = &""
 
 var _noise: Array[float] = []
 ## x, y, speed, phase, size per mote, flattened.
@@ -68,9 +70,10 @@ func _process(delta: float) -> void:
 	advance(delta)
 
 
-func set_variant(is_boss: bool, id: StringName) -> void:
+func set_variant(is_boss: bool, id: StringName, location: StringName = &"") -> void:
 	boss = is_boss
 	character_id = id
+	destination_key = location
 	queue_redraw()
 
 
@@ -156,6 +159,8 @@ func _draw() -> void:
 
 ## Key of the painted background for this fight (art/layers/screens/<key>/bg.png).
 func painted_name() -> StringName:
+	if destination_key != &"" and PaintedArt.screen_texture(destination_key) != null:
+		return destination_key
 	if boss:
 		return &"battle_boss"
 	return StringName("battle_" + String(character_id)) if TINTS.has(character_id) else &"battle_neutral"

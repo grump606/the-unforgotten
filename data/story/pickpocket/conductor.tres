@@ -4,8 +4,6 @@
 
 [resource]
 script = ExtResource("1_beat")
-title = "The Conductor"
-text = "A figure in a faded coat walks the aisle, punching holes in tickets that are not there. Under the peaked cap there is only bone and two red coals.
-
-\"Quick fingers,\" he says, without moving his mouth. \"Everything on this train is already taken. Next stop is yours.\""
-button_text = "Keep your hands still"
+title = "What They Call Peace"
+text = "Inside the abandoned hall, you find rows of names scraped from brass plaques. This place has an exit. Its custodians sealed it because souls who remember still want to leave.\n\nA bell sounds beyond the courtyard. Someone knows you are coming.\n\nA sealed exit is only a locked door with better guards."
+button_text = "Cross the courtyard"

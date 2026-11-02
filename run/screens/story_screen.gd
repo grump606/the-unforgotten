@@ -1,17 +1,17 @@
 class_name StoryScreen
 extends RunScreen
-## A story stop: the beat on a paper card over the tunnel window (see StoryScene).
+## A story stop: the beat on a paper card over the destination window.
 
 
 func show() -> void:
 	var beat := run.current_beat()
-	# The window onto the tunnel sits behind the panel (see StoryScene).
+	# The destination painting sits behind the panel.
 	var story := StoryScene.new()
 	story.beat_index = run.current_stop().beat_index
 	add_backdrop(story)
 	if beat == null:
 		# Load failure is logged by the run; the stop must still be passable.
-		var fallback := panel("The train rattles on through the dark.")
+		var fallback := panel("Somewhere beyond the quiet streets, a voice still calls.")
 		style_banner(fallback.get_child(0) as Label)
 		add_button(fallback, "Continue", _read)
 		return
@@ -22,7 +22,7 @@ func show() -> void:
 	text.custom_minimum_size = Vector2(480, 0)
 	box.add_child(text)
 	add_button(box, beat.button_text, _read)
-	# Dark ink on a paper card, like a ticket, so the words read over the art.
+	# Dark ink on memento paper keeps the words readable over the art.
 	var ink := Color(0.14, 0.10, 0.07)
 	for label in [box.get_child(0), text]:
 		label.add_theme_color_override("font_color", ink)

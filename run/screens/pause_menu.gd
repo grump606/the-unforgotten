@@ -78,8 +78,8 @@ func set_paused(on: bool) -> void:
 
 func show_options(message: String) -> void:
 	_clear()
-	_add_label("The train waits.", 36)
-	_add_label("Paused. Nothing moves until you do.")
+	_add_label("A moment of quiet", 36)
+	_add_label("Your journey is paused.")
 	if message != "":
 		_add_label(message)
 	var run: RunState = _get_run.call()
@@ -90,15 +90,15 @@ func show_options(message: String) -> void:
 		box.add_child(strip)
 	RunScreen.add_button(box, "Continue", set_paused.bind(false))
 	RunScreen.add_button(box, "Save & Exit", _try_save_and_exit)
-	RunScreen.add_button(box, "New Run", _confirm_new_run)
-	_add_label("A save is taken at the start of every stop, so\nSave & Exit resumes from the start of this stop.")
+	RunScreen.add_button(box, "New Journey", _confirm_new_run)
+	_add_label("Your journey is saved on arrival at each destination.\nSave & Exit returns you to the start of this destination.")
 
 
 func _confirm_new_run() -> void:
 	_clear()
-	_add_label("Abandon this run?", 36)
-	_add_label("This ends the journey and starts a new one.")
-	RunScreen.add_button(box, "Yes, start a new run", _start_new_run)
+	_add_label("Leave this journey behind?", 36)
+	_add_label("Your current journey will be replaced.")
+	RunScreen.add_button(box, "Begin a new journey", _start_new_run)
 	RunScreen.add_button(box, "Cancel", show_options.bind(""))
 
 
@@ -123,6 +123,6 @@ func _add_label(text: String, font_size: int = 0) -> void:
 	var label := Label.new()
 	label.text = text
 	if font_size > 0:
-		label.add_theme_font_size_override("font_size", font_size)
+		MenuStyle.heading(label, font_size)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(label)

@@ -42,6 +42,10 @@ var _end := EndScreen.new()
 
 
 func _ready() -> void:
+	get_window().title = "The Unforgotten"
+	MenuStyle.apply(self)
+	_header.add_theme_font_size_override("font_size", 14)
+	_header_row.custom_minimum_size.y = 48
 	_header_strip = RelicStrip.create([] as Array[RelicData])
 	_header_row.add_child(_header_strip)
 	_build_pause_menu()
@@ -71,7 +75,7 @@ func _show_main_menu() -> void:
 		_notice = "Saved run could not be loaded (%s)." % loaded.error
 		push_warning(_notice)
 	var prefix := _notice + "\n" if _notice != "" else ""
-	_header.text = prefix + "Main menu"
+	_header.text = prefix + "A voice beyond the quiet"
 	_notice_shown = _notice != ""
 	_main_menu.attach(loaded.run, _body, _show_stop)
 	_main_menu.show(loaded.run, _continue_run.bind(loaded.run), _new_run.bind(_show_main_menu), func() -> void: exit_callable.call(),
@@ -111,7 +115,7 @@ func _new_run(back := Callable()) -> void:
 	_header_strip.set_relics([] as Array[RelicData])
 	_clear_body()
 	var prefix := _notice + "\n" if _notice != "" else ""
-	_header.text = prefix + "Choose your passenger"
+	_header.text = prefix + "Choose who answers the voice"
 	_notice_shown = _notice != ""
 	_select.attach(null, _body, _show_stop)
 	_select.show(self, _start_run, back)
@@ -166,10 +170,14 @@ func _update_header() -> void:
 	var position := mini(_run.stop_index + 1, _run.stops.size())
 	var prefix := _notice + "\n" if _notice != "" else ""
 	var stop_text := _run.current_stop().describe() if not _run.finished else "Journey's end"
+	if not _run.finished:
+		var destination := DestinationArt.label_at(_run.stop_index)
+		if destination != "":
+			stop_text = destination + " — " + stop_text
 	if _run.reward_pending():
 		stop_text = "Reward"
-	_header.text = prefix + "Stop %d/%d: %s    |    %s  HP %d/%d    |    Gold %d    |    Deck %d" % [
-		position, _run.stops.size(), stop_text, player.display_name, player.hp, player.max_hp, _run.gold, _run.deck.size(),
+	_header.text = prefix + "%s\nJourney %d/%d  ·  %s  ·  HP %d/%d  ·  Gold %d  ·  Deck %d" % [
+		stop_text, position, _run.stops.size(), player.display_name, player.hp, player.max_hp, _run.gold, _run.deck.size(),
 	]
 	_notice_shown = _notice != ""
 	_pause_button.visible = not _run.finished

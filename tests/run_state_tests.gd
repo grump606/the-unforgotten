@@ -676,7 +676,7 @@ func _test_boss_stop() -> void:
 	var state := _at_boss(51)
 	_check(not state.finished and state.current_stop().boss, "setup: standing at the boss stop")
 	var fight := state.start_combat()
-	_check(fight != null and fight.enemies.size() == 1 and fight.enemies[0].display_name == "The Conductor", "the boss stop fights the Conductor alone")
+	_check(fight != null and fight.enemies.size() == 1 and fight.enemies[0].display_name == "Eraser", "the boss stop fights the Conductor alone")
 	if fight != null:
 		fight.abandon()
 
@@ -713,7 +713,7 @@ func _test_mid_boss_stop() -> void:
 	var state := _at_mid_boss(61)
 	_check(not state.finished and state.stop_index == 9 and state.current_stop().mid_boss, "setup: standing at the mid-boss stop")
 	var fight := state.start_combat()
-	_check(fight != null and fight.enemies.size() == 1 and fight.enemies[0].display_name == "The Brakeman", "the mid-boss stop fights the Brakeman alone")
+	_check(fight != null and fight.enemies.size() == 1 and fight.enemies[0].display_name == "Bellkeeper", "the mid-boss stop fights the Brakeman alone")
 	if fight != null:
 		_check(fight.enemies[0].max_hp == StarterContent.mid_boss_encounter()[0].max_hp, "the mid-boss is not stat-ramped")
 		fight.abandon()

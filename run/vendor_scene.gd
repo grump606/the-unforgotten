@@ -1,19 +1,19 @@
 class_name VendorScene
 extends Control
 ## Animated stall behind the vendor panel, drawn entirely in code: a ghostly shopkeeper under a
-## hood behind a lantern-lit counter in a baggage car, shelves of old luggage, hanging lanterns,
+## hood behind a weathered keepsake stall, cloth bundles and shielded lanterns,
 ## a till that shows the player's gold and a little prop beside each service button (see
 ## docs/VENDOR_ART_DESIGN.md). It ignores the mouse, only animates while visible in the tree and
 ## is driven by advance(delta), so tests can step it.
 
-const NIGHT := Color(0.045, 0.036, 0.04)
-const WALL := Color(0.085, 0.06, 0.05)
-const WOOD := Color(0.22, 0.13, 0.075)
-const WOOD_DARK := Color(0.105, 0.065, 0.045)
-const BRASS := Color(0.78, 0.55, 0.24)
-const AMBER := Color(1.0, 0.78, 0.42)
-const CLOAK := Color(0.035, 0.03, 0.045)
-const PALE := Color(0.72, 0.84, 0.95)
+const NIGHT := Color("#171D28")
+const WALL := Color(0.10, 0.12, 0.14)
+const WOOD := Color(0.20, 0.18, 0.16)
+const WOOD_DARK := Color(0.10, 0.11, 0.12)
+const BRASS := Color(0.56, 0.47, 0.34)
+const AMBER := Color("#E8B773")
+const CLOAK := Color(0.08, 0.10, 0.12)
+const PALE := Color("#D7D0BC")
 const COIN := Color(0.95, 0.76, 0.28)
 const LEATHER: Array[Color] = [Color(0.34, 0.20, 0.11), Color(0.25, 0.15, 0.10), Color(0.30, 0.26, 0.16), Color(0.18, 0.14, 0.12)]
 ## x as a fraction of the width, how far the chain drops, and the size, per hanging lantern.
@@ -174,8 +174,10 @@ func _draw() -> void:
 	var base: float = stage["base"]
 	_draw_wall(w, h)
 	_draw_glow(head, edge)
-	_draw_shelves(w, edge)
-	_draw_lanterns(w)
+	# The painting supplies its shelves and lamps; avoid duplicate silhouettes over it.
+	if PaintedArt.screen_texture(&"vendor") == null:
+		_draw_shelves(w, edge)
+		_draw_lanterns(w)
 	_draw_shopkeeper(head, edge)
 	_draw_counter(w, h, edge, base)
 	_draw_till(w * 0.12, base - 10.0)
@@ -318,10 +320,10 @@ func _draw_shopkeeper(c: Vector2, edge: float) -> void:
 		pts.append(c + Vector2(-p.x, minf(p.y, drop) + (b if p.y > 20.0 else b * 0.4)))
 	draw_colored_polygon(pts, CLOAK)
 	# Folds and the rim of lantern light along both shoulders.
-	var fold := Color(0.075, 0.065, 0.09)
+	var fold := Color(0.15, 0.18, 0.20)
 	for x in [-60.0, -20.0, 20.0, 60.0]:
 		draw_line(c + Vector2(x, 50.0 + b), c + Vector2(x * 1.9, drop), fold, 2.0)
-	var rim := Color(AMBER, 0.38 * level)
+	var rim := Color(PALE, 0.20 * level)
 	var left := PackedVector2Array()
 	var right := PackedVector2Array()
 	for i in range(1, 9):
@@ -341,8 +343,8 @@ func _draw_shopkeeper(c: Vector2, edge: float) -> void:
 		if blinking():
 			draw_line(eye + Vector2(-3, 0), eye + Vector2(3, 0), Color(AMBER, 0.7), 1.5)
 		else:
-			_ellipse(eye, 7.0, 7.0, Color(AMBER, 0.10), 10)
-			_ellipse(eye, 2.8, 2.2, Color(1.0, 0.9, 0.6), 8)
+			_ellipse(eye, 4.5, 3.0, Color(AMBER, 0.05), 10)
+			_ellipse(eye, 2.0, 1.3, Color(PALE, 0.7), 8)
 
 
 # --- counter, till and props -----------------------------------------------------------
@@ -370,22 +372,22 @@ func _draw_counter(w: float, h: float, edge: float, base: float) -> void:
 
 
 func _draw_till(cx: float, foot: float) -> void:
-	# A brass till whose display reads the player's gold, with its coins stacked alongside.
+	# A worn slate ledger reads the player's gold, with its coins stacked alongside.
 	var glow := pulse()
 	var body := Rect2(cx - 58.0, foot - 66.0, 116.0, 66.0)
 	if glow > 0.0:
 		_ellipse(body.get_center(), 100.0, 70.0, Color(COIN, 0.16 * glow), 20)
-	draw_rect(body, Color(0.30, 0.20, 0.10))
+	draw_rect(body, Color(0.20, 0.23, 0.25))
 	draw_rect(body, BRASS, false, 2.0)
 	draw_rect(Rect2(body.position.x + 8.0, body.position.y + 6.0, 100.0, 28.0), Color(0.02, 0.05, 0.035))
 	draw_rect(Rect2(body.position.x + 8.0, body.position.y + 6.0, 100.0, 28.0), Color(BRASS, 0.8), false, 1.0)
 	var font := ThemeDB.fallback_font
 	draw_string(font, Vector2(body.position.x + 12.0, body.position.y + 17.0), "GOLD", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(AMBER, 0.75))
 	draw_string(font, Vector2(body.position.x + 12.0, body.position.y + 31.0), till_text(), HORIZONTAL_ALIGNMENT_RIGHT, 92.0, 17, Color(1.0, 0.9, 0.55))
-	for row in 2:
-		for col in 5:
-			draw_rect(Rect2(body.position.x + 10.0 + col * 20.0, body.position.y + 40.0 + row * 11.0, 16.0, 8.0), Color(0.16, 0.10, 0.06))
-			draw_rect(Rect2(body.position.x + 10.0 + col * 20.0, body.position.y + 40.0 + row * 11.0, 16.0, 1.0), Color(AMBER, 0.4))
+	for row in 3:
+		var y := body.position.y + 42.0 + row * 7.0
+		draw_line(Vector2(body.position.x + 12, y), Vector2(body.end.x - 12, y), Color(PALE, 0.18), 1.0)
+	draw_line(Vector2(body.position.x + 72, body.position.y + 38), Vector2(body.position.x + 72, body.end.y - 5), Color(PALE, 0.15), 1.0)
 	# Coins in stacks of five, nearest the till first.
 	var coins := coin_count()
 	for i in coins:
@@ -399,22 +401,22 @@ func _draw_till(cx: float, foot: float) -> void:
 
 
 func _draw_luggage(cx: float, foot: float) -> void:
-	# An old case lying on the counter with a luggage tag that stirs.
+	# A cloth-wrapped bundle of keepsakes, secured with faded thread.
 	var light := 0.75 + 0.25 * lantern_level(3)
-	var r := Rect2(cx - 52.0, foot - 54.0, 104.0, 54.0)
-	var c := _lit(LEATHER[0], light)
-	draw_rect(r, c)
-	draw_rect(r, c.darkened(0.5), false, 1.5)
-	draw_rect(Rect2(r.position.x + 22.0, r.position.y, 5.0, r.size.y), c.darkened(0.3))
-	draw_rect(Rect2(r.end.x - 27.0, r.position.y, 5.0, r.size.y), c.darkened(0.3))
-	draw_rect(Rect2(cx - 5.0, r.position.y + 18.0, 10.0, 8.0), _lit(BRASS, light))
-	draw_rect(Rect2(cx - 16.0, r.position.y - 7.0, 32.0, 7.0), c.darkened(0.45), false, 2.0)
-	for corner in [r.position, Vector2(r.end.x - 7.0, r.position.y), Vector2(r.position.x, r.end.y - 7.0), r.end - Vector2(7, 7)]:
-		draw_rect(Rect2(corner, Vector2(7, 7)), _lit(BRASS, light * 0.85))
-	var sway := sin(time * 1.6) * 2.0
-	var tag := Vector2(r.end.x - 14.0, r.position.y + 6.0)
-	draw_line(tag, tag + Vector2(8.0 + sway, 14.0), Color(PALE, 0.5), 1.0)
-	draw_colored_polygon(PackedVector2Array([tag + Vector2(4 + sway, 14), tag + Vector2(16 + sway, 14), tag + Vector2(16 + sway, 30), tag + Vector2(8 + sway, 34), tag + Vector2(2 + sway, 30)]), Color(0.78, 0.7, 0.5, 0.9))
+	var c := _lit(Color(0.32, 0.39, 0.39), light)
+	var outline := PackedVector2Array([Vector2(-52, -5), Vector2(-47, -34), Vector2(-25, -48), Vector2(19, -46), Vector2(47, -30), Vector2(53, -4), Vector2(21, 0), Vector2(-25, 0)])
+	for i in outline.size():
+		outline[i] += Vector2(cx, foot)
+	draw_colored_polygon(outline, c)
+	draw_polyline(outline, Color(PALE, 0.18), 1.0, true)
+	for dx in [-30.0, -12.0, 24.0]:
+		draw_line(Vector2(cx + dx, foot - 34), Vector2(cx + dx * 0.6, foot - 5), c.darkened(0.3), 1.5)
+	draw_line(Vector2(cx - 48, foot - 21), Vector2(cx + 48, foot - 21), Color(PALE, 0.65), 1.5)
+	draw_line(Vector2(cx - 3, foot - 45), Vector2(cx - 3, foot - 2), Color(PALE, 0.65), 1.5)
+	var knot := Vector2(cx - 3, foot - 21)
+	draw_arc(knot + Vector2(-5, -2), 5, 0, TAU, 14, Color(PALE, 0.65), 1.2, true)
+	draw_arc(knot + Vector2(5, -2), 5, 0, TAU, 14, Color(PALE, 0.65), 1.2, true)
+	draw_line(knot, knot + Vector2(8 + sin(time * 1.6), 12), Color(PALE, 0.6), 1.2)
 
 
 func _draw_bell(cx: float, foot: float) -> void:
@@ -432,7 +434,7 @@ func _draw_bell(cx: float, foot: float) -> void:
 
 
 func _draw_service_props() -> void:
-	# One prop to the left of each service button: a ticket-punch, a medicine bottle, a small case.
+	# Small scissors, a medicine bottle and a cloth case identify the services.
 	for i in service_anchors.size():
 		var r := _anchor_rect(service_anchors[i])
 		if r.size == Vector2.ZERO:
@@ -441,27 +443,27 @@ func _draw_service_props() -> void:
 		var c := Vector2(r.position.x - 26.0, r.get_center().y)
 		match i:
 			0:
-				_draw_punch(c, dim)
+				_draw_scissors(c, dim)
 			1:
 				_draw_bottle(c, dim)
 			_:
 				_draw_case(c, dim)
 
 
-func _draw_punch(c: Vector2, dim: float) -> void:
-	var brass := Color(BRASS, dim)
-	draw_line(c + Vector2(-13, 9), c + Vector2(12, -2), Color(brass, dim), 5.0) # lower jaw
-	draw_line(c + Vector2(-13, 2), c + Vector2(12, -9), brass.lightened(0.15), 5.0) # upper jaw
-	draw_circle(c + Vector2(12, -9), 2.0, Color(NIGHT, dim))
-	draw_arc(c + Vector2(-14, 8), 5.0, 0.0, TAU, 12, Color(brass, dim), 2.0) # the ring handle
-	draw_rect(Rect2(c + Vector2(4, 4), Vector2(14, 9)), Color(PALE, 0.85 * dim)) # a punched ticket
-	draw_circle(c + Vector2(11, 8.5), 2.0, Color(NIGHT, dim))
+func _draw_scissors(c: Vector2, dim: float) -> void:
+	var metal := Color(PALE, 0.8 * dim)
+	var grip := Color(BRASS, dim)
+	draw_arc(c + Vector2(-10, -5), 4.5, 0, TAU, 16, grip, 2.0, true)
+	draw_arc(c + Vector2(-10, 6), 4.5, 0, TAU, 16, grip, 2.0, true)
+	draw_line(c + Vector2(-6, -4), c + Vector2(14, 10), metal, 2.0, true)
+	draw_line(c + Vector2(-6, 5), c + Vector2(14, -9), metal, 2.0, true)
+	draw_circle(c + Vector2(1, 1), 2.0, grip)
 
 
 func _draw_bottle(c: Vector2, dim: float) -> void:
 	var glow := 0.65 + 0.35 * sin(time * 2.0)
 	draw_rect(Rect2(c + Vector2(-8, -4), Vector2(16, 17)), Color(0.55, 0.85, 0.7, 0.28 * dim))
-	draw_rect(Rect2(c + Vector2(-7, 2), Vector2(14, 10)), Color(0.45, 0.95, 0.65, (0.45 + 0.3 * glow) * dim))
+	draw_rect(Rect2(c + Vector2(-7, 2), Vector2(14, 10)), Color(0.47, 0.66, 0.61, (0.35 + 0.2 * glow) * dim))
 	draw_rect(Rect2(c + Vector2(-3, -11), Vector2(6, 8)), Color(PALE, 0.4 * dim))
 	draw_rect(Rect2(c + Vector2(-4, -14), Vector2(8, 4)), Color(0.45, 0.3, 0.18, dim))
 	draw_rect(Rect2(c + Vector2(-8, -4), Vector2(16, 17)), Color(PALE, 0.5 * dim), false, 1.0)

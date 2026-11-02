@@ -5,7 +5,7 @@ extends RunScreen
 
 ## `on_new_run` is bound by the caller so the select screen's Back button returns here.
 func show(on_new_run: Callable) -> void:
-	var title := "You slip off the train and into the light." if run.escaped else "You are claimed by the afterlife."
+	var title := "Someone speaks your name. This time, you answer." if run.escaped else "They return you to the quiet. Somewhere, a voice still calls."
 	var scene := EndScene.new()
 	scene.escaped = run.escaped
 	add_backdrop(scene)
@@ -18,4 +18,4 @@ func show(on_new_run: Callable) -> void:
 	]
 	style_banner(summary)
 	box.add_child(summary)
-	style_service(add_button(box, "New Run", on_new_run))
+	style_service(add_button(box, "New Journey", on_new_run))

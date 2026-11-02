@@ -20,7 +20,7 @@ func _initialize() -> void:
 	await _frames()
 	_save("menu.png")
 	for button in scene.find_children("*", "Button", true, false):
-		if (button as Button).text == "New Run":
+		if (button as Button).text == "New Journey":
 			(button as Button).pressed.emit()
 	await _frames()
 	var suffix := "_%sx%s" % [args[1], args[2]] if args.size() > 2 else ""

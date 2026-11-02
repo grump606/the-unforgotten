@@ -1,8 +1,8 @@
 class_name RelicView
 extends Control
-## A relic drawn as a small round badge, entirely in code (see docs/RELIC_ART_DESIGN.md). The
+## A relic drawn as a worn keepsake badge, entirely in code. The
 ## relic's Kind picks the glyph, its class (RelicData.character) picks the frame palette from
-## CardView.PALETTES (neutral relics are cream ticket stock). Drawn in a fixed BASE-sized space
+## CardView.PALETTES (neutral relics are faded bone paper). Drawn in a fixed BASE-sized space
 ## and scaled by view_scale. Hovering shows the engine tooltip (name, effect, class), which the
 ## window keeps on screen at every edge.
 
@@ -13,7 +13,7 @@ const DIM := Color(0.04, 0.04, 0.07, 0.55)
 const GLYPH_NAMES := {
 	RelicData.Kind.MAX_HP: "flask",
 	RelicData.Kind.WIN_GOLD: "purse",
-	RelicData.Kind.WIN_HEAL: "ticket",
+	RelicData.Kind.WIN_HEAL: "folded farewell",
 	RelicData.Kind.FIGHT_START_BLOCK: "dog tag",
 	RelicData.Kind.TURN_START_THORNS: "barbed wire",
 	RelicData.Kind.TURN_START_BLOCK: "tin",
@@ -108,9 +108,18 @@ func _draw() -> void:
 	var accent: Color = palette["accent"]
 	var ink: Color = palette["ink"]
 	var center := BASE * 0.5
-	draw_circle(center, 17.5, palette["frame"])
+	# An uneven bound edge suggests worn paper or cloth while keeping the glyph quiet.
+	var edge := PackedVector2Array()
+	for i in 32:
+		var radius := 17.0 + (0.45 if i % 3 == 0 else 0.0)
+		edge.append(center + Vector2.from_angle(i * TAU / 32.0) * radius)
+	draw_colored_polygon(edge, palette["frame"])
 	draw_circle(center, 15.5, stock)
-	draw_arc(center, 13.8, 0.0, TAU, 40, Color(accent, 0.45), 1.0, true)
+	draw_arc(center, 14.6, 0.0, TAU, 40, Color(accent, 0.4), 1.0, true)
+	for angle in [0.25, 0.75, 2.4, 2.9, 3.7, 4.3, 5.1, 5.8]:
+		var inner := center + Vector2.from_angle(angle) * 15.2
+		var outer := center + Vector2.from_angle(angle + 0.04) * 16.8
+		draw_line(inner, outer, Color(ink, 0.38), 0.8, true)
 	_draw_glyph(relic.kind, ink, accent, stock)
 	if _hovered:
 		draw_circle(center, 15.5, Color(1, 1, 1, 0.14))
@@ -134,12 +143,16 @@ func _draw_glyph(kind: RelicData.Kind, ink: Color, accent: Color, bg: Color) -> 
 			draw_line(Vector2(22, 11.5), Vector2(24.5, 8.5), accent, 1.6)
 			draw_circle(Vector2(18, 22), 3.8, accent)
 			draw_arc(Vector2(18, 22), 2.2, 0.0, TAU, 14, bg, 1.0, true)
-		RelicData.Kind.WIN_HEAL: # a ticket stub with a cross
-			draw_rect(Rect2(7, 11, 22, 14), ink)
-			draw_circle(Vector2(7, 18), 3.0, bg)
-			draw_circle(Vector2(29, 18), 3.0, bg)
-			draw_rect(Rect2(16.5, 13.5, 3, 9), accent)
-			draw_rect(Rect2(13.5, 16.5, 9, 3), accent)
+		RelicData.Kind.WIN_HEAL: # a folded farewell note, sealed with a small keepsake cross
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(8, 11), Vector2(24, 10), Vector2(28, 14),
+				Vector2(28, 26), Vector2(9, 27),
+			]), ink)
+			draw_colored_polygon(PackedVector2Array([Vector2(24, 10), Vector2(24, 15), Vector2(28, 14)]), accent)
+			draw_line(Vector2(10, 13), Vector2(18, 20), Color(bg, 0.7), 1.0, true)
+			draw_line(Vector2(18, 20), Vector2(26, 15), Color(bg, 0.7), 1.0, true)
+			draw_rect(Rect2(17, 18, 2, 7), accent)
+			draw_rect(Rect2(14.5, 20.5, 7, 2), accent)
 		RelicData.Kind.FIGHT_START_BLOCK: # a stamped dog tag on its chain
 			draw_arc(Vector2(18, 12), 5.0, PI, TAU, 14, accent, 1.6, true)
 			draw_colored_polygon(PackedVector2Array([

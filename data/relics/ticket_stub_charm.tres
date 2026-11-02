@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_relic")
 id = &"ticket_stub_charm"
-display_name = "Ticket Stub Charm"
+display_name = "Folded Farewell"
 description = "Heal 3 HP after each won fight."
 kind = 8
 amount = 3

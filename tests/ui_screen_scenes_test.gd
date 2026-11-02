@@ -179,7 +179,7 @@ func _initialize() -> void:
 		check(ends.size() == 1 and ends[0] is EndScene and (ends[0] as EndScene).escaped == escaped, "the %s end card has exactly one end scene" % ("escape" if escaped else "defeat"))
 		check(_beneath_panel(body, ends[0]), "the end scene is beneath the summary")
 		check(_has_text(body, "Outcome: %s" % ("Escaped" if escaped else "Defeated")) and _has_text(body, "Stops cleared:") and _has_text(body, "Gold:"), "the end summary text is kept")
-	var new_run := _find_button(body, "New Run")
+	var new_run := _find_button(body, "New Journey")
 	check(new_run != null, "the End card still offers New Run")
 	new_run.pressed.emit()
 	await process_frame
