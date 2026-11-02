@@ -97,13 +97,15 @@ func _draw() -> void:
 		_draw_opposite_bench(w, h, c, lamp)
 		_draw_lamp(w, h, c, lamp)
 		_draw_foreground(w, h, c, lamp)
-	match variant:
-		&"deserter":
-			_draw_coat(w, h, c, lamp)
-		&"pickpocket":
-			_draw_watch(w, h, c, lamp)
-		&"medium":
-			_draw_figures(w, h, c)
+	# The painting already supplies the shelter and its props.
+	if painted == null:
+		match variant:
+			&"deserter":
+				_draw_coat(w, h, c, lamp)
+			&"pickpocket":
+				_draw_watch(w, h, c, lamp)
+			&"medium":
+				_draw_figures(w, h, c)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	# Scrim: a light dim everywhere and a darker soft band behind the menu so the buttons read.
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.02, 0.04, 0.1))

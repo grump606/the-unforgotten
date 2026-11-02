@@ -24,6 +24,9 @@ const ART_KEYS := {
 	"Gate Warden": &"warden", "Lost Shade": &"shade", "Skittering Wisp": &"wisp", "Hollow Colossus": &"colossus",
 	"Pale Whisperer": &"whisperer", "Cinder Hound": &"hound", "Mourning Crow": &"crow", "The Conductor": &"conductor",
 	"The Brakeman": &"brakeman",
+	"Threshold Keeper": &"warden", "The Unnamed": &"shade", "Stray Recollection": &"wisp",
+	"Memorial Giant": &"colossus", "The Husher": &"whisperer", "Ash Hound": &"hound",
+	"Keepsake Crow": &"crow", "Bellkeeper": &"brakeman", "Eraser": &"conductor",
 }
 ## Figure height in pixels per enemy (the player and unknown names use DEFAULT_HEIGHT).
 const HEIGHTS := {
@@ -42,9 +45,9 @@ const CLASS_COLORS := {
 	&"medium": [Color(0.30, 0.22, 0.42), Color(0.72, 0.52, 1.0)],
 }
 ## Which way each painted class figure faces as drawn (+1 right, -1 left); the stage mirrors it to face right.
-const PLAYER_ART_FACING := {&"deserter": -1.0, &"pickpocket": 1.0, &"medium": -1.0}
+const PLAYER_ART_FACING := {&"deserter": 1.0, &"pickpocket": 1.0, &"medium": 1.0}
 ## Painted enemy sprites that face right as drawn (everything else faces left); the stage mirrors them.
-const SPRITE_FACES_RIGHT: Array[StringName] = [&"crow", &"conductor", &"shade"]
+const SPRITE_FACES_RIGHT: Array[StringName] = []
 const HP_BACK := Color(0.10, 0.04, 0.05)
 const SHADOW := Color(0, 0, 0, 0.38)
 
@@ -290,6 +293,38 @@ func breath() -> float:
 	return sin(time * 1.7 + phase)
 
 
+## Combat-ready weight shifts, anchored at the feet. Uses presentation time only.
+## Reactions take priority and defeated fighters stop shifting their weight.
+func stance_motion() -> Vector3:
+	if is_defeated():
+		return Vector3.ZERO
+	var speed := 2.1
+	var strength := 1.0
+	if is_player:
+		match class_id:
+			&"deserter":
+				speed = 1.8
+				strength = 0.8
+			&"pickpocket":
+				speed = 2.8
+				strength = 1.15
+			&"medium":
+				speed = 1.5
+				strength = 0.55
+	elif art_key in [&"wisp", &"crow"]:
+		speed = 3.0
+		strength = 0.6
+	elif art_key in [&"colossus", &"brakeman"]:
+		speed = 1.4
+		strength = 0.65
+	var readiness := 1.0 - maxf(lunge_amount(), _recoil)
+	var cycle := time * speed + phase
+	var weight := sin(cycle) * strength * readiness
+	# x: a small lateral shift; y: forward guard lean; z: knee/torso compression.
+	return Vector3(weight * 1.4, -facing * (0.012 + weight * 0.009) * readiness,
+		(0.5 + 0.5 * cos(cycle * 2.0)) * 0.012 * strength * readiness)
+
+
 ## How far into its lunge the fighter is (0 idle, 1 at the top of the strike), for tests and the draw.
 func lunge_amount() -> float:
 	return 0.0 if _lunge_delay > 0.0 else sin(_lunge * PI)
@@ -396,9 +431,10 @@ func _draw_target_ring(ground: Vector2) -> void:
 ## a hit, the hit flash and the defeat fade (it sinks and goes see-through).
 func _draw_figure(ground: Vector2, a: float) -> void:
 	var lunge := lunge_amount()
+	var stance := stance_motion()
 	var dx := facing * (lunge * 46.0) - facing * sin(_recoil * PI) * 16.0
 	var shake := sin(time * 70.0) * 2.5 * _flash
-	var squash := 1.0 + breath() * 0.02 + lunge * 0.04
+	var squash := 1.0 + breath() * 0.008 - stance.z + lunge * 0.04
 	var stretch := 1.0 + lunge * 0.04
 	var sink := fade * 18.0
 	var tint := Color(1, 1, 1, a)
@@ -407,7 +443,7 @@ func _draw_figure(ground: Vector2, a: float) -> void:
 	elif _hovered and not is_defeated() and not is_player:
 		tint = Color(1.12, 1.12, 1.12, a)
 	var flip := 1.0 if is_equal_approx(facing, _art_facing) else -1.0
-	draw_set_transform(ground + Vector2(dx + shake, sink), 0.0, Vector2(stretch * flip, squash))
+	draw_set_transform(ground + Vector2(dx + shake + stance.x, sink), stance.y, Vector2(stretch * flip, squash))
 	if _tex != null:
 		var w := figure_width()
 		draw_texture_rect_region(_tex, Rect2(-w / 2.0, -figure_height, w, figure_height), _region, tint)
@@ -515,3 +551,4 @@ func _draw_floats() -> void:
 		var fs := int(26.0 * pop)
 		var col: Color = f.color
 		HudIcons.text(self, f.text, Rect2(origin + Vector2(f.drift - 60.0, -rise * 60.0 - 14.0), Vector2(120, 28)), fs, Color(col, alpha), true, 5)
+

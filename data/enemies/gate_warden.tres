@@ -20,6 +20,6 @@ amount = 18
 
 [resource]
 script = ExtResource("1_enemy")
-display_name = "Gate Warden"
+display_name = "Threshold Keeper"
 max_hp = 60
 intents = Array[ExtResource("2_effect")]([SubResource("Resource_i1"), SubResource("Resource_i2"), SubResource("Resource_i3")])

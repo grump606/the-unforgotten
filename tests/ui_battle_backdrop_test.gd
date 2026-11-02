@@ -41,6 +41,17 @@ func _initialize() -> void:
 	await process_frame
 	await process_frame
 	check(true, "all variants draw")
+	# Route art is presentation metadata: both bosses differ, unknown keys fall back.
+	var route_art := BattleBackdrop.new()
+	holder.add_child(route_art)
+	for entry in [[1, &"battle_street"], [9, &"battle_bell_court"], [12, &"battle_garden"], [16, &"battle_archive"], [20, &"battle_threshold"]]:
+		route_art.set_variant(entry[0] == 9 or entry[0] == 20, &"medium", DestinationArt.battle_key(entry[0]))
+		check(route_art.painted_name() == entry[1] and PaintedArt.screen_texture(entry[1]) != null, "route painting loads at stop %d" % entry[0])
+	route_art.set_variant(false, &"medium", &"missing_destination")
+	check(route_art.painted_name() == &"battle_medium", "missing destination retains class fallback")
+	route_art.set_variant(true, &"medium")
+	check(route_art.painted_name() == &"battle_boss", "standalone boss retains fallback")
+	check(DestinationArt.label_at(20) == "The Threshold" and DestinationArt.label_at(-1) == "", "destination labels handle route bounds")
 	var neutral := BattleBackdrop.new()
 	holder.add_child(neutral)
 	neutral.set_variant(false, &"no_such_class")

@@ -4,8 +4,6 @@
 
 [resource]
 script = ExtResource("1_beat")
-title = "The Last Train"
-text = "You wake on a bench of cold iron. Somewhere ahead, a whistle drags itself across the dark.
-
-The doors are open. Nobody is checking tickets, and nobody is leaving. You step aboard before you can think better of it."
-button_text = "Board"
+title = "A Voice Beyond the Rain"
+text = "You wake beneath a stone bearing no name. The people nearby sit quietly while rain washes their faces smooth.\n\nSomewhere beyond the roofs, someone calls for you. You cannot remember their face, but you know you must answer."
+button_text = "Follow the voice"

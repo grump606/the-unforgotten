@@ -380,26 +380,31 @@ func _draw_medium(cx: float) -> void:
 	draw_colored_polygon(flame, Color(0.98, 0.78, 0.35))
 
 
-## The card emblem (hex bolt, keyhole, candle) in a small badge at the portrait corner.
+## Keepsake emblems match the cards.
 func _draw_emblem(c: Vector2) -> void:
-	var frame: Color = _p.frame
-	var glyph: Color = _p.glyph
+	var p: Dictionary = _p
+	var frame: Color = p.frame
+	var glyph: Color = p.glyph
 	draw_circle(c, 13.5, Color(0, 0, 0, 0.5))
 	draw_circle(c, 12.5, frame)
 	match class_id:
 		&"deserter":
-			var hex := PackedVector2Array()
-			for i in 6:
-				hex.append(c + Vector2.from_angle(i * TAU / 6.0) * 8.0)
-			draw_colored_polygon(hex, glyph)
-			draw_circle(c, 3.2, frame)
-			draw_line(c + Vector2(-2.5, 2.5), c + Vector2(2.5, -2.5), glyph, 1.5)
+			# The soldier's squared forearm guard.
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-6, -7), c + Vector2(6, -7), c + Vector2(5, 5), c + Vector2(0, 8), c + Vector2(-5, 5)]), glyph)
+			draw_line(c + Vector2(-3, -2), c + Vector2(3, -2), frame, 1.2)
+			draw_line(c + Vector2(-3, 2), c + Vector2(3, 2), frame, 1.2)
 		&"pickpocket":
+			# A keyhole.
 			draw_circle(c + Vector2(0, -2.5), 4.0, glyph)
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-1.8, 0), c + Vector2(1.8, 0), c + Vector2(3.8, 7.5), c + Vector2(-3.8, 7.5)]), glyph)
 		&"medium":
-			draw_rect(Rect2(c + Vector2(-3, -1), Vector2(6, 9)), glyph)
-			draw_circle(c + Vector2(0, -3.5), 3.0, Color(0.98, 0.78, 0.35))
+			# Cloudy-glass orb, matching the Medium's current keepsake.
+			draw_circle(c, 7.0, glyph)
+			draw_arc(c, 5.1, PI * 1.1, PI * 1.7, 14, Color(p.ink, 0.8), 1.3, true)
+			draw_arc(c + Vector2(0, 1), 3.5, 0.2, PI, 12, Color(frame, 0.8), 1.5, true)
 		_:
-			draw_circle(c, 5.5, CardView.BACKDROP)
-			draw_arc(c, 8, 0, TAU, 24, Color(glyph, 0.6), 1.0, true)
+			# A pressed leaf, preserving a small ordinary memory.
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-6, 5), c + Vector2(-5, -2), c + Vector2(1, -7), c + Vector2(6, -6), c + Vector2(5, 1), c + Vector2(-1, 6)]), glyph)
+			draw_line(c + Vector2(-6, 7), c + Vector2(4, -5), frame, 1.2)
+
+

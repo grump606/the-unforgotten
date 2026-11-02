@@ -95,24 +95,24 @@ func _initialize() -> void:
 	var header: Label = scene.get_node("%HeaderLabel")
 
 	# Launch opens the main menu: New Run and Exit, and no Continue without a save.
-	_check(scene._run == null and header.text.contains("Main menu"), "launch opens the main menu")
+	_check(scene._run == null and header.text.contains("A voice beyond the quiet"), "launch opens the main menu")
 	_check(not scene._pause_button.visible, "no Pause button on the main menu")
-	_check(_find(body, "New Run") != null and _find(body, "Exit") != null and _find(body, "Continue") == null, "the main menu offers New Run and Exit, and no Continue without a save")
+	_check(_find(body, "New Journey") != null and _find(body, "Exit") != null and _find(body, "Continue") == null, "the main menu offers New Run and Exit, and no Continue without a save")
 	_check(_count_buttons(body, "Play as") == 0, "the main menu does not show the characters yet")
 	var exits_fresh := [0]
 	scene.exit_callable = func() -> void: exits_fresh[0] += 1
 	_find(body, "Exit").pressed.emit()
 	_check(exits_fresh[0] == 1, "Exit leaves the game")
-	_find(body, "New Run").pressed.emit()
+	_find(body, "New Journey").pressed.emit()
 	await process_frame
-	_check(scene._run == null and header.text.contains("Choose your passenger"), "New Run opens the character select screen")
+	_check(scene._run == null and header.text.contains("Choose who answers the voice"), "New Run opens the character select screen")
 	_check(not scene._pause_button.visible, "no Pause button on the select screen")
 	_check(_count_buttons(body, "Play as") == 3, "the select screen offers three characters")
 	_check(_find(body, "Back") != null, "the select screen has a Back button")
 	_find(body, "Back").pressed.emit()
 	await process_frame
-	_check(header.text.contains("Main menu") and _find(body, "New Run") != null and _count_buttons(body, "Play as") == 0, "Back returns to the main menu")
-	_find(body, "New Run").pressed.emit()
+	_check(header.text.contains("A voice beyond the quiet") and _find(body, "New Journey") != null and _count_buttons(body, "Play as") == 0, "Back returns to the main menu")
+	_find(body, "New Journey").pressed.emit()
 	await process_frame
 	var select_text := _all_text(body)
 	for id in StarterContent.character_ids():
@@ -200,7 +200,7 @@ func _initialize() -> void:
 				var fight_stop := run_state.current_stop()
 				if fight_stop.mid_boss:
 					mid_boss_fought = true
-					_check(combat.enemies.size() == 1 and combat.enemies[0].display_name == "The Brakeman", "the mid-boss stop fights The Brakeman alone")
+					_check(combat.enemies.size() == 1 and combat.enemies[0].display_name == "Bellkeeper", "the mid-boss stop fights The Brakeman alone")
 					_check(battle.boss_fight and battle._backdrop.boss and header.text.contains("Mid-boss"), "the mid-boss fight has the boss backdrop and says Mid-boss in the header")
 				elif fight_stop.boss:
 					_check(battle.boss_fight and battle._backdrop.boss and header.text.contains("Boss") and not header.text.contains("Mid-boss"), "the final boss fight has the boss backdrop and says Boss in the header")
@@ -299,20 +299,20 @@ func _initialize() -> void:
 	_check(fights_ended == line.fights and rewards == line.fights - 1, "every fight ended and every reward but the final boss's was resolved (%d fights, %d rewards, line has %d)" % [fights_ended, rewards, line.fights])
 	_check(mid_boss_fought and mid_boss_continued, "the mid-boss stop was reached, fought and followed by the reward screen")
 	_check(vendor_visits == line.vendors and rests == line.rests and stories == line.stories, "every vendor, rest and story stop was visited (%d, %d, %d of %d, %d, %d)" % [vendor_visits, rests, stories, line.vendors, line.rests, line.stories])
-	_check(_find(body, "New Run") != null, "the end card offers New Run")
+	_check(_find(body, "New Journey") != null, "the end card offers New Run")
 	_check(not FileAccess.file_exists(test_save), "the save is deleted when the run ends")
 	var win_text := _all_text(body)
 	_check(win_text.contains("Outcome: Escaped") and win_text.contains("Stops cleared: %d/%d" % [run_state.stops.size(), run_state.stops.size()]), "the win summary shows outcome and stops cleared")
 	_check(win_text.contains("Final HP: %d/%d" % [run_state.player.hp, run_state.player.max_hp]), "the win summary shows final HP")
 	_check(win_text.contains("Deck: %d cards" % run_state.deck.size()) and win_text.contains("Gold: %d" % run_state.gold), "the win summary shows deck size and gold")
-	_find(body, "New Run").pressed.emit()
+	_find(body, "New Journey").pressed.emit()
 	await process_frame
-	_check(_count_buttons(body, "Play as") == 3 and header.text.contains("Choose your passenger"), "New Run on the end card opens the select screen")
+	_check(_count_buttons(body, "Play as") == 3 and header.text.contains("Choose who answers the voice"), "New Run on the end card opens the select screen")
 	_check(_find(body, "Back") != null, "the select screen reached from the end card has a Back button")
 	_find(body, "Back").pressed.emit()
 	await process_frame
 	_check(_all_text(body).contains("Outcome: Escaped") and _find(body, "Back") == null, "Back on the select screen returns to the end card")
-	_find(body, "New Run").pressed.emit()
+	_find(body, "New Journey").pressed.emit()
 	await process_frame
 	_check(_count_buttons(body, "Play as") == 3, "New Run still opens the select screen after going Back")
 	_find(body, "Play as The Pickpocket").pressed.emit()
@@ -348,13 +348,13 @@ func _initialize() -> void:
 	root.add_child(resumed_scene)
 	await process_frame
 	var resumed_body: Control = resumed_scene.get_node("%Body")
-	_check(resumed_scene._run == null and _find(resumed_body, "Continue") != null and _find(resumed_body, "New Run") != null, "a valid save offers Continue and New Run without starting")
-	_find(resumed_body, "New Run").pressed.emit()
+	_check(resumed_scene._run == null and _find(resumed_body, "Continue") != null and _find(resumed_body, "New Journey") != null, "a valid save offers Continue and New Run without starting")
+	_find(resumed_body, "New Journey").pressed.emit()
 	await process_frame
 	_check(_count_buttons(resumed_body, "Play as") == 3 and _find(resumed_body, "Back") != null, "New Run from the Continue prompt shows the select screen with Back")
 	_find(resumed_body, "Back").pressed.emit()
 	await process_frame
-	_check(_find(resumed_body, "Continue") != null and _find(resumed_body, "New Run") != null and _find(resumed_body, "Back") == null, "Back returns to the Continue prompt")
+	_check(_find(resumed_body, "Continue") != null and _find(resumed_body, "New Journey") != null and _find(resumed_body, "Back") == null, "Back returns to the Continue prompt")
 	_find(resumed_body, "Continue").pressed.emit()
 	await process_frame
 	var resumed: RunState = resumed_scene._run
@@ -371,7 +371,7 @@ func _initialize() -> void:
 		pick_scene.save_path = test_save
 		root.add_child(pick_scene)
 		await process_frame
-		_find(pick_scene.get_node("%Body"), "New Run").pressed.emit()
+		_find(pick_scene.get_node("%Body"), "New Journey").pressed.emit()
 		await process_frame
 		_find(pick_scene.get_node("%Body"), "Play as %s" % character.display_name).pressed.emit()
 		await process_frame
@@ -390,9 +390,9 @@ func _initialize() -> void:
 	root.add_child(bad_scene)
 	await process_frame
 	var bad_body: Control = bad_scene.get_node("%Body")
-	_check(bad_scene._run == null and _find(bad_body, "New Run") != null and _find(bad_body, "Continue") == null, "a corrupt save shows the main menu without Continue")
+	_check(bad_scene._run == null and _find(bad_body, "New Journey") != null and _find(bad_body, "Continue") == null, "a corrupt save shows the main menu without Continue")
 	_check((bad_scene.get_node("%HeaderLabel") as Label).text.contains("could not be loaded"), "a corrupt save shows a message")
-	_find(bad_body, "New Run").pressed.emit()
+	_find(bad_body, "New Journey").pressed.emit()
 	await process_frame
 	_check(_count_buttons(bad_body, "Play as") == 3, "New Run after a corrupt save opens the select screen")
 	bad_scene.queue_free()
@@ -406,7 +406,7 @@ func _initialize() -> void:
 	pause_scene.exit_callable = func() -> void: exits[0] += 1
 	root.add_child(pause_scene)
 	await process_frame
-	_find(pause_scene.get_node("%Body"), "New Run").pressed.emit()
+	_find(pause_scene.get_node("%Body"), "New Journey").pressed.emit()
 	await process_frame
 	_find(pause_scene.get_node("%Body"), "Play as The Medium").pressed.emit()
 	await process_frame
@@ -423,7 +423,7 @@ func _initialize() -> void:
 	pause_button.pressed.emit()
 	await process_frame
 	_check(overlay.visible and pause_scene.get_tree().paused, "Pause opens the menu and pauses the tree")
-	_check(_find(pause_scene._pause_box, "Continue") != null and _find(pause_scene._pause_box, "Save & Exit") != null and _find(pause_scene._pause_box, "New Run") != null, "the pause menu offers Continue, Save & Exit and New Run")
+	_check(_find(pause_scene._pause_box, "Continue") != null and _find(pause_scene._pause_box, "Save & Exit") != null and _find(pause_scene._pause_box, "New Journey") != null, "the pause menu offers Continue, Save & Exit and New Run")
 	_find(pause_scene._pause_box, "Continue").pressed.emit()
 	await process_frame
 	_check(not overlay.visible and not pause_scene.get_tree().paused, "Continue closes the menu and unpauses")
@@ -463,15 +463,15 @@ func _initialize() -> void:
 	pause_button.pressed.emit()
 	await process_frame
 	var stop_before_new: int = pause_scene._run.stop_index
-	_find(pause_scene._pause_box, "New Run").pressed.emit()
+	_find(pause_scene._pause_box, "New Journey").pressed.emit()
 	await process_frame
-	_check(_all_text(pause_scene._pause_box).contains("Abandon this run") and pause_scene._run.stop_index == stop_before_new, "New Run asks for confirmation first")
+	_check(_all_text(pause_scene._pause_box).contains("Leave this journey behind") and pause_scene._run.stop_index == stop_before_new, "New Run asks for confirmation first")
 	_find(pause_scene._pause_box, "Cancel").pressed.emit()
 	await process_frame
 	_check(_find(pause_scene._pause_box, "Continue") != null and pause_scene._run.stop_index == stop_before_new, "Cancel returns to the pause menu with the run intact")
-	_find(pause_scene._pause_box, "New Run").pressed.emit()
+	_find(pause_scene._pause_box, "New Journey").pressed.emit()
 	await process_frame
-	_find(pause_scene._pause_box, "Yes").pressed.emit()
+	_find(pause_scene._pause_box, "Begin a new journey").pressed.emit()
 	await process_frame
 	_check(not overlay.visible and not pause_scene.get_tree().paused and _count_buttons(pause_scene.get_node("%Body"), "Play as") == 3, "confirming closes the menu and opens the select screen")
 	_check(_find(pause_scene.get_node("%Body"), "Back") != null, "the select screen reached from the pause menu has a Back button")

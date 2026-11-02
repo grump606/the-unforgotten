@@ -1,6 +1,6 @@
 class_name RestScreen
 extends RunScreen
-## A rest stop: the platform scene and one Rest button.
+## A sheltered rest stop and one Rest button.
 
 
 func show() -> void:
@@ -8,7 +8,7 @@ func show() -> void:
 	var scene := RestScene.new()
 	scene.character_id = run.character.id if run.character != null else &""
 	add_backdrop(scene)
-	var box := panel("A quiet platform. The train waits.\nHP %d/%d" % [player.hp, player.max_hp])
+	var box := panel("A little warmth remains.\nHP %d/%d" % [player.hp, player.max_hp])
 	style_banner(box.get_child(0) as Label)
 	style_service(add_button(box, "Rest (+%d HP)" % RunState.REST_HEAL, _rest))
 

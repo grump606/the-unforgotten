@@ -9,3 +9,6 @@ Godot_*/
 .claude/
 build/
 art/work/
+
+# Stale nested clone
+/card-battle-prototype/

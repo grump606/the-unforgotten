@@ -30,6 +30,6 @@ amount = 13
 
 [resource]
 script = ExtResource("1_enemy")
-display_name = "The Conductor"
+display_name = "Eraser"
 max_hp = 96
 intents = Array[ExtResource("2_effect")]([SubResource("Resource_i1"), SubResource("Resource_i2"), SubResource("Resource_i3"), SubResource("Resource_i4"), SubResource("Resource_i5")])

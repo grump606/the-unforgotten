@@ -1,9 +1,9 @@
 class_name CardView
 extends Control
-## A card drawn as a punched train ticket, entirely in code (see docs/CARD_ART_DESIGN.md).
+## A keepsake card framed in worn paper and stitched cloth, drawn entirely in code.
 ## One layout for every card; the class (CardData.character) picks the palette, the frame
 ## decoration and the corner emblem, the effect kinds pick the icon. Neutral cards are plain
-## cream ticket stock. Drawn in a fixed BASE-sized space and scaled by view_scale.
+## faded bone paper. Drawn in a fixed BASE-sized space and scaled by view_scale.
 
 enum State { NORMAL, HOVER, SELECTED, UNPLAYABLE }
 
@@ -16,27 +16,27 @@ const BADGE_BAD := Color(0.78, 0.18, 0.20)
 const WARN := Color(1.0, 0.82, 0.35)
 const HP_RED := Color(0.74, 0.14, 0.2)
 const SELECT_GOLD := Color(1.0, 0.85, 0.4)
-## Palette tokens per class. Empty id is the neutral ticket stock.
+## Palette tokens per class. Empty id is neutral keepsake paper.
 const PALETTES := {
 	&"": {
-		"label": "ADMIT ONE", "stock": Color(0.90, 0.86, 0.76), "frame": Color(0.50, 0.47, 0.43),
-		"ink": Color(0.13, 0.12, 0.11), "window": Color(0.17, 0.18, 0.20), "banner": Color(0.78, 0.73, 0.62),
-		"banner_ink": Color(0.13, 0.12, 0.11), "accent": Color(0.40, 0.38, 0.35), "glyph": Color(0.15, 0.14, 0.13),
+		"label": "KEEPSAKE", "stock": Color("#D7D0BC"), "frame": Color("#526979"),
+		"ink": Color("#171D28"), "window": Color("#171D28"), "banner": Color("#BBB7A8"),
+		"banner_ink": Color("#171D28"), "accent": Color("#526979"), "glyph": Color("#D7D0BC"),
 	},
 	&"deserter": {
-		"label": "DESERTER", "stock": Color(0.27, 0.29, 0.32), "frame": Color(0.66, 0.31, 0.14),
-		"ink": Color(0.94, 0.94, 0.92), "window": Color(0.12, 0.13, 0.15), "banner": Color(0.40, 0.43, 0.47),
-		"banner_ink": Color(0.98, 0.98, 0.96), "accent": Color(0.84, 0.45, 0.20), "glyph": Color(0.12, 0.12, 0.13),
+		"label": "DESERTER", "stock": Color("#29313A"), "frame": Color("#A66A50"),
+		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#49545D"),
+		"banner_ink": Color("#F0EBDD"), "accent": Color("#A66A50"), "glyph": Color("#171D28"),
 	},
 	&"pickpocket": {
-		"label": "PICKPOCKET", "stock": Color(0.11, 0.29, 0.31), "frame": Color(0.80, 0.62, 0.26),
-		"ink": Color(0.95, 0.93, 0.86), "window": Color(0.06, 0.16, 0.18), "banner": Color(0.17, 0.42, 0.44),
-		"banner_ink": Color(0.97, 0.96, 0.92), "accent": Color(0.88, 0.70, 0.32), "glyph": Color(0.08, 0.16, 0.17),
+		"label": "PICKPOCKET", "stock": Color("#253D3D"), "frame": Color("#78A99B"),
+		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#41615B"),
+		"banner_ink": Color("#F0EBDD"), "accent": Color("#78A99B"), "glyph": Color("#171D28"),
 	},
 	&"medium": {
-		"label": "MEDIUM", "stock": Color(0.24, 0.15, 0.30), "frame": Color(0.86, 0.82, 0.70),
-		"ink": Color(0.96, 0.94, 0.90), "window": Color(0.11, 0.07, 0.15), "banner": Color(0.38, 0.24, 0.46),
-		"banner_ink": Color(0.98, 0.97, 0.94), "accent": Color(0.90, 0.86, 0.74), "glyph": Color(0.16, 0.10, 0.20),
+		"label": "MEDIUM", "stock": Color("#342F42"), "frame": Color("#9A89AD"),
+		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#5C526B"),
+		"banner_ink": Color("#F0EBDD"), "accent": Color("#9A89AD"), "glyph": Color("#171D28"),
 	},
 }
 
@@ -323,11 +323,9 @@ func _draw() -> void:
 		_draw_preview(line)
 	_draw_body(body, ink)
 
-	# Perforation with the punched notches, then the keyword strip.
-	for x in range(10, int(BASE.x) - 8, 7):
-		draw_rect(Rect2(x, 167, 3, 1), Color(ink, 0.55))
-	draw_circle(Vector2(0, 167), 4.5, BACKDROP)
-	draw_circle(Vector2(BASE.x, 167), 4.5, BACKDROP)
+	# A continuous paper fold separates the rules from the target strip.
+	draw_line(Vector2(9, 167), Vector2(BASE.x - 9, 167), Color(ink, 0.30), 1.0)
+	draw_line(Vector2(9, 168), Vector2(BASE.x - 9, 168), Color(stock.lightened(0.15), 0.45), 1.0)
 	_draw_strip(Rect2(8, 170, BASE.x - 16, 16), p)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
@@ -403,20 +401,26 @@ func _draw_cost(c: Vector2, muted: bool) -> void:
 
 func _draw_class_frame(p: Dictionary) -> void:
 	var accent: Color = p.accent
+	# Quiet fibers stay in the outer margin, away from the live rules and art.
+	for y in range(13, int(BASE.y) - 10, 13):
+		var length := 1.0 + float(y % 3)
+		draw_line(Vector2(4.5, y), Vector2(4.5 + length, y + 1), Color(p.ink, 0.12), 1.0)
+		draw_line(Vector2(BASE.x - 4.5, y + 3), Vector2(BASE.x - 4.5 - length, y + 4), Color(p.ink, 0.12), 1.0)
 	match class_id:
 		&"deserter":
-			# Rivets on the frame corners.
-			for pt in [Vector2(2.5, 2.5), Vector2(BASE.x - 2.5, 2.5), Vector2(2.5, BASE.y - 2.5), Vector2(BASE.x - 2.5, BASE.y - 2.5)]:
-				draw_circle(pt, 1.8, Color(0.2, 0.1, 0.05))
+			# Small repaired cloth corners echo the patched greatcoat.
+			for pt in [Vector2(3, 3), Vector2(BASE.x - 3, 3), Vector2(3, BASE.y - 3), Vector2(BASE.x - 3, BASE.y - 3)]:
+				draw_line(pt + Vector2(-2, -1), pt + Vector2(2, 1), Color(p.ink, 0.65), 1.0)
+				draw_line(pt + Vector2(-2, 1), pt + Vector2(2, -1), Color(p.ink, 0.65), 1.0)
 		&"pickpocket":
-			# A brass thread stitched round the stock.
+			# Sea-glass thread stitched round the stock.
 			var r := Rect2(7, 7, BASE.x - 14, BASE.y - 14)
 			_dashed_rect(r, Color(accent, 0.55))
 		&"medium":
 			# A thin bone double line.
 			_box(Rect2(6, 6, BASE.x - 12, BASE.y - 12), Color(0, 0, 0, 0), 4, 1, Color(accent, 0.4))
 		_:
-			pass
+			_box(Rect2(6, 6, BASE.x - 12, BASE.y - 12), Color(0, 0, 0, 0), 4, 1, Color(accent, 0.25))
 
 
 func _dashed_rect(r: Rect2, col: Color) -> void:
@@ -437,11 +441,10 @@ func _draw_header_decor(header: Rect2, p: Dictionary) -> void:
 	var accent: Color = p.accent
 	match class_id:
 		&"deserter":
-			# Hazard stripes along the bottom of the header.
-			var x := header.position.x + 2
-			while x < header.end.x - 6:
-				draw_colored_polygon(PackedVector2Array([Vector2(x, header.end.y - 1), Vector2(x + 4, header.end.y - 1), Vector2(x + 7, header.end.y - 5), Vector2(x + 3, header.end.y - 5)]), Color(accent, 0.8))
-				x += 10
+			# A short hand-sewn repair, rather than industrial hazard striping.
+			draw_line(Vector2(38, header.end.y - 3), Vector2(98, header.end.y - 3), Color(accent, 0.55), 1.0)
+			for x in range(42, 98, 8):
+				draw_line(Vector2(x, header.end.y - 5), Vector2(x + 2, header.end.y - 1), Color(p.ink, 0.55), 1.0)
 		&"pickpocket":
 			draw_line(Vector2(header.position.x + 4, header.end.y - 3), Vector2(header.end.x - 4, header.end.y - 3), Color(accent, 0.7), 1.0)
 			for i in 6:
@@ -460,25 +463,23 @@ func _draw_emblem(c: Vector2, p: Dictionary) -> void:
 	draw_circle(c, 12.5, frame)
 	match class_id:
 		&"deserter":
-			# A hex bolt with a slot.
-			var hex := PackedVector2Array()
-			for i in 6:
-				hex.append(c + Vector2.from_angle(i * TAU / 6.0) * 8.0)
-			draw_colored_polygon(hex, glyph)
-			draw_circle(c, 3.2, frame)
-			draw_line(c + Vector2(-2.5, 2.5), c + Vector2(2.5, -2.5), glyph, 1.5)
+			# The soldier's squared forearm guard.
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-6, -7), c + Vector2(6, -7), c + Vector2(5, 5), c + Vector2(0, 8), c + Vector2(-5, 5)]), glyph)
+			draw_line(c + Vector2(-3, -2), c + Vector2(3, -2), frame, 1.2)
+			draw_line(c + Vector2(-3, 2), c + Vector2(3, 2), frame, 1.2)
 		&"pickpocket":
 			# A keyhole.
 			draw_circle(c + Vector2(0, -2.5), 4.0, glyph)
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-1.8, 0), c + Vector2(1.8, 0), c + Vector2(3.8, 7.5), c + Vector2(-3.8, 7.5)]), glyph)
 		&"medium":
-			# A candle with a flame.
-			draw_rect(Rect2(c + Vector2(-3, -1), Vector2(6, 9)), glyph)
-			draw_colored_polygon(_drop(c + Vector2(0, -4.5), 3.4), Color(0.98, 0.78, 0.35))
+			# Cloudy-glass orb, matching the Medium's current keepsake.
+			draw_circle(c, 7.0, glyph)
+			draw_arc(c, 5.1, PI * 1.1, PI * 1.7, 14, Color(p.ink, 0.8), 1.3, true)
+			draw_arc(c + Vector2(0, 1), 3.5, 0.2, PI, 12, Color(frame, 0.8), 1.5, true)
 		_:
-			# A punched hole.
-			draw_circle(c, 5.5, BACKDROP)
-			draw_arc(c, 8, 0, TAU, 24, Color(glyph, 0.6), 1.0, true)
+			# A pressed leaf, preserving a small ordinary memory.
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-6, 5), c + Vector2(-5, -2), c + Vector2(1, -7), c + Vector2(6, -6), c + Vector2(5, 1), c + Vector2(-1, 6)]), glyph)
+			draw_line(c + Vector2(-6, 7), c + Vector2(4, -5), frame, 1.2)
 
 
 func _draw_window_motif(win: Rect2, p: Dictionary) -> void:

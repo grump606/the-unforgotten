@@ -46,6 +46,7 @@ var boss_fight := false
 ## Shown as the first log line of a boss fight ("Boss" or "Mid-boss"); both use the boss backdrop.
 var boss_label := "Boss"
 var character_id: StringName = &""
+var destination_key: StringName = &""
 ## The run's relics, shown as badges beside the player's HP (the strip hides when there are none).
 var relics: Array[RelicData] = []
 
@@ -69,7 +70,7 @@ var _seen_player_hp := 0
 
 
 func _ready() -> void:
-	_backdrop.set_variant(boss_fight, character_id)
+	_backdrop.set_variant(boss_fight, character_id, destination_key)
 	_relic_strip = RelicStrip.create(relics, BADGE_SCALE)
 	_relic_strip.position = Vector2(4, 4)
 	_stage.add_child(_relic_strip)

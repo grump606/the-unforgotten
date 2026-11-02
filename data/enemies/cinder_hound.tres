@@ -20,6 +20,6 @@ amount = 9
 
 [resource]
 script = ExtResource("1_enemy")
-display_name = "Cinder Hound"
+display_name = "Ash Hound"
 max_hp = 22
 intents = Array[ExtResource("2_effect")]([SubResource("Resource_i1"), SubResource("Resource_i2"), SubResource("Resource_i3")])

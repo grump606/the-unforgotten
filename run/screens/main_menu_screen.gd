@@ -20,18 +20,21 @@ static func update_toggle_text(enabled: bool) -> String:
 ## returns the new setting, which the button label then shows.
 func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit: Callable, update_check_on := true, on_toggle_updates := Callable()) -> void:
 	add_backdrop(MenuScene.new())
-	var box := panel("Card Battle Prototype")
+	var box := panel("The Unforgotten")
 	var title := box.get_child(0) as Label
-	title.add_theme_font_size_override("font_size", 40)
-	title.add_theme_color_override("font_color", Color(1.0, 0.86, 0.6))
+	MenuStyle.heading(title, 46)
+	title.add_theme_color_override("font_color", Color("#d7d0bc"))
 	title.add_theme_color_override("font_outline_color", Color(0.02, 0.01, 0.02, 0.9))
 	title.add_theme_constant_override("outline_size", 8)
+	var subtitle := make_label("Someone still remembers you.")
+	subtitle.add_theme_color_override("font_color", Color("#a6b9b5"))
+	box.add_child(subtitle)
 	if saved != null:
-		box.add_child(make_label("Saved run: stop %d/%d, %s, HP %d/%d, Gold %d, Deck %d" % [
-			saved.stop_index + 1, saved.stops.size(), saved.player.display_name, saved.player.hp, saved.player.max_hp, saved.gold, saved.deck.size(),
+		box.add_child(make_label("Your journey waits at %s.\n%s  ·  HP %d/%d  ·  Gold %d  ·  Deck %d" % [
+			DestinationArt.label_at(saved.stop_index), saved.player.display_name, saved.player.hp, saved.player.max_hp, saved.gold, saved.deck.size(),
 		]))
 		continue_button = add_button(box, "Continue", on_continue)
-	new_run_button = add_button(box, "New Run", on_new_run)
+	new_run_button = add_button(box, "New Journey", on_new_run)
 	exit_button = add_button(box, "Exit", on_exit)
 	for button in [continue_button, new_run_button, exit_button]:
 		if button != null:
@@ -41,7 +44,7 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 		updates_button = Button.new()
 		updates_button.text = update_toggle_text(update_check_on)
 		box.add_child(updates_button)
-		updates_button.tooltip_text = "Whether the game asks GitHub for a newer release at launch"
+		updates_button.tooltip_text = "Look for a newer version when the game opens."
 		updates_button.custom_minimum_size = Vector2(BUTTON_WIDTH, 30)
 		updates_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		updates_button.pressed.connect(func() -> void: updates_button.text = update_toggle_text(on_toggle_updates.call()))

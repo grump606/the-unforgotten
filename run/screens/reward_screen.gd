@@ -17,7 +17,7 @@ func show() -> void:
 		add_remove_picker(picker, _remove_card, _cancel_removing)
 		return
 	var beat_mid_boss := run.current_stop().mid_boss
-	var box := panel("The mid-boss falls. The line runs on. Take a card for your deck, or skip." if beat_mid_boss else "Victory. Take a card for your deck, or skip.")
+	var box := panel("The Bellkeeper falls. The way opens.\nChoose a keepsake for your deck, or skip." if beat_mid_boss else "A memory to carry onward.\nChoose a keepsake for your deck, or skip.")
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 16)
