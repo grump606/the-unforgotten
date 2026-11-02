@@ -60,11 +60,28 @@ if ($publicPem) {
         # The passphrase comes from UPDATE_SIGNING_PASS when set (the interactive prompt does not work in every
         # PowerShell host); otherwise openssl asks for it.
         $passArgs = if ($env:UPDATE_SIGNING_PASS) { @("-passin", "env:UPDATE_SIGNING_PASS") } else { @() }
-        & $openssl dgst -sha256 -sign $env:UPDATE_SIGNING_KEY @passArgs -out $sigFile $setup
+        $signKey = $env:UPDATE_SIGNING_KEY
+        if ($signKey -match '\.(pfx|p12)$') {
+            # SigningKeyMaker output: pull the private key out of the PFX into a temporary unencrypted PEM
+            # (deleted in the finally block below).
+            $pemKey = Join-Path ([IO.Path]::GetTempPath()) "update_key_$PID.pem"
+            & $openssl pkcs12 -in $signKey -nocerts -nodes @passArgs -out $pemKey
+            if ($LASTEXITCODE -ne 0) {
+                # .NET's default PFX encryption can need OpenSSL 3's legacy provider.
+                & $openssl pkcs12 -legacy -in $signKey -nocerts -nodes @passArgs -out $pemKey
+            }
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $pemKey)) { throw 'Could not read the private key from the PFX (wrong passphrase?)' }
+            $signKey = $pemKey
+            $passArgs = @()
+        }
+        & $openssl dgst -sha256 -sign $signKey @passArgs -out $sigFile $setup
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path $sigFile)) { throw 'Signing failed (wrong passphrase or key?)' }
         & $openssl dgst -sha256 -verify $pubFile -signature $sigFile $setup
         if ($LASTEXITCODE -ne 0) { throw 'The signature does not verify against the public key in run/update_verifier.gd: wrong private key?' }
-    } finally { Remove-Item -LiteralPath $pubFile -ErrorAction SilentlyContinue }
+    } finally {
+        Remove-Item -LiteralPath $pubFile -ErrorAction SilentlyContinue
+        if ($pemKey) { Remove-Item -LiteralPath $pemKey -Force -ErrorAction SilentlyContinue }
+    }
     Write-Host "Signed: $sigFile"
 } else {
     Write-Warning 'No public key in run/update_verifier.gd: no .sig written, so in-game updates stay off (see docs/UPDATE_SIGNING.md).'
