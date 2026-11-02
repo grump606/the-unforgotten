@@ -95,8 +95,45 @@ begin
       Result := '';
 end;
 
+// True only for a release tag shaped like the game accepts (run/update_check.gd
+// TAG_PATTERN): optional v/V, then 1-4 dot-separated groups of 1-4 ASCII
+// digits, at most 24 characters in all, nothing else.
+function IsValidTag(const Tag: String): Boolean;
+var
+  I, Digits, Groups: Integer;
+  C: Char;
+begin
+  Result := False;
+  if (Length(Tag) = 0) or (Length(Tag) > 24) then Exit;
+  I := 1;
+  if (Tag[1] = 'v') or (Tag[1] = 'V') then I := 2;
+  Digits := 0;
+  Groups := 1;
+  while I <= Length(Tag) do
+  begin
+    C := Tag[I];
+    if (C >= '0') and (C <= '9') then
+    begin
+      Digits := Digits + 1;
+      if Digits > 4 then Exit;
+    end
+    else if C = '.' then
+    begin
+      if Digits = 0 then Exit;
+      Groups := Groups + 1;
+      if Groups > 4 then Exit;
+      Digits := 0;
+    end
+    else
+      Exit;
+    I := I + 1;
+  end;
+  Result := Digits > 0;
+end;
+
 // Latest release tag from GitHub with any leading "v" removed, or '' when it
-// cannot be read (offline, private repo, rate limited, unexpected reply).
+// cannot be read (offline, private repo, rate limited, unexpected reply, or a
+// tag that fails IsValidTag).
 function LatestReleaseVersion(): String;
 var
   Http: Variant;
@@ -112,13 +149,19 @@ begin
     Http.Send('');
     if Http.Status <> 200 then Exit;
     Body := Http.ResponseText;
+    if Length(Body) > 65536 then Exit;
     P := Pos('"tag_name":"', Body);
     if P = 0 then Exit;
     Delete(Body, 1, P + Length('"tag_name":"') - 1);
     Q := Pos('"', Body);
     if Q = 0 then Exit;
     Result := Copy(Body, 1, Q - 1);
-    if (Result <> '') and ((Result[1] = 'v') or (Result[1] = 'V')) then
+    if not IsValidTag(Result) then
+    begin
+      Result := '';
+      Exit;
+    end;
+    if (Result[1] = 'v') or (Result[1] = 'V') then
       Delete(Result, 1, 1);
   except
     Result := '';
