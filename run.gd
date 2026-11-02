@@ -168,6 +168,7 @@ func _show_stop() -> void:
 			_:
 				_open(_rest)
 				_rest.show()
+		_warm_next_stop()
 
 
 func _update_header() -> void:
@@ -286,3 +287,15 @@ func _save_and_exit() -> String:
 		return "No save to resume from, so not exiting."
 	exit_callable.call()
 	return ""
+
+
+## Decodes the art of the stop after this one while the player is busy with the current stop, so
+## the next screen does not stutter on first use (PaintedArt.warm_for_stop).
+func _warm_next_stop() -> void:
+	var next_index := _run.stop_index + 1
+	if next_index >= _run.stops.size():
+		return
+	PaintedArt.warm_for_stop(int(_run.stops[next_index].type), _run.character.id)
+	var backdrop := DestinationArt.battle_key(next_index)
+	if backdrop != &"":
+		PaintedArt.preload_screen(backdrop)
