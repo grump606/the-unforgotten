@@ -1,7 +1,11 @@
 extends SceneTree
+## Screenshots the menu, story, battle, reward and pause screens (needs a window, not --headless):
+##   godot --path . -s res://tools/flat_review_sheet.gd -- <output dir>
+## Default output is user://flat_review.
 var folder := ""
 func _initialize() -> void:
-	folder = OS.get_cmdline_user_args()[0]
+	var args := OS.get_cmdline_user_args()
+	folder = args[0] if args.size() > 0 else "user://flat_review"
 	DirAccess.make_dir_recursive_absolute(folder)
 	var scene: Control = load("res://run.tscn").instantiate()
 	scene.save_path = folder.path_join("scratch_save.json")
