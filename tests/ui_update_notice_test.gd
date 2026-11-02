@@ -185,7 +185,9 @@ func _test_in_game_install() -> void:
 	file.store_string("new version")
 	file.close()
 	var part := ProjectSettings.globalize_path(work.path_join("TheUnforgotten-Setup-0.3.1.exe.part"))
-	notice.installer.handle_signature(HTTPRequest.RESULT_SUCCESS, 200, UpdateVerifierTests.sign_file(part, key))
+	var manifest := UpdateVerifierTests.manifest_for(part, "v0.3.1")
+	notice.installer.handle_manifest_signature(HTTPRequest.RESULT_SUCCESS, 200, UpdateVerifierTests.sign_bytes(manifest, key))
+	notice.installer.handle_manifest(HTTPRequest.RESULT_SUCCESS, 200, manifest)
 	notice.installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
 	_check(launched.size() == 1 and quits[0] == 1, "on a menu screen a verified download installs and quits by itself")
 
@@ -199,7 +201,8 @@ func _test_in_game_install() -> void:
 	file = FileAccess.open(work.path_join("TheUnforgotten-Setup-0.3.1.exe.part"), FileAccess.WRITE)
 	file.store_string("new version")
 	file.close()
-	notice.installer.handle_signature(HTTPRequest.RESULT_SUCCESS, 200, UpdateVerifierTests.sign_file(part, key))
+	notice.installer.handle_manifest_signature(HTTPRequest.RESULT_SUCCESS, 200, UpdateVerifierTests.sign_bytes(manifest, key))
+	notice.installer.handle_manifest(HTTPRequest.RESULT_SUCCESS, 200, manifest)
 	notice.installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
 	_check(launched.is_empty() and quits[0] == 0 and notice.download_button.text == "Restart now", "during a run nothing restarts; the bar waits for Restart now")
 	notice.set_allowed(true)
@@ -210,7 +213,7 @@ func _test_in_game_install() -> void:
 	notice.installer.state = UpdateInstaller.State.IDLE
 	notice.use_installer = true
 	notice.download_button.pressed.emit()
-	notice.installer.handle_signature(HTTPRequest.RESULT_SUCCESS, 404, PackedByteArray())
+	notice.installer.handle_manifest_signature(HTTPRequest.RESULT_SUCCESS, 404, PackedByteArray())
 	_check(notice.label.text.begins_with("Update failed") and notice.download_button.text == "Download" and not notice.use_installer, "a failed update shows why and falls back to Download")
 	notice.download_button.pressed.emit()
 	_check(opened == [UpdateCheck.RELEASES_PAGE], "Download after a failure opens the fixed releases page")

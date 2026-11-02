@@ -67,7 +67,7 @@ try {
     }
 }
 
-$files = @("build\TheUnforgotten-Setup-$version.exe", "build\TheUnforgotten-Setup-$version.exe.sha256", "build\TheUnforgotten-Setup-$version.exe.sig")
+$files = @("build\TheUnforgotten-Setup-$version.exe", "build\TheUnforgotten-Setup-$version.exe.sha256", "build\TheUnforgotten-Setup-$version.exe.sig", "build\TheUnforgotten-Setup-$version.exe.manifest", "build\TheUnforgotten-Setup-$version.exe.manifest.sig")
 foreach ($f in $files) { if (-not (Test-Path -LiteralPath $f)) { throw "Missing build output: $f" } }
 
 if (-not $Publish) {
@@ -75,7 +75,7 @@ if (-not $Publish) {
     Write-Host "  gh release create $tag $($files -join ' ') --title `"$tag`" --generate-notes"
     return
 }
-$answer = Read-Host "Publish $tag to GitHub with these 3 files? (type yes)"
+$answer = Read-Host "Publish $tag to GitHub with these 5 files? (type yes)"
 if ($answer -ne 'yes') { Write-Host 'Not published.'; return }
 gh release create $tag @files --title $tag --generate-notes
 if ($LASTEXITCODE -ne 0) { throw 'gh release create failed' }

@@ -81,18 +81,20 @@ powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
    If `UPDATE_SIGNING_PASS` is not set, OpenSSL asks for the passphrase itself, which works in Git Bash
    but not in every PowerShell host.
 
-   The script exports the game, builds the installer, writes `.sha256`, signs the installer's
-   SHA-256 into `.sig`, and checks the signature against the public key in `run/update_verifier.gd`
-   before finishing. It refuses to start if a public key is built in but `UPDATE_SIGNING_KEY` is
+   The script exports the game, builds the installer, writes `.sha256`, writes and signs the update
+   manifest (`.manifest` and `.manifest.sig`, see `docs/UPDATE_CHECK.md`) and the legacy `.sig`, and
+   checks both signatures against the public key in `run/update_verifier.gd` before finishing. It refuses to start if a public key is built in but `UPDATE_SIGNING_KEY` is
    missing.
 3. Delete the temporary private key file and clear the variables (`Remove-Item Env:UPDATE_SIGNING_KEY, Env:UPDATE_SIGNING_PASS`).
-4. Publish all three files in the release (the `.sig` is what the game downloads):
+4. Publish all five files in the release (current games download the `.manifest` and `.manifest.sig`; the
+   `.sig` is only for v0.6.1 and earlier, which cannot read the manifest, so keep publishing it until nobody
+   runs those):
 
 ```powershell
-gh release create v<version> build\TheUnforgotten-Setup-<version>.exe build\TheUnforgotten-Setup-<version>.exe.sha256 build\TheUnforgotten-Setup-<version>.exe.sig
+gh release create v<version> build\TheUnforgotten-Setup-<version>.exe build\TheUnforgotten-Setup-<version>.exe.sha256 build\TheUnforgotten-Setup-<version>.exe.sig build\TheUnforgotten-Setup-<version>.exe.manifest build\TheUnforgotten-Setup-<version>.exe.manifest.sig
 ```
 
-A release without the `.sig` is simply not installable in-game: the update fails with a message and
+A release without the `.manifest` and `.manifest.sig` is simply not installable in-game: the update fails with a message and
 the bar falls back to the Download button.
 
 ## If the key is lost or exposed
