@@ -1,5 +1,7 @@
 # Card Battle Prototype
 
+> **Naming note (v0.5.0):** the game is now presented as "The Unforgotten" (see [`docs/RESKIN.md`](docs/RESKIN.md)). Enemy and relic display names changed, IDs and rules did not, and this README still uses the original names in places.
+
 A small turn-based card battler (afterlife-escape theme) built with Godot 4.7, GDScript, targeting Windows PC. The player fights 1 to 3 enemies with a deck of cards; enemies repeat a fixed cycle of intents.
 
 ## Layout

@@ -1,5 +1,7 @@
 # Prompt pack for painted layers
 
+> **Naming note (v0.5.0):** the game was reskinned as "The Unforgotten". Enemy and relic display names changed (for example Brakeman = Bellkeeper, Conductor = Eraser, Gate Warden = Threshold Keeper). IDs, files and rules did not. This document still uses the original names; see [`docs/RESKIN.md`](../docs/RESKIN.md) for the full map.
+
 Use with any image tool (or hand it to an illustrator). Generate each layer separately on the canvas size from `README.md`, and remove backgrounds on `mid`, `figure` and `fg` so they have real alpha.
 
 ## Shared style block (prepend to every prompt)

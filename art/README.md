@@ -1,5 +1,7 @@
 # Painted 2.5D art kit
 
+> **Naming note (v0.5.0):** the game was reskinned as "The Unforgotten". Enemy and relic display names changed (for example Brakeman = Bellkeeper, Conductor = Eraser, Gate Warden = Threshold Keeper). IDs, files and rules did not. This document still uses the original names; see [`docs/RESKIN.md`](../docs/RESKIN.md) for the full map.
+
 Standalone: nothing in the game loads from `art/` yet. Preview with `godot --path . res://art/preview.tscn` (layered Gate Warden with parallax, and a card that tilts toward the mouse). `art/tools/shot.gd` saves a screenshot of the preview.
 
 ## Direction

@@ -1,5 +1,7 @@
 # Levels design: the long line
 
+> **Naming note (v0.5.0):** the game was reskinned as "The Unforgotten". Enemy and relic display names changed (for example Brakeman = Bellkeeper, Conductor = Eraser, Gate Warden = Threshold Keeper). IDs, files and rules did not. This document still uses the original names; see [`docs/RESKIN.md`](RESKIN.md) for the full map.
+
 The run used to be 12 stops with four regular fights and the Conductor. It is now 21 stops in two acts: eight regular fights, a mid-boss (the Brakeman) exactly halfway, and the Conductor at the end. Later fights are measurably harder than earlier ones.
 
 ## The line
