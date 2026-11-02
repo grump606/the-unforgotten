@@ -18,7 +18,7 @@ static func apply(host: Control) -> void:
 		box.content_margin_right = 16
 		box.content_margin_top = 7
 		box.content_margin_bottom = 7
-		theme.set_stylebox(state, "Button", box)
+		theme.set_stylebox(state, "Button", TactileArt.textured_style(box))
 	theme.set_color("font_color", "Button", Color("#d7d0bc"))
 	theme.set_color("font_hover_color", "Button", Color("#eee5ce"))
 	theme.set_color("font_pressed_color", "Button", Color("#78a99b"))

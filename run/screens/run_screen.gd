@@ -114,7 +114,7 @@ static func style_banner(label: Label) -> void:
 	style.border_color = Color("#526979")
 	style.set_corner_radius_all(6)
 	style.set_content_margin_all(5)
-	label.add_theme_stylebox_override("normal", style)
+	label.add_theme_stylebox_override("normal", TactileArt.textured_style(style))
 	label.add_theme_color_override("font_color", Color("#d7d0bc"))
 
 
@@ -131,7 +131,7 @@ static func style_service(button: Button) -> void:
 		style.content_margin_right = 14
 		style.content_margin_top = 6
 		style.content_margin_bottom = 6
-		button.add_theme_stylebox_override(state, style)
+		button.add_theme_stylebox_override(state, TactileArt.textured_style(style))
 	var focus := StyleBoxFlat.new()
 	focus.draw_center = false
 	focus.set_border_width_all(2)

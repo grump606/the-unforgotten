@@ -29,6 +29,14 @@ func _draw() -> void:
 	var c := size / 2.0
 	var r := minf(size.x, size.y) / 2.0 - 3.0
 	var live := current > 0
+	var painted := TactileArt.energy_orb()
+	if not painted.is_empty():
+		var tint := Color.WHITE if live else Color(0.54, 0.60, 0.66)
+		draw_texture_rect_region(painted.tex, Rect2(c - Vector2(r, r), Vector2(r * 2, r * 2)), painted.region, tint)
+		if not live:
+			draw_circle(c, r * 0.65, Color(0.09, 0.11, 0.16, 0.72))
+		HudIcons.text(self, text, Rect2(c - Vector2(r, 14), Vector2(r * 2.0, 28)), 24, Color(1, 0.97, 0.9), true, 4)
+		return
 	var col := ENERGY_COLOR if live else Color("#526979")
 	draw_circle(c, r + 3.0, Color(0, 0, 0, 0.55))
 	# A weathered keepsake setting around dark, cloudy glass.
