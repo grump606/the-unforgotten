@@ -112,9 +112,67 @@ static func installer_url(tag: String) -> String:
 
 
 ## The detached signature's URL (the installer's URL plus ".sig"), or "" for an invalid tag.
+## Only builds before the signed manifest (v0.6.1 and earlier) download this; it stays published for
+## them. Current builds use manifest_url / manifest_signature_url.
 static func signature_url(tag: String) -> String:
 	var url := installer_url(tag)
 	return "" if url == "" else url + ".sig"
+
+
+## The signed manifest's URL (the installer's URL plus ".manifest"), or "" for an invalid tag.
+static func manifest_url(tag: String) -> String:
+	var url := installer_url(tag)
+	return "" if url == "" else url + ".manifest"
+
+
+## The manifest's detached signature URL (".manifest.sig"), or "" for an invalid tag.
+static func manifest_signature_url(tag: String) -> String:
+	var url := manifest_url(tag)
+	return "" if url == "" else url + ".sig"
+
+
+## --- The signed manifest ---
+## What the maintainer signs, instead of the bare installer: four LF-terminated lines naming the
+## file, its version and its SHA-256. Signing the version and name (not just the bytes) means an old
+## but genuinely signed installer cannot be passed off as a newer release.
+const MANIFEST_HEADER := "the-unforgotten-update 1"
+const MAX_MANIFEST_BYTES := 512
+const SHA256_PATTERN := "^[0-9a-f]{64}\\z"
+
+static var _sha256_regex: RegEx
+
+
+## The exact text the release script writes and signs (scripts/build_installer.ps1 builds the same).
+## `version` has no leading v.
+static func make_manifest(file_name: String, version: String, sha256_hex: String) -> String:
+	return "%s\nname=%s\nversion=%s\nsha256=%s\n" % [MANIFEST_HEADER, file_name, version, sha256_hex]
+
+
+## {name, version, sha256} from manifest bytes, or {} unless they are exactly the format above:
+## right header, four lines, a valid version without a leading v, a lowercase 64-hex SHA-256.
+static func parse_manifest(bytes: PackedByteArray) -> Dictionary:
+	if bytes.is_empty() or bytes.size() > MAX_MANIFEST_BYTES:
+		return {}
+	var text := bytes.get_string_from_utf8()
+	if not text.ends_with("\n") or text.contains("\r"):
+		return {}
+	var lines := text.trim_suffix("\n").split("\n")
+	if lines.size() != 4 or lines[0] != MANIFEST_HEADER:
+		return {}
+	var fields := {}
+	for i in range(1, 4):
+		var key: String = ["name", "version", "sha256"][i - 1]
+		if not lines[i].begins_with(key + "="):
+			return {}
+		fields[key] = lines[i].trim_prefix(key + "=")
+	var version: String = fields["version"]
+	if not is_valid_tag(version) or version.begins_with("v") or version.begins_with("V"):
+		return {}
+	if _sha256_regex == null:
+		_sha256_regex = RegEx.create_from_string(SHA256_PATTERN)
+	if _sha256_regex.search(fields["sha256"]) == null:
+		return {}
+	return fields
 
 
 ## Release tags are published as "v<version>"; a reply tag without the v still maps to that path.

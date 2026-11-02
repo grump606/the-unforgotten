@@ -4,6 +4,7 @@ extends RefCounted
 
 const VerifierTests := preload("res://tests/update_verifier_tests.gd")
 const TEST_TAG := "v0.3.9"
+const RUNNING := "0.3.0"
 
 var _failures := 0
 var _dir := "user://update_installer_test_%d" % OS.get_process_id()
@@ -26,6 +27,7 @@ func run() -> int:
 	var pem := key.save_to_string(true)
 	_test_happy_path(key, pem)
 	_test_rejections(key, pem)
+	_test_manifest_rejections(key, pem)
 	_test_launch_failures(key, pem)
 	_test_start_guards(pem)
 	_cleanup()
@@ -36,6 +38,7 @@ func _installer(pem: String, probe: Probe) -> UpdateInstaller:
 	var installer := UpdateInstaller.new()
 	installer.dry_run = true
 	installer.public_key_pem = pem
+	installer.current_version = RUNNING
 	installer.work_dir = _dir
 	installer.launch = func(path: String, args: PackedStringArray) -> int:
 		probe.launched.append([path, args])
@@ -49,12 +52,20 @@ func _installer_path() -> String:
 
 
 ## Writes `content` where the downloader would leave the installer (as the .part file) and returns
-## the signature `key` makes over it.
-func _stage(content: String, key: CryptoKey) -> PackedByteArray:
+## the manifest and signature `key` makes for it as release `manifest_tag`.
+func _stage(content: String, key: CryptoKey, manifest_tag := TEST_TAG) -> Dictionary:
 	var file := FileAccess.open(_installer_path() + ".part", FileAccess.WRITE)
 	file.store_buffer(content.to_utf8_buffer())
 	file.close()
-	return VerifierTests.sign_file(_installer_path() + ".part", key)
+	var manifest := VerifierTests.manifest_for(_installer_path() + ".part", manifest_tag)
+	return {"manifest": manifest, "sig": VerifierTests.sign_bytes(manifest, key)}
+
+
+## Feeds the three replies a real download would produce, in order.
+func _feed(installer: UpdateInstaller, staged: Dictionary) -> void:
+	installer.handle_manifest_signature(HTTPRequest.RESULT_SUCCESS, 200, staged["sig"])
+	installer.handle_manifest(HTTPRequest.RESULT_SUCCESS, 200, staged["manifest"])
+	installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
 
 
 func _overwrite(path: String, content: String) -> void:
@@ -66,8 +77,7 @@ func _overwrite(path: String, content: String) -> void:
 func _ready_installer(pem: String, probe: Probe, key: CryptoKey) -> UpdateInstaller:
 	var installer := _installer(pem, probe)
 	installer.start(TEST_TAG)
-	installer.handle_signature(HTTPRequest.RESULT_SUCCESS, 200, _stage("good", key))
-	installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
+	_feed(installer, _stage("good", key))
 	return installer
 
 
@@ -75,11 +85,14 @@ func _test_happy_path(key: CryptoKey, pem: String) -> void:
 	var probe := Probe.new()
 	var installer := _installer(pem, probe)
 	_check(installer.start(TEST_TAG) and installer.state == UpdateInstaller.State.DOWNLOADING, "start begins downloading")
-	_check(installer.requested == [UpdateCheck.signature_url(TEST_TAG)], "the signature is requested first, from the fixed URL")
-	installer.handle_signature(HTTPRequest.RESULT_SUCCESS, 200, _stage("genuine installer", key))
-	_check(installer.requested.size() == 2 and installer.requested[1] == UpdateCheck.installer_url(TEST_TAG), "then the installer, from the fixed URL")
+	_check(installer.requested == [UpdateCheck.manifest_signature_url(TEST_TAG)], "the manifest signature is requested first, from the fixed URL")
+	var staged := _stage("genuine installer", key)
+	installer.handle_manifest_signature(HTTPRequest.RESULT_SUCCESS, 200, staged["sig"])
+	_check(installer.requested.size() == 2 and installer.requested[1] == UpdateCheck.manifest_url(TEST_TAG), "then the manifest, from the fixed URL")
+	installer.handle_manifest(HTTPRequest.RESULT_SUCCESS, 200, staged["manifest"])
+	_check(installer.requested.size() == 3 and installer.requested[2] == UpdateCheck.installer_url(TEST_TAG), "then the installer, from the fixed URL, only after the manifest verified")
 	installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
-	_check(installer.state == UpdateInstaller.State.READY and installer.progress == 1.0, "a correctly signed download is ready")
+	_check(installer.state == UpdateInstaller.State.READY and installer.progress == 1.0, "a download matching the signed manifest is ready")
 	_check(probe.launched.is_empty() and probe.quits == 0, "nothing runs before the player restarts")
 	_check(installer.install_and_restart(), "install_and_restart succeeds")
 	_check(probe.launched.size() == 1 and (probe.launched[0][0] as String).ends_with("TheUnforgotten-Setup-0.3.9.exe"), "the verified installer is what runs")
@@ -93,20 +106,18 @@ func _test_rejections(key: CryptoKey, pem: String) -> void:
 	var probe := Probe.new()
 	var installer := _installer(pem, probe)
 	installer.start(TEST_TAG)
-	installer.handle_signature(HTTPRequest.RESULT_SUCCESS, 200, _stage("evil", intruder))
-	installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
-	_check(installer.state == UpdateInstaller.State.FAILED and not FileAccess.file_exists(_installer_path()), "a download signed by another key fails and is deleted")
+	_feed(installer, _stage("evil", intruder))
+	_check(installer.state == UpdateInstaller.State.FAILED and installer.requested.size() == 2, "a manifest signed by another key fails before the installer is requested")
 	_check(not installer.install_and_restart() and probe.launched.is_empty() and probe.quits == 0, "a failed download can never be run")
 	installer.free()
 
 	probe = Probe.new()
 	installer = _installer(pem, probe)
 	installer.start(TEST_TAG)
-	var sig := _stage("original", key)
+	var staged := _stage("original", key)
 	_overwrite(_installer_path() + ".part", "replaced")
-	installer.handle_signature(HTTPRequest.RESULT_SUCCESS, 200, sig)
-	installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
-	_check(installer.state == UpdateInstaller.State.FAILED, "a download changed after signing fails")
+	_feed(installer, staged)
+	_check(installer.state == UpdateInstaller.State.FAILED and not FileAccess.file_exists(_installer_path()), "a download changed after signing fails and is deleted")
 	installer.free()
 
 	probe = Probe.new()
@@ -122,15 +133,65 @@ func _test_rejections(key: CryptoKey, pem: String) -> void:
 		installer.start(TEST_TAG)
 		var body := PackedByteArray()
 		body.resize(case[2])
-		installer.handle_signature(case[0], case[1], body)
-		_check(installer.state == UpdateInstaller.State.FAILED and installer.requested.size() == 1, "a bad signature reply stops before any installer is requested: %s" % str(case))
+		installer.handle_manifest_signature(case[0], case[1], body)
+		_check(installer.state == UpdateInstaller.State.FAILED and installer.requested.size() == 1, "a bad signature reply stops before anything else is requested: %s" % str(case))
 		installer.free()
 
 	installer = _installer(pem, Probe.new())
 	installer.start(TEST_TAG)
-	installer.handle_signature(HTTPRequest.RESULT_SUCCESS, 200, _stage("x", key))
+	staged = _stage("x", key)
+	installer.handle_manifest_signature(HTTPRequest.RESULT_SUCCESS, 200, staged["sig"])
+	installer.handle_manifest(HTTPRequest.RESULT_SUCCESS, 404, staged["manifest"])
+	_check(installer.state == UpdateInstaller.State.FAILED and installer.requested.size() == 2, "an HTTP error on the manifest fails before the installer is requested")
+	installer.free()
+
+	installer = _installer(pem, Probe.new())
+	installer.start(TEST_TAG)
+	staged = _stage("x", key)
+	installer.handle_manifest_signature(HTTPRequest.RESULT_SUCCESS, 200, staged["sig"])
+	installer.handle_manifest(HTTPRequest.RESULT_SUCCESS, 200, staged["manifest"])
 	installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 500)
 	_check(installer.state == UpdateInstaller.State.FAILED, "an HTTP error on the installer fails")
+	installer.free()
+
+
+## The point of the signed manifest: a genuinely signed but wrong-release manifest never gets the
+## installer downloaded, let alone run.
+func _test_manifest_rejections(key: CryptoKey, pem: String) -> void:
+	# An older release's own signed manifest and installer, served as if they were TEST_TAG.
+	var probe := Probe.new()
+	var installer := _installer(pem, probe)
+	installer.start(TEST_TAG)
+	_feed(installer, _stage("old release", key, "v0.2.0"))
+	_check(installer.state == UpdateInstaller.State.FAILED and installer.requested.size() == 2, "an older signed release replayed under a newer tag is refused before download")
+	_check(not installer.install_and_restart() and probe.launched.is_empty(), "and can never be run")
+	installer.free()
+
+	# A manifest for the right version that the running game already has (or is newer than).
+	installer = _installer(pem, Probe.new())
+	installer.current_version = "0.3.9"
+	installer.start(TEST_TAG)
+	_feed(installer, _stage("same version", key))
+	_check(installer.state == UpdateInstaller.State.FAILED and installer.requested.size() == 2, "a manifest that is not newer than the running game is refused")
+	installer.free()
+
+	# An unreadable manifest, even with a signature over exactly those bytes.
+	installer = _installer(pem, Probe.new())
+	installer.start(TEST_TAG)
+	var junk := "not a manifest\n".to_utf8_buffer()
+	installer.handle_manifest_signature(HTTPRequest.RESULT_SUCCESS, 200, VerifierTests.sign_bytes(junk, key))
+	installer.handle_manifest(HTTPRequest.RESULT_SUCCESS, 200, junk)
+	_check(installer.state == UpdateInstaller.State.FAILED and installer.requested.size() == 2, "a signed but malformed manifest is refused")
+	installer.free()
+
+	# The signature only covers what it signed: a swapped manifest body under it fails.
+	installer = _installer(pem, Probe.new())
+	installer.start(TEST_TAG)
+	var staged := _stage("a", key)
+	var other := _stage("b", key)
+	installer.handle_manifest_signature(HTTPRequest.RESULT_SUCCESS, 200, staged["sig"])
+	installer.handle_manifest(HTTPRequest.RESULT_SUCCESS, 200, other["manifest"])
+	_check(installer.state == UpdateInstaller.State.FAILED and installer.requested.size() == 2, "a manifest that does not match its signature is refused")
 	installer.free()
 
 
