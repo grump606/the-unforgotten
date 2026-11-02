@@ -37,7 +37,7 @@ func run() -> int:
 func _installer(pem: String, probe: Probe) -> UpdateInstaller:
 	var installer := UpdateInstaller.new()
 	installer.dry_run = true
-	installer.public_key_pem = pem
+	installer.public_key_pems = [pem] if pem != "" else []
 	installer.current_version = RUNNING
 	installer.work_dir = _dir
 	installer.launch = func(path: String, args: PackedStringArray) -> int:
