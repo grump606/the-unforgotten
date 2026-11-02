@@ -1,6 +1,6 @@
 # ChatGPT brief: game icon
 
-The game currently ships the default Godot icon (`icon.svg`; the exe export has no icon set). This brief makes a replacement in the current "The Unforgotten" art style.
+The game currently ships the default Godot icon (`icon.svg`, now removed; the exe export had no icon set). This brief makes a replacement in the current "The Unforgotten" art style.
 
 ## Attach these references
 
