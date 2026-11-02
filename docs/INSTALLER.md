@@ -10,7 +10,7 @@ Output: `build/CardBattlePrototype-Setup-<version>.exe` and `build/CardBattlePro
 
 ## Releasing a new version
 
-1. Bump `config/version` in `project.godot` (dotted numbers, e.g. `0.2.0`).
+1. Bump `config/version` in `project.godot` (dotted numbers, e.g. `0.2.0`). Also set `application/file_version` and `application/product_version` in `export_presets.cfg` to the same number with a trailing `.0` (e.g. `0.2.0.0`); they are what the exe's Properties dialog shows.
 2. Run the build script.
 3. Publish the installer and its checksum file together as a GitHub release tagged `v<version>` (for example `gh release create v0.2.0 build/CardBattlePrototype-Setup-0.2.0.exe build/CardBattlePrototype-Setup-0.2.0.exe.sha256`).
 

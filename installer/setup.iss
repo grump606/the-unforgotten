@@ -30,6 +30,7 @@ SolidCompression=yes
 WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+SetupIconFile=..\art\layers\ui\game_icon.ico
 UninstallDisplayIcon={app}\{#AppExe}
 VersionInfoVersion={#AppVersion}
 ; The in-game updater relaunches the game itself (/RELAUNCH=1); do not let setup also restart a game it closed.
