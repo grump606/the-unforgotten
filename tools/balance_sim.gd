@@ -2,17 +2,16 @@ extends SceneTree
 ## Headless balance simulation: plays many seeded fights with a simple greedy
 ## policy and prints win rate, turns and remaining HP per encounter size, then
 ## the win rate per enemy type (over the fights it appeared in) for each size.
-## Run: godot --headless --path . -s res://tools/balance_sim.gd -- --fights 500 --seed 1
+## Run: godot --headless --path . -s res://tools/balance_sim.gd -- --fights 500 --seed 1 [--character deserter|pickpocket|medium]
 ## Card choice lives in tools/sim_policy.gd (shared with run_sim.gd). Uses only the
 ## public Combat API and never mutates shared resources.
 
-const PLAYER_START_HP: int = preload("res://battle.gd").PLAYER_START_HP # single source: battle.gd
 const TURN_CAP := 50 # a fight still running after this many turns is a stall
 const DEFAULT_FIGHTS := 500
 const DEFAULT_SEED := 1
-var _player_hp := PLAYER_START_HP
+var _player_hp := 0 # set from the chosen character in _initialize
 
-const USAGE := "Usage: godot --headless --path . -s res://tools/balance_sim.gd -- [--fights N] [--seed S] [--help]\n  --fights N  fights per encounter size, integer >= 1 (default 500)\n  --seed S    base random seed, integer (default 1)\n  --help      print this usage and exit 0"
+const USAGE := "Usage: godot --headless --path . -s res://tools/balance_sim.gd -- [--fights N] [--seed S] [--character ID] [--help]\n  --fights N      fights per encounter size, integer >= 1 (default 500)\n  --seed S        base random seed, integer (default 1)\n  --character ID  max HP and starting deck come from this character: deserter, pickpocket or medium (default deserter)\n  --help     print this usage and exit 0"
 
 
 func _initialize() -> void:
@@ -27,22 +26,19 @@ func _initialize() -> void:
 		return
 	var fights: int = opts["fights"]
 	var base_seed: int = opts["seed"]
-	var deck := StarterContent.extended_deck()
-	_player_hp = PLAYER_START_HP
-	if opts["character"] != "":
-		var character := StarterContent.character(StringName(opts["character"]))
-		if character == null:
-			quit(1)
-			return
-		deck = []
-		deck.assign(character.starting_deck)
-		_player_hp = character.max_hp
+	var character := StarterContent.character(StringName(opts["character"]))
+	if character == null:
+		quit(1)
+		return
+	var deck: Array[CardData] = []
+	deck.assign(character.starting_deck)
+	_player_hp = character.max_hp
 	if deck.is_empty():
 		printerr("balance_sim: the deck failed to load")
 		quit(1)
 		return
 
-	print("Balance sim: %d fights per size, seed %d, player HP %d, turn cap %d" % [fights, base_seed, _player_hp, TURN_CAP])
+	print("Balance sim: %d fights per size, seed %d, character %s, player HP %d, turn cap %d" % [fights, base_seed, opts["character"], _player_hp, TURN_CAP])
 	print("%-8s %8s %10s %12s %7s" % ["enemies", "win rate", "avg turns", "avg HP (win)", "stalls"])
 	var breakdown: Array[Dictionary] = [] # per size: enemy name -> [fights, wins]
 	for count in range(1, Combat.MAX_ENEMIES + 1):
@@ -99,9 +95,9 @@ func _initialize() -> void:
 	quit(0)
 
 
-## Returns {fights, seed} or an empty dictionary (after printing usage) on bad input.
+## Returns {fights, seed, character} or an empty dictionary (after printing usage) on bad input.
 func _parse_args(args: PackedStringArray) -> Dictionary:
-	var opts := {"fights": DEFAULT_FIGHTS, "seed": DEFAULT_SEED, "character": ""}
+	var opts := {"fights": DEFAULT_FIGHTS, "seed": DEFAULT_SEED, "character": String(StarterContent.DEFAULT_CHARACTER_ID)}
 	var i := 0
 	while i < args.size():
 		var name := args[i]
