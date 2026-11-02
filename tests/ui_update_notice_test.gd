@@ -181,10 +181,10 @@ func _test_in_game_install() -> void:
 	_check(notice.installer.state == UpdateInstaller.State.DOWNLOADING and notice.download_button.disabled and notice.label.text.begins_with("Downloading v0.3.1"), "clicking starts the download and shows progress")
 	_check(opened.is_empty(), "the browser is not opened")
 	# Feed the replies the real requests would have produced.
-	var file := FileAccess.open(work.path_join("CardBattlePrototype-Setup-0.3.1.exe.part"), FileAccess.WRITE)
+	var file := FileAccess.open(work.path_join("TheUnforgotten-Setup-0.3.1.exe.part"), FileAccess.WRITE)
 	file.store_string("new version")
 	file.close()
-	var part := ProjectSettings.globalize_path(work.path_join("CardBattlePrototype-Setup-0.3.1.exe.part"))
+	var part := ProjectSettings.globalize_path(work.path_join("TheUnforgotten-Setup-0.3.1.exe.part"))
 	notice.installer.handle_signature(HTTPRequest.RESULT_SUCCESS, 200, UpdateVerifierTests.sign_file(part, key))
 	notice.installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
 	_check(launched.size() == 1 and quits[0] == 1, "on a menu screen a verified download installs and quits by itself")
@@ -196,7 +196,7 @@ func _test_in_game_install() -> void:
 	notice.set_allowed(false)
 	notice.download_button.disabled = false
 	notice.download_button.pressed.emit()
-	file = FileAccess.open(work.path_join("CardBattlePrototype-Setup-0.3.1.exe.part"), FileAccess.WRITE)
+	file = FileAccess.open(work.path_join("TheUnforgotten-Setup-0.3.1.exe.part"), FileAccess.WRITE)
 	file.store_string("new version")
 	file.close()
 	notice.installer.handle_signature(HTTPRequest.RESULT_SUCCESS, 200, UpdateVerifierTests.sign_file(part, key))

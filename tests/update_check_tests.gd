@@ -106,20 +106,20 @@ func _test_check_enabled() -> void:
 
 
 func _test_install_urls() -> void:
-	var base := "https://github.com/grump606/card-battle-prototype/releases/download/v0.3.5/CardBattlePrototype-Setup-0.3.5.exe"
-	_check(UpdateCheck.installer_name("v0.3.5") == "CardBattlePrototype-Setup-0.3.5.exe", "the installer name follows the build script naming")
+	var base := "https://github.com/grump606/the-unforgotten/releases/download/v0.3.5/TheUnforgotten-Setup-0.3.5.exe"
+	_check(UpdateCheck.installer_name("v0.3.5") == "TheUnforgotten-Setup-0.3.5.exe", "the installer name follows the build script naming")
 	_check(UpdateCheck.installer_url("v0.3.5") == base, "the installer URL is the fixed release path")
 	_check(UpdateCheck.installer_url("0.3.5") == base and UpdateCheck.installer_url("V0.3.5") == base, "a tag without or with a capital V maps to the same v-tagged path")
 	_check(UpdateCheck.signature_url("v0.3.5") == base + ".sig", "the signature sits next to the installer")
 	for bad in ["", "latest", "1.2.3-beta", "v1/../../x", "v1.2\nx", "http://evil/x", "v1.2.3.4.5", "../1.0"]:
 		_check(UpdateCheck.installer_url(bad) == "" and UpdateCheck.signature_url(bad) == "" and UpdateCheck.installer_name(bad) == "", "an invalid tag never builds a URL: %s" % bad.c_escape())
 	_check(UpdateCheck.installer_url("v0.3.5").begins_with(UpdateCheck.DOWNLOAD_BASE), "every download URL starts with the fixed base")
-	_check(UpdateCheck.can_self_update(false, "C:/Games/CardBattlePrototype.exe", true), "an exported, correctly named, writable install can update itself")
-	_check(not UpdateCheck.can_self_update(true, "C:/Games/CardBattlePrototype.exe", true), "the editor never updates itself")
+	_check(UpdateCheck.can_self_update(false, "C:/Games/TheUnforgotten.exe", true), "an exported, correctly named, writable install can update itself")
+	_check(not UpdateCheck.can_self_update(true, "C:/Games/TheUnforgotten.exe", true), "the editor never updates itself")
 	_check(not UpdateCheck.can_self_update(false, "C:/Godot/Godot_v4.7.2.exe", true), "another executable name never updates itself")
-	_check(not UpdateCheck.can_self_update(false, "C:/Program Files/G/CardBattlePrototype.exe", false), "a folder the player cannot write never updates itself")
+	_check(not UpdateCheck.can_self_update(false, "C:/Program Files/G/TheUnforgotten.exe", false), "a folder the player cannot write never updates itself")
 
 
 func _test_fixed_urls() -> void:
-	_check(UpdateCheck.RELEASES_PAGE.begins_with("https://github.com/grump606/card-battle-prototype/"), "the page opened is a fixed github.com repo URL")
-	_check(UpdateCheck.LATEST_RELEASE_API.begins_with("https://api.github.com/repos/grump606/card-battle-prototype/"), "the request goes to the fixed api.github.com repo URL")
+	_check(UpdateCheck.RELEASES_PAGE.begins_with("https://github.com/grump606/the-unforgotten/"), "the page opened is a fixed github.com repo URL")
+	_check(UpdateCheck.LATEST_RELEASE_API.begins_with("https://api.github.com/repos/grump606/the-unforgotten/"), "the request goes to the fixed api.github.com repo URL")

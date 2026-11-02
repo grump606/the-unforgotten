@@ -74,6 +74,9 @@ func run() -> int:
 	_write_to(_path + ".bak", "garbage")
 	_check(Settings.load_file(_path).update_check_enabled, "main and .bak both damaged give the defaults")
 	_cleanup()
+	# The project was renamed (v0.6.0) but saves and settings must stay where earlier versions wrote
+	# them: project.godot pins the user folder to the old name (see config/custom_user_dir_name).
+	_check(OS.get_user_data_dir().replace("\\", "/").ends_with("Godot/app_userdata/Card Battle Prototype"), "the user data folder keeps its original name so existing saves load")
 	return _failures
 
 
