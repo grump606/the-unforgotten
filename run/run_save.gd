@@ -253,9 +253,14 @@ static func save(run: RunState, path: String = DEFAULT_PATH) -> String:
 	# Only a valid current save becomes the backup, so a damaged file never replaces a good .bak.
 	if FileAccess.file_exists(path) and _read(path).run != null:
 		var bak := path + ".bak"
+		# A failed refresh must not block the new save; an older .bak (if any) stays usable.
 		if FileAccess.file_exists(bak):
-			DirAccess.remove_absolute(bak)
-		DirAccess.copy_absolute(path, bak)
+			var remove_error := DirAccess.remove_absolute(bak)
+			if remove_error != OK:
+				push_warning("RunSave: could not remove old backup %s (error %d)" % [bak, remove_error])
+		var copy_error := DirAccess.copy_absolute(path, bak)
+		if copy_error != OK:
+			push_warning("RunSave: could not refresh backup %s (error %d)" % [bak, copy_error])
 	var rename_error := DirAccess.rename_absolute(tmp, path)
 	if rename_error != OK:
 		return "cannot move save into place (error %d)" % rename_error
