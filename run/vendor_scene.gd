@@ -49,6 +49,8 @@ var _motes: Array[float] = []
 var _pieces: Array[float] = []
 var _gold_seen := false
 var _gold_changed_at := -10.0
+## The cloth backing behind the offers, built once (see _draw_offer_backing).
+var _offer_backing: StyleBoxFlat
 
 
 func _init() -> void:
@@ -530,13 +532,14 @@ func _draw_offer_backing() -> void:
 	var offers := _anchor_rect(counter_anchor)
 	if offers.size == Vector2.ZERO:
 		return
-	var backing := StyleBoxFlat.new()
-	backing.bg_color = Color(0.09, 0.11, 0.15, 0.68)
-	backing.border_color = Color(PALE, 0.24)
-	backing.set_border_width_all(1)
-	backing.set_corner_radius_all(4)
+	if _offer_backing == null:
+		_offer_backing = StyleBoxFlat.new()
+		_offer_backing.bg_color = Color(0.09, 0.11, 0.15, 0.68)
+		_offer_backing.border_color = Color(PALE, 0.24)
+		_offer_backing.set_border_width_all(1)
+		_offer_backing.set_corner_radius_all(4)
 	var area := offers.grow_individual(14, 10, 14, 12)
-	draw_style_box(backing, area)
+	draw_style_box(_offer_backing, area)
 	# A few faded stitches echo the repaired cloth in the keeper's mantle.
 	for side in [area.position.x + 5.0, area.end.x - 5.0]:
 		var y := area.position.y + 9.0
