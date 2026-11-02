@@ -70,6 +70,22 @@ static func player_figure(id: StringName) -> Dictionary:
 	return out
 
 
+## The vendor shopkeeper (art/layers/screens/vendor/keeper.png) and the box around its painted pixels,
+## as {tex, region}, or {} when the file is missing (the stall then draws its code-drawn keeper).
+static func keeper_figure() -> Dictionary:
+	if _cache.has("keeper"):
+		return _cache["keeper"]
+	var out := {}
+	var tex := _load("res://art/layers/screens/vendor/keeper.png")
+	if tex != null:
+		var img := tex.get_image()
+		var used := img.get_used_rect() if img != null else Rect2i()
+		if used.size.x > 0 and used.size.y > 0:
+			out = {"tex": tex, "region": Rect2(used)}
+	_cache["keeper"] = out
+	return out
+
+
 ## A full-window painted background (art/layers/screens/<name>/bg.png), or null.
 static func screen_texture(screen_name: StringName) -> Texture2D:
 	return _load(SCREEN_DIR % screen_name)

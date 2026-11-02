@@ -23,6 +23,8 @@ const SHELF_MARGIN := 14.0
 const MOTE_COUNT := 36
 const NOISE_SIZE := 64
 const PULSE_SECONDS := 0.8
+## Painted keeper: the face is this fraction of the figure's height above its bottom edge.
+const FACE_FROM_BOTTOM := 0.80
 const COINS_PER_GOLD := 0.2 # one coin per five gold, at most MAX_COINS
 const MAX_COINS := 15
 
@@ -308,6 +310,10 @@ func _draw_shopkeeper(c: Vector2, edge: float) -> void:
 	var drop := maxf(edge - c.y, 40.0)
 	var b := breath() * 2.2
 	var level := (lantern_level(1) + lantern_level(2)) * 0.5
+	var keeper := PaintedArt.keeper_figure()
+	if not keeper.is_empty():
+		_draw_painted_keeper(keeper, c, edge, b, level)
+		return
 	# The cloak, hood to counter, in one outline mirrored about the centre line.
 	var half: Array[Vector2] = [
 		Vector2(0, -58), Vector2(18, -52), Vector2(32, -34), Vector2(38, -8), Vector2(46, 12),
@@ -345,6 +351,20 @@ func _draw_shopkeeper(c: Vector2, edge: float) -> void:
 		else:
 			_ellipse(eye, 4.5, 3.0, Color(AMBER, 0.05), 10)
 			_ellipse(eye, 2.0, 1.3, Color(PALE, 0.7), 8)
+
+
+## The painted keeper: the face sits at the head anchor and the hands drop behind the counter edge.
+## Breathing is a tiny vertical stretch from the counter, the lantern light tints the painting.
+func _draw_painted_keeper(keeper: Dictionary, c: Vector2, edge: float, b: float, level: float) -> void:
+	var tex: Texture2D = keeper["tex"]
+	var region: Rect2 = keeper["region"]
+	var height := maxf(edge - c.y, 40.0) / FACE_FROM_BOTTOM
+	var width := height * region.size.x / region.size.y
+	var bottom := edge + height * 0.04
+	var stretch := b * 0.6
+	var rect := Rect2(c.x - width * 0.5, bottom - height - stretch, width, height + stretch)
+	var lit := 0.78 + 0.22 * level
+	draw_texture_rect_region(tex, rect, region, Color(lit, lit, lit * 1.02))
 
 
 # --- counter, till and props -----------------------------------------------------------
