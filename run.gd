@@ -451,19 +451,29 @@ func _place_pause_button(variation: StringName, margin: int) -> void:
 ## and the player already hurt (default 55% HP), so heals, purchases and removals can all be tried. The
 ## session never saves (see _debug_session); Pause > New Journey or Save & Exit leaves it.
 func start_debug_screen(launch: DebugLaunch) -> void:
+	if launch.screen == "select":
+		_new_run(_show_main_menu)
+		_debug_session = true # _new_run ends a session; a run started from here must stay unsaved
+		return
 	_run = RunState.new(randi(), launch.character_id)
-	var wanted: int = DebugLaunch.SCREENS[launch.screen]
-	var seen := 0
-	for index in _run.stops.size():
-		if int(_run.stops[index].type) == wanted:
-			seen += 1
-			if seen == launch.screen_index:
-				_run.stop_index = index
-				break
+	if DebugLaunch.SCREENS.has(launch.screen):
+		var wanted: int = DebugLaunch.SCREENS[launch.screen]
+		var seen := 0
+		for index in _run.stops.size():
+			if int(_run.stops[index].type) == wanted:
+				seen += 1
+				if seen == launch.screen_index:
+					_run.stop_index = index
+					break
 	_run.gold = launch.gold if launch.gold >= 0 else DebugLaunch.DEFAULT_GOLD
 	var max_hp := _run.player.max_hp
 	var hurt := launch.hp if launch.hp > 0 else int(ceil(max_hp * DebugLaunch.DEFAULT_HP_PERCENT / 100.0))
 	_run.player.hp = clampi(hurt, 1, max_hp)
+	if launch.screen == "end" or launch.screen == "defeat":
+		# The end card after the last boss (escaped), or after a defeat part-way down the line.
+		_run.finished = true
+		_run.escaped = launch.screen == "end"
+		_run.stop_index = _run.stops.size() if _run.escaped else _run.stops.size() / 2
 	_debug_session = true
 	_reset_screens()
 	_show_stop()

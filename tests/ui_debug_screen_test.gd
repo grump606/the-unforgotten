@@ -67,6 +67,17 @@ func _initialize() -> void:
 			break
 	check(scene._run.stop_index > first_index and scene._run.current_stop().type == RunState.StopType.VENDOR, "vendor:2 opens a later shop")
 
+	# The character select and the end card open directly too.
+	scene.start_debug_screen(DebugLaunch.parse(PackedStringArray(["--screen=select"]), {}))
+	await process_frame
+	check(_all_text(scene.get_node("%Body")).contains("Play as"), "--screen=select shows the character select")
+	scene.start_debug_screen(DebugLaunch.parse(PackedStringArray(["--screen=end"]), {}))
+	await process_frame
+	check(_all_text(scene.get_node("%Body")).contains("Escaped") and not FileAccess.file_exists(test_save), "--screen=end shows the escaped end card and writes no save")
+	scene.start_debug_screen(DebugLaunch.parse(PackedStringArray(["--screen=defeat"]), {}))
+	await process_frame
+	check(_all_text(scene.get_node("%Body")).contains("Defeated"), "--screen=defeat shows the defeat card")
+
 	# Pause > Save & Exit in a debug session leaves without writing a save.
 	var exits := [0]
 	scene.exit_callable = func() -> void: exits[0] += 1

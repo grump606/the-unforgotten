@@ -25,6 +25,9 @@ const ENV_GOLD := "THE_UNFORGOTTEN_GOLD"
 
 ## Stop screens that can be opened directly, mapped to their stop type.
 const SCREENS := {"vendor": RunState.StopType.VENDOR, "rest": RunState.StopType.REST}
+## Screens that are not a stop on the line: the character select, and the end card after the last boss
+## ("end" = escaped, "defeat" = the defeat card).
+const SPECIAL_SCREENS := ["select", "end", "defeat"]
 ## Defaults for a screen launch: enough gold for a few purchases, and a player at this share of max HP.
 const DEFAULT_GOLD := 100
 const DEFAULT_HP_PERCENT := 55
@@ -104,12 +107,15 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 	else:
 		# "vendor", "rest", or "vendor:2" for the second one on the line.
 		var parts := screen_text.strip_edges().to_lower().split(":")
-		if not SCREENS.has(parts[0]) or parts.size() > 2 or (parts.size() == 2 and (not parts[1].is_valid_int() or int(parts[1]) < 1)):
-			launch.error = "Unknown screen '%s'. Choose from: %s (add :2 for the second one)." % [screen_text.strip_edges(), ", ".join(SCREENS.keys())]
+		var special: bool = SPECIAL_SCREENS.has(parts[0])
+		if not (SCREENS.has(parts[0]) or special) or parts.size() > 2 or (special and parts.size() > 1) \
+				or (parts.size() == 2 and (not parts[1].is_valid_int() or int(parts[1]) < 1)):
+			launch.error = "Unknown screen '%s'. Choose from: %s, %s (add :2 for the second shop or rest)." % [
+				screen_text.strip_edges(), ", ".join(SCREENS.keys()), ", ".join(SPECIAL_SCREENS)]
 			return launch
 		launch.screen = parts[0]
 		launch.screen_index = int(parts[1]) if parts.size() == 2 else 1
-		if launch.screen_index > screen_count(launch.screen):
+		if not special and launch.screen_index > screen_count(launch.screen):
 			launch.error = "The line has only %d %s stop(s)." % [screen_count(launch.screen), launch.screen]
 			return launch
 	if gold_text.strip_edges() != "":

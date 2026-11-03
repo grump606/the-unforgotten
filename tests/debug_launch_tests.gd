@@ -110,6 +110,10 @@ func _test_screens() -> void:
 	var from_env := DebugLaunch.parse(PackedStringArray(), {DebugLaunch.ENV_SCREEN: "rest", DebugLaunch.ENV_GOLD: "40"})
 	_check(from_env.screen == "rest" and from_env.gold == 40, "the environment can request a screen")
 	_check(DebugLaunch.parse(PackedStringArray(["--screen=castle"]), {}).error != "", "an unknown screen is an error")
+	for special in ["select", "end", "defeat"]:
+		var launch := DebugLaunch.parse(PackedStringArray(["--screen=" + special]), {})
+		_check(launch.error == "" and launch.screen == special, "--screen=%s is accepted" % special)
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=select:2"]), {}).error != "", "select takes no number")
 	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor:0"]), {}).error != "", "vendor:0 is an error")
 	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor:99"]), {}).error != "", "a shop number past the end of the line is an error")
 	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor", "--fight=eraser"]), {}).error != "", "a fight and a screen together is an error")
