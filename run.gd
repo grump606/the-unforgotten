@@ -42,6 +42,8 @@ var _rest := RestScreen.new()
 var _end := EndScreen.new()
 ## True while a debug-launched fight is on screen (see start_debug_fight): nothing is saved or deleted.
 var _debug_fight := false
+## True for any debug launch (fight or screen): nothing is saved or deleted until the player is back at the menu.
+var _debug_session := false
 ## The header's two parts, kept so a fight can show them in its own layout (see _dock_combat_hud).
 var _stop_title := ""
 var _journey_text := ""
@@ -73,6 +75,7 @@ func _open(screen: RunScreen) -> void:
 ## The start screen, shown on every launch and by Back from the select screen: nothing starts until
 ## the player picks Continue (offered only when a valid save exists), New Run or Exit.
 func _show_main_menu() -> void:
+	_debug_session = false
 	_set_audio(&"menu", &"coastal")
 	_pause_button.visible = false
 	_update_notice.set_allowed(true)
@@ -127,6 +130,7 @@ func _continue_run(saved: RunState) -> void:
 ## `back`, when valid, adds a Back button that returns to the screen the player came from; there is
 ## none when the select screen is the first screen (no save, or a save that failed to load).
 func _new_run(back := Callable()) -> void:
+	_debug_session = false
 	_set_audio(&"menu", &"coastal")
 	_pause_button.visible = false
 	_update_notice.set_allowed(true)
@@ -272,7 +276,10 @@ func _maybe_start_debug_fight() -> void:
 		_notice = launch.error
 		_show_main_menu()
 		return
-	start_debug_fight(launch)
+	if launch.screen != "":
+		start_debug_screen(launch)
+	else:
+		start_debug_fight(launch)
 
 
 ## Builds a throwaway run for the character and opens a combat stop that fights `launch.enemy_ids`.
@@ -292,6 +299,7 @@ func start_debug_fight(launch: DebugLaunch) -> void:
 	if launch.hp > 0:
 		_run.player.hp = mini(launch.hp, _run.player.max_hp)
 	_debug_fight = true
+	_debug_session = true
 	_reset_screens()
 	_show_stop()
 
@@ -329,7 +337,7 @@ func _leave_vendor() -> void:
 
 ## Saves the run at the start of a stop (never mid-fight). A failure is shown, not fatal.
 func _autosave() -> void:
-	if _debug_fight:
+	if _debug_session:
 		return
 	if not _run.at_stop_boundary():
 		return
@@ -341,7 +349,7 @@ func _autosave() -> void:
 
 ## A finished run has nothing to resume.
 func _delete_save() -> void:
-	if _debug_fight:
+	if _debug_session:
 		return
 	var error := RunSave.delete(save_path)
 	if error != "":
@@ -376,6 +384,9 @@ func _set_paused(on: bool) -> void:
 ## resume point; only at a stop boundary is there anything new to write. Never exits unless
 ## a save exists to come back to. Returns "" once the exit is requested, else why it did not.
 func _save_and_exit() -> String:
+	if _debug_session:
+		exit_callable.call() # a debug session never writes the save
+		return ""
 	if _run.at_stop_boundary():
 		var error := RunSave.save(_run, save_path)
 		if error != "":
@@ -434,3 +445,25 @@ func _place_pause_button(variation: StringName, margin: int) -> void:
 	_pause_button.theme_type_variation = variation
 	_pause_button.reset_size()
 	_pause_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, margin)
+
+
+## Opens a shop or rest stop of a throwaway run: the character's real deck, gold in hand (default 100)
+## and the player already hurt (default 55% HP), so heals, purchases and removals can all be tried. The
+## session never saves (see _debug_session); Pause > New Journey or Save & Exit leaves it.
+func start_debug_screen(launch: DebugLaunch) -> void:
+	_run = RunState.new(randi(), launch.character_id)
+	var wanted: int = DebugLaunch.SCREENS[launch.screen]
+	var seen := 0
+	for index in _run.stops.size():
+		if int(_run.stops[index].type) == wanted:
+			seen += 1
+			if seen == launch.screen_index:
+				_run.stop_index = index
+				break
+	_run.gold = launch.gold if launch.gold >= 0 else DebugLaunch.DEFAULT_GOLD
+	var max_hp := _run.player.max_hp
+	var hurt := launch.hp if launch.hp > 0 else int(ceil(max_hp * DebugLaunch.DEFAULT_HP_PERCENT / 100.0))
+	_run.player.hp = clampi(hurt, 1, max_hp)
+	_debug_session = true
+	_reset_screens()
+	_show_stop()
