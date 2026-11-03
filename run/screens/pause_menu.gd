@@ -93,10 +93,10 @@ func show_options(message: String) -> void:
 		var strip := RelicStrip.create(run.relics)
 		strip.alignment = BoxContainer.ALIGNMENT_CENTER
 		box.add_child(strip)
-	RunScreen.add_button(box, "Continue", set_paused.bind(false)).theme_type_variation = MenuStyle.PRIMARY
-	RunScreen.add_button(box, "Save & Exit", _try_save_and_exit)
-	RunScreen.add_button(box, "Sound", _show_sound).theme_type_variation = MenuStyle.QUIET
-	RunScreen.add_button(box, "New Journey", _confirm_new_run).theme_type_variation = MenuStyle.DANGER
+	_plaque(RunScreen.add_button(box, "Continue", set_paused.bind(false)), true)
+	_plaque(RunScreen.add_button(box, "Save & Exit", _try_save_and_exit))
+	_plaque(RunScreen.add_button(box, "Sound", _show_sound))
+	_plaque(RunScreen.add_button(box, "New Journey", _confirm_new_run))
 	_add_label("Your journey is saved on arrival at each destination.\nSave & Exit returns you to the start of this destination.")
 
 
@@ -110,8 +110,8 @@ func _confirm_new_run() -> void:
 	_clear()
 	_add_label("Leave this journey behind?", 36)
 	_add_label("Your current journey will be replaced.")
-	RunScreen.add_button(box, "Begin a new journey", _start_new_run).theme_type_variation = MenuStyle.DANGER
-	RunScreen.add_button(box, "Cancel", show_options.bind("")).theme_type_variation = MenuStyle.QUIET
+	_plaque(RunScreen.add_button(box, "Begin a new journey", _start_new_run))
+	_plaque(RunScreen.add_button(box, "Cancel", show_options.bind("")), true)
 
 
 func _start_new_run() -> void:
@@ -138,3 +138,11 @@ func _add_label(text: String, font_size: int = 0) -> void:
 		MenuStyle.heading(label, font_size)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(label)
+
+
+## Gives a pause-menu button the plaque look; `primary` is the brass one (the safe choice on each page).
+func _plaque(button: Button, primary := false) -> Button:
+	button.theme_type_variation = MenuStyle.PLAQUE_PRIMARY if primary else MenuStyle.PLAQUE
+	button.custom_minimum_size = Vector2(300, 50)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	return button

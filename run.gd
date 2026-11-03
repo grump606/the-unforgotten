@@ -90,6 +90,9 @@ func _show_main_menu() -> void:
 	var prefix := _notice + "\n" if _notice != "" else ""
 	_header.text = prefix + "A voice beyond the quiet"
 	_notice_shown = _notice != ""
+	# The title screen is full-bleed: no frame, and no header line unless there is a notice to show.
+	_header_row.visible = _notice != ""
+	_set_edge_margin(0.0)
 	_main_menu.attach(loaded.run, _body, _show_stop)
 	_main_menu.show(loaded.run, _continue_run.bind(loaded.run), _new_run.bind(_show_main_menu), func() -> void: exit_callable.call(),
 		_update_notice.user_enabled, _toggle_update_check, _update_notice)
