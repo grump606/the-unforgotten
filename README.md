@@ -26,6 +26,19 @@ Open the project in Godot 4.7 and press F5, or:
 
 On launch the game checks GitHub once for a newer release and shows a dismissible notice if there is one; once a signing key is built in (`docs/UPDATE_SIGNING.md`) the notice offers Update & restart, which downloads, verifies and installs the new version itself (`docs/UPDATE_CHECK.md`); set `THE_UNFORGOTTEN_NO_UPDATE_CHECK=1` to turn that off (`docs/UPDATE_CHECK.md`).
 
+### Debug: start in any fight
+
+To test a boss or any enemy combination without playing down the line, launch straight into a fight (`run/debug_launch.gd`). It uses the character's real deck, never touches your save, and returns to the main menu when the fight ends:
+
+```powershell
+.\scripts\debug_fight.ps1 eraser                                  # final boss
+.\scripts\debug_fight.ps1 bellkeeper -Character medium            # mid-boss
+.\scripts\debug_fight.ps1 wisp,crow,hound -Character pickpocket -Hp 20
+.\scripts\debug_fight.ps1 list                                    # accepted enemy names
+```
+
+Or pass the options to Godot directly after `--` (`--fight=`, `--character=`, `--hp=`), or set `THE_UNFORGOTTEN_FIGHT`, `THE_UNFORGOTTEN_CHARACTER` and `THE_UNFORGOTTEN_HP`. Up to three enemies, any mix of regular enemies and bosses; names match the enemy id, its in-game name or a short alias (`eraser`, `bellkeeper`, `wisp`, `crow`, `hound`...).
+
 ## Test
 
 Full validation (import, tests, main-scene smoke load; nonzero exit on any failure):
