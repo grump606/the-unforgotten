@@ -11,11 +11,11 @@ const BASE := Vector2(136, 190)
 ## Extra height so a raised (hover/selected) card has room to lift without moving the layout.
 const LIFT := 6.0
 const BACKDROP := Color(0.05, 0.05, 0.08)
-const BADGE := Color(0.96, 0.78, 0.30)
+const BADGE := Color("#e8b773")
 const BADGE_BAD := Color(0.78, 0.18, 0.20)
-const WARN := Color(1.0, 0.82, 0.35)
-const HP_RED := Color(0.74, 0.14, 0.2)
-const SELECT_GOLD := Color(1.0, 0.85, 0.4)
+const WARN := Color("#e8b773")
+const HP_RED := Color("#a8323a")
+const SELECT_GOLD := Color("#e8b773")
 ## Palette tokens per class. Empty id is neutral keepsake paper.
 const PALETTES := {
 	&"": {
@@ -48,7 +48,7 @@ const ICON_PRIORITY: Array[CardEffect.Kind] = [
 	CardEffect.Kind.DRAW, CardEffect.Kind.HEAL_PER_HAUNTED, CardEffect.Kind.LOSE_HP,
 ]
 const KIND_COLORS := {
-	CardEffect.Kind.DAMAGE: Color(0.95, 0.45, 0.35), CardEffect.Kind.BLOCK: Color(0.45, 0.72, 0.96),
+	CardEffect.Kind.DAMAGE: Color("#d96b65"), CardEffect.Kind.BLOCK: Color("#83b4cf"),
 	CardEffect.Kind.DRAW: Color(0.88, 0.88, 0.92), CardEffect.Kind.EXPOSE: Color(0.96, 0.80, 0.35),
 	CardEffect.Kind.HOLD: Color(0.40, 0.82, 0.80), CardEffect.Kind.THORNS: Color(0.58, 0.86, 0.42),
 	CardEffect.Kind.GAIN_ENERGY: Color(1.0, 0.88, 0.30), CardEffect.Kind.HAUNT: Color(0.76, 0.70, 1.0),
@@ -61,6 +61,8 @@ const KEYWORDS := {
 
 ## Emitted when a clickable card is clicked (never for an Unplayable one).
 signal pressed
+## Emitted when the pointer enters or leaves (also via set_hovered), for cards that auto_hover.
+signal hover_changed(inside: bool)
 
 var card: CardData
 ## Which palette the current card uses: &"" (neutral) or a class id.
@@ -100,7 +102,14 @@ var clickable := false:
 
 var _hovered := false
 var _tilt := Vector2.ZERO
+## 0 (resting) to 1 (raised); eases over LIFT_TIME unless reduced_motion.
+var _lift := 0.0
 var _font: Font = ThemeDB.fallback_font
+
+## Skips the hover-lift easing (cards snap) and the confirm pulse when true. No UI sets it yet.
+static var reduced_motion := false
+## Seconds for a card to rise or settle on hover.
+const LIFT_TIME := 0.12
 
 const TILT_SHADER := preload("res://art/fx/card_tilt.gdshader")
 
@@ -126,6 +135,7 @@ func set_card(new_card: CardData) -> void:
 func set_state(new_state: State, new_note := "") -> void:
 	state = new_state
 	note = new_note
+	_chase_lift()
 	queue_redraw()
 
 
@@ -238,6 +248,8 @@ func _on_hover(inside: bool) -> void:
 		_hovered = inside
 		# A hovered card in an overlapping hand comes to the front.
 		z_index = 1 if inside else 0
+		_chase_lift()
+		hover_changed.emit(inside)
 		if inside:
 			set_process(true)
 		queue_redraw()
@@ -246,13 +258,17 @@ func _on_hover(inside: bool) -> void:
 ## Eases the card toward the pointer while hovered (perspective tilt with a moving sheen, see
 ## art/fx/card_tilt.gdshader) and back to flat afterwards; stops processing once it is flat again.
 func _process(delta: float) -> void:
+	var lift_goal := 1.0 if _raised() else 0.0
+	if _lift != lift_goal:
+		_lift = move_toward(_lift, lift_goal, delta / LIFT_TIME)
+		queue_redraw()
 	var goal := Vector2.ZERO
 	if _hovered and state != State.UNPLAYABLE and size.x > 0.0 and size.y > 0.0:
 		var mouse := get_local_mouse_position()
 		if Rect2(Vector2.ZERO, size).has_point(mouse):
 			goal = ((mouse / size) - Vector2(0.5, 0.5)) * 2.0
 	_tilt = _tilt.lerp(goal, 1.0 - exp(-14.0 * delta))
-	if goal == Vector2.ZERO and _tilt.length() < 0.01:
+	if goal == Vector2.ZERO and _tilt.length() < 0.01 and _lift == lift_goal:
 		_tilt = Vector2.ZERO
 		material = null
 		set_process(false)
@@ -266,6 +282,15 @@ func _process(delta: float) -> void:
 	sm.set_shader_parameter("size_px", size)
 
 
+## Starts easing the lift toward its goal (snaps when the card does not hover by itself).
+func _chase_lift() -> void:
+	var goal := 1.0 if _raised() else 0.0
+	if reduced_motion or not auto_hover or not is_inside_tree():
+		_lift = goal
+	elif _lift != goal:
+		set_process(true)
+
+
 func _raised() -> bool:
 	return state == State.HOVER or state == State.SELECTED or (_hovered and state == State.NORMAL)
 
@@ -277,7 +302,7 @@ func _draw() -> void:
 		return
 	var muted := state == State.UNPLAYABLE
 	var p := _palette(class_id, muted, not muted and _raised())
-	var top := 0.0 if _raised() else LIFT
+	var top := LIFT * (1.0 - _lift)
 	draw_set_transform(Vector2(0, top * view_scale), 0.0, Vector2(view_scale, view_scale))
 	var stock: Color = p.stock
 	var ink: Color = p.ink
@@ -355,7 +380,7 @@ static func _palette(id: StringName, muted: bool, raised: bool) -> Dictionary:
 
 static func _mute(c: Color) -> Color:
 	var g := c.get_luminance()
-	return Color(g, g, g).lerp(c, 0.45) * Color(0.78, 0.78, 0.78, 1.0)
+	return Color(g, g, g).lerp(c, 0.45) * Color(0.88, 0.88, 0.88, 1.0)
 
 
 func _box(rect: Rect2, fill: Color, radius: int, border := 0, border_color := Color.WHITE) -> void:
@@ -405,8 +430,8 @@ func _draw_hotkey(c: Vector2) -> void:
 
 ## Font size for the preview: 10 px, shrinking (to 8) only when it would need more than two lines.
 func _preview_size(width: float) -> int:
-	var size := 10
-	while size > 8 and _font.get_multiline_string_size(preview, HORIZONTAL_ALIGNMENT_CENTER, width, size).y > 2.0 * _font.get_height(size):
+	var size := 11
+	while size > 9 and _font.get_multiline_string_size(preview, HORIZONTAL_ALIGNMENT_CENTER, width, size).y > 2.0 * _font.get_height(size):
 		size -= 1
 	return size
 
@@ -590,7 +615,7 @@ func _draw_body(body: Rect2, ink: Color) -> void:
 	for effect in card.effects:
 		lines.append(effect.describe())
 	var txt := "\n".join(lines)
-	var size := 12
+	var size := 13
 	var h := _font.get_multiline_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size).y
 	while size > 10 and h > body.size.y:
 		size -= 1
@@ -616,8 +641,8 @@ func _draw_strip(strip: Rect2, p: Dictionary) -> void:
 	var room := right - strip.position.x - 6
 	var left := Rect2(strip.position.x + 5, strip.position.y, room, strip.size.y)
 	if note != "":
-		# A long note shrinks (down to 8 px) rather than being cut off.
-		_text(note, left, _fit_size(note, room, 10, 8), WARN)
+		# A long note shrinks (down to 9 px) rather than being cut off.
+		_text(note, left, _fit_size(note, room, 11, 9), WARN)
 		return
 	var parts := PackedStringArray()
 	match card.target_mode:
