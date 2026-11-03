@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Screen Reference</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a jump bar, then one section per screen: the in-game capture, the art it uses as small tiles, and a facts grid. */
+:root{--bg:#e9e6dd;--fg:#171d28;--dim:#4d5a5e;--card:#f6f3ea;--stage:#171d28;--line:#b9b4a4;--accent:#2f7468;--font-d:"Cormorant Garamond",Georgia,serif;--font-b:"Source Sans 3",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10151d;--fg:#e8e1d0;--dim:#a6b9b5;--card:#171d28;--stage:#0c1017;--line:#33444d;--accent:#78a99b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#10151d;--fg:#e8e1d0;--dim:#a6b9b5;--card:#171d28;--stage:#0c1017;--line:#33444d;--accent:#78a99b;color-scheme:dark}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-b);font-size:16px;line-height:1.55;padding-block:32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1300px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+h1{font-family:var(--font-d);font-weight:600;font-size:clamp(30px,5vw,46px);line-height:1.1;margin:0;text-wrap:balance}
+h2{font-family:var(--font-d);font-weight:600;font-size:clamp(28px,4vw,36px);line-height:1.1;margin:0 0 4px}
+.lede{color:var(--dim);max-width:65ch;margin:8px 0 0}
+nav{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+nav a{color:var(--fg);text-decoration:none;border:1px solid var(--line);background:var(--card);border-radius:3px;padding:6px 14px;font-size:15px}
+nav a:hover,nav a:focus-visible{border-color:var(--accent);color:var(--accent)}
+section{display:flex;flex-direction:column;gap:18px;scroll-margin-top:16px}
+.sub{color:var(--dim);margin:0;max-width:70ch}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:10px;display:flex;flex-direction:column;gap:10px;min-width:0}
+figure img{width:100%;height:auto;display:block;border-radius:2px}
+figcaption{display:flex;flex-direction:column;gap:2px;padding:0 4px 4px}
+.tag{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.name{font-family:var(--font-d);font-size:24px;font-weight:600;line-height:1.15}
+.note{color:var(--dim);font-size:15px}
+.shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,560px),1fr));gap:18px;align-items:start}
+.assets{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr));gap:12px;align-items:stretch}
+.tile{padding:8px;gap:6px}
+.tile .stage{background:var(--stage);border-radius:2px;height:150px;display:flex;align-items:center;justify-content:center;padding:6px}
+.tile .stage img{width:auto;max-width:100%;max-height:100%;object-fit:contain}
+.tile .stage.wide img{width:100%;height:100%;object-fit:cover}
+.tile .label{font-size:14px;font-weight:600;line-height:1.25}
+.tile .path{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:var(--dim);overflow-wrap:anywhere}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:16px 32px}
+.facts h3{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 4px;font-weight:600}
+.facts p{margin:0}
+code{font-family:ui-monospace,Consolas,monospace;font-size:13px;overflow-wrap:anywhere}
+.cmd{background:var(--stage);color:#e8e1d0;border-radius:3px;padding:8px 12px;display:block;font-family:ui-monospace,Consolas,monospace;font-size:13px;overflow-x:auto;white-space:pre}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Source+Sans+3:wght@400;600&display=swap">
+<div class="wrap">
+<header>
+<h1>Every screen, for reference</h1>
+<p class="lede">A capture of each screen as it is in the game now, the art it is built from, and the details that matter when changing it. Captured at the default window size. Click any image to see it larger.</p>
+<nav aria-label="Screens">
+<a href="#main-menu">Main menu</a><a href="#select">Character select</a><a href="#rest">Rest</a><a href="#vendor">Vendor</a><a href="#boss-fight">Boss fight</a><a href="#fight">Regular fight</a><a href="#end">End card</a>
+</nav>
+</header>
+
+<section id="main-menu">
+<div><h2>Main menu</h2><p class="sub">The title screen shown on every launch. Full-bleed painting, no frame, with the three classes standing on the quay.</p></div>
+<figure><a href="shot_menu.jpg"><img src="shot_menu.jpg" alt="Main menu: carved title, bell divider, saved-run tablet, and four plaque buttons over the harbour painting with the three characters"></a>
+<figcaption><span class="tag">In the game</span><span class="name">With a saved run</span><span class="note">Continue is the brass plaque. Without a save the saved-run tablet and Continue are absent and New Journey becomes the brass plaque.</span></figcaption></figure>
+<div class="assets">
+<figure class="tile"><div class="stage wide"><img src="bg_menu.jpg" alt=""></div><span class="label">Harbour background</span><span class="path">screens/menu/bg.png</span></figure>
+<figure class="tile"><div class="stage"><img src="ui_title.png" alt=""></div><span class="label">Carved title</span><span class="path">ui/title.png</span></figure>
+<figure class="tile"><div class="stage"><img src="ui_divider.png" alt=""></div><span class="label">Bell divider</span><span class="path">ui/divider_bell.png</span></figure>
+<figure class="tile"><div class="stage"><img src="ui_tablet.png" alt=""></div><span class="label">Saved-run tablet</span><span class="path">ui/tablet.png</span></figure>
+<figure class="tile"><div class="stage"><img src="ui_plaque_brass.png" alt=""></div><span class="label">Primary plaque</span><span class="path">ui/plaque_brass.png</span></figure>
+<figure class="tile"><div class="stage"><img src="ui_plaque_slate.png" alt=""></div><span class="label">Plaque</span><span class="path">ui/plaque_slate.png</span></figure>
+<figure class="tile"><div class="stage"><img src="fig_deserter.png" alt=""></div><span class="label">Deserter</span><span class="path">players/deserter/figure.png</span></figure>
+<figure class="tile"><div class="stage"><img src="fig_pickpocket.png" alt=""></div><span class="label">Pickpocket</span><span class="path">players/pickpocket/figure.png</span></figure>
+<figure class="tile"><div class="stage"><img src="fig_medium.png" alt=""></div><span class="label">Medium</span><span class="path">players/medium/figure.png</span></figure>
+</div>
+<div class="facts">
+<div><h3>Contents</h3><p>Title, bell divider and tagline "Someone still remembers you." With a save: the tablet ("Your journey waits at Drowned Street." plus character, HP, gold, deck) and Continue. Then New Journey, Exit and Sound. A small flat Update button sits bottom-right (grey off, teal on, red when a newer version exists).</p></div>
+<div><h3>Layout</h3><p>Buttons are 320 × 52 plaques, 12 px apart, centred. The three class figures stand at about 13%, 27% and 87% of the width and breathe slowly. Drifting mist and embers run over the painting. The header line only appears when there is a notice, such as a save that could not be read.</p></div>
+<div><h3>Code</h3><p><code>run/screens/main_menu_screen.gd</code>, <code>run/menu_scene.gd</code>, <code>run/menu_style.gd</code> (plaque styles, focus ring), <code>run.gd</code> (<code>_show_main_menu</code>).</p></div>
+<div><h3>Open it</h3><p>The normal launch. In a throwaway profile with no save, only New Journey, Exit and Sound show.</p></div>
+</div>
+</section>
+
+<section id="select">
+<div><h2>Character select</h2><p class="sub">Opened by New Journey. One panel per class in its own palette, a serif heading, and Back centred on the bottom edge.</p></div>
+<figure><a href="shot_select.jpg"><img src="shot_select.jpg" alt="Character select: three class panels with portrait, HP, description, starting deck and a Play as plaque each, and a Back plaque at the bottom"></a>
+<figcaption><span class="tag">In the game</span><span class="name">Choose who answers the voice</span><span class="note">Deserter in rust, Pickpocket in teal, Medium in violet. The focused panel gets a brighter border and a slight lift.</span></figcaption></figure>
+<div class="assets">
+<figure class="tile"><div class="stage wide"><img src="bg_select.jpg" alt=""></div><span class="label">Ruined hall background</span><span class="path">screens/select/bg.png</span></figure>
+<figure class="tile"><div class="stage"><img src="fig_deserter.png" alt=""></div><span class="label">Deserter, 52 HP</span><span class="path">players/deserter/figure.png</span></figure>
+<figure class="tile"><div class="stage"><img src="fig_pickpocket.png" alt=""></div><span class="label">Pickpocket, 36 HP</span><span class="path">players/pickpocket/figure.png</span></figure>
+<figure class="tile"><div class="stage"><img src="fig_medium.png" alt=""></div><span class="label">Medium, 60 HP</span><span class="path">players/medium/figure.png</span></figure>
+<figure class="tile"><div class="stage"><img src="ui_plaque_slate.png" alt=""></div><span class="label">Small plaque</span><span class="path">ui/plaque_slate.png</span></figure>
+</div>
+<div class="facts">
+<div><h3>Each panel</h3><p>Class emblem, painted portrait strip (head and shoulders of the figure), name, HP, a short pitch, the ten-card starting deck as small cards with counts, and "Play as ...". The pitch area reserves three lines so the decks line up across panels.</p></div>
+<div><h3>Layout</h3><p>Panels are centred in the whole window, 26 px apart, with the starting-deck cards at 0.4×. Back is a 160 × 44 plaque 18 px above the bottom edge, anchored at the exact horizontal middle.</p></div>
+<div><h3>Code</h3><p><code>run/screens/select_screen.gd</code>, <code>run/character_panel.gd</code>, <code>run/select_scene.gd</code>.</p></div>
+<div><h3>Open it</h3><span class="cmd">.\scripts\debug_fight.ps1 -Screen select</span></div>
+</div>
+</section>
+
+<section id="rest">
+<div><h2>Rest</h2><p class="sub">A quiet stop between fights. One button, one heal.</p></div>
+<figure><a href="shot_rest.jpg"><img src="shot_rest.jpg" alt="Rest screen: the Lampkeeper's Kitchen painting with a plate reading A little warmth remains and a Rest plaque"></a>
+<figcaption><span class="tag">In the game</span><span class="name">Lampkeeper's Kitchen, Pickpocket at 20/36 HP</span><span class="note">The header line above the painting shows the stop, journey number, character, HP, gold and deck size.</span></figcaption></figure>
+<div class="assets">
+<figure class="tile"><div class="stage wide"><img src="bg_rest.jpg" alt=""></div><span class="label">Kitchen background</span><span class="path">screens/rest/bg.png</span></figure>
+<figure class="tile"><div class="stage"><img src="ui_plaque_slate.png" alt=""></div><span class="label">Small plaque</span><span class="path">ui/plaque_slate.png</span></figure>
+</div>
+<div class="facts">
+<div><h3>Contents</h3><p>A banner "A little warmth remains." with the current HP, and "Rest (+36 HP)". Resting heals 36, never past maximum, and moves on to the next stop.</p></div>
+<div><h3>Layout</h3><p>The painting fills the body under the header line, with a dark framed margin around it. The banner and button sit in the centre column over the table. The lamp flickers and the stove glows.</p></div>
+<div><h3>Code</h3><p><code>run/screens/rest_screen.gd</code>, <code>run/rest_scene.gd</code>. Rules: <code>RunState.rest</code> and <code>REST_HEAL</code>.</p></div>
+<div><h3>Open it</h3><span class="cmd">.\scripts\debug_fight.ps1 -Screen rest -Hp 10</span><p class="note">Defaults to 100 gold and 55% HP. <code>rest:2</code> is the second rest on the line.</p></div>
+</div>
+</section>
+
+<section id="vendor">
+<div><h2>Vendor</h2><p class="sub">The shop at three stops. A painted stall with the shopkeeper, three card offers, one relic and three services.</p></div>
+<figure><a href="shot_vendor.jpg"><img src="shot_vendor.jpg" alt="Vendor screen: a dark panel over the stall with three cards, a relic offer and three plaque buttons"></a>
+<figcaption><span class="tag">In the game</span><span class="name">Medium, 33/60 HP, 100 gold</span><span class="note">The dark backing panel currently covers most of the stall and the shopkeeper.</span></figcaption></figure>
+<div class="assets">
+<figure class="tile"><div class="stage wide"><img src="bg_vendor.jpg" alt=""></div><span class="label">Stall background</span><span class="path">screens/vendor/bg.png</span></figure>
+<figure class="tile"><div class="stage"><img src="keeper.png" alt=""></div><span class="label">Shopkeeper</span><span class="path">screens/vendor/keeper.png</span></figure>
+<figure class="tile"><div class="stage"><img src="ui_plaque_slate.png" alt=""></div><span class="label">Small plaque</span><span class="path">ui/plaque_slate.png</span></figure>
+</div>
+<div class="facts">
+<div><h3>Contents</h3><p>A greeting banner, three cards at 10, 16 or 24 gold, one relic (about 75 gold) with Buy relic, and the services Remove a card (15), Heal 12 HP (12) and Leave. Unaffordable items are disabled up front. When the player cannot afford the cheapest card the greeting changes.</p></div>
+<div><h3>Code</h3><p><code>run/screens/vendor_screen.gd</code>, <code>run/vendor_scene.gd</code>, <code>run/vendor.gd</code> (prices). Design notes in <code>docs/VENDOR_ART_DESIGN.md</code>.</p></div>
+<div><h3>Open it</h3><span class="cmd">.\scripts\debug_fight.ps1 -Screen vendor -Character medium</span><p class="note">Add <code>-Gold</code> and <code>-Hp</code>, or <code>vendor:2</code> for the second shop.</p></div>
+</div>
+</section>
+
+<section id="boss-fight">
+<div><h2>Boss fight</h2><p class="sub">The Bellkeeper (mid-boss) and the Eraser (final boss). One enemy, drawn larger, with its own bar, an entrance and a second phase.</p></div>
+<div class="shots">
+<figure><a href="shot_boss_intro.jpg"><img src="shot_boss_intro.jpg" alt="Boss entrance: the stage dims and the name plate FINAL BOSS Eraser fades in over the fight"></a>
+<figcaption><span class="tag">Entrance, about 2 seconds</span><span class="name">Final boss: Eraser</span><span class="note">The stage dims and the plate fades in. A click or any key skips it.</span></figcaption></figure>
+<figure><a href="shot_boss.jpg"><img src="shot_boss.jpg" alt="Boss fight: the Deserter faces the Eraser, with a thin boss bar at the top and the hand of cards at the bottom"></a>
+<figcaption><span class="tag">In the game</span><span class="name">Deserter against the Eraser</span><span class="note">The boss bar has a tick at 50% HP, where phase two begins.</span></figcaption></figure>
+</div>
+<div class="assets">
+<figure class="tile"><div class="stage wide"><img src="bg_boss.jpg" alt=""></div><span class="label">Boss backdrop</span><span class="path">screens/battle_boss/bg.png</span></figure>
+<figure class="tile"><div class="stage"><img src="spr_conductor.png" alt=""></div><span class="label">Eraser, 96 HP</span><span class="path">conductor/sprite.png</span></figure>
+<figure class="tile"><div class="stage"><img src="spr_brakeman.png" alt=""></div><span class="label">Bellkeeper, 96 HP</span><span class="path">brakeman/sprite.png</span></figure>
+<figure class="tile"><div class="stage"><img src="fig_deserter.png" alt=""></div><span class="label">Player figure</span><span class="path">players/&lt;class&gt;/figure.png</span></figure>
+</div>
+<div class="facts">
+<div><h3>Screen layout</h3><p>The stage fills the window with no frame. Top left: stop title ("The Threshold — Boss") and "Journey 21/21". Top right: a small Pause button. Top centre: the boss name with a thin HP bar and the phase tick. Figures stand on one ground line with HP bars under them and the enemy's intent badge above its head.</p></div>
+<div><h3>Bottom HUD</h3><p>One full-width bar with an amber line along its top: the character title, energy orb and Draw / Discard / Deck counts on the left, the hand of up to five cards in the middle (0.7×, hovering shows a larger preview), and End Turn and Log on the right.</p></div>
+<div><h3>Boss rules</h3><p>The boss is drawn 1.5× larger. At 50% HP it switches to a harder second intent cycle: a banner shows its title, the screen flashes, the figure shakes and the backdrop turns harsher. Bellkeeper: "The bell tolls faster". Eraser: "Nothing is remembered".</p></div>
+<div><h3>Code</h3><p><code>battle.gd</code>, <code>run/boss_bar.gd</code>, <code>run/boss_intro.gd</code>, <code>run/fighter.gd</code>, <code>run/battle_backdrop.gd</code>, <code>combat/enemy_unit.gd</code> (phases).</p></div>
+<div><h3>Open it</h3><span class="cmd">.\scripts\debug_fight.ps1 eraser -Character deserter
+.\scripts\debug_fight.ps1 bellkeeper -Character medium</span></div>
+</div>
+</section>
+
+<section id="fight">
+<div><h2>Regular fight</h2><p class="sub">One to three enemies from the regular pool, in front of the backdrop of the current destination.</p></div>
+<figure><a href="shot_fight.jpg"><img src="shot_fight.jpg" alt="Regular fight: the Pickpocket faces three enemies, each with an intent badge and an HP bar"></a>
+<figcaption><span class="tag">In the game</span><span class="name">Pickpocket against The Unnamed, Ash Hound and Keepsake Crow</span><span class="note">The first enemy is targeted (amber ring). The stop title here reads "Combat (1 enemy)" only because this fight was opened from the debug launcher.</span></figcaption></figure>
+<div class="assets">
+<figure class="tile"><div class="stage wide"><img src="bg_street.jpg" alt=""></div><span class="label">Drowned Street backdrop</span><span class="path">screens/battle_street/bg.png</span></figure>
+<figure class="tile"><div class="stage"><img src="spr_shade.png" alt=""></div><span class="label">The Unnamed, 28 HP</span><span class="path">shade/sprite.png</span></figure>
+<figure class="tile"><div class="stage"><img src="spr_hound.png" alt=""></div><span class="label">Ash Hound, 22 HP</span><span class="path">hound/sprite.png</span></figure>
+<figure class="tile"><div class="stage"><img src="spr_crow.png" alt=""></div><span class="label">Keepsake Crow, 17 HP</span><span class="path">crow/sprite.png</span></figure>
+<figure class="tile"><div class="stage"><img src="spr_warden.png" alt=""></div><span class="label">Threshold Keeper, 60 HP</span><span class="path">warden/sprite.png</span></figure>
+<figure class="tile"><div class="stage"><img src="spr_wisp.png" alt=""></div><span class="label">Stray Recollection, 16 HP</span><span class="path">wisp/sprite.png</span></figure>
+</div>
+<div class="facts">
+<div><h3>Turn flow</h3><p>Cards cost energy (3 a turn). Each enemy shows its next intent as a badge with the damage number. End Turn opens a discard step down to five cards: the button reads "Keep all" or "Discard n", and Back returns to playing. Damage numbers show red HP loss and, when Block absorbs a hit, a separate blue "blocked" number.</p></div>
+<div><h3>Packs</h3><p>One to three enemies. The Memorial Giant (74 HP) only appears alone, and trios leave out The Unnamed. Enemy HP and damage ramp a little with each fight along the line.</p></div>
+<div><h3>Code</h3><p><code>battle.tscn</code> and <code>battle.gd</code>, <code>run/fighter.gd</code> (sizes in <code>HEIGHTS</code>), <code>run/battle_backdrop.gd</code>, <code>combat/starter_content.gd</code> (encounters).</p></div>
+<div><h3>Open it</h3><span class="cmd">.\scripts\debug_fight.ps1 shade,hound,crow -Character pickpocket</span><p class="note">Names: warden, shade, wisp, colossus, whisperer, hound, crow. Up to three.</p></div>
+</div>
+</section>
+
+<section id="end">
+<div><h2>End card</h2><p class="sub">Shown after the final boss, or after a defeat. Summarises the run and returns to the menu.</p></div>
+<figure><a href="shot_end.jpg"><img src="shot_end.jpg" alt="End card: Someone speaks your name, Outcome Escaped, run statistics, and Continue and New Journey plaques over a ruined archway at dawn"></a>
+<figcaption><span class="tag">In the game</span><span class="name">Escaped: Medium, 31/60 HP</span><span class="note">The painting is a ruined archway opening onto dawn. The defeat card uses a rain-wet square with a single lit lantern and the line "They return you to the quiet. Somewhere, a voice still calls."</span></figcaption></figure>
+<div class="assets">
+<figure class="tile"><div class="stage wide"><img src="bg_end_escape.jpg" alt=""></div><span class="label">Escaped background</span><span class="path">screens/end_escape/bg.png</span></figure>
+<figure class="tile"><div class="stage wide"><img src="bg_end_defeat.jpg" alt=""></div><span class="label">Defeat background</span><span class="path">screens/end_defeat/bg.png</span></figure>
+<figure class="tile"><div class="stage"><img src="ui_plaque_slate.png" alt=""></div><span class="label">Small plaque</span><span class="path">ui/plaque_slate.png</span></figure>
+</div>
+<div class="facts">
+<div><h3>Contents</h3><p>"Someone speaks your name. This time, you answer." and "Outcome: Escaped", then stops cleared (21/21), final HP, deck size and gold. Continue returns to the main menu and New Journey opens the character select.</p></div>
+<div><h3>Layout</h3><p>The two banners and the two plaques sit in one dark backed panel in the centre of the painting, with the header line above ("Journey's end") and the framed margin around the painting.</p></div>
+<div><h3>Code</h3><p><code>run/screens/end_screen.gd</code>, <code>run/end_scene.gd</code>.</p></div>
+<div><h3>Open it</h3><span class="cmd">.\scripts\debug_fight.ps1 -Screen end -Character medium
+.\scripts\debug_fight.ps1 -Screen defeat</span></div>
+</div>
+</section>
+</div>
+
+</html>
