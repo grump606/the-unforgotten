@@ -6,13 +6,28 @@ extends RefCounted
 ##   godot --path . -- --fight=eraser
 ##   godot --path . -- --fight=wisp,crow,hound --character=medium --hp=20
 ##
-## The same values can come from THE_UNFORGOTTEN_FIGHT, THE_UNFORGOTTEN_CHARACTER and THE_UNFORGOTTEN_HP.
+## Or open a shop or rest stop with gold in hand and the player already hurt (defaults: 100 gold, 55% HP):
+##
+##   godot --path . -- --screen=vendor --character=medium
+##   godot --path . -- --screen=rest --gold=0 --hp=10
+##   godot --path . -- --screen=vendor:2        (the second shop on the line)
+##
+## The same values can come from THE_UNFORGOTTEN_FIGHT, THE_UNFORGOTTEN_SCREEN, THE_UNFORGOTTEN_CHARACTER,
+## THE_UNFORGOTTEN_HP and THE_UNFORGOTTEN_GOLD.
 ## `--fight=list` prints the accepted names. Names match an enemy id, its in-game name, or a short
 ## alias (ignoring case, spaces and punctuation), e.g. `bellkeeper`, `brakeman`, `the_conductor`.
 
 const ENV_FIGHT := "THE_UNFORGOTTEN_FIGHT"
 const ENV_CHARACTER := "THE_UNFORGOTTEN_CHARACTER"
 const ENV_HP := "THE_UNFORGOTTEN_HP"
+const ENV_SCREEN := "THE_UNFORGOTTEN_SCREEN"
+const ENV_GOLD := "THE_UNFORGOTTEN_GOLD"
+
+## Stop screens that can be opened directly, mapped to their stop type.
+const SCREENS := {"vendor": RunState.StopType.VENDOR, "rest": RunState.StopType.REST}
+## Defaults for a screen launch: enough gold for a few purchases, and a player at this share of max HP.
+const DEFAULT_GOLD := 100
+const DEFAULT_HP_PERCENT := 55
 
 ## Short names beyond the id and display name.
 const ALIASES := {
@@ -28,6 +43,10 @@ var requested := false
 var enemy_ids: Array[StringName] = []
 var character_id: StringName = StarterContent.DEFAULT_CHARACTER_ID
 var hp := -1
+## Set for a screen launch ("vendor" or "rest"); `screen_index` picks the nth such stop on the line (1-based).
+var screen := ""
+var screen_index := 1
+var gold := -1
 var list_only := false
 var error := ""
 
@@ -38,6 +57,8 @@ static func from_environment() -> DebugLaunch:
 		ENV_FIGHT: OS.get_environment(ENV_FIGHT),
 		ENV_CHARACTER: OS.get_environment(ENV_CHARACTER),
 		ENV_HP: OS.get_environment(ENV_HP),
+		ENV_SCREEN: OS.get_environment(ENV_SCREEN),
+		ENV_GOLD: OS.get_environment(ENV_GOLD),
 	})
 
 
@@ -46,28 +67,56 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 	var fight_text := String(env.get(ENV_FIGHT, ""))
 	var character_text := String(env.get(ENV_CHARACTER, ""))
 	var hp_text := String(env.get(ENV_HP, ""))
+	var screen_text := String(env.get(ENV_SCREEN, ""))
+	var gold_text := String(env.get(ENV_GOLD, ""))
 	for arg in args:
 		if arg.begins_with("--fight="):
 			fight_text = arg.trim_prefix("--fight=")
 		elif arg.begins_with("--character="):
 			character_text = arg.trim_prefix("--character=")
+		elif arg.begins_with("--screen="):
+			screen_text = arg.trim_prefix("--screen=")
+		elif arg.begins_with("--gold="):
+			gold_text = arg.trim_prefix("--gold=")
 		elif arg.begins_with("--hp="):
 			hp_text = arg.trim_prefix("--hp=")
-	if fight_text.strip_edges() == "":
+	var wants_fight := fight_text.strip_edges() != ""
+	var wants_screen := screen_text.strip_edges() != ""
+	if not wants_fight and not wants_screen:
 		return launch
 	launch.requested = true
-	if _normalize(fight_text) == "list":
-		launch.list_only = true
+	if wants_fight and wants_screen:
+		launch.error = "Use either --fight or --screen, not both."
 		return launch
-	for part in fight_text.split(","):
-		var id := resolve(part)
-		if id == &"":
-			launch.error = "Unknown enemy '%s'. %s" % [part.strip_edges(), help_text()]
+	if wants_fight:
+		if _normalize(fight_text) == "list":
+			launch.list_only = true
 			return launch
-		launch.enemy_ids.append(id)
-	if launch.enemy_ids.is_empty() or launch.enemy_ids.size() > Combat.MAX_ENEMIES:
-		launch.error = "A fight needs 1 to %d enemies, got %d." % [Combat.MAX_ENEMIES, launch.enemy_ids.size()]
-		return launch
+		for part in fight_text.split(","):
+			var id := resolve(part)
+			if id == &"":
+				launch.error = "Unknown enemy '%s'. %s" % [part.strip_edges(), help_text()]
+				return launch
+			launch.enemy_ids.append(id)
+		if launch.enemy_ids.is_empty() or launch.enemy_ids.size() > Combat.MAX_ENEMIES:
+			launch.error = "A fight needs 1 to %d enemies, got %d." % [Combat.MAX_ENEMIES, launch.enemy_ids.size()]
+			return launch
+	else:
+		# "vendor", "rest", or "vendor:2" for the second one on the line.
+		var parts := screen_text.strip_edges().to_lower().split(":")
+		if not SCREENS.has(parts[0]) or parts.size() > 2 or (parts.size() == 2 and (not parts[1].is_valid_int() or int(parts[1]) < 1)):
+			launch.error = "Unknown screen '%s'. Choose from: %s (add :2 for the second one)." % [screen_text.strip_edges(), ", ".join(SCREENS.keys())]
+			return launch
+		launch.screen = parts[0]
+		launch.screen_index = int(parts[1]) if parts.size() == 2 else 1
+		if launch.screen_index > screen_count(launch.screen):
+			launch.error = "The line has only %d %s stop(s)." % [screen_count(launch.screen), launch.screen]
+			return launch
+	if gold_text.strip_edges() != "":
+		if not gold_text.strip_edges().is_valid_int() or int(gold_text) < 0:
+			launch.error = "--gold must be a whole number, 0 or more."
+			return launch
+		launch.gold = int(gold_text)
 	if character_text.strip_edges() != "":
 		var wanted := _normalize(character_text)
 		var found := false
@@ -114,3 +163,14 @@ static func _normalize(text: String) -> String:
 		if (ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9"):
 			out += ch
 	return out
+
+
+## How many stops of this screen the default line has (a RunState builds the line, so this stays true
+## if the line changes).
+static func screen_count(screen_name: String) -> int:
+	var count := 0
+	var run_state := RunState.new(0, StarterContent.DEFAULT_CHARACTER_ID)
+	for stop in run_state.stops:
+		if stop.type == SCREENS[screen_name]:
+			count += 1
+	return count
