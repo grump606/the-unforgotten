@@ -145,6 +145,7 @@ func _initialize() -> void:
 	var node: Control = (load("res://battle.tscn") as PackedScene).instantiate()
 	root.add_child(node)
 	await process_frame
+	node.seed_override = 7 # a reproducible encounter and hand; the checks below must hold for any draw
 	var tries := 0
 	while node._combat.enemies.size() < 3 and tries < 100:
 		node._start_combat()
@@ -211,6 +212,12 @@ func _initialize() -> void:
 	check(node._target_index == 2, "shift-tab back skips defeated")
 	key(node, KEY_LEFT)
 	check(node._target_index == 0, "left")
+	# The card played above may have drawn extra cards (Second Wind, Steady Breath), leaving more than
+	# HAND_SIZE in hand; then the discard step rightly asks to "Discard N more" instead of "Keep all".
+	# Trim to a keepable hand so the Keep all / E, E steps below do not depend on the random draw.
+	while c.piles.hand.size() > Combat.HAND_SIZE:
+		c.piles.hand.pop_back()
+	node._refresh()
 	var turn: int = c.turn
 	key(node, KEY_E)
 	check(c.phase == Combat.Phase.DISCARDING and c.turn == turn, "E opens the discard step instead of ending the turn")
