@@ -17,6 +17,8 @@ const BLOCK := Color("#83b4cf")
 const PRIMARY := &"PrimaryButton"
 const QUIET := &"QuietButton"
 const DANGER := &"DangerButton"
+## About a third smaller than a normal button (the Pause button during a fight).
+const SMALL := &"SmallButton"
 
 static func apply(host: Control) -> void:
 	host.theme = build_theme()
@@ -32,7 +34,7 @@ static func apply(host: Control) -> void:
 static func apply_theme_only(host: Control) -> void:
 	host.theme = build_theme()
 
-static func _button_states(theme: Theme, type_name: String, border: Color, text: Color, fill_tint := 0.0) -> void:
+static func _button_states(theme: Theme, type_name: String, border: Color, text: Color, fill_tint := 0.0, size_scale := 1.0) -> void:
 	var emphasized := type_name != "Button"
 	for state in ["normal", "hover", "pressed", "disabled"]:
 		var box := StyleBoxFlat.new()
@@ -44,10 +46,10 @@ static func _button_states(theme: Theme, type_name: String, border: Color, text:
 		box.border_color = BORDER if state == "disabled" else border
 		box.set_border_width_all(2 if emphasized and state != "disabled" else 1)
 		box.set_corner_radius_all(3)
-		box.content_margin_left = 16
-		box.content_margin_right = 16
-		box.content_margin_top = 7
-		box.content_margin_bottom = 7
+		box.content_margin_left = 16 * size_scale
+		box.content_margin_right = 16 * size_scale
+		box.content_margin_top = 7 * size_scale
+		box.content_margin_bottom = 7 * size_scale
 		theme.set_stylebox(state, type_name, TactileArt.textured_style(box))
 	theme.set_color("font_color", type_name, text)
 	theme.set_color("font_hover_color", type_name, text.lightened(0.15))
@@ -66,6 +68,8 @@ static func build_theme() -> Theme:
 	_button_states(theme, String(PRIMARY), AMBER, AMBER, 0.12)
 	_button_states(theme, String(QUIET), BORDER, TEXT_DIM)
 	_button_states(theme, String(DANGER), DAMAGE, Color("#f0b3ad"), 0.1)
+	_button_states(theme, String(SMALL), BORDER, TEXT_DIM, 0.0, 0.67)
+	theme.set_font_size("font_size", String(SMALL), 11)
 	var focus := StyleBoxFlat.new()
 	focus.draw_center = false
 	focus.border_color = AMBER
