@@ -289,7 +289,7 @@ static func scaled(enemy: EnemyData, factor: float) -> EnemyData:
 			intents.append(CardEffect.make(intent.kind, maxi(roundi(intent.amount * factor), 1), intent.bonus, intent.threshold))
 		else:
 			intents.append(intent)
-	return EnemyData.make(enemy.display_name, maxi(roundi(enemy.max_hp * factor), 1), intents, enemy.id)
+	return EnemyData.make(enemy.display_name, maxi(roundi(enemy.max_hp * factor), 1), intents, enemy.id, enemy.max_haunt)
 
 
 ## SMALL_ENEMY_PATHS minus TRIO_EXCLUDED_PATHS, so a new small enemy joins trios by default.
