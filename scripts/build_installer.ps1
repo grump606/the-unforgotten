@@ -1,5 +1,5 @@
 # Exports the Windows build and wraps it in an Inno Setup installer.
-# Output: build/TheUnforgotten-Setup-<version>.exe, its .sha256 and, when a signing key is configured, its .sig
+# Output: build/TheUnforgotten-Setup-<version>.exe, its .sha256 and, when a signing key is configured, its .manifest and .manifest.sig
 # Needs the Godot 4.7.2 export templates and Inno Setup 6 (see docs/INSTALLER.md).
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -49,14 +49,11 @@ $sumFile = "$setup.sha256"
 [System.IO.File]::WriteAllText($sumFile, "$hash  $(Split-Path -Leaf $setup)`n", (New-Object System.Text.UTF8Encoding($false)))
 Write-Host "SHA-256 $hash"
 
-# In-game updates (docs/UPDATE_SIGNING.md). Two things are signed with the maintainer's private key (RSA,
+# In-game updates (docs/UPDATE_SIGNING.md). The update manifest is signed with the maintainer's private key (RSA,
 # PKCS#1 v1.5, SHA-256), and the public half is the PEM in run/update_verifier.gd:
-#   <installer>.manifest(.sig)  the format current games read: a small text file naming the installer, its
+#   <installer>.manifest(.sig)  a small text file naming the installer, its
 #                               version and its SHA-256, so an old signed installer cannot be replayed as an update
-#   <installer>.sig             a signature over the bare installer, kept only for v0.6.1 and earlier, which know
-#                               nothing else (drop it once nobody runs those)
 # With no public key embedded there is nothing to sign for and the game just offers the download page.
-$sigFile = "$setup.sig"
 $manifestFile = "$setup.manifest"
 $manifestSigFile = "$setup.manifest.sig"
 . (Join-Path $PSScriptRoot 'update_signing.ps1')
@@ -95,15 +92,14 @@ if ($publicPems.Count -gt 0) {
             Write-Host "$(Split-Path -Leaf $sig): verified against embedded key #$($matched + 1) of $($pubFiles.Count)"
         }
         Sign-AndVerify $manifestFile $manifestSigFile
-        Sign-AndVerify $setup $sigFile
     } finally {
         foreach ($f in $pubFiles) { Remove-Item -LiteralPath $f -ErrorAction SilentlyContinue }
     }
-    Write-Host "Signed: $manifestSigFile, $sigFile"
+    Write-Host "Signed: $manifestSigFile"
 } else {
     Write-Warning 'No public keys in run/update_verifier.gd: nothing signed, so in-game updates stay off (see docs/UPDATE_SIGNING.md).'
 }
 
 $outputs = @($setup, $sumFile)
-if ($publicPems.Count -gt 0) { $outputs += @($sigFile, $manifestFile, $manifestSigFile) }
+if ($publicPems.Count -gt 0) { $outputs += @($manifestFile, $manifestSigFile) }
 Get-Item $outputs | Select-Object Name, Length

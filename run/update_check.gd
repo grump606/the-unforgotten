@@ -111,14 +111,6 @@ static func installer_url(tag: String) -> String:
 	return "" if file == "" else "%s%s/%s" % [DOWNLOAD_BASE, _canonical_tag(tag), file]
 
 
-## The detached signature's URL (the installer's URL plus ".sig"), or "" for an invalid tag.
-## Only builds before the signed manifest (v0.6.1 and earlier) download this; it stays published for
-## them. Current builds use manifest_url / manifest_signature_url.
-static func signature_url(tag: String) -> String:
-	var url := installer_url(tag)
-	return "" if url == "" else url + ".sig"
-
-
 ## The signed manifest's URL (the installer's URL plus ".manifest"), or "" for an invalid tag.
 static func manifest_url(tag: String) -> String:
 	var url := installer_url(tag)
