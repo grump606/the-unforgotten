@@ -73,9 +73,11 @@ static func build_theme() -> Theme:
 	if has_plaques():
 		_plaque_states(theme, PLAQUE, SLATE_PLAQUE_PATH, TEXT)
 		_plaque_states(theme, PLAQUE_PRIMARY, BRASS_PLAQUE_PATH, PLAQUE_INK)
+		_plaque_states(theme, PLAQUE_SMALL, SLATE_PLAQUE_PATH, TEXT, 17, 26.0, 7.0)
 	else:
 		_button_states(theme, String(PLAQUE), BORDER, TEXT)
 		_button_states(theme, String(PLAQUE_PRIMARY), AMBER, AMBER, 0.12)
+		_button_states(theme, String(PLAQUE_SMALL), BORDER, TEXT)
 	var focus := StyleBoxFlat.new()
 	focus.draw_center = false
 	focus.border_color = AMBER
@@ -84,7 +86,7 @@ static func build_theme() -> Theme:
 	theme.set_stylebox("focus", "Button", focus)
 	var panel := StyleBoxFlat.new()
 	panel.bg_color = Color(PANEL, 0.94)
-	panel.border_color = BORDER
+	panel.border_color = Color("#7d6a45")
 	panel.set_border_width_all(1)
 	panel.set_corner_radius_all(4)
 	panel.set_content_margin_all(20)
@@ -111,6 +113,8 @@ static func heading(label: Label, font_size := 32) -> void:
 ## lettering, and the brass primary plaque with dark lettering.
 const PLAQUE := &"PlaqueButton"
 const PLAQUE_PRIMARY := &"PlaquePrimaryButton"
+## The same plaque at a smaller size, for the screens after the title (rewards, vendor, rest, select, story).
+const PLAQUE_SMALL := &"PlaqueSmallButton"
 const SLATE_PLAQUE_PATH := "res://art/layers/ui/plaque_slate.png"
 const BRASS_PLAQUE_PATH := "res://art/layers/ui/plaque_brass.png"
 const TABLET_PATH := "res://art/layers/ui/tablet.png"
@@ -165,12 +169,12 @@ static func tablet_box() -> StyleBoxTexture:
 	return plaque_box(TABLET_PATH, Color.WHITE, 46.0, 14.0)
 
 
-static func _plaque_states(theme: Theme, type_name: StringName, path: String, text: Color) -> void:
+static func _plaque_states(theme: Theme, type_name: StringName, path: String, text: Color, font_size := PLAQUE_FONT_SIZE, margin_x := 40.0, margin_y := 10.0) -> void:
 	var tints := {
 		"normal": Color.WHITE, "hover": Color(1.16, 1.13, 1.06), "pressed": Color(0.78, 0.78, 0.8), "disabled": Color(0.5, 0.52, 0.56),
 	}
 	for state in tints:
-		var box := plaque_box(path, tints[state])
+		var box := plaque_box(path, tints[state], margin_x, margin_y)
 		if state == "pressed":
 			box.content_margin_top += 2.0
 			box.content_margin_bottom -= 2.0
@@ -181,7 +185,7 @@ static func _plaque_states(theme: Theme, type_name: StringName, path: String, te
 	theme.set_color("font_pressed_color", String(type_name), text.darkened(0.1))
 	theme.set_color("font_disabled_color", String(type_name), text.darkened(0.45))
 	theme.set_font("font", String(type_name), serif_font())
-	theme.set_font_size("font_size", String(type_name), PLAQUE_FONT_SIZE)
+	theme.set_font_size("font_size", String(type_name), font_size)
 	theme.set_type_variation(String(type_name), "Button")
 	theme.set_stylebox("focus", String(type_name), _focus_box())
 

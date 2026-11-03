@@ -135,6 +135,9 @@ func _new_run(back := Callable()) -> void:
 	var prefix := _notice + "\n" if _notice != "" else ""
 	_header.text = prefix + "Choose who answers the voice"
 	_notice_shown = _notice != ""
+	# Full-bleed like the title screen: the select screen draws its own heading unless a notice needs the header.
+	_header_row.visible = _notice != ""
+	_set_edge_margin(0.0)
 	_select.attach(null, _body, _show_stop)
 	_select.show(self, _start_run, back)
 

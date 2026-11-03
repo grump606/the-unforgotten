@@ -153,6 +153,10 @@ func _deck_grid(cards: Array[CardData]) -> GridContainer:
 
 ## Banner-coloured button with a thick gold focus ring, so keyboard focus is unmistakable.
 func _style_button(button: Button) -> void:
+	if MenuStyle.has_plaques():
+		button.theme_type_variation = MenuStyle.PLAQUE_SMALL
+		button.custom_minimum_size = Vector2(0, 44)
+		return
 	var banner: Color = _p.banner
 	var fills := {"normal": banner, "hover": banner.lightened(0.18), "pressed": banner.darkened(0.2), "disabled": banner.darkened(0.4)}
 	for state in fills:
