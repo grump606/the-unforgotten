@@ -1,10 +1,12 @@
 class_name EndScreen
 extends RunScreen
-## The end card after the last stop or a defeat: outcome, a summary and New Run.
+## The end card after the last stop or a defeat: outcome, a summary, Continue (back to the main
+## menu) and New Journey.
 
 
 ## `on_new_run` is bound by the caller so the select screen's Back button returns here.
-func show(on_new_run: Callable) -> void:
+## `on_continue` (when valid) adds a Continue button that returns to the main menu.
+func show(on_new_run: Callable, on_continue := Callable()) -> void:
 	var title := "Someone speaks your name. This time, you answer." if run.escaped else "They return you to the quiet. Somewhere, a voice still calls."
 	var scene := EndScene.new()
 	scene.escaped = run.escaped
@@ -18,4 +20,6 @@ func show(on_new_run: Callable) -> void:
 	]
 	style_banner(summary)
 	box.add_child(summary)
+	if on_continue.is_valid():
+		style_service(add_button(box, "Continue", on_continue))
 	style_service(add_button(box, "New Journey", on_new_run))
