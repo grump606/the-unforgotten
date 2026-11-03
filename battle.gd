@@ -3,9 +3,19 @@ extends Control
 ## live in res://combat/.
 
 const PLAYER_START_HP := 40
-const MAX_HAND_KEYS := 9
+## Keys 1-9 pick hand cards 1-9 and 0 picks the 10th.
+const MAX_HAND_KEYS := 10
 ## Hand cards are drawn smaller than full size so a hand fits beside the enemy row and log.
 const HAND_CARD_SCALE := 0.85
+## A hand too wide for one row first shrinks its cards down to this scale, then overlaps them
+## (the left edge with the cost stamp and hotkey stays visible; a hovered card comes to the front).
+const HAND_CARD_SCALE_MIN := 0.72
+## Gap between hand cards when they do not need to overlap.
+const HAND_GAP := 4
+## Used for the fit calculation before the hand box has been laid out (headless / first frame).
+const HAND_WIDTH_FALLBACK := 820.0
+## Most the cards may overlap, as a share of one card's width (with 10 cards this never binds at 1152 px).
+const HAND_MAX_OVERLAP := 0.55
 ## Relic badges beside the HP line are drawn a little smaller than full size.
 const BADGE_SCALE := 0.85
 
@@ -54,6 +64,9 @@ var destination_key: StringName = &""
 var relics: Array[RelicData] = []
 
 var _combat: Combat
+## "Back" button shown during the end-of-turn discard step (created in code).
+var _cancel_button: Button
+var _hint_shown := false
 var _relic_strip: RelicStrip
 var _victory := false
 var _batch_depth := 0
@@ -90,6 +103,15 @@ func _ready() -> void:
 	# Tab/Enter/Space move focus or re-press a button instead.
 	_end_turn_button.focus_mode = Control.FOCUS_NONE
 	_new_fight_button.focus_mode = Control.FOCUS_NONE
+	_cancel_button = Button.new()
+	_cancel_button.text = "Back"
+	_cancel_button.tooltip_text = "Back to playing cards (Backspace)"
+	_cancel_button.custom_minimum_size = Vector2(0, 36)
+	_cancel_button.focus_mode = Control.FOCUS_NONE
+	_cancel_button.visible = false
+	_cancel_button.pressed.connect(_on_cancel_discard_pressed)
+	_end_turn_button.get_parent().add_child(_cancel_button)
+	_end_turn_button.get_parent().move_child(_cancel_button, _end_turn_button.get_index() + 1)
 	if external_combat != null:
 		_new_fight_button.text = "Continue"
 		_attach(external_combat)
@@ -189,7 +211,35 @@ func _refresh() -> void:
 	_keep_target_alive()
 	_sync_enemies()
 	_rebuild_hand()
-	_end_turn_button.disabled = _combat.phase != Combat.Phase.PLAYER_TURN
+	_sync_turn_controls()
+
+
+## End Turn / discard-step controls. In the discard step the main button confirms ("Keep all" when
+## nothing is marked and at most Combat.HAND_SIZE cards are held, "Discard N" otherwise, or a disabled
+## "Discard N more" while too many would stay) and Back returns to playing cards.
+func _sync_turn_controls() -> void:
+	var phase := _combat.phase
+	var discarding := phase == Combat.Phase.DISCARDING
+	_cancel_button.visible = discarding
+	if discarding:
+		var marked := _combat.discard_marks.size()
+		var need := _combat.discard_required()
+		_end_turn_button.disabled = need > 0
+		if need > 0:
+			_end_turn_button.text = "Discard %d more" % need
+		elif marked == 0:
+			_end_turn_button.text = "Keep all"
+		else:
+			_end_turn_button.text = "Discard %d" % marked
+		var keep := _combat.piles.hand.size() - marked
+		_result_label.text = "Choose cards to discard. You keep %d of up to %d." % [keep, Combat.HAND_SIZE]
+		_hint_shown = true
+		return
+	_end_turn_button.text = "End Turn"
+	_end_turn_button.disabled = phase != Combat.Phase.PLAYER_TURN
+	if _hint_shown and phase != Combat.Phase.ENDED:
+		_result_label.text = ""
+	_hint_shown = false
 
 
 ## Moves the selection to the first living enemy if the current one is defeated.
@@ -281,16 +331,22 @@ func _enemy_tooltip(enemy: EnemyUnit) -> String:
 func _rebuild_hand() -> void:
 	for child in _hand_box.get_children():
 		_discard_node(child)
+	var discarding := _combat.phase == Combat.Phase.DISCARDING
+	var hand_scale := _fit_hand()
 	for i in _combat.piles.hand.size():
 		var card := _combat.piles.hand[i]
 		var view := CardView.new()
-		view.view_scale = HAND_CARD_SCALE
+		view.view_scale = hand_scale
 		view.auto_hover = true
 		view.clickable = true
 		view.set_card(card)
 		view.hotkey = i + 1 if i < MAX_HAND_KEYS else 0
-		view.preview = _damage_preview(card).strip_edges()
-		if _combat.can_play(i):
+		view.preview = _damage_preview(card).strip_edges() if not discarding else ""
+		if discarding:
+			# Every card can be toggled; marked ones are dimmed and stamped.
+			view.set_state(CardView.State.NORMAL)
+			view.discard_marked = _combat.discard_marks.has(i)
+		elif _combat.can_play(i):
 			view.set_state(CardView.State.NORMAL)
 		else:
 			view.set_state(CardView.State.UNPLAYABLE, _unplayable_note(card))
@@ -298,6 +354,24 @@ func _rebuild_hand() -> void:
 		_hand_box.add_child(view)
 	# The new views start un-hovered; once laid out, light the one under the pointer.
 	_restore_hover.call_deferred()
+
+
+## Sizes the hand row so every card fits on one line: normal scale and gap when it fits, then
+## smaller cards, then overlap. Sets the box's horizontal separation and returns the card scale.
+func _fit_hand() -> float:
+	var count := _combat.piles.hand.size()
+	var avail := _hand_box.size.x if _hand_box.size.x > 100.0 else HAND_WIDTH_FALLBACK
+	var scale := HAND_CARD_SCALE
+	var gap := float(HAND_GAP)
+	if count > 1:
+		var width := CardView.BASE.x * scale
+		if count * width + (count - 1) * gap > avail:
+			scale = clampf((avail - (count - 1) * gap) / (count * CardView.BASE.x), HAND_CARD_SCALE_MIN, HAND_CARD_SCALE)
+			width = CardView.BASE.x * scale
+			if count * width + (count - 1) * gap > avail:
+				gap = maxf((avail - count * width) / (count - 1), -HAND_MAX_OVERLAP * width)
+	_hand_box.add_theme_constant_override("h_separation", int(floorf(gap)))
+	return scale
 
 
 ## Why a hand card cannot be played right now, as a short warning for the card ("" when the
@@ -323,7 +397,10 @@ func _play_hand_card(hand_index: int) -> void:
 	if _combat == null:
 		return
 	_begin_batch()
-	_combat.play_card(hand_index, _target_index)
+	if _combat.phase == Combat.Phase.DISCARDING:
+		_combat.toggle_discard(hand_index)
+	else:
+		_combat.play_card(hand_index, _target_index)
 	_end_batch()
 
 
@@ -403,7 +480,23 @@ func _on_end_turn_pressed() -> void:
 	if _combat == null:
 		return
 	_begin_batch()
-	_combat.end_player_turn()
+	match _combat.phase:
+		Combat.Phase.PLAYER_TURN:
+			# End Turn opens the discard step; with an empty hand there is nothing to choose.
+			if _combat.piles.hand.is_empty():
+				_combat.end_player_turn()
+			else:
+				_combat.begin_discard()
+		Combat.Phase.DISCARDING:
+			_combat.confirm_discard()
+	_end_batch()
+
+
+func _on_cancel_discard_pressed() -> void:
+	if _combat == null:
+		return
+	_begin_batch()
+	_combat.cancel_discard()
 	_end_batch()
 
 
@@ -427,12 +520,18 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_on_continue_pressed()
 		return
 	# Same gate as the buttons: nothing happens outside the player's turn.
-	if _combat == null or _combat.phase != Combat.Phase.PLAYER_TURN:
+	if _combat == null or (_combat.phase != Combat.Phase.PLAYER_TURN and _combat.phase != Combat.Phase.DISCARDING):
 		return
 	var number := key.keycode - KEY_1
+	if key.keycode == KEY_0:
+		number = 9
 	if number >= 0 and number < MAX_HAND_KEYS:
 		get_viewport().set_input_as_handled()
 		_play_hand_card(number)
+		return
+	if key.keycode == KEY_BACKSPACE:
+		get_viewport().set_input_as_handled()
+		_on_cancel_discard_pressed()
 		return
 	match key.keycode:
 		KEY_E, KEY_ENTER, KEY_KP_ENTER:

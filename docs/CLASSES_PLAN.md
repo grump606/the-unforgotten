@@ -77,6 +77,7 @@ Every phase ends with `scripts/check.ps1` passing and a commit. Combat mechanics
 **Phase 6: Sim and balance.** Size: M. Edits `tools/`.
 - A `--character` option for `run_sim.gd` and `balance_sim.gd` (done).
 - Teach both policies the new effect kinds.
+- (Rules note: since the `hand-keep` change the hand is no longer discarded each turn; see README, "Hand and discard rules". Bot escape numbers in these older docs predate it.)
 - Tune each class: greedy bot 40 to 50% escape rate, and the three classes within about 10 points of each other. Smart bot reported for each.
 
 **Phase 7: Story.** Size: M. Edits `data/story/`, `run/story_content.gd`.

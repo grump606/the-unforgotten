@@ -4,6 +4,8 @@
 
 The run used to be 12 stops with four regular fights and the Conductor. It is now 21 stops in two acts: eight regular fights, a mid-boss (the Brakeman) exactly halfway, and the Conductor at the end. Later fights are measurably harder than earlier ones.
 
+> **Hand-rule note:** every bot number in this document (per-stop curves, before/after tables) was measured with the old rule that discarded the whole hand each turn. The keep-up-to-5 rule (README, "Hand and discard rules") changed them; current figures are in the README sim sections and `docs/NEXT_STEPS.md`.
+
 ## The line
 
 Defined in `RunState._default_line()`. Tier is the act (0 up to and including the mid-boss, 1 after it); fight is the 0-based number of a regular fight.

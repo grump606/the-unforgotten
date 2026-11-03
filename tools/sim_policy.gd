@@ -18,8 +18,48 @@ static func play_turn(combat: Combat) -> bool:
 			return false
 		if combat.phase != Combat.Phase.PLAYER_TURN:
 			break
-	combat.end_player_turn()
-	return true
+	# A play can end the fight (the last enemy died); there is then no turn left to end.
+	if combat.phase != Combat.Phase.PLAYER_TURN:
+		return true
+	return combat.end_player_turn(discards_for(combat))
+
+
+## End-of-turn discard: keeps the Combat.HAND_SIZE best cards by keep_score and discards the rest.
+## With HAND_SIZE or fewer cards in hand it discards nothing (never pointlessly).
+static func discards_for(combat: Combat) -> Array[int]:
+	var scores: Array[float] = []
+	for card in combat.piles.hand:
+		scores.append(keep_score(combat, card))
+	return worst_indices(scores)
+
+
+## Indices (sorted) of the cards to throw away so that Combat.HAND_SIZE of the highest `scores`
+## remain; earlier cards win ties. Empty when no more than HAND_SIZE cards are held.
+static func worst_indices(scores: Array[float]) -> Array[int]:
+	var order: Array[int] = []
+	for i in scores.size():
+		order.append(i)
+	# Stable order: higher score first, then lower index.
+	order.sort_custom(func(a: int, b: int) -> bool: return scores[a] > scores[b] or (scores[a] == scores[b] and a < b))
+	var out: Array[int] = []
+	for k in range(Combat.HAND_SIZE, order.size()):
+		out.append(order[k])
+	out.sort()
+	return out
+
+
+## How much the greedy bot wants to keep a card it could not play this turn: attacks, then defence,
+## then the rest, cheaper first (easier to afford next turn); a card it would refuse to play anyway
+## (pointless now, or too costly in HP) ranks last.
+static func keep_score(combat: Combat, card: CardData) -> float:
+	var tier := 1.0
+	if is_damage_card(card):
+		tier = 3.0
+	elif is_block_card(card):
+		tier = 2.0
+	if _is_pointless(combat, card) or _too_costly_in_hp(combat, card):
+		tier = 0.0
+	return tier * 10.0 - card.cost
 
 
 ## Hand index to play next, or -1 to end the turn. Priority: an Expose card
