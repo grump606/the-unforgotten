@@ -10,7 +10,6 @@ extends RefCounted
 
 enum StopType { COMBAT, REST, STORY, VENDOR }
 
-const REST_HEAL := 36
 const REWARD_CHOICES := 3
 ## How many of a reward's choices come from the character's own cards (the rest are neutral).
 const REWARD_CLASS_CHOICES := 2
@@ -282,14 +281,34 @@ func _finish_reward() -> void:
 	_advance()
 
 
-## Heals at a REST stop and moves on. Returns HP restored, or -1 if not at a rest stop.
+## Heals to full at a REST stop and moves on. Returns HP restored, or -1 if not at a rest stop.
 func rest() -> int:
 	var stop := current_stop()
 	if stop == null or stop.type != StopType.REST:
 		return -1
-	var restored := player.heal(REST_HEAL)
+	var restored := player.heal(player.max_hp - player.hp)
 	_advance()
 	return restored
+
+
+## HP the rest at this stop will restore (0 off a rest stop).
+func rest_heal_amount() -> int:
+	var stop := current_stop()
+	if stop == null or stop.type != StopType.REST:
+		return 0
+	return player.max_hp - player.hp
+
+
+## Which rest of the line this is, counting from 1 (0 off a rest stop).
+func rest_number() -> int:
+	var stop := current_stop()
+	if stop == null or stop.type != StopType.REST:
+		return 0
+	var count := 0
+	for i in stop_index + 1:
+		if stops[i].type == StopType.REST:
+			count += 1
+	return count
 
 
 ## The beat to show at a STORY stop, or null if not at one or it failed to load

@@ -66,7 +66,7 @@ Why such a small ramp: the combat numbers are on breakpoints (a Shove does 6, a 
 
 | Change | Was | Now | Why |
 |---|---|---|---|
-| `REST_HEAL` | 24 | 36 | The line has twice the fights between recoveries; a rest after the mid-boss must restore a real fraction. |
+| `REST_HEAL` | 24 | 36 | The line has twice the fights between recoveries; a rest after the mid-boss must restore a real fraction. (Removed later: a rest now heals to full.) |
 | Deserter max HP | 47 | 52 | Same attrition argument; the Deserter was the class that wore down fastest in act 2. |
 | Medium max HP | 41 | 56 | The Medium is the most HP-sensitive class (see NEXT_STEPS); at 41 HP it escaped about 0 to 16 percent of runs. |
 | Pickpocket max HP | 34 | 34 | Unchanged in the first pass: it already sat at the top of the target band. |
