@@ -2,6 +2,8 @@ class_name SelectScreen
 extends RunScreen
 ## The character select screen: one panel per passenger, plus a Back button along the bottom edge.
 
+const HEADING := "Choose who answers the voice"
+
 ## The container holding the character panels (re-centred as the layout moves).
 var _center: CenterContainer
 var _host: Control
@@ -12,6 +14,11 @@ var _host: Control
 func show(host: Control, on_play: Callable, back := Callable()) -> void:
 	_host = host
 	add_backdrop(SelectScene.new())
+	var heading := Label.new()
+	heading.text = HEADING
+	MenuStyle.heading(heading, 30)
+	body.add_child(heading)
+	heading.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, 18)
 	_center = CenterContainer.new()
 	body.add_child(_center)
 	var column := VBoxContainer.new()
@@ -26,7 +33,8 @@ func show(host: Control, on_play: Callable, back := Callable()) -> void:
 		back_button.text = "Back"
 		back_button.pressed.connect(back)
 		body.add_child(back_button)
-		back_button.custom_minimum_size = Vector2(140, 34)
+		back_button.theme_type_variation = MenuStyle.PLAQUE_SMALL
+		back_button.custom_minimum_size = Vector2(160, 44)
 		back_button.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 14)
 	for id in StarterContent.character_ids():
 		var character := StarterContent.character(id)

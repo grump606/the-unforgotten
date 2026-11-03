@@ -63,6 +63,7 @@ func build(box: Container, on_back: Callable) -> void:
 	box.add_child(mute_button)
 	credits_button = Button.new()
 	credits_button.text = "Audio credits"
+	credits_button.theme_type_variation = MenuStyle.PLAQUE_SMALL
 	credits_button.pressed.connect(_toggle_credits)
 	box.add_child(credits_button)
 	credits_scroll = ScrollContainer.new()
