@@ -32,6 +32,11 @@ const HEIGHTS := {
 	&"hound": 115.0, &"crow": 105.0, &"conductor": 210.0, &"brakeman": 215.0, &"ghost": 140.0,
 }
 const DEFAULT_HEIGHT := 170.0
+## Boss figures are drawn this much larger than a regular enemy (shrunk only if the stage is too short).
+const BOSS_SCALE := 1.5
+## A boss is never fitted below this multiple of the regular figure height.
+const BOSS_MIN_SCALE := 1.1
+const SHAKE_TIME := 0.5
 ## The stage is roomy, so every figure is drawn this much larger than the table above.
 const HEIGHT_SCALE := 1.2
 ## The player figure height before HEIGHT_SCALE.
@@ -60,6 +65,12 @@ var art_key: StringName = &"ghost"
 var class_id: StringName = &""
 var figure_height := DEFAULT_HEIGHT
 var targeted := false
+## A boss is drawn BOSS_SCALE larger and has no per-figure HP bar (the battle shows a wide one on top).
+var is_boss := false
+## Extra scale of the drawn figure (the boss entrance tweens it up to 1).
+var entrance := 1.0
+## The figure height of a regular enemy of this kind, before any boss scaling.
+var base_height := DEFAULT_HEIGHT
 ## Seconds of animation so far; only advance() moves it.
 var time := 0.0
 ## Offsets the idle breath so fighters of one type do not breathe in step.
@@ -75,6 +86,7 @@ var _art_facing := -1.0
 const BLOCKED_COLOR := Color(0.55, 0.78, 1.0)
 
 var _flash := 0.0
+var _shake := 0.0
 var _lunge := 0.0
 var _lunge_delay := 0.0
 var _recoil := 0.0
@@ -115,13 +127,16 @@ func _process(delta: float) -> void:
 
 
 ## Shows an enemy from scratch: picks its figure and snaps every animation to its resting state.
-func set_enemy(enemy: EnemyUnit) -> void:
+func set_enemy(enemy: EnemyUnit, boss := false) -> void:
+	is_boss = boss
+	entrance = 1.0
 	is_player = false
 	facing = -1.0
 	_art_facing = -1.0
 	unit = enemy
 	art_key = art_key_for(enemy.data.id)
-	figure_height = float(HEIGHTS.get(art_key, DEFAULT_HEIGHT)) * HEIGHT_SCALE
+	base_height = float(HEIGHTS.get(art_key, DEFAULT_HEIGHT)) * HEIGHT_SCALE
+	figure_height = base_height * (BOSS_SCALE if boss else 1.0)
 	_tex = null
 	var fig := PaintedArt.enemy_figure(art_key)
 	if not fig.is_empty():
@@ -151,15 +166,40 @@ func _reset() -> void:
 	_last_hp = unit.hp
 	_last_block = unit.block
 	_flash = 0.0
+	_shake = 0.0
 	_lunge = 0.0
 	_lunge_delay = 0.0
 	_recoil = 0.0
 	_pop = 0.0
 	_floats.clear()
 	fade = 1.0 if is_defeated() else 0.0
+	_resize()
+
+
+func _resize() -> void:
 	custom_minimum_size = Vector2(maxf(figure_width() + 20.0, MIN_WIDTH), OVERHEAD + figure_height + UNDER)
 	size = custom_minimum_size
 	queue_redraw()
+
+
+## Boss only: shrinks the figure so the whole control (intent above, bar room below) is at most `max_total`
+## tall, but never below BOSS_MIN_SCALE times a regular figure. Restores the full boss size when it fits.
+func fit_boss(max_total: float) -> void:
+	if not is_boss:
+		return
+	var room := max_total - OVERHEAD - UNDER
+	figure_height = clampf(room, base_height * BOSS_MIN_SCALE, base_height * BOSS_SCALE)
+	_resize()
+
+
+## A short sideways shake of the whole figure (a boss changing phase).
+func shake() -> void:
+	_shake = 1.0
+
+
+## Current shake strength, 1 down to 0 (read by tests).
+func shake_amount() -> float:
+	return _shake
 
 
 ## The art key for an enemy id; unknown ids get the generic ghost.
@@ -277,6 +317,7 @@ func advance(delta: float) -> void:
 	else:
 		_lunge = maxf(_lunge - delta / LUNGE_TIME, 0.0)
 	_flash = maxf(_flash - delta / FLASH_TIME, 0.0)
+	_shake = maxf(_shake - delta / SHAKE_TIME, 0.0)
 	_recoil = maxf(_recoil - delta / RECOIL_TIME, 0.0)
 	_pop = maxf(_pop - delta / POP_TIME, 0.0)
 	for r in _reactions:
@@ -404,7 +445,8 @@ func _draw() -> void:
 	if alive:
 		if not is_player:
 			_draw_intent(a)
-		_draw_bar(a)
+		if not is_boss:
+			_draw_bar(a)
 		_draw_chips(a)
 	if targeted and not is_defeated():
 		var mx := size.x / 2.0
@@ -436,7 +478,7 @@ func _draw_figure(ground: Vector2, a: float) -> void:
 	var lunge := lunge_amount()
 	var stance := stance_motion()
 	var dx := facing * (lunge * 46.0) - facing * sin(_recoil * PI) * 16.0
-	var shake := sin(time * 70.0) * 2.5 * _flash
+	var shake := sin(time * 70.0) * 2.5 * _flash + sin(time * 55.0) * 9.0 * _shake * (0.0 if CardView.reduced_motion else 1.0)
 	var squash := 1.0 + breath() * 0.008 - stance.z + lunge * 0.04
 	var stretch := 1.0 + lunge * 0.04
 	var sink := fade * 18.0
@@ -446,7 +488,7 @@ func _draw_figure(ground: Vector2, a: float) -> void:
 	elif _hovered and not is_defeated() and not is_player:
 		tint = Color(1.12, 1.12, 1.12, a)
 	var flip := 1.0 if is_equal_approx(facing, _art_facing) else -1.0
-	draw_set_transform(ground + Vector2(dx + shake + stance.x, sink), stance.y, Vector2(stretch * flip, squash))
+	draw_set_transform(ground + Vector2(dx + shake + stance.x, sink), stance.y, Vector2(stretch * flip, squash) * entrance)
 	if _tex != null:
 		var w := figure_width()
 		draw_texture_rect_region(_tex, Rect2(-w / 2.0, -figure_height, w, figure_height), _region, tint)
