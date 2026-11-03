@@ -168,6 +168,32 @@ static func style_service(button: Button) -> void:
 	button.add_theme_color_override("font_disabled_color", Color(0.62, 0.57, 0.52))
 
 
+## The memento-paper surface behind story text (dark ink reads on it): the textured paper when
+## present, flat parchment otherwise. Shared by the story and rest cards.
+static func paper_style() -> StyleBox:
+	var surface := TactileArt.surface()
+	var paper: StyleBox
+	if surface != null:
+		var textured := StyleBoxTexture.new()
+		textured.texture = surface
+		textured.texture_margin_left = 16
+		textured.texture_margin_top = 16
+		textured.texture_margin_right = 16
+		textured.texture_margin_bottom = 16
+		textured.set_content_margin_all(22)
+		paper = textured
+	else:
+		# Without the paper texture, flat memento paper keeps the dark ink readable.
+		var flat := StyleBoxFlat.new()
+		flat.bg_color = Color(0.89, 0.83, 0.68)
+		flat.set_border_width_all(3)
+		flat.border_color = Color(0.45, 0.30, 0.15)
+		flat.set_corner_radius_all(5)
+		flat.set_content_margin_all(22)
+		paper = flat
+	return paper
+
+
 ## Shrinks a plaque button to `height` without breaking its border: the nine-slice's top and bottom
 ## corners are cut to half the height (a plaque is sliced 22 px deep, so a button under 44 px tall
 ## would otherwise draw its corners over each other).
