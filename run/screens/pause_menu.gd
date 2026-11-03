@@ -8,6 +8,8 @@ var button: Button
 var overlay: Control
 var box: VBoxContainer
 var backdrop: PauseScene
+## The sound page while it is open (kept alive: the sliders call back into it).
+var sound_panel: AudioSettingsPanel
 
 var _host: Control
 ## Returns the current RunState (null before a run starts).
@@ -70,6 +72,9 @@ func handle_key(event: InputEvent) -> void:
 func set_paused(on: bool) -> void:
 	_host.get_tree().paused = on
 	overlay.visible = on
+	var audio := _host.get_node_or_null("/root/AudioManager")
+	if audio != null:
+		audio.set_paused_duck(on)
 	if on:
 		var run: RunState = _get_run.call()
 		backdrop.set_character(run.character.id if run != null and run.character != null else &"")
@@ -90,8 +95,15 @@ func show_options(message: String) -> void:
 		box.add_child(strip)
 	RunScreen.add_button(box, "Continue", set_paused.bind(false))
 	RunScreen.add_button(box, "Save & Exit", _try_save_and_exit)
+	RunScreen.add_button(box, "Sound", _show_sound)
 	RunScreen.add_button(box, "New Journey", _confirm_new_run)
 	_add_label("Your journey is saved on arrival at each destination.\nSave & Exit returns you to the start of this destination.")
+
+
+func _show_sound() -> void:
+	_clear()
+	sound_panel = AudioSettingsPanel.new()
+	sound_panel.build(box, show_options.bind(""))
 
 
 func _confirm_new_run() -> void:

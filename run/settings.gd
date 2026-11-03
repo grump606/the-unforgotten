@@ -12,6 +12,11 @@ const MAX_FILE_BYTES := 4096
 ## Defaults to on, which is how the game behaved before this setting existed.
 var update_check_enabled := true
 
+## Volume preferences (see audio/audio_prefs.gd): the raw "audio" object from the file, empty until the
+## player first changes a volume. It is only written back when non-empty, so a settings file from before
+## audio existed is unchanged by a save that does not touch audio.
+var audio := {}
+
 ## Keys this version does not know, carried through load and save untouched.
 var extras := {}
 
@@ -25,8 +30,10 @@ static func from_dict(data: Variant) -> Settings:
 		var value: Variant = dict.get("update_check_enabled")
 		if typeof(value) == TYPE_BOOL:
 			settings.update_check_enabled = value
+		if typeof(dict.get("audio")) == TYPE_DICTIONARY:
+			settings.audio = (dict["audio"] as Dictionary).duplicate(true)
 		for key in dict:
-			if key != "update_check_enabled":
+			if key != "update_check_enabled" and key != "audio":
 				settings.extras[key] = dict[key]
 	return settings
 
@@ -34,6 +41,8 @@ static func from_dict(data: Variant) -> Settings:
 static func to_dict(settings: Settings) -> Dictionary:
 	var data := settings.extras.duplicate(true)
 	data["update_check_enabled"] = settings.update_check_enabled
+	if not settings.audio.is_empty():
+		data["audio"] = settings.audio
 	return data
 
 
