@@ -10,14 +10,14 @@ signal play_pressed(character_id: StringName)
 
 const BORDER_WIDTH := 4
 const PAD := 5
-const PORTRAIT_HEIGHT := 88.0
+const PORTRAIT_HEIGHT := 66.0
 ## The figures are drawn in a box this tall and scaled down to the portrait.
-const FIGURE_HEIGHT := 84.0
+const FIGURE_HEIGHT := 62.0
 ## The painted portrait shows this top share of the class sprite: head, shoulders and chest.
 const PAINTED_CROP := 0.32
 ## Starting-deck cards: four per row, small enough that three panels sit comfortably across 1152 px
 ## and the whole group fits the window height without crowding the edges.
-const DECK_CARD_SCALE := 0.5
+const DECK_CARD_SCALE := 0.4
 const DECK_COLUMNS := 4
 const DECK_GAP := 2
 const HOVER_SCALE := 1.02
@@ -53,12 +53,12 @@ func _init(character: Character = null) -> void:
 	var title := HBoxContainer.new() # name and HP share a line to save height
 	title.alignment = BoxContainer.ALIGNMENT_CENTER
 	title.add_theme_constant_override("separation", 10)
-	title.add_child(_label(c.display_name, 21, _p.ink))
+	title.add_child(_label(c.display_name, 19, _p.ink))
 	title.add_child(_label("%d HP" % c.max_hp, 15, _p.accent))
 	box.add_child(title)
-	var pitch := _label(c.pitch, 12, Color(_p.ink, 0.85))
+	var pitch := _label(c.pitch, 11, Color(_p.ink, 0.85))
 	pitch.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	pitch.custom_minimum_size = Vector2(0, 2.0 * 15.0) # two lines, so decks line up across panels
+	pitch.custom_minimum_size = Vector2(0, 3.0 * 14.0) # three lines (the longest pitch wraps to three), so decks line up across panels
 	box.add_child(pitch)
 	box.add_child(_label("Starting deck:", 12, Color(_p.ink, 0.7)))
 	box.add_child(_deck_grid(c.starting_deck))
@@ -153,6 +153,10 @@ func _deck_grid(cards: Array[CardData]) -> GridContainer:
 
 ## Banner-coloured button with a thick gold focus ring, so keyboard focus is unmistakable.
 func _style_button(button: Button) -> void:
+	if MenuStyle.has_plaques():
+		button.theme_type_variation = MenuStyle.PLAQUE_SMALL
+		button.custom_minimum_size = Vector2(0, 44)
+		return
 	var banner: Color = _p.banner
 	var fills := {"normal": banner, "hover": banner.lightened(0.18), "pressed": banner.darkened(0.2), "disabled": banner.darkened(0.4)}
 	for state in fills:
