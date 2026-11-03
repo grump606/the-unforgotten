@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vendor Stall Reference</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: the stall painting full width, then keeper and in-game side by side, then a reference table of files and layout facts. */
+:root{--bg:#e9e6dd;--fg:#171d28;--dim:#4d5a5e;--card:#f6f3ea;--stage:#171d28;--line:#b9b4a4;--accent:#2f7468;--font-d:"Cormorant Garamond",Georgia,serif;--font-b:"Source Sans 3",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10151d;--fg:#e8e1d0;--dim:#a6b9b5;--card:#171d28;--stage:#0c1017;--line:#33444d;--accent:#78a99b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#10151d;--fg:#e8e1d0;--dim:#a6b9b5;--card:#171d28;--stage:#0c1017;--line:#33444d;--accent:#78a99b;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-b);font-size:16px;line-height:1.55;padding-block:32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1400px;margin:0 auto;display:flex;flex-direction:column;gap:32px}
+h1{font-family:var(--font-d);font-weight:600;font-size:clamp(30px,5vw,46px);line-height:1.1;margin:0;text-wrap:balance}
+h2{font-family:var(--font-d);font-weight:600;font-size:28px;margin:0 0 8px}
+.lede{color:var(--dim);max-width:65ch;margin:8px 0 0}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:10px;display:flex;flex-direction:column;gap:10px;min-width:0}
+figure img{width:100%;height:auto;display:block;border-radius:2px}
+figcaption{display:flex;flex-direction:column;gap:2px;padding:0 4px 4px}
+.tag{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.name{font-family:var(--font-d);font-size:26px;font-weight:600;line-height:1.15}
+.note{color:var(--dim);font-size:15px}
+.pair{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:20px;align-items:start}
+.pair .stage{background:var(--stage);border-radius:2px;padding:12px;display:flex;justify-content:center}
+.pair .stage img{width:auto;max-width:100%;max-height:560px}
+@media (max-width:760px){.pair{grid-template-columns:minmax(0,1fr)}}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px 32px}
+.facts h3{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 4px;font-weight:600}
+.facts p{margin:0}
+code{font-family:ui-monospace,Consolas,monospace;font-size:13px;overflow-wrap:anywhere}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Source+Sans+3:wght@400;600&display=swap">
+<div class="wrap">
+<header>
+<h1>The vendor stall</h1>
+<p class="lede">Reference for the shop screen: the painted stall, the shopkeeper, and how the screen looks in the game right now. Click an image to see it larger.</p>
+</header>
+
+<figure><a href="stall_bg.jpg"><img src="stall_bg.jpg" alt="Painted stall: a draped awning over a long counter with a clock, luggage, glass bottles, a lantern and a flower vase, on a rain-wet quay"></a>
+<figcaption><span class="tag">Backdrop</span><span class="name">The Lost-Property Stall</span><span class="note">1536 × 864, painted. The counter and its cloths cross the middle of the frame, the warm lantern and bottles sit on the right, and the paving below is left dark for the service buttons.</span></figcaption></figure>
+
+<div class="pair">
+<figure><div class="stage"><a href="keeper.png"><img src="keeper.png" alt="The shopkeeper, an older woman in a patched grey hood with a pale scarf and a brooch, hands folded"></a></div>
+<figcaption><span class="tag">Shopkeeper</span><span class="name">The keeper</span><span class="note">1254 × 1254 transparent PNG, shown cropped to the painted pixels. One frame: no blink and no low-gold variant. The game places her face at the head anchor and lets her hands drop behind the counter edge.</span></figcaption></figure>
+<figure><a href="in_game.jpg"><img src="in_game.jpg" alt="The vendor screen in the game: a large dark panel over the stall with three cards, a relic, and three plaque buttons"></a>
+<figcaption><span class="tag">In the game now</span><span class="name">Medium, 33/60 HP, 100 gold</span><span class="note">A dark backing panel sits over the stall, so the painting and the keeper show only faintly behind it. Three cards, a relic offer, and the plaque buttons Remove a card, Heal 12 HP and Leave.</span></figcaption></figure>
+</div>
+
+<section>
+<h2>Reference</h2>
+<div class="facts">
+<div><h3>Files</h3><p><code>art/layers/screens/vendor/bg.png</code> and <code>keeper.png</code>. Drawn by <code>run/vendor_scene.gd</code> (<code>VendorScene</code>), added behind the panel by <code>run.gd</code>. The keeper prompt is in <code>art/CHATGPT_VENDOR_BRIEF.md</code>; the design notes are in <code>docs/VENDOR_ART_DESIGN.md</code>.</p></div>
+<div><h3>What the screen holds</h3><p>A greeting banner, three card offers with prices, one relic offer with Buy relic, and three service buttons: Remove a card (15 gold), Heal 12 HP (12 gold) and Leave. Card prices are 10, 16 or 24 gold, and a relic costs about 75.</p></div>
+<div><h3>How the stall follows the panel</h3><p>The stall reads <code>head_anchor</code>, <code>counter_anchor</code> and <code>service_anchors</code> every frame, so it tracks the panel. Each service button gets a small code-drawn prop beside it: a ticket punch, a medicine bottle and a case. The till, bell, dust motes and the lantern flicker are also drawn in code.</p></div>
+<div><h3>Debug launch</h3><p><code>.\scripts\debug_fight.ps1 -Screen vendor</code> opens the first shop with 100 gold and the player at 55% HP; add <code>-Character</code>, <code>-Gold</code> and <code>-Hp</code>, or <code>vendor:2</code> for the second shop. Nothing is saved.</p></div>
+</div>
+</section>
+</div>
+
+</html>
