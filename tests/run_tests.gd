@@ -54,6 +54,7 @@ func _initialize() -> void:
 	_failures += load("res://tests/vendor_tests.gd").new().run()
 	_failures += load("res://tests/smart_policy_tests.gd").new().run()
 	_failures += load("res://tests/run_save_tests.gd").new().run()
+	_failures += load("res://tests/hand_tests.gd").new().run()
 	_failures += load("res://tests/mechanics_tests.gd").new().run()
 	_failures += load("res://tests/medium_tests.gd").new().run()
 	_failures += load("res://tests/relic_tests.gd").new().run()
@@ -630,10 +631,11 @@ func _test_turn_start_resets_energy_and_hand() -> void:
 	combat.start()
 	var first_hand: Array[CardData] = []
 	first_hand.append_array(combat.piles.hand)
-	combat.end_player_turn()
+	var all: Array[int] = [0, 1, 2, 3, 4]
+	combat.end_player_turn(all)
 	_check(combat.energy == Combat.ENERGY_PER_TURN, "unspent energy does not carry into the next turn")
 	_check(combat.piles.hand.size() == Combat.HAND_SIZE, "the next hand is exactly the hand size, not the old hand plus new cards")
-	_check(combat.piles.discard_pile.size() == first_hand.size(), "the old hand went to the discard pile")
+	_check(combat.piles.discard_pile.size() == first_hand.size(), "the discarded hand went to the discard pile")
 	combat.play_card(0)
 	combat.end_player_turn()
 	_check(combat.energy == Combat.ENERGY_PER_TURN, "energy is full again after spending some")
