@@ -2,7 +2,10 @@ class_name MainMenuScreen
 extends RunScreen
 ## The start screen, shown on every launch: Continue (only when a valid save exists), New Run, Exit.
 
-const BUTTON_WIDTH := 220.0
+const BUTTON_WIDTH := 320.0
+const BUTTON_HEIGHT := 52.0
+## Width of the carved title on a 1152-wide screen.
+const TITLE_WIDTH := 600.0
 
 var continue_button: Button
 var new_run_button: Button
@@ -56,31 +59,42 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 	add_backdrop(MenuScene.new())
 	var box := panel("The Unforgotten")
 	var title := box.get_child(0) as Label
-	MenuStyle.heading(title, 46)
+	MenuStyle.heading(title, 64)
 	title.add_theme_color_override("font_color", Color("#d7d0bc"))
 	title.add_theme_color_override("font_outline_color", Color(0.02, 0.01, 0.02, 0.9))
 	title.add_theme_constant_override("outline_size", 3)
+	_add_title_art(box, title)
 	var subtitle := make_label("Someone still remembers you.")
-	subtitle.add_theme_color_override("font_color", Color("#a6b9b5"))
+	subtitle.add_theme_color_override("font_color", Color("#8fb8ab"))
+	subtitle.add_theme_font_override("font", MenuStyle.serif_font())
+	subtitle.add_theme_font_size_override("font_size", 22)
 	box.add_child(subtitle)
 	if saved != null:
 		# The saved run's details sit in a compact panel of their own.
 		var details := PanelContainer.new()
 		details.name = "SavedRunDetails"
-		details.add_theme_stylebox_override("panel", _compact_panel_style())
-		details.add_child(make_label("Your journey waits at %s.\n%s  ·  HP %d/%d  ·  Gold %d  ·  Deck %d" % [
+		var tablet := MenuStyle.tablet_box()
+		details.add_theme_stylebox_override("panel", tablet if tablet != null else _compact_panel_style())
+		details.custom_minimum_size = Vector2(BUTTON_WIDTH + 140.0, 0)
+		details.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		var summary := make_label("Your journey waits at %s.\n%s  ·  HP %d/%d  ·  Gold %d  ·  Deck %d" % [
 			DestinationArt.label_at(saved.stop_index), saved.player.display_name, saved.player.hp, saved.player.max_hp, saved.gold, saved.deck.size(),
-		]))
+		])
+		summary.add_theme_font_override("font", MenuStyle.serif_font())
+		summary.add_theme_font_size_override("font_size", 18)
+		summary.add_theme_color_override("font_color", MenuStyle.TEXT)
+		details.add_child(summary)
 		box.add_child(details)
 		continue_button = add_button(box, "Continue", on_continue)
 	new_run_button = add_button(box, "New Journey", on_new_run)
+	new_run_button.theme_type_variation = MenuStyle.PLAQUE
 	exit_button = add_button(box, "Exit", on_exit)
 	# One clear primary action: Continue when there is a save, otherwise New Journey.
-	(continue_button if continue_button != null else new_run_button).theme_type_variation = MenuStyle.PRIMARY
-	exit_button.theme_type_variation = MenuStyle.QUIET
+	(continue_button if continue_button != null else new_run_button).theme_type_variation = MenuStyle.PLAQUE_PRIMARY
+	exit_button.theme_type_variation = MenuStyle.PLAQUE
 	for button in [continue_button, new_run_button, exit_button]:
 		if button != null:
-			button.custom_minimum_size = Vector2(BUTTON_WIDTH, 36)
+			button.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
 			button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if on_toggle_updates.is_valid():
 		# A small button in the bottom-right corner of the screen, out of the way of the main choices.
@@ -104,9 +118,9 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 			updates_button.tree_exiting.connect(update_notice.changed.disconnect.bind(restyle))
 	sound_button = Button.new()
 	sound_button.text = "Sound"
-	sound_button.theme_type_variation = MenuStyle.QUIET
+	sound_button.theme_type_variation = MenuStyle.PLAQUE
 	box.add_child(sound_button)
-	sound_button.custom_minimum_size = Vector2(BUTTON_WIDTH, 30)
+	sound_button.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
 	sound_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	sound_button.pressed.connect(_open_sound.bind(box))
 	(continue_button if continue_button != null else new_run_button).grab_focus()
@@ -148,3 +162,32 @@ func _open_sound(box: VBoxContainer) -> void:
 		for child in hidden:
 			child.visible = true
 		sound_button.grab_focus())
+
+
+## Replaces the title text with the carved lettering and puts the bell divider under it. The text
+## label stays in the tree, hidden, so the screen still has its title when the art is missing.
+func _add_title_art(box: VBoxContainer, title: Label) -> void:
+	var art := PaintedArt.texture(MenuStyle.TITLE_PATH)
+	if art == null:
+		return
+	title.visible = false
+	var rect := TextureRect.new()
+	rect.name = "TitleArt"
+	rect.texture = art
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.custom_minimum_size = Vector2(TITLE_WIDTH, TITLE_WIDTH * art.get_height() / art.get_width())
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(rect)
+	box.move_child(rect, 1)
+	var divider_art := PaintedArt.texture(MenuStyle.DIVIDER_PATH)
+	if divider_art != null:
+		var divider := TextureRect.new()
+		divider.name = "TitleDivider"
+		divider.texture = divider_art
+		divider.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		divider.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		divider.custom_minimum_size = Vector2(TITLE_WIDTH * 0.62, TITLE_WIDTH * 0.62 * divider_art.get_height() / divider_art.get_width())
+		divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(divider)
+		box.move_child(divider, 2)

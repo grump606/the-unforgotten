@@ -87,6 +87,8 @@ func add_remove_picker(box: VBoxContainer, on_pick: Callable, on_cancel: Callabl
 static func add_button(box: Container, text: String, on_pressed: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
+	button.theme_type_variation = MenuStyle.PLAQUE_SMALL
+	button.custom_minimum_size = Vector2(0, 44)
 	button.pressed.connect(on_pressed)
 	button.pressed.connect(sfx.bind(&"click"))
 	box.add_child(button)
@@ -138,6 +140,10 @@ static func style_banner(label: Label) -> void:
 
 ## A brass-edged counter button; the stock focus outline is kept visible for the keyboard.
 static func style_service(button: Button) -> void:
+	if MenuStyle.has_plaques():
+		button.theme_type_variation = MenuStyle.PLAQUE_SMALL
+		button.custom_minimum_size = Vector2(0, 44)
+		return
 	var states := {"normal": MenuStyle.PANEL, "hover": MenuStyle.PANEL_HOVER, "pressed": Color("#101720"), "disabled": Color("#182026")}
 	for state in states:
 		var style := StyleBoxFlat.new()
