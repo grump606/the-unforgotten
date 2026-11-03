@@ -17,6 +17,7 @@ func run() -> int:
 	_test_plays_block()
 	_test_fight_start_haunt()
 	_test_turn_start_heal_per_haunted()
+	_test_haunt_cap_relics()
 	_test_haunt_bonus()
 	_test_relics_stack()
 	_test_vendor_relic_offer()
@@ -216,6 +217,18 @@ func _test_turn_start_heal_per_haunted() -> void:
 	var both := Combat.new(Combatant.new("p", 40, 10), _deck(10, _card(1, _dmg(1))), _enemies(2, 99, []), 0, _relics([_relic(RelicData.Kind.FIGHT_START_HAUNT, 1), _relic(RelicData.Kind.TURN_START_HEAL_PER_HAUNTED, 2)]))
 	both.start()
 	_check(both.player.hp == 14, "starting Haunt is applied before the turn-start heal (got %d)" % both.player.hp)
+
+
+func _test_haunt_cap_relics() -> void:
+	var capped: Array[EnemyData] = [EnemyData.make("E", 99, [], &"", 3)]
+	var start := Combat.new(Combatant.new("p", 40), _deck(10, _card(1, _dmg(1))), capped, 5, _relics([_relic(RelicData.Kind.FIGHT_START_HAUNT, 8)]))
+	start.start()
+	_check(start.enemies[0].status_turns(Combatant.Status.HAUNTED) == 3, "fight-start Haunt respects the cap")
+	var haunt := _card(0, [CardEffect.make(CardEffect.Kind.HAUNT, 3)])
+	var bonus := Combat.new(Combatant.new("p", 40), _deck(10, haunt), capped, 5, _relics([_relic(RelicData.Kind.HAUNT_BONUS, 4)]))
+	bonus.start()
+	bonus.play_card(0)
+	_check(bonus.enemies[0].status_turns(Combatant.Status.HAUNTED) == 3, "Haunt bonus cannot push Haunt past the cap")
 
 
 func _test_haunt_bonus() -> void:

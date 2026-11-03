@@ -157,10 +157,37 @@ Result against the goals:
 - Greedy escape: 36.8 / 28.9 / 27.7. All in or at the edge of 28 to 40 (the Medium is 0.3 under, inside noise).
 - Smart escape: 61.0 / 70.8 / 67.3, in range, the Pickpocket marginally over 70. One HP point either way trades about 4 points of smart for 3 of greedy for that class, so it was left.
 - Brakeman, greedy: 27 / 21 / 1 percent, about 25 for the Deserter, under for the Pickpocket (was 36 for both).
-- Brakeman, smart: 3.6 / 1.9 / 0.4 percent, BELOW the 8 to 15 target. Not reached on purpose: across every Brakeman shape tried the greedy loss was 3.5 to 7 times the smart loss, so smart at 8 percent meant greedy at 30 to 50. The Medium cannot be raised at all by Brakeman numbers (HP 130, block 28 changed nothing; raising damage to hit 8 percent put the Deserter at 45). The Medium's Haunt and burst kill the Brakeman before its damage matters, and the only Medium-specific lever (lower max HP) would hurt its greedy escape. Needs a class-aware answer (a Brakeman trait that counters Haunt) rather than numbers.
+- Brakeman, smart: 3.6 / 1.9 / 0.4 percent, BELOW the 8 to 15 target. Not reached on purpose: across every Brakeman shape tried the greedy loss was 3.5 to 7 times the smart loss, so smart at 8 percent meant greedy at 30 to 50. The Medium cannot be raised at all by Brakeman numbers (HP 130, block 28 changed nothing; raising damage to hit 8 percent put the Deserter at 45). The Medium's Haunt and burst kill the Brakeman before its damage matters, and the only Medium-specific lever (lower max HP) would hurt its greedy escape. Needs a class-aware answer (a Brakeman trait that counters Haunt) rather than numbers. Resolved for the Medium by the Haunt cap, see "Haunt cap on the Brakeman" below.
 - Curve: per-stop loss still rises within each act with no cliff; the Conductor is the hardest fight for the Deserter and Medium, and the Pickpocket (as before) breezes through it with the smart bot.
 - Singles have no tier-1 pool (the reserved list was removed; add one when act 2 gets a single).
 
+## Haunt cap on the Brakeman
+
+The second pass could not get the Medium's Brakeman loss up with numbers (the Medium's stacked Haunt kills the Brakeman before it acts). The fix is a combat rule instead: `EnemyData.max_haunt` (0 = no cap) limits the Haunt stacks an enemy can carry, and only the Brakeman (Bellkeeper) sets it. It is enforced in `Combatant.apply_status`, so every source is clamped the same way: Haunt cards, the Haunt bonus relic (Rosary) and the fight-start Haunt relic (Grave Dirt). Haunt that would go past the cap is lost; the Brakeman's HP and attacks are untouched, and enemies without a cap behave exactly as before. The enemy tooltip shows "Haunt capped at N". The cap is the single number `max_haunt` in `data/enemies/the_brakeman.tres`. Fights are never saved mid-fight (a save only happens between stops), so there is nothing extra to persist.
+
+Measured with `run_sim.gd`, 600 runs per cell, seeds 1 to 3 pooled (Brakeman loss = deaths at the mid-boss stop / runs that reached it). The Deserter and Pickpocket are identical for every cap (they never apply Haunt), so only the Medium varies:
+
+| Cap | Medium smart: Brakeman loss / escape | Medium greedy: Brakeman loss / escape |
+|---|---|---|
+| none (before) | 0.6% / 65.8% | 1.1% / 29.6% |
+| 5 | 61.7% / 24.4% | 18.5% / 22.6% |
+| 6 | 48.7% / 32.3% | 10.4% / 24.8% |
+| 8 | 18.4% / 51.8% | 4.2% / 27.8% |
+| **9 (chosen)** | **11.2% / 56.9%** | **2.8% / 28.3%** |
+| 10 | 7.2% / 59.6% | 2.0% / 28.7% |
+
+Caps 3 and 4 were not simulated: 5 already overshoots, and lower caps only push the Medium further down. The curve is steep, so each cap point moves the smart loss by roughly 4 to 15 points.
+
+Before / after for the chosen cap 9 (all classes, seeds 1 to 3 pooled):
+
+| | Deserter | Pickpocket | Medium |
+|---|---|---|---|
+| Escape, smart, before / after | 60.8 / 60.8 | 70.8 / 70.8 | 65.8 / 56.9 |
+| Escape, greedy, before / after | 37.7 / 37.7 | 32.3 / 32.3 | 29.6 / 28.3 |
+| Brakeman loss, smart, before / after | 3.6 / 3.6 | 1.8 / 1.8 | 0.6 / 11.2 |
+| Brakeman loss, greedy, before / after | 26.1 / 26.1 | 19.8 / 19.8 | 1.1 / 2.8 |
+
+Result against the acceptance criteria: Medium smart Brakeman loss 11.2% (target 8 to 15, met), Medium greedy escape 28.3% (at least 25, met), Deserter and Pickpocket unchanged (met). The price is that the Medium's smart escape falls from 65.8% to 56.9%, still inside the 55 to 70 smart range but near its floor. The Medium greedy Brakeman loss stays low (2.8%) because the greedy bot rarely wins by Haunt alone. Cap 5 was the first guess and is far too harsh; do not go below 8 without rebalancing the Medium.
 ## Saves
 
 `RunSave.line_signature` now records `type:enemy_count:beat:boss:mid_boss:tier` per stop. A save from the old 12-stop line has a different signature and is rejected with "save is from a different stop line", which the game reports as "could not be loaded", rather than pointing `stop_index` at a different stop. The signature was the guard when the save version was 2 (the version is now 3; see `RunSave.migrate`).

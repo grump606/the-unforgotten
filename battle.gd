@@ -335,6 +335,8 @@ func _status_tooltip(combatant: Combatant) -> String:
 	var haunted := combatant.status_turns(Combatant.Status.HAUNTED)
 	if haunted > 0:
 		lines.append("Haunt %d: takes %d damage at the start of the enemy phase (ignoring Block), then Haunt falls by 1." % [haunted, haunted])
+	if combatant.max_haunt > 0:
+		lines.append("Haunt capped at %d." % combatant.max_haunt)
 	if combatant.hold > 0:
 		lines.append("Hold %d: up to %d of the Block you have left is kept for your next turn." % [combatant.hold, combatant.hold])
 	if combatant.thorns > 0:

@@ -9,6 +9,7 @@ func run() -> int:
 	_failures = 0
 	_test_new_cards_load()
 	_test_new_enemies_load()
+	_test_haunt_caps()
 	_test_small_enemies_in_trios()
 	_test_extended_deck()
 	_test_existing_content_unchanged()
@@ -77,6 +78,19 @@ func _test_new_enemies_load() -> void:
 		_check(wisp.max_hp < shade.max_hp, "wisp is the most fragile small enemy")
 		_check(colossus.max_hp > warden.max_hp, "colossus is tankier than the warden")
 		_check(wisp.intents.size() != colossus.intents.size(), "distinct intent cycle lengths")
+
+
+func _test_haunt_caps() -> void:
+	var every: Array = StarterContent.ALL_ENEMY_PATHS.duplicate()
+	every.append_array(StarterContent.BOSS_ENEMY_PATHS)
+	for path in every:
+		var enemy := load(path) as EnemyData
+		if enemy == null:
+			continue
+		if enemy.id == &"the_brakeman":
+			_check(enemy.max_haunt > 0, "the Brakeman has a Haunt cap")
+		else:
+			_check(enemy.max_haunt == 0, "only the Brakeman has a Haunt cap: %s" % path)
 
 
 func _test_small_enemies_in_trios() -> void:

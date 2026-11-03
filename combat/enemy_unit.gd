@@ -10,6 +10,7 @@ var _intent_index: int = 0
 func _init(enemy_data: EnemyData) -> void:
 	super(enemy_data.display_name, enemy_data.max_hp)
 	data = enemy_data
+	max_haunt = enemy_data.max_haunt
 
 
 ## What this enemy will do on its next turn, or null if it has no intents.
