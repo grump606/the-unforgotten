@@ -46,12 +46,13 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 			button.custom_minimum_size = Vector2(BUTTON_WIDTH, 36)
 			button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if on_toggle_updates.is_valid():
+		# A small button in the bottom-right corner of the screen, out of the way of the main choices.
 		updates_button = Button.new()
 		updates_button.text = update_toggle_text(update_check_on)
-		box.add_child(updates_button)
+		updates_button.add_theme_font_size_override("font_size", 12)
+		body.add_child(updates_button)
 		updates_button.tooltip_text = "Look for a newer version when the game opens."
-		updates_button.custom_minimum_size = Vector2(BUTTON_WIDTH, 30)
-		updates_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		updates_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 10)
 		updates_button.pressed.connect(func() -> void: updates_button.text = update_toggle_text(on_toggle_updates.call()))
 	sound_button = Button.new()
 	sound_button.text = "Sound"
@@ -65,6 +66,9 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 ## Swaps the menu's buttons for the sound page; Back restores them.
 func _open_sound(box: VBoxContainer) -> void:
 	var hidden: Array[Control] = []
+	if updates_button != null:
+		updates_button.visible = false
+		hidden.append(updates_button)
 	for child in box.get_children():
 		if child is Control and (child as Control).visible and child != box.get_child(0):
 			(child as Control).visible = false
