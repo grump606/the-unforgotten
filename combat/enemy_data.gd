@@ -9,6 +9,12 @@ extends Resource
 @export var intents: Array[CardEffect] = []
 ## Most Haunt stacks this enemy can carry at once (0 = no cap). Haunt applied past it is lost.
 @export var max_haunt: int = 0
+## Optional second phase: once HP is at or below this percent of max, the enemy switches to `phase_two_intents`
+## (starting from the first) for the rest of the fight. Empty = the enemy has one phase.
+@export var phase_two_intents: Array[CardEffect] = []
+@export_range(1, 99) var phase_two_hp_percent: int = 50
+## Banner text shown by the UI when phase two begins (presentation only).
+@export var phase_two_title: String = ""
 
 
 static func make(enemy_name: String, hp: int, enemy_intents: Array[CardEffect], enemy_id: StringName = &"", haunt_cap: int = 0) -> EnemyData:
