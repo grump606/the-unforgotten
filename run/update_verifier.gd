@@ -4,8 +4,8 @@ extends RefCounted
 ## The release publishes `<installer>.manifest` (name, version, installer SHA-256: UpdateCheck.
 ## parse_manifest) and `<installer>.manifest.sig`: an RSA PKCS#1 v1.5 signature over the manifest's
 ## SHA-256 digest, made offline with the maintainer's private key (scripts/build_installer.ps1,
-## docs/UPDATE_SIGNING.md). (`<installer>.sig`, a signature over the bare installer, is still
-## published for v0.6.1 and earlier, which only know that scheme.) Only matching PUBLIC keys are embedded
+## docs/UPDATE_SIGNING.md). (Builds up to v0.6.1 read a bare-installer `<installer>.sig`; releases from v0.6.5
+## no longer publish it.) Only matching PUBLIC keys are embedded
 ## here, so a tampered or swapped release, or a hijacked GitHub account, cannot produce an update the
 ## game will install. With no key embedded, verification always fails and in-game install stays off.
 

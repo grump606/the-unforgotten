@@ -110,11 +110,10 @@ func _test_install_urls() -> void:
 	_check(UpdateCheck.installer_name("v0.3.5") == "TheUnforgotten-Setup-0.3.5.exe", "the installer name follows the build script naming")
 	_check(UpdateCheck.installer_url("v0.3.5") == base, "the installer URL is the fixed release path")
 	_check(UpdateCheck.installer_url("0.3.5") == base and UpdateCheck.installer_url("V0.3.5") == base, "a tag without or with a capital V maps to the same v-tagged path")
-	_check(UpdateCheck.signature_url("v0.3.5") == base + ".sig", "the legacy signature sits next to the installer")
 	_check(UpdateCheck.manifest_url("v0.3.5") == base + ".manifest", "the manifest sits next to the installer")
 	_check(UpdateCheck.manifest_signature_url("v0.3.5") == base + ".manifest.sig", "the manifest signature sits next to the manifest")
 	for bad in ["", "latest", "1.2.3-beta", "v1/../../x", "v1.2\nx", "http://evil/x", "v1.2.3.4.5", "../1.0"]:
-		_check(UpdateCheck.installer_url(bad) == "" and UpdateCheck.signature_url(bad) == "" and UpdateCheck.manifest_url(bad) == "" and UpdateCheck.manifest_signature_url(bad) == "" and UpdateCheck.installer_name(bad) == "", "an invalid tag never builds a URL: %s" % bad.c_escape())
+		_check(UpdateCheck.installer_url(bad) == "" and UpdateCheck.manifest_url(bad) == "" and UpdateCheck.manifest_signature_url(bad) == "" and UpdateCheck.installer_name(bad) == "", "an invalid tag never builds a URL: %s" % bad.c_escape())
 	_check(UpdateCheck.installer_url("v0.3.5").begins_with(UpdateCheck.DOWNLOAD_BASE), "every download URL starts with the fixed base")
 	_check(UpdateCheck.can_self_update(false, "C:/Games/TheUnforgotten.exe", true), "an exported, correctly named, writable install can update itself")
 	_check(not UpdateCheck.can_self_update(true, "C:/Games/TheUnforgotten.exe", true), "the editor never updates itself")
