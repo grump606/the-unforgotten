@@ -30,6 +30,13 @@ foreach ($key in 'application/file_version', 'application/product_version') {
         throw "Version mismatch: project.godot has config/version=`"$version`" but export_presets.cfg has $key=`"$($m.Groups[1].Value)`" (expected `"$expected`"). Update export_presets.cfg to match."
     }
 }
+foreach ($key in 'application/short_version', 'application/version') {
+    $m = [regex]::Match($presets, '(?m)^' + [regex]::Escape($key) + '="([^"]*)"')
+    if (-not $m.Success) { throw "$key (the macOS preset) not found in export_presets.cfg" }
+    if ($m.Groups[1].Value -ne $version) {
+        throw "Version mismatch: project.godot has config/version=`"$version`" but the macOS preset has $key=`"$($m.Groups[1].Value)`". Update export_presets.cfg to match."
+    }
+}
 $tag = "v$version"
 if (git tag --list $tag) { throw "Tag $tag already exists: bump config/version first." }
 $existing = @(gh release list --limit 200 --json tagName --jq '.[].tagName')
@@ -67,7 +74,16 @@ try {
     }
 }
 
-$files = @("build\TheUnforgotten-Setup-$version.exe", "build\TheUnforgotten-Setup-$version.exe.sha256", "build\TheUnforgotten-Setup-$version.exe.manifest", "build\TheUnforgotten-Setup-$version.exe.manifest.sig")
+# The macOS build: an .app (universal, ad-hoc signed, not notarized) zipped, with its checksum. It is
+# published beside the Windows installer; the in-game updater only ever installs the Windows files.
+$macZip = "build\TheUnforgotten-macOS-$version.zip"
+& $env:GODOT_EXE --headless --path . --export-release 'macOS' $macZip
+if ($LASTEXITCODE -ne 0) { throw 'macOS export failed' }
+if (-not (Test-Path -LiteralPath $macZip)) { throw "Missing build output: $macZip" }
+$macHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $macZip).Hash.ToLower()
+Set-Content -LiteralPath "$macZip.sha256" -Value "$macHash  $(Split-Path -Leaf $macZip)" -Encoding ascii
+
+$files = @("build\TheUnforgotten-Setup-$version.exe", "build\TheUnforgotten-Setup-$version.exe.sha256", "build\TheUnforgotten-Setup-$version.exe.manifest", "build\TheUnforgotten-Setup-$version.exe.manifest.sig", $macZip, "$macZip.sha256")
 foreach ($f in $files) { if (-not (Test-Path -LiteralPath $f)) { throw "Missing build output: $f" } }
 
 if (-not $Publish) {
@@ -75,7 +91,7 @@ if (-not $Publish) {
     Write-Host "  gh release create $tag $($files -join ' ') --title `"$tag`" --generate-notes"
     return
 }
-$answer = Read-Host "Publish $tag to GitHub with these 5 files? (type yes)"
+$answer = Read-Host "Publish $tag to GitHub with these $($files.Count) files? (type yes)"
 if ($answer -ne 'yes') { Write-Host 'Not published.'; return }
 gh release create $tag @files --title $tag --generate-notes
 if ($LASTEXITCODE -ne 0) { throw 'gh release create failed' }
