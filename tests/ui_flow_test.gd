@@ -322,6 +322,14 @@ func _initialize() -> void:
 	_find(body, "New Journey").pressed.emit()
 	await process_frame
 	_check(_count_buttons(body, "Play as") == 3, "New Run still opens the select screen after going Back")
+	_find(body, "Back").pressed.emit()
+	await process_frame
+	_check(_find(body, "Continue") != null, "the end card offers Continue")
+	_find(body, "Continue").pressed.emit()
+	await process_frame
+	_check(header.text.contains("A voice beyond the quiet") and _find(body, "Exit") != null and _find(body, "Continue") == null and _find(body, "Outcome") == null, "Continue on the end card returns to the main menu (no saved run to continue)")
+	_find(body, "New Journey").pressed.emit()
+	await process_frame
 	_find(body, "Play as The Pickpocket").pressed.emit()
 	await process_frame
 	_check(scene._run.character.id == &"pickpocket" and scene._run.player.max_hp == StarterContent.character(&"pickpocket").max_hp and scene._run.player.display_name == StarterContent.character(&"pickpocket").display_name, "picking the Pickpocket starts a Pickpocket run")
