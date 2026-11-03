@@ -1,16 +1,26 @@
 class_name RestScene
 extends ScreenScene
-## Quiet shelter. The painting supplies its own furniture and figures.
+## Quiet shelter. The painting supplies its own furniture and figures. Each character has their own
+## painting (art/layers/screens/rest_<character>/bg.png, the character resting by the hearth); the plain
+## shelter in art/layers/screens/rest/bg.png is used when there is none.
 var character_id: StringName = &""
 
 func _init() -> void:
 	super(2025, 26)
 
+## The screen art to draw: this character's own rest painting when it exists, else the plain shelter.
+func background_name() -> StringName:
+	if character_id != &"":
+		var own := StringName("rest_" + String(character_id))
+		if PaintedArt.screen_texture(own) != null:
+			return own
+	return &"rest"
+
 func breath() -> float:
 	return sin(time * 0.9)
 
 func _draw_scene(w: float, h: float) -> void:
-	if not _draw_painted_bg(&"rest", Rect2(0, 0, w, h), 1.08, 0.4, Color(0.8, 0.8, 0.8)):
+	if not _draw_painted_bg(background_name(), Rect2(0, 0, w, h), 1.08, 0.4, Color(0.8, 0.8, 0.8)):
 		_draw_shelter(w, h)
 	_draw_motes(w, h, AMBER, 0.35)
 	_draw_scrim(w, h)
