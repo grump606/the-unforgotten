@@ -4,9 +4,17 @@ extends RefCounted
 ## no nodes, no scenes. A UI observes the signals; a run layer supplies the
 ## player's Combatant and deck, and reads the outcome from `combat_ended`.
 
-enum Phase { NOT_STARTED, PLAYER_TURN, ENEMY_TURN, ENDED }
+## DISCARDING is the end-of-turn step where the player picks cards to throw away (see begin_discard);
+## it is appended last so the older phases keep their numeric values.
+enum Phase { NOT_STARTED, PLAYER_TURN, ENEMY_TURN, ENDED, DISCARDING }
 
+## Hand rules (easy to change here):
+##  - HAND_SIZE: the most cards you may KEEP at end of turn, and the hand each turn starts back up
+##    to (draw max(0, HAND_SIZE - kept)). Turn 1 therefore draws HAND_SIZE.
+##  - HAND_MAX: the most cards the hand can hold during the turn. Draws (card DRAW effects, relics)
+##    stop at the cap and the rest stay in the draw pile.
 const HAND_SIZE := 5
+const HAND_MAX := 10
 const ENERGY_PER_TURN := 3
 const MAX_ENEMIES := 3
 ## Safety cap on cards played in one turn. Zero-cost draw cards can recycle
@@ -31,6 +39,8 @@ var turn: int = 0
 var phase: Phase = Phase.NOT_STARTED
 ## Cards played so far this turn (see MAX_PLAYS_PER_TURN).
 var plays_this_turn: int = 0
+## Hand indices marked for discard while phase == DISCARDING (sorted, no duplicates).
+var discard_marks: Array[int] = []
 ## The run's relics for this fight (see RelicData); empty changes nothing.
 var relics: Array[RelicData] = []
 
@@ -161,16 +171,86 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 	return true
 
 
-func end_player_turn() -> void:
+## True if `discard_indices` are valid, unique hand indices and no more than HAND_SIZE cards would
+## stay in hand. Discarding more than required (or everything) is allowed.
+func is_valid_discard(discard_indices: Array[int]) -> bool:
+	var seen := {}
+	for i in discard_indices:
+		if i < 0 or i >= piles.hand.size() or seen.has(i):
+			return false
+		seen[i] = true
+	return piles.hand.size() - discard_indices.size() <= HAND_SIZE
+
+
+## How many more cards must be marked before the discard can be confirmed (0 when it can).
+func discard_required() -> int:
+	return maxi(piles.hand.size() - discard_marks.size() - HAND_SIZE, 0)
+
+
+func can_confirm_discard() -> bool:
+	return phase == Phase.DISCARDING and discard_required() == 0
+
+
+## Enters the end-of-turn discard step (the player pressed End Turn). Nothing is marked yet.
+## False, changing nothing, outside the player's turn.
+func begin_discard() -> bool:
 	if phase != Phase.PLAYER_TURN:
-		return
+		return false
+	phase = Phase.DISCARDING
+	discard_marks.clear()
+	state_changed.emit()
+	return true
+
+
+## Backs out of the discard step to the player's turn; hand and energy are unchanged.
+func cancel_discard() -> bool:
+	if phase != Phase.DISCARDING:
+		return false
+	phase = Phase.PLAYER_TURN
+	discard_marks.clear()
+	state_changed.emit()
+	return true
+
+
+## Marks or unmarks hand card `hand_index` for discard. False (nothing changes) outside the
+## discard step or for a bad index.
+func toggle_discard(hand_index: int) -> bool:
+	if phase != Phase.DISCARDING or hand_index < 0 or hand_index >= piles.hand.size():
+		return false
+	var at := discard_marks.find(hand_index)
+	if at >= 0:
+		discard_marks.remove_at(at)
+	else:
+		discard_marks.append(hand_index)
+		discard_marks.sort()
+	state_changed.emit()
+	return true
+
+
+## Ends the discard step with the marked cards. False (nothing changes) while too many would stay.
+func confirm_discard() -> bool:
+	if not can_confirm_discard():
+		return false
+	return end_player_turn(discard_marks.duplicate())
+
+
+## Ends the player's turn: discards the hand cards at `discard_indices` (the rest stay in hand) and
+## runs the enemy phase. Works from the player's turn or the discard step. Returns false, changing
+## nothing, if the phase is wrong or the discard is invalid (see is_valid_discard). With no argument
+## nothing is discarded, which is only valid for a hand of HAND_SIZE or fewer.
+func end_player_turn(discard_indices: Array[int] = []) -> bool:
+	if phase != Phase.PLAYER_TURN and phase != Phase.DISCARDING:
+		return false
+	if not is_valid_discard(discard_indices):
+		return false
 	phase = Phase.ENEMY_TURN
-	piles.discard_hand()
+	discard_marks.clear()
+	piles.discard_cards(discard_indices)
 	# Haunt hurts first, so an enemy it kills never acts.
 	for enemy in living_enemies():
 		enemy.lose_hp(enemy.status_turns(Combatant.Status.HAUNTED))
 	if _check_end():
-		return
+		return true
 	for enemy in living_enemies():
 		enemy.clear_block()
 		var intent := enemy.current_intent()
@@ -180,7 +260,7 @@ func end_player_turn() -> void:
 		enemy.advance_intent()
 		enemy.tick_statuses()
 		if _check_end():
-			return
+			return true
 	# After the enemies act, so a 1-turn status on the player still covers the
 	# enemy phase that follows the turn it was applied in.
 	player.tick_statuses()
@@ -191,6 +271,7 @@ func end_player_turn() -> void:
 		player.apply_status(Combatant.Status.EXPOSED, _pending_player_expose)
 		_pending_player_expose = 0
 	_begin_player_turn()
+	return true
 
 
 func _haunted_count() -> int:
@@ -217,7 +298,8 @@ func _begin_player_turn() -> void:
 	plays_this_turn = 0
 	player.start_turn_block()
 	_apply_turn_start_relics()
-	piles.draw(HAND_SIZE)
+	# Kept cards count toward the starting hand: draw back up to HAND_SIZE (nothing if 5 were kept).
+	piles.draw(maxi(HAND_SIZE - piles.hand.size(), 0), HAND_MAX)
 	state_changed.emit()
 
 
@@ -234,7 +316,7 @@ func _relic_total(kind: RelicData.Kind) -> int:
 ## PLAYS_BLOCK_EVERY-th play gains Block. plays_this_turn already counts the card just played.
 func _apply_play_relics() -> void:
 	if plays_this_turn == 1 and _relic_total(RelicData.Kind.FIRST_PLAY_DRAW) > 0:
-		piles.draw(_relic_total(RelicData.Kind.FIRST_PLAY_DRAW))
+		piles.draw(_relic_total(RelicData.Kind.FIRST_PLAY_DRAW), HAND_MAX)
 	if plays_this_turn % RelicData.PLAYS_BLOCK_EVERY == 0 and _relic_total(RelicData.Kind.PLAYS_BLOCK) > 0:
 		player.gain_block(_relic_total(RelicData.Kind.PLAYS_BLOCK))
 
@@ -293,7 +375,7 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant) -> void:
 		CardEffect.Kind.DRAW:
 			# Only the player has a hand.
 			if source == player:
-				piles.draw(effect.amount)
+				piles.draw(effect.amount, HAND_MAX)
 		CardEffect.Kind.EXPOSE:
 			if source == player:
 				target.apply_status(Combatant.Status.EXPOSED, effect.amount)

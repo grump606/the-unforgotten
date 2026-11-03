@@ -15,7 +15,9 @@ combat.start()
 - `enemy_datas: Array[EnemyData]` - 1 to `Combat.MAX_ENEMIES` (3) entries. `StarterContent.varied_encounter(count, rng)` and `early_encounter(count)` build them; the loaders return smaller or empty arrays if a resource fails to load, so check `size()`.
 - `rng_seed: int` - seeds shuffling only. Same seed + same deck + same inputs => same fight.
 
-Drive it with `can_play(i)`, `play_card(i, target_index := -1)` and `end_player_turn()` while `phase == Combat.Phase.PLAYER_TURN`. `play_card` returns false (changing nothing) for illegal plays. `-1` targets the first living enemy; SELF and ALL_ENEMIES cards ignore the target.
+Drive it with `can_play(i)`, `play_card(i, target_index := -1)` and `end_player_turn(discard_indices := [])` while `phase == Combat.Phase.PLAYER_TURN`. `play_card` returns false (changing nothing) for illegal plays. `-1` targets the first living enemy; SELF and ALL_ENEMIES cards ignore the target.
+
+Hand rules: the hand holds at most `HAND_MAX` (10) cards during a turn and you keep at most `HAND_SIZE` (5) at the end of it. `end_player_turn(discard_indices)` discards those hand indices (the rest stay in hand), runs the enemy phase and returns true; it returns false, changing nothing, if an index is out of range or repeated or more than `HAND_SIZE` cards would stay. A caller whose hand never exceeds 5 can call it with no argument. A UI uses the stepwise form instead: `begin_discard()` (phase `DISCARDING`), `toggle_discard(i)`, `confirm_discard()`, `cancel_discard()`. Next turn draws back up to `HAND_SIZE`.
 
 ## Ownership
 

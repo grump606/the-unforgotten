@@ -114,7 +114,9 @@ func _play(combat: Combat) -> bool:
 			if combat.phase != Combat.Phase.PLAYER_TURN:
 				return true
 			hand_index = _first_affordable(combat)
-		combat.end_player_turn()
+		if combat.phase == Combat.Phase.PLAYER_TURN and not combat.end_player_turn(SimPolicy.discards_for(combat)):
+			printerr("run_stub: end_player_turn rejected the discard")
+			return false
 	return true
 
 
