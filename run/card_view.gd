@@ -11,11 +11,11 @@ const BASE := Vector2(136, 190)
 ## Extra height so a raised (hover/selected) card has room to lift without moving the layout.
 const LIFT := 6.0
 const BACKDROP := Color(0.05, 0.05, 0.08)
-const BADGE := Color(0.96, 0.78, 0.30)
+const BADGE := Color("#e8b773")
 const BADGE_BAD := Color(0.78, 0.18, 0.20)
-const WARN := Color(1.0, 0.82, 0.35)
-const HP_RED := Color(0.74, 0.14, 0.2)
-const SELECT_GOLD := Color(1.0, 0.85, 0.4)
+const WARN := Color("#e8b773")
+const HP_RED := Color("#a8323a")
+const SELECT_GOLD := Color("#e8b773")
 ## Palette tokens per class. Empty id is neutral keepsake paper.
 const PALETTES := {
 	&"": {
@@ -48,7 +48,7 @@ const ICON_PRIORITY: Array[CardEffect.Kind] = [
 	CardEffect.Kind.DRAW, CardEffect.Kind.HEAL_PER_HAUNTED, CardEffect.Kind.LOSE_HP,
 ]
 const KIND_COLORS := {
-	CardEffect.Kind.DAMAGE: Color(0.95, 0.45, 0.35), CardEffect.Kind.BLOCK: Color(0.45, 0.72, 0.96),
+	CardEffect.Kind.DAMAGE: Color("#d96b65"), CardEffect.Kind.BLOCK: Color("#83b4cf"),
 	CardEffect.Kind.DRAW: Color(0.88, 0.88, 0.92), CardEffect.Kind.EXPOSE: Color(0.96, 0.80, 0.35),
 	CardEffect.Kind.HOLD: Color(0.40, 0.82, 0.80), CardEffect.Kind.THORNS: Color(0.58, 0.86, 0.42),
 	CardEffect.Kind.GAIN_ENERGY: Color(1.0, 0.88, 0.30), CardEffect.Kind.HAUNT: Color(0.76, 0.70, 1.0),
@@ -405,8 +405,8 @@ func _draw_hotkey(c: Vector2) -> void:
 
 ## Font size for the preview: 10 px, shrinking (to 8) only when it would need more than two lines.
 func _preview_size(width: float) -> int:
-	var size := 10
-	while size > 8 and _font.get_multiline_string_size(preview, HORIZONTAL_ALIGNMENT_CENTER, width, size).y > 2.0 * _font.get_height(size):
+	var size := 11
+	while size > 9 and _font.get_multiline_string_size(preview, HORIZONTAL_ALIGNMENT_CENTER, width, size).y > 2.0 * _font.get_height(size):
 		size -= 1
 	return size
 
@@ -590,7 +590,7 @@ func _draw_body(body: Rect2, ink: Color) -> void:
 	for effect in card.effects:
 		lines.append(effect.describe())
 	var txt := "\n".join(lines)
-	var size := 12
+	var size := 13
 	var h := _font.get_multiline_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size).y
 	while size > 10 and h > body.size.y:
 		size -= 1
@@ -616,8 +616,8 @@ func _draw_strip(strip: Rect2, p: Dictionary) -> void:
 	var room := right - strip.position.x - 6
 	var left := Rect2(strip.position.x + 5, strip.position.y, room, strip.size.y)
 	if note != "":
-		# A long note shrinks (down to 8 px) rather than being cut off.
-		_text(note, left, _fit_size(note, room, 10, 8), WARN)
+		# A long note shrinks (down to 9 px) rather than being cut off.
+		_text(note, left, _fit_size(note, room, 11, 9), WARN)
 		return
 	var parts := PackedStringArray()
 	match card.target_mode:
