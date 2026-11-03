@@ -86,6 +86,11 @@ var _seen_player_hp := 0
 
 
 func _ready() -> void:
+	# Embedded in the run screen the theme is inherited; run on its own (F6) it needs its own.
+	if get_parent() == get_tree().root:
+		MenuStyle.apply_theme_only(self)
+	_end_turn_button.theme_type_variation = MenuStyle.PRIMARY
+	_log_button.theme_type_variation = MenuStyle.QUIET
 	_backdrop.set_variant(boss_fight, character_id, destination_key)
 	_relic_strip = RelicStrip.create(relics, BADGE_SCALE)
 	_relic_strip.position = Vector2(4, 4)
@@ -105,6 +110,7 @@ func _ready() -> void:
 	_new_fight_button.focus_mode = Control.FOCUS_NONE
 	_cancel_button = Button.new()
 	_cancel_button.text = "Back"
+	_cancel_button.theme_type_variation = MenuStyle.QUIET
 	_cancel_button.tooltip_text = "Back to playing cards (Backspace)"
 	_cancel_button.custom_minimum_size = Vector2(0, 36)
 	_cancel_button.focus_mode = Control.FOCUS_NONE
