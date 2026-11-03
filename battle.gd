@@ -45,6 +45,10 @@ const ENTRANCE_START_SCALE := 0.8
 @onready var _stage: Control = %Stage
 @onready var _left_box: VBoxContainer = %LeftBox
 @onready var _pile_label: Label = %PileLabel
+@onready var _hud: PanelContainer = %Hud
+@onready var _hud_info_row: HBoxContainer = %InfoRow
+@onready var _hud_info: Label = %HudInfo
+@onready var _pause_slot: HBoxContainer = %PauseSlot
 @onready var _hand_box: HFlowContainer = %HandBox
 @onready var _end_turn_button: Button = %EndTurnButton
 @onready var _result_label: Label = %ResultLabel
@@ -116,6 +120,7 @@ func _ready() -> void:
 	# Embedded in the run screen the theme is inherited; run on its own (F6) it needs its own.
 	if get_parent() == get_tree().root:
 		MenuStyle.apply_theme_only(self)
+	_style_hud()
 	_end_turn_button.theme_type_variation = MenuStyle.PRIMARY
 	_log_button.theme_type_variation = MenuStyle.QUIET
 	_backdrop.set_variant(boss_fight, character_id, destination_key)
@@ -835,3 +840,36 @@ func _pulse_confirm(available: bool) -> void:
 	for beat in 2:
 		_confirm_tween.tween_property(_end_turn_button, "modulate", amber, CONFIRM_PULSE_TIME * 0.5)
 		_confirm_tween.tween_property(_end_turn_button, "modulate", Color.WHITE, CONFIRM_PULSE_TIME * 0.5)
+
+
+# --- HUD bar -----------------------------------------------------------------------------------
+# The bottom of the screen is one full-width HUD: an info row (journey line, Pause button) above the
+# controls and the hand. The run screen fills the info row when it embeds a fight.
+
+## A dark bar flush with the bottom and side edges, with a thin amber line along its top.
+func _style_hud() -> void:
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(MenuStyle.BG, 0.93)
+	box.border_color = Color(MenuStyle.AMBER, 0.55)
+	box.border_width_top = 1
+	box.content_margin_left = 16
+	box.content_margin_right = 16
+	box.content_margin_top = 6
+	box.content_margin_bottom = 8
+	box.shadow_color = Color(0, 0, 0, 0.45)
+	box.shadow_size = 8
+	_hud.add_theme_stylebox_override("panel", box)
+	_hud_info.add_theme_font_size_override("font_size", 14)
+	_hud_info.add_theme_color_override("font_color", MenuStyle.TEXT_DIM)
+
+
+## The journey line shown at the left of the HUD's info row (stop, character, HP, gold, deck).
+func set_hud_info(text: String) -> void:
+	_hud_info.text = text.replace("\n", "  ·  ")
+	_hud_info_row.visible = true
+
+
+## Where the run screen docks its Pause button, at the right of the HUD's info row.
+func pause_slot() -> Control:
+	_hud_info_row.visible = true
+	return _pause_slot

@@ -4,10 +4,14 @@ extends RunScreen
 
 const BATTLE_SCENE := preload("res://battle.tscn")
 
+## The embedded fight while this screen is showing (null before the first fight or when it could not be built).
+var fight: Node = null
+
 
 ## `on_finished(victory: bool)` is connected to the battle's fight_finished signal; `on_start_over`
 ## is offered when the fight could not be built.
 func show(on_finished: Callable, on_start_over: Callable) -> void:
+	fight = null
 	var combat := run.start_combat()
 	if combat == null:
 		var box := panel("Could not build this fight (content failed to load). See the Output log.")
@@ -24,3 +28,4 @@ func show(on_finished: Callable, on_start_over: Callable) -> void:
 	battle.relics = run.relics
 	battle.fight_finished.connect(on_finished)
 	body.add_child(battle)
+	fight = battle
