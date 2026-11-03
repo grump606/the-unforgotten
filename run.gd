@@ -66,6 +66,7 @@ func _open(screen: RunScreen) -> void:
 ## The start screen, shown on every launch and by Back from the select screen: nothing starts until
 ## the player picks Continue (offered only when a valid save exists), New Run or Exit.
 func _show_main_menu() -> void:
+	_set_audio(&"menu", &"coastal")
 	_pause_button.visible = false
 	_update_notice.set_allowed(true)
 	_header_strip.set_relics([] as Array[RelicData])
@@ -105,6 +106,7 @@ func _toggle_update_check() -> bool:
 
 
 func _continue_run(saved: RunState) -> void:
+	_play_sfx(&"confirm")
 	_run = saved
 	_reset_screens()
 	_clear_body()
@@ -115,6 +117,7 @@ func _continue_run(saved: RunState) -> void:
 ## `back`, when valid, adds a Back button that returns to the screen the player came from; there is
 ## none when the select screen is the first screen (no save, or a save that failed to load).
 func _new_run(back := Callable()) -> void:
+	_set_audio(&"menu", &"coastal")
 	_pause_button.visible = false
 	_update_notice.set_allowed(true)
 	_header_strip.set_relics([] as Array[RelicData])
@@ -127,6 +130,7 @@ func _new_run(back := Callable()) -> void:
 
 
 func _start_run(character_id: StringName) -> void:
+	_play_sfx(&"confirm")
 	_run = RunState.new(randi(), character_id)
 	_reset_screens()
 	_show_stop()
@@ -142,6 +146,7 @@ func _show_stop() -> void:
 	if _notice_shown:
 		_notice = ""
 	_update_notice.set_allowed(false) # only the first screens carry it, never a run in progress
+	_set_stop_audio()
 	_clear_body()
 	if _run.finished:
 		_delete_save()
@@ -169,6 +174,26 @@ func _show_stop() -> void:
 				_open(_rest)
 				_rest.show()
 		_warm_next_stop()
+
+
+## Music and ambience for the current stop: the fight music only during a fight, the quiet track
+## everywhere else, and the sea only at the first destination (Shore of Names).
+func _set_stop_audio() -> void:
+	var fighting := not _run.finished and not _run.reward_pending() and _run.current_stop().type == RunState.StopType.COMBAT
+	var shore := not _run.finished and _run.stop_index == 0
+	_set_audio(&"combat" if fighting else &"menu", &"coastal" if shore else &"")
+
+
+func _set_audio(music: StringName, ambience: StringName) -> void:
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio != null:
+		audio.set_scene(music, ambience)
+
+
+func _play_sfx(id: StringName) -> void:
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio != null:
+		audio.sfx(id)
 
 
 func _update_header() -> void:
