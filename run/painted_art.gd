@@ -129,6 +129,7 @@ static func warm_for_stop(stop_type: int, character_id: StringName = &"") -> voi
 			preload_screen(&"battle_neutral")
 			preload_screen(&"battle_boss")
 		1: # REST
+			preload_screen(StringName("rest_" + String(character_id)) if character_id != &"" else &"rest")
 			preload_screen(&"rest")
 		2: # STORY
 			for dir in DirAccess.get_directories_at("res://art/layers/screens"):

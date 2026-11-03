@@ -89,6 +89,8 @@ func _initialize() -> void:
 		rest.advance(0.5)
 		await process_frame
 		check(rest.breath() != breath0, "the rest scene draws for class '%s'" % id)
+		var expected: StringName = &"rest_" + id if id in [&"deserter", &"pickpocket", &"medium"] else &"rest"
+		check(rest.background_name() == expected, "the rest scene for '%s' uses the painting %s" % [id, expected])
 
 	# Story: each beat index and an unknown one build and draw, with their own mood.
 	var moods := {}
