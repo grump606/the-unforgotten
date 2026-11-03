@@ -35,7 +35,7 @@ func _draw() -> void:
 		draw_texture_rect_region(painted.tex, Rect2(c - Vector2(r, r), Vector2(r * 2, r * 2)), painted.region, tint)
 		if not live:
 			draw_circle(c, r * 0.65, Color(0.09, 0.11, 0.16, 0.72))
-		HudIcons.text(self, text, Rect2(c - Vector2(r, 14), Vector2(r * 2.0, 28)), 24, Color(1, 0.97, 0.9), true, 4)
+		HudIcons.text(self, text, Rect2(c - Vector2(r, 10), Vector2(r * 2.0, 20)), 17, Color(1, 0.97, 0.9), true, 3)
 		return
 	var col := ENERGY_COLOR if live else Color("#526979")
 	draw_circle(c, r + 3.0, Color(0, 0, 0, 0.55))
@@ -64,4 +64,4 @@ func _draw() -> void:
 		draw_arc(ember, r * 0.24, 0, PI, 14, Color(col, 0.55), 2.0, true)
 	draw_arc(c, r * 0.80, PI * 1.06, PI * 1.56, 18, Color("#d7d0bc") * Color(1, 1, 1, 0.5 if live else 0.25), 1.6, true)
 	draw_arc(c + Vector2(r * 0.08, 0), r * 0.60, 0.10, 0.65, 12, Color("#78a99b") * Color(1, 1, 1, 0.18), 1.0, true)
-	HudIcons.text(self, text, Rect2(c - Vector2(r, 14), Vector2(r * 2.0, 28)), 24, Color(1, 0.97, 0.9), true, 4)
+	HudIcons.text(self, text, Rect2(c - Vector2(r, 10), Vector2(r * 2.0, 20)), 17, Color(1, 0.97, 0.9), true, 3)
