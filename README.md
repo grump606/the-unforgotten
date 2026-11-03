@@ -39,6 +39,16 @@ To test a boss or any enemy combination without playing down the line, launch st
 
 Or pass the options to Godot directly after `--` (`--fight=`, `--character=`, `--hp=`), or set `THE_UNFORGOTTEN_FIGHT`, `THE_UNFORGOTTEN_CHARACTER` and `THE_UNFORGOTTEN_HP`. Up to three enemies, any mix of regular enemies and bosses; names match the enemy id, its in-game name or a short alias (`eraser`, `bellkeeper`, `wisp`, `crow`, `hound`...).
 
+The same launcher opens a shop or a rest stop with gold in hand and the player already hurt (defaults: 100 gold, 55% HP), so heals, purchases and card removal can be tried straight away. Nothing is saved in a debug session, including Pause > Save & Exit:
+
+```powershell
+.\scripts\debug_fight.ps1 -Screen vendor                          # the first shop
+.\scripts\debug_fight.ps1 -Screen vendor:2 -Character medium      # the second shop
+.\scripts\debug_fight.ps1 -Screen rest -Hp 10 -Gold 0
+```
+
+Directly: `--screen=vendor|rest[:n]`, `--gold=`, `--hp=` (or `THE_UNFORGOTTEN_SCREEN`, `THE_UNFORGOTTEN_GOLD`).
+
 ## Test
 
 Full validation (import, tests, main-scene smoke load; nonzero exit on any failure):
