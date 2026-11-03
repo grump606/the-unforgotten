@@ -120,6 +120,9 @@ const TITLE_PATH := "res://art/layers/ui/title.png"
 const PLAQUE_SLICE_X := 34.0
 const PLAQUE_SLICE_Y := 22.0
 const PLAQUE_FONT_SIZE := 22
+## Amber outline that follows the plaque's clipped outline, drawn just outside it for keyboard focus.
+const FOCUS_RING_PATH := "res://art/layers/ui/plaque_focus.png"
+const FOCUS_PAD := 9.0
 const PLAQUE_INK := Color("#171d28")
 
 static var _serif: SystemFont
@@ -180,10 +183,28 @@ static func _plaque_states(theme: Theme, type_name: StringName, path: String, te
 	theme.set_font("font", String(type_name), serif_font())
 	theme.set_font_size("font_size", String(type_name), PLAQUE_FONT_SIZE)
 	theme.set_type_variation(String(type_name), "Button")
-	# The same clipped outline, as a thin amber line, for keyboard focus.
-	var focus := StyleBoxFlat.new()
-	focus.draw_center = false
-	focus.border_color = AMBER
-	focus.set_border_width_all(2)
-	focus.set_corner_radius_all(8)
-	theme.set_stylebox("focus", String(type_name), focus)
+	theme.set_stylebox("focus", String(type_name), _focus_box())
+
+
+## The keyboard-focus outline: an amber ring that traces the plaque's clipped silhouette (nine-sliced
+## like the plaque and drawn just outside it), or a thin rounded line when the art is missing.
+static func _focus_box() -> StyleBox:
+	var ring := PaintedArt.texture(FOCUS_RING_PATH)
+	if ring != null:
+		var box := StyleBoxTexture.new()
+		box.texture = ring
+		box.texture_margin_left = PLAQUE_SLICE_X + FOCUS_PAD
+		box.texture_margin_right = PLAQUE_SLICE_X + FOCUS_PAD
+		box.texture_margin_top = PLAQUE_SLICE_Y + FOCUS_PAD
+		box.texture_margin_bottom = PLAQUE_SLICE_Y + FOCUS_PAD
+		box.expand_margin_left = FOCUS_PAD
+		box.expand_margin_right = FOCUS_PAD
+		box.expand_margin_top = FOCUS_PAD
+		box.expand_margin_bottom = FOCUS_PAD
+		return box
+	var flat := StyleBoxFlat.new()
+	flat.draw_center = false
+	flat.border_color = AMBER
+	flat.set_border_width_all(2)
+	flat.set_corner_radius_all(8)
+	return flat
