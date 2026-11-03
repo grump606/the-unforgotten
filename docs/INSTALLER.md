@@ -10,8 +10,8 @@ Output: `build/TheUnforgotten-Setup-<version>.exe` and `build/TheUnforgotten-Set
 
 ## Releasing a new version
 
-1. Bump `config/version` in `project.godot` (dotted numbers, e.g. `0.2.0`). Also set `application/file_version` and `application/product_version` in `export_presets.cfg` to the same number with a trailing `.0` (e.g. `0.2.0.0`); they are what the exe's Properties dialog shows.
-2. Run the build script.
+1. Bump `config/version` in `project.godot` (dotted numbers, e.g. `0.2.0`). Also set `application/file_version` and `application/product_version` in `export_presets.cfg` to the same number with a trailing `.0` (e.g. `0.2.0.0`); they are what the exe's Properties dialog shows. The macOS preset (see `docs/MACOS.md`) has its own `application/short_version` and `application/version`: set them to the plain version (`0.2.0`, no `.0`).
+2. Run the build script (or `scripts/release.ps1`, which also builds the macOS zip and publishes it with the installer files).
 3. Publish the installer and its checksum file together as a GitHub release tagged `v<version>` (for example `gh release create v0.2.0 build/TheUnforgotten-Setup-0.2.0.exe build/TheUnforgotten-Setup-0.2.0.exe.sha256`).
 
 When a signing key is configured the build also writes `.manifest` and `.manifest.sig` next to the installer; publish all four files. It is what lets the game install the update itself. See `docs/UPDATE_SIGNING.md` for the one-time key setup and the per-release steps.
