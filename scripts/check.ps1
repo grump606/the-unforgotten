@@ -52,6 +52,7 @@ try {
     Invoke-Step 'ui card view' @('--headless', '--path', '.', '-s', 'res://tests/ui_card_view_test.gd')
     Invoke-Step 'ui stage' @('--headless', '--path', '.', '-s', 'res://tests/ui_stage_test.gd')
     Invoke-Step 'ui battle backdrop' @('--headless', '--path', '.', '-s', 'res://tests/ui_battle_backdrop_test.gd')
+    Invoke-Step 'ui boss presentation' @('--headless', '--path', '.', '-s', 'res://tests/ui_boss_presentation_test.gd')
     Invoke-Step 'ui vendor scene' @('--headless', '--path', '.', '-s', 'res://tests/ui_vendor_scene_test.gd')
     Invoke-Step 'ui screen scenes' @('--headless', '--path', '.', '-s', 'res://tests/ui_screen_scenes_test.gd')
     Invoke-Step 'ui scene noise' @('--headless', '--path', '.', '-s', 'res://tests/ui_scene_noise_test.gd')

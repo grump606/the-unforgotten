@@ -34,6 +34,12 @@ const PLAYER_X := 0.19
 const ENEMY_BAND := Vector2(0.40, 0.98)
 ## Seconds between one enemy's attack and the next in the enemy phase.
 const ENEMY_STAGGER := 0.4
+## The boss HP bar: its horizontal span (fractions of the stage width) and the gap above it.
+const BOSS_BAR_X := Vector2(0.26, 0.74)
+const BOSS_BAR_TOP := 6.0
+## Seconds the phase banner stays up in total, and the boss entrance scale-in start.
+const PHASE_BANNER_TIME := 1.8
+const ENTRANCE_START_SCALE := 0.8
 
 @onready var _backdrop: BattleBackdrop = %Backdrop
 @onready var _stage: Control = %Stage
@@ -62,6 +68,9 @@ var seed_override: int = -1
 var boss_fight := false
 ## Shown as the first log line of a boss fight ("Boss" or "Mid-boss"); both use the boss backdrop.
 var boss_label := "Boss"
+## Show the ~2 s boss entrance before turn 1. Off by default when running headless so UI tests that drive a boss
+## fight are not blocked; the intro tests turn it on.
+var show_boss_intro := DisplayServer.get_name() != "headless"
 var character_id: StringName = &""
 var destination_key: StringName = &""
 ## The run's relics, shown as badges beside the player's HP (the strip hides when there are none).
@@ -93,6 +102,14 @@ var _seen_player_block := 0
 var _preview: CardView
 var _confirm_ready := false
 var _confirm_tween: Tween
+## Boss presentation: the entrance overlay, the wide HP bar on top of the stage, the phase banner and flash.
+var _intro: BossIntro
+var _boss_bar: BossBar
+var _entrance_tween: Tween
+var _banner: Label
+var _banner_tween: Tween
+var _flash: ColorRect
+var _flash_tween: Tween
 
 
 func _ready() -> void:
@@ -183,15 +200,19 @@ func _attach(combat: Combat) -> void:
 	_combat.combat_ended.connect(_on_combat_ended)
 	_combat.card_played.connect(_on_card_played)
 	_combat.enemy_acted.connect(_on_enemy_acted)
+	_combat.enemy_phase_changed.connect(_on_enemy_phase_changed)
 	_target_index = 0
 	_result_label.text = ""
 	_log_label.clear()
+	_backdrop.set_harsh(false)
 	if boss_fight:
 		_log_label.append_text("[b]%s fight[/b]\n" % boss_label)
 	_new_fight_button.hide()
 	_begin_batch()
 	_combat.start()
 	_end_batch()
+	if boss_fight and show_boss_intro:
+		_start_boss_intro()
 
 
 ## Combat emits state_changed on every mutation, so one action (a card play, the whole enemy
@@ -298,11 +319,14 @@ func _sync_enemies() -> void:
 		for i in _combat.enemies.size():
 			var view := Fighter.new()
 			view.phase = i * 1.9
-			view.set_enemy(_combat.enemies[i])
+			view.set_enemy(_combat.enemies[i], boss_fight)
 			view.pressed.connect(_select_target.bind(i))
 			_stage.add_child(view)
 			_enemy_views.append(view)
+		_sync_boss_bar()
 		_layout_stage()
+	if _boss_bar != null:
+		_boss_bar.refresh()
 	for i in _enemy_views.size():
 		var enemy := _combat.enemies[i]
 		var view := _enemy_views[i]
@@ -320,6 +344,11 @@ func _layout_stage() -> void:
 		_player_view.position = Vector2(w * PLAYER_X - _player_view.size.x / 2.0, h - _player_view.size.y)
 	if _enemy_views.is_empty():
 		return
+	if _boss_bar != null:
+		_boss_bar.position = Vector2(w * BOSS_BAR_X.x, BOSS_BAR_TOP)
+		_boss_bar.size = Vector2(w * (BOSS_BAR_X.y - BOSS_BAR_X.x), BossBar.HEIGHT)
+	for view in _enemy_views:
+		view.fit_boss(h - BOSS_BAR_TOP - 24.0)
 	var total := ENEMY_GAP * (_enemy_views.size() - 1)
 	for view in _enemy_views:
 		total += view.size.x
@@ -537,6 +566,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
 		return
+	if _intro != null and is_instance_valid(_intro) and not _intro.is_done():
+		get_viewport().set_input_as_handled()
+		_intro.skip()
+		return
 	if _new_fight_button.visible:
 		if key.keycode == KEY_N:
 			get_viewport().set_input_as_handled()
@@ -615,6 +648,116 @@ func _on_enemy_acted(enemy: EnemyUnit, intent: CardEffect) -> void:
 			_player_view.schedule_hit(maxi(_seen_player_hp - _combat.player.hp, 0), delay + Fighter.LUNGE_TIME * 0.5, maxi(_seen_player_block - _combat.player.block, 0))
 	_seen_player_hp = _combat.player.hp
 	_seen_player_block = _combat.player.block
+
+
+## Creates the wide boss HP bar on the stage for a boss fight (once per fight).
+func _sync_boss_bar() -> void:
+	if _boss_bar != null:
+		_discard_node(_boss_bar)
+		_boss_bar = null
+	if not boss_fight or _combat.enemies.is_empty():
+		return
+	_boss_bar = BossBar.new()
+	_boss_bar.setup(_combat.enemies[0], boss_label)
+	_boss_bar.label_text = ("MID-BOSS" if boss_label == "Mid-boss" else "FINAL BOSS")
+	_stage.add_child(_boss_bar)
+
+
+## True while the boss entrance overlay is up (read by tests).
+func intro_visible() -> bool:
+	return _intro != null and is_instance_valid(_intro) and not _intro.is_done()
+
+
+## True while the phase banner is showing (read by tests).
+func phase_banner_visible() -> bool:
+	return _banner != null and _banner.visible
+
+
+func _start_boss_intro() -> void:
+	if _combat.enemies.is_empty():
+		return
+	var boss := _combat.enemies[0]
+	_intro = BossIntro.new()
+	_intro.setup("MID-BOSS" if boss_label == "Mid-boss" else "FINAL BOSS", boss.display_name)
+	_intro.finished.connect(_on_intro_finished)
+	add_child(_intro)
+	if not CardView.reduced_motion and not _enemy_views.is_empty():
+		var view := _enemy_views[0]
+		view.entrance = ENTRANCE_START_SCALE
+		_entrance_tween = create_tween()
+		_entrance_tween.tween_property(view, "entrance", 1.0, BossIntro.DURATION).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+func _on_intro_finished() -> void:
+	if _entrance_tween != null:
+		_entrance_tween.kill()
+	for view in _enemy_views:
+		view.entrance = 1.0
+	_intro = null
+
+
+## A boss (or any enemy with a phase two) enters its second phase: banner, flash, shake, harsher backdrop
+## and an immediate redraw so the new phase's intent shows.
+func _on_enemy_phase_changed(enemy: EnemyUnit, _new_phase: int) -> void:
+	var title := enemy.data.phase_two_title if enemy.data.phase_two_title != "" else "Enraged"
+	_log_label.append_text("[b]%s: %s[/b]\n" % [enemy.display_name, title])
+	var index := _combat.enemies.find(enemy)
+	if index >= 0 and index < _enemy_views.size():
+		_enemy_views[index].shake()
+	if boss_fight:
+		_backdrop.set_harsh(true)
+	_show_phase_banner(title)
+	_flash_screen()
+	_on_state_changed()
+
+
+func _show_phase_banner(title: String) -> void:
+	if _banner == null:
+		_banner = Label.new()
+		_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_banner.z_index = 40
+		MenuStyle.heading(_banner, 52)
+		_banner.add_theme_color_override("font_color", MenuStyle.DAMAGE)
+		_banner.add_theme_color_override("font_outline_color", Color(0.05, 0.0, 0.0, 0.9))
+		_banner.add_theme_constant_override("outline_size", 8)
+		add_child(_banner)
+	_banner.text = title.to_upper()
+	_banner.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_banner.offset_top = 120.0
+	_banner.offset_bottom = 200.0
+	_banner.modulate.a = 1.0
+	_banner.show()
+	if _banner_tween != null:
+		_banner_tween.kill()
+	if not is_inside_tree():
+		return
+	var reduced := CardView.reduced_motion
+	_banner_tween = create_tween()
+	if not reduced:
+		_banner.modulate.a = 0.0
+		_banner_tween.tween_property(_banner, "modulate:a", 1.0, 0.2)
+	_banner_tween.tween_interval(PHASE_BANNER_TIME * (0.4 if reduced else 1.0) - 0.5)
+	_banner_tween.tween_property(_banner, "modulate:a", 0.0, 0.3)
+	_banner_tween.tween_callback(_banner.hide)
+
+
+## A quick red flash over the whole screen (skipped under reduced motion).
+func _flash_screen() -> void:
+	if CardView.reduced_motion or not is_inside_tree():
+		return
+	if _flash == null:
+		_flash = ColorRect.new()
+		_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_flash.z_index = 39
+		add_child(_flash)
+		_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	if _flash_tween != null:
+		_flash_tween.kill()
+	_flash.color = Color(MenuStyle.DAMAGE, 0.45)
+	_flash_tween = create_tween()
+	_flash_tween.tween_property(_flash, "color:a", 0.0, 0.5)
 
 
 ## Re-applies the hover look to the hand card under the pointer after a rebuild (the new views
