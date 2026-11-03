@@ -25,6 +25,8 @@ Version numbers: set `application/short_version` and `application/version` in th
 
 ## Installing it (for players)
 
+Step-by-step instructions to give to a player (download, first launch, running from source) are in [`MACOS_INSTALL.md`](MACOS_INSTALL.md). A short version follows.
+
 1. Download `TheUnforgotten-macOS-<version>.zip` from the releases page and unzip it.
 2. Drag **The Unforgotten** to Applications.
 3. The first launch is blocked by Gatekeeper ("cannot be opened because the developer cannot be verified", or "is damaged"), because the app is not notarized. Either right-click the app, choose **Open**, and confirm; or run `xattr -dr com.apple.quarantine "/Applications/The Unforgotten.app"` in Terminal once.
