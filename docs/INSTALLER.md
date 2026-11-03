@@ -14,7 +14,7 @@ Output: `build/TheUnforgotten-Setup-<version>.exe` and `build/TheUnforgotten-Set
 2. Run the build script.
 3. Publish the installer and its checksum file together as a GitHub release tagged `v<version>` (for example `gh release create v0.2.0 build/TheUnforgotten-Setup-0.2.0.exe build/TheUnforgotten-Setup-0.2.0.exe.sha256`).
 
-When a signing key is configured the build also writes `.sig`, `.manifest` and `.manifest.sig` next to the installer; publish all five files. It is what lets the game install the update itself. See `docs/UPDATE_SIGNING.md` for the one-time key setup and the per-release steps.
+When a signing key is configured the build also writes `.manifest` and `.manifest.sig` next to the installer; publish all four files. It is what lets the game install the update itself. See `docs/UPDATE_SIGNING.md` for the one-time key setup and the per-release steps.
 
 ## Verifying a download
 
