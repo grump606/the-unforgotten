@@ -15,6 +15,7 @@ func run() -> int:
 	_test_bad_input()
 	_test_list()
 	_test_run_state_uses_debug_encounter()
+	_test_screens()
 	return _failures
 
 
@@ -96,3 +97,25 @@ func _test_run_state_uses_debug_encounter() -> void:
 	_check(run_state.boss_label() == "", "a debug pack has no boss label")
 	run_state.debug_encounter.clear()
 	_check(run_state.boss_label() == "", "cleared, the run is normal again")
+
+
+func _test_screens() -> void:
+	var vendor := DebugLaunch.parse(PackedStringArray(["--screen=vendor", "--character=medium"]), {})
+	_check(vendor.requested and vendor.error == "" and vendor.screen == "vendor" and vendor.screen_index == 1 and vendor.enemy_ids.is_empty(), "--screen=vendor opens the first shop")
+	_check(vendor.character_id == &"medium" and vendor.gold == -1 and vendor.hp == -1, "gold and hp default (the game fills them in)")
+	var rest := DebugLaunch.parse(PackedStringArray(["--screen=Rest", "--gold=0", "--hp=10"]), {})
+	_check(rest.screen == "rest" and rest.gold == 0 and rest.hp == 10, "rest, with gold 0 and hp 10")
+	var second := DebugLaunch.parse(PackedStringArray(["--screen=vendor:2"]), {})
+	_check(second.error == "" and second.screen_index == 2, "vendor:2 is the second shop")
+	var from_env := DebugLaunch.parse(PackedStringArray(), {DebugLaunch.ENV_SCREEN: "rest", DebugLaunch.ENV_GOLD: "40"})
+	_check(from_env.screen == "rest" and from_env.gold == 40, "the environment can request a screen")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=castle"]), {}).error != "", "an unknown screen is an error")
+	for special in ["select", "end", "defeat"]:
+		var launch := DebugLaunch.parse(PackedStringArray(["--screen=" + special]), {})
+		_check(launch.error == "" and launch.screen == special, "--screen=%s is accepted" % special)
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=select:2"]), {}).error != "", "select takes no number")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor:0"]), {}).error != "", "vendor:0 is an error")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor:99"]), {}).error != "", "a shop number past the end of the line is an error")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor", "--fight=eraser"]), {}).error != "", "a fight and a screen together is an error")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor", "--gold=-5"]), {}).error != "", "negative gold is an error")
+	_check(DebugLaunch.screen_count("vendor") == 3 and DebugLaunch.screen_count("rest") >= 3, "the default line has three shops and several rests")
