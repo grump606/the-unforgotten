@@ -54,7 +54,7 @@ func _initialize() -> void:
 	await process_frame
 	check(scene._run.current_stop().type == RunState.StopType.REST, "the rest stop is open")
 	check(scene._run.gold == 7 and scene._run.player.hp == 5, "explicit gold and hp are used")
-	check(_all_text(scene.get_node("%Body")).contains("Rest"), "the rest screen offers resting")
+	check(_all_text(scene.get_node("%Body")).contains(RestContent.BUTTON), "the rest screen shows the story card")
 	check(not FileAccess.file_exists(test_save), "a debug rest never writes the save")
 
 	var second := DebugLaunch.parse(PackedStringArray(["--screen=vendor:2"]), {})

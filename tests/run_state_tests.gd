@@ -322,7 +322,9 @@ func _test_rest() -> void:
 	_win_and_skip(state)
 	state.player.take_damage(40)
 	var hp_before := state.player.hp
-	_check(state.rest() == RunState.REST_HEAL and state.player.hp == hp_before + RunState.REST_HEAL, "rest heals and reports HP restored")
+	var missing := state.player.max_hp - hp_before
+	_check(state.rest_heal_amount() == missing and state.rest_number() == 1, "the first rest says what it will heal")
+	_check(state.rest() == missing and state.player.hp == state.player.max_hp, "rest heals to full and reports HP restored")
 	_check(state.stop_index == 4, "rest moves to the next stop")
 
 	var full := _at_first_fight(6)
@@ -628,17 +630,18 @@ func _test_survivors_from_mutation_audit() -> void:
 	var healed := shop.vendor_buy_heal()
 	_check(healed.ok and shop.gold == 100 - Vendor.HEAL_PRICE, "a vendor heal costs exactly HEAL_PRICE of the run's gold")
 
-	# Rest heals min(REST_HEAL, missing HP), exactly.
+	# Rest heals to full, whatever is missing.
 	var resting := _at_first_fight(43)
 	_win_and_skip(resting)
 	_win_and_skip(resting)
 	resting.player.take_damage(10)
-	_check(resting.rest() == 10, "rest heals only the missing HP when that is less than REST_HEAL")
+	_check(resting.rest() == 10 and resting.player.hp == resting.player.max_hp, "rest heals a small wound to full")
 	var deep := _at_first_fight(44)
 	_win_and_skip(deep)
 	_win_and_skip(deep)
-	deep.player.take_damage(RunState.REST_HEAL + 10)
-	_check(deep.rest() == RunState.REST_HEAL, "rest heals exactly REST_HEAL when more is missing")
+	deep.player.take_damage(deep.player.max_hp - 1)
+	_check(deep.rest() == deep.player.max_hp - 1 and deep.player.hp == deep.player.max_hp, "rest heals a near-fatal wound to full")
+	_check(deep.rest_heal_amount() == 0 and deep.rest_number() == 0, "off a rest stop there is nothing to heal")
 
 	# The line's exact shape, so a silent edit to it is noticed.
 	var shape := []
