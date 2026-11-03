@@ -71,6 +71,9 @@ var _tex: Texture2D
 var _region := Rect2()
 ## Which way the painted figure faces as drawn (the enemy art looks left).
 var _art_facing := -1.0
+## Floating number for damage the Block absorbed (blue, against the red of HP lost).
+const BLOCKED_COLOR := Color(0.55, 0.78, 1.0)
+
 var _flash := 0.0
 var _lunge := 0.0
 var _lunge_delay := 0.0
@@ -205,7 +208,7 @@ func refresh() -> void:
 	if unit.hp < _last_hp:
 		var extra := maxi(_last_hp - unit.hp - _scheduled_loss, 0)
 		if extra > 0:
-			_react(extra, react_delay)
+			_react(extra, react_delay, maxi(_last_block - unit.block, 0))
 	elif unit.hp > _last_hp:
 		_react(_last_hp - unit.hp, react_delay)
 	if unit.block > _last_block:
@@ -222,29 +225,31 @@ func refresh() -> void:
 
 ## Plays a hit (or, with 0, a fully blocked hit) after `delay` seconds, and tells the next refresh() not to
 ## react to it again. The battle uses it so each enemy's hit on the player lands with that enemy's lunge.
-func schedule_hit(amount: int, delay: float) -> void:
+func schedule_hit(amount: int, delay: float, blocked := 0) -> void:
 	_scheduled_loss += amount
 	if amount == 0:
 		_scheduled_block = true
-	_react(amount, delay)
+	_react(amount, delay, blocked)
 
 
-func _react(amount: int, delay: float) -> void:
+func _react(amount: int, delay: float, blocked := 0) -> void:
 	if delay <= 0.0:
-		_play_reaction(amount)
+		_play_reaction(amount, blocked)
 	else:
-		_reactions.append({"t": delay, "amount": amount})
+		_reactions.append({"t": delay, "amount": amount, "blocked": blocked})
 
 
-func _play_reaction(amount: int) -> void:
+func _play_reaction(amount: int, blocked := 0) -> void:
 	if amount > 0:
 		_flash = 1.0
 		_recoil = 1.0
 		_float("-%d" % amount, Color(1.0, 0.42, 0.38))
+		if blocked > 0:
+			_float("%d blocked" % blocked, BLOCKED_COLOR)
 	elif amount < 0:
 		_float("+%d" % -amount, Color(0.55, 1.0, 0.55))
 	else:
-		_float("Blocked", CardView.kind_color(CardEffect.Kind.BLOCK).lightened(0.3))
+		_float("Blocked", BLOCKED_COLOR)
 
 
 ## A lunge toward the opponent, starting after `delay` seconds (so a row of enemies attack one by one).
@@ -277,7 +282,7 @@ func advance(delta: float) -> void:
 	for r in _reactions:
 		r.t -= delta
 	for r in _reactions.filter(func(r: Dictionary) -> bool: return r.t <= 0.0):
-		_play_reaction(r.amount)
+		_play_reaction(r.amount, r.get("blocked", 0))
 	_reactions = _reactions.filter(func(r: Dictionary) -> bool: return r.t > 0.0)
 	fade = move_toward(fade, 1.0 if is_defeated() else 0.0, delta / FADE_TIME)
 	for f in _floats:

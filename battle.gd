@@ -18,6 +18,10 @@ const HAND_WIDTH_FALLBACK := 820.0
 const HAND_MAX_OVERLAP := 0.55
 ## Relic badges beside the HP line are drawn a little smaller than full size.
 const BADGE_SCALE := 0.85
+## Scale of the inspection preview shown above the hand for the hovered card.
+const PREVIEW_SCALE := 1.6
+## Seconds per beat of the amber pulse (two beats) when the discard-step confirm button becomes available.
+const CONFIRM_PULSE_TIME := 0.35
 
 # Derived from the rules constants so the text cannot drift from them.
 const EXPOSED_MULTIPLIER_TEXT := "%.1fx" % (float(Combatant.EXPOSED_NUM) / Combatant.EXPOSED_DEN)
@@ -83,6 +87,12 @@ var _energy_orb: EnergyOrb
 var _attacks_this_batch := 0
 ## The player's HP when the last enemy attack was handled, so each attack's share of the damage is known.
 var _seen_player_hp := 0
+## The player's Block at the same moment, so each attack's share absorbed by Block is known.
+var _seen_player_block := 0
+## Full-size look at the hovered hand card (created on first use), and the pulse on the confirm button.
+var _preview: CardView
+var _confirm_ready := false
+var _confirm_tween: Tween
 
 
 func _ready() -> void:
@@ -193,6 +203,7 @@ func _begin_batch() -> void:
 		_attacks_this_batch = 0
 		if _combat != null:
 			_seen_player_hp = _combat.player.hp
+			_seen_player_block = _combat.player.block
 	_batch_depth += 1
 
 
@@ -225,6 +236,7 @@ func _sync_turn_controls() -> void:
 		var marked := _combat.discard_marks.size()
 		var need := _combat.discard_required()
 		_end_turn_button.disabled = need > 0
+		_pulse_confirm(need == 0)
 		if need > 0:
 			_end_turn_button.text = "Discard %d more" % need
 		elif marked == 0:
@@ -235,6 +247,7 @@ func _sync_turn_controls() -> void:
 		_result_label.text = "Choose cards to discard. You keep %d of up to %d." % [keep, Combat.HAND_SIZE]
 		_hint_shown = true
 		return
+	_pulse_confirm(false)
 	_end_turn_button.text = "End Turn"
 	_end_turn_button.disabled = phase != Combat.Phase.PLAYER_TURN
 	if _hint_shown and phase != Combat.Phase.ENDED:
@@ -329,6 +342,7 @@ func _enemy_tooltip(enemy: EnemyUnit) -> String:
 
 
 func _rebuild_hand() -> void:
+	_hide_preview()
 	for child in _hand_box.get_children():
 		_discard_node(child)
 	var discarding := _combat.phase == Combat.Phase.DISCARDING
@@ -351,6 +365,7 @@ func _rebuild_hand() -> void:
 		else:
 			view.set_state(CardView.State.UNPLAYABLE, _unplayable_note(card))
 		view.pressed.connect(_play_hand_card.bind(i))
+		view.hover_changed.connect(_on_card_hover.bind(view))
 		_hand_box.add_child(view)
 	# The new views start un-hovered; once laid out, light the one under the pointer.
 	_restore_hover.call_deferred()
@@ -591,8 +606,9 @@ func _on_enemy_acted(enemy: EnemyUnit, intent: CardEffect) -> void:
 		_attacks_this_batch += 1
 		# The player flinches when this attack's lunge peaks, not all at once at the end of the phase.
 		if _player_view != null:
-			_player_view.schedule_hit(maxi(_seen_player_hp - _combat.player.hp, 0), delay + Fighter.LUNGE_TIME * 0.5)
+			_player_view.schedule_hit(maxi(_seen_player_hp - _combat.player.hp, 0), delay + Fighter.LUNGE_TIME * 0.5, maxi(_seen_player_block - _combat.player.block, 0))
 	_seen_player_hp = _combat.player.hp
+	_seen_player_block = _combat.player.block
 
 
 ## Re-applies the hover look to the hand card under the pointer after a rebuild (the new views
@@ -610,3 +626,63 @@ func _restore_hover(mouse := Vector2(-1.0, -1.0)) -> void:
 		var over := not found and view.get_global_rect().has_point(mouse)
 		found = found or over
 		view.set_hovered(over)
+
+
+func _on_card_hover(inside: bool, view: CardView) -> void:
+	if inside:
+		_show_preview(view)
+	elif _preview != null and _preview.card == view.card and _preview.visible:
+		_hide_preview()
+
+
+## Shows a full-size copy of a hand card above the hand. It ignores the mouse, so it never blocks a click.
+func _show_preview(view: CardView) -> void:
+	if view.card == null:
+		return
+	if _preview == null:
+		_preview = CardView.new()
+		_preview.view_scale = PREVIEW_SCALE
+		_preview.z_index = 10
+		_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_preview)
+	_preview.set_card(view.card)
+	_preview.set_state(CardView.State.UNPLAYABLE if view.state == CardView.State.UNPLAYABLE else CardView.State.NORMAL, view.note)
+	_preview.hotkey = view.hotkey
+	_preview.preview = view.preview
+	_preview.discard_marked = view.discard_marked
+	var card_rect := view.get_global_rect()
+	var width := CardView.BASE.x * PREVIEW_SCALE
+	var height := (CardView.BASE.y + CardView.LIFT) * PREVIEW_SCALE
+	var hand_top := _hand_box.get_global_rect().position.y
+	var x := clampf(card_rect.get_center().x - width / 2.0, 4.0, maxf(size.x - width - 4.0, 4.0))
+	_preview.global_position = Vector2(x, maxf(hand_top - height - 6.0, 4.0))
+	_preview.show()
+
+
+func _hide_preview() -> void:
+	if _preview != null:
+		_preview.hide()
+
+
+## True while the inspection preview is on screen (read by tests).
+func preview_visible() -> bool:
+	return _preview != null and _preview.visible
+
+
+## When the discard step's confirm button first becomes available, pulses it amber twice (skipped
+## under CardView.reduced_motion). Becoming unavailable again clears any pulse.
+func _pulse_confirm(available: bool) -> void:
+	if available == _confirm_ready:
+		return
+	_confirm_ready = available
+	if _confirm_tween != null:
+		_confirm_tween.kill()
+		_confirm_tween = null
+	_end_turn_button.modulate = Color.WHITE
+	if not available or CardView.reduced_motion or not is_inside_tree():
+		return
+	var amber := Color(1.0, 0.82, 0.4)
+	_confirm_tween = create_tween()
+	for beat in 2:
+		_confirm_tween.tween_property(_end_turn_button, "modulate", amber, CONFIRM_PULSE_TIME * 0.5)
+		_confirm_tween.tween_property(_end_turn_button, "modulate", Color.WHITE, CONFIRM_PULSE_TIME * 0.5)
