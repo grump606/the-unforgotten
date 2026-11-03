@@ -166,3 +166,21 @@ static func style_service(button: Button) -> void:
 	button.add_theme_color_override("font_color", MenuStyle.TEXT)
 	button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.9))
 	button.add_theme_color_override("font_disabled_color", Color(0.62, 0.57, 0.52))
+
+
+## Shrinks a plaque button to `height` without breaking its border: the nine-slice's top and bottom
+## corners are cut to half the height (a plaque is sliced 22 px deep, so a button under 44 px tall
+## would otherwise draw its corners over each other).
+static func compact_plaque(button: Button, height: float, font_size: int) -> void:
+	button.custom_minimum_size = Vector2(button.custom_minimum_size.x, height)
+	button.add_theme_font_size_override("font_size", font_size)
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		var box := button.get_theme_stylebox(state) as StyleBoxTexture
+		if box == null:
+			continue
+		box = box.duplicate()
+		box.texture_margin_top = height * 0.5
+		box.texture_margin_bottom = height * 0.5
+		box.content_margin_top = 3.0
+		box.content_margin_bottom = 3.0
+		button.add_theme_stylebox_override(state, box)

@@ -49,8 +49,6 @@ var _motes: Array[float] = []
 var _pieces: Array[float] = []
 var _gold_seen := false
 var _gold_changed_at := -10.0
-## The cloth backing behind the offers, built once (see _draw_offer_backing).
-var _offer_backing: StyleBoxFlat
 
 
 func _init() -> void:
@@ -182,9 +180,7 @@ func _draw() -> void:
 		_draw_shelves(w, edge)
 		_draw_lanterns(w)
 	_draw_shopkeeper(head, edge)
-	if PaintedArt.screen_texture(&"vendor") != null:
-		_draw_offer_backing()
-	else:
+	if PaintedArt.screen_texture(&"vendor") == null:
 		_draw_counter(w, h, edge, base)
 		_draw_till(w * 0.12, base - 10.0)
 		_draw_luggage(w * 0.88, base - 12.0)
@@ -526,23 +522,3 @@ func _draw_scrim(w: float, h: float) -> void:
 	if dimmed:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.01, 0.008, 0.012, 0.6))
 
-
-## A quiet cloth-toned backing lets the painted counter and keepsakes remain visible.
-func _draw_offer_backing() -> void:
-	var offers := _anchor_rect(counter_anchor)
-	if offers.size == Vector2.ZERO:
-		return
-	if _offer_backing == null:
-		_offer_backing = StyleBoxFlat.new()
-		_offer_backing.bg_color = Color(0.09, 0.11, 0.15, 0.68)
-		_offer_backing.border_color = Color(PALE, 0.24)
-		_offer_backing.set_border_width_all(1)
-		_offer_backing.set_corner_radius_all(4)
-	var area := offers.grow_individual(14, 10, 14, 12)
-	draw_style_box(_offer_backing, area)
-	# A few faded stitches echo the repaired cloth in the keeper's mantle.
-	for side in [area.position.x + 5.0, area.end.x - 5.0]:
-		var y := area.position.y + 9.0
-		while y < area.end.y - 8.0:
-			draw_line(Vector2(side, y), Vector2(side, y + 3), Color(PALE, 0.18), 1.0)
-			y += 11.0
