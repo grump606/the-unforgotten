@@ -146,15 +146,18 @@ func _initialize() -> void:
 	check(rests.size() == 1 and rests[0] is RestScene, "the rest stop has exactly one rest scene")
 	check(_beneath_panel(body, rests[0]), "the rest scene is the lowest child of the body, beneath the panel")
 	check((rests[0] as RestScene).character_id == &"medium" and rests[0].time > 0.0, "the rest scene shows the player's class and animates")
-	var rest_button := _find_button(body, "Rest (+")
-	check(rest_button != null and rest_button.text == "Rest (+%d HP)" % RunState.REST_HEAL, "the Rest button keeps its text")
+	check(_find_button(body, "Rest (+") == null, "there is no Rest button any more")
 	run_state.player.hp = run_state.player.max_hp - 30
 	scene._show_stop()
+	body = scene.get_node("%Body")
+	check(body.find_child("RestCard", true, false) != null and _find_button(body, RestContent.BUTTON) != null, "the rest stop shows a story card with one button")
+	check(scene._header.text.contains("HP %d/%d  Healed (+30)" % [run_state.player.max_hp, run_state.player.max_hp]), "the header shows full HP and the amount healed")
 	var hp_before := run_state.player.hp
 	var index_before := run_state.stop_index
-	_find_button(body, "Rest (+").pressed.emit()
+	_find_button(body, RestContent.BUTTON).pressed.emit()
 	await process_frame
-	check(run_state.player.hp > hp_before and run_state.stop_index == index_before + 1, "the Rest button still heals and moves on")
+	check(run_state.player.hp == run_state.player.max_hp and run_state.stop_index == index_before + 1, "the card's button heals to full and moves on")
+	check(not scene._header.text.contains("Healed"), "the Healed note is only shown at the rest stop")
 
 	for beat in 4:
 		_go_to(scene, RunState.StopType.STORY)
