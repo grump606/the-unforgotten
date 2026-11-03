@@ -152,7 +152,7 @@ func _show_stop() -> void:
 		_delete_save()
 		_update_header()
 		_end.attach(_run, _body, _show_stop)
-		_end.show(_new_run.bind(_show_stop))
+		_end.show(_new_run.bind(_show_stop), _show_main_menu)
 	elif _run.reward_pending():
 		_update_header()
 		_open(_reward)
