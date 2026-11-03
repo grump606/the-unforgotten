@@ -61,6 +61,8 @@ const KEYWORDS := {
 
 ## Emitted when a clickable card is clicked (never for an Unplayable one).
 signal pressed
+## Emitted when the pointer enters or leaves (also via set_hovered), for cards that auto_hover.
+signal hover_changed(inside: bool)
 
 var card: CardData
 ## Which palette the current card uses: &"" (neutral) or a class id.
@@ -100,7 +102,14 @@ var clickable := false:
 
 var _hovered := false
 var _tilt := Vector2.ZERO
+## 0 (resting) to 1 (raised); eases over LIFT_TIME unless reduced_motion.
+var _lift := 0.0
 var _font: Font = ThemeDB.fallback_font
+
+## Skips the hover-lift easing (cards snap) and the confirm pulse when true. No UI sets it yet.
+static var reduced_motion := false
+## Seconds for a card to rise or settle on hover.
+const LIFT_TIME := 0.12
 
 const TILT_SHADER := preload("res://art/fx/card_tilt.gdshader")
 
@@ -126,6 +135,7 @@ func set_card(new_card: CardData) -> void:
 func set_state(new_state: State, new_note := "") -> void:
 	state = new_state
 	note = new_note
+	_chase_lift()
 	queue_redraw()
 
 
@@ -238,6 +248,8 @@ func _on_hover(inside: bool) -> void:
 		_hovered = inside
 		# A hovered card in an overlapping hand comes to the front.
 		z_index = 1 if inside else 0
+		_chase_lift()
+		hover_changed.emit(inside)
 		if inside:
 			set_process(true)
 		queue_redraw()
@@ -246,13 +258,17 @@ func _on_hover(inside: bool) -> void:
 ## Eases the card toward the pointer while hovered (perspective tilt with a moving sheen, see
 ## art/fx/card_tilt.gdshader) and back to flat afterwards; stops processing once it is flat again.
 func _process(delta: float) -> void:
+	var lift_goal := 1.0 if _raised() else 0.0
+	if _lift != lift_goal:
+		_lift = move_toward(_lift, lift_goal, delta / LIFT_TIME)
+		queue_redraw()
 	var goal := Vector2.ZERO
 	if _hovered and state != State.UNPLAYABLE and size.x > 0.0 and size.y > 0.0:
 		var mouse := get_local_mouse_position()
 		if Rect2(Vector2.ZERO, size).has_point(mouse):
 			goal = ((mouse / size) - Vector2(0.5, 0.5)) * 2.0
 	_tilt = _tilt.lerp(goal, 1.0 - exp(-14.0 * delta))
-	if goal == Vector2.ZERO and _tilt.length() < 0.01:
+	if goal == Vector2.ZERO and _tilt.length() < 0.01 and _lift == lift_goal:
 		_tilt = Vector2.ZERO
 		material = null
 		set_process(false)
@@ -266,6 +282,15 @@ func _process(delta: float) -> void:
 	sm.set_shader_parameter("size_px", size)
 
 
+## Starts easing the lift toward its goal (snaps when the card does not hover by itself).
+func _chase_lift() -> void:
+	var goal := 1.0 if _raised() else 0.0
+	if reduced_motion or not auto_hover or not is_inside_tree():
+		_lift = goal
+	elif _lift != goal:
+		set_process(true)
+
+
 func _raised() -> bool:
 	return state == State.HOVER or state == State.SELECTED or (_hovered and state == State.NORMAL)
 
@@ -277,7 +302,7 @@ func _draw() -> void:
 		return
 	var muted := state == State.UNPLAYABLE
 	var p := _palette(class_id, muted, not muted and _raised())
-	var top := 0.0 if _raised() else LIFT
+	var top := LIFT * (1.0 - _lift)
 	draw_set_transform(Vector2(0, top * view_scale), 0.0, Vector2(view_scale, view_scale))
 	var stock: Color = p.stock
 	var ink: Color = p.ink
@@ -355,7 +380,7 @@ static func _palette(id: StringName, muted: bool, raised: bool) -> Dictionary:
 
 static func _mute(c: Color) -> Color:
 	var g := c.get_luminance()
-	return Color(g, g, g).lerp(c, 0.45) * Color(0.78, 0.78, 0.78, 1.0)
+	return Color(g, g, g).lerp(c, 0.45) * Color(0.88, 0.88, 0.88, 1.0)
 
 
 func _box(rect: Rect2, fill: Color, radius: int, border := 0, border_color := Color.WHITE) -> void:
