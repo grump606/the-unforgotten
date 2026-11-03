@@ -55,6 +55,28 @@ func _check_preview_matches_damage(node: Control, combat: Combat) -> void:
 			combat.piles.hand.clear()
 
 
+## The full-size inspection preview shows for a hovered hand card, ignores the mouse, and hides again.
+func _check_preview(node: Control) -> void:
+	node._start_combat()
+	node._refresh()
+	check(not node.preview_visible(), "no preview before any card is hovered")
+	var views := CardView.find_all(node._hand_box)
+	views[0].set_hovered(true)
+	check(node.preview_visible(), "hovering a hand card shows the preview")
+	check(node._preview.mouse_filter == Control.MOUSE_FILTER_IGNORE, "the preview does not block input")
+	check(node._preview.card == views[0].card and node._preview.view_scale >= 1.5, "the preview is a larger copy of the hovered card")
+	views[0].set_hovered(false)
+	check(not node.preview_visible(), "the preview hides when the pointer leaves")
+	views[0].set_hovered(true)
+	node._refresh()
+	check(not node.preview_visible(), "a hand rebuild hides a stale preview")
+	CardView.reduced_motion = true
+	var v := CardView.find_all(node._hand_box)[0]
+	v.set_hovered(true)
+	check(v._lift == 1.0, "reduced motion snaps the hover lift")
+	CardView.reduced_motion = false
+
+
 ## The end-of-turn discard step on screen: marking, the confirm button's wording, Back, and a full
 ## 10-card hand fitting on one row of the 1152x648 window.
 func _check_discard_ui(node: Control) -> void:
@@ -286,5 +308,6 @@ func _initialize() -> void:
 	key(node, KEY_E)
 	check(c2.piles.hand.size() == h, "enemy phase ignored")
 	await _check_discard_ui(node)
+	_check_preview(node)
 	print("DONE fails=", fails)
 	quit(1 if fails > 0 else 0)
