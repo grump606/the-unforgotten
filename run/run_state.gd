@@ -72,6 +72,8 @@ var player: Combatant
 var deck: Array[CardData]
 var stops: Array[Stop] = []
 var stop_index: int = 0
+## Debug launch (run/debug_launch.gd): when non-empty, the next fight uses these enemy ids instead of the stop's encounter.
+var debug_encounter: Array[StringName] = []
 ## True once the line is finished, by reaching the end or by losing a fight.
 var finished: bool = false
 ## Only meaningful when `finished`: true if the player reached the last stop alive.
@@ -150,7 +152,12 @@ func start_combat() -> Combat:
 		_active_combat.abandon()
 		_active_combat = null
 	var enemies: Array[EnemyData]
-	if stop.boss:
+	if not debug_encounter.is_empty():
+		for enemy_id in debug_encounter:
+			var enemy := StarterContent.enemy_by_id(enemy_id)
+			if enemy != null:
+				enemies.append(enemy)
+	elif stop.boss:
 		enemies = StarterContent.boss_encounter()
 	elif stop.mid_boss:
 		enemies = StarterContent.mid_boss_encounter()
@@ -158,6 +165,21 @@ func start_combat() -> Combat:
 		enemies = StarterContent.varied_encounter(stop.enemy_count, _rng, stop.tier, stop.fight)
 	_active_combat = Combat.create(player, deck, enemies, _rng.randi(), relics)
 	return _active_combat
+
+
+## "Boss" for the final boss fight, "Mid-boss" for the mid-boss, "" for a regular fight. A debug
+## encounter is judged by its enemies, so launching the Eraser gets the boss look anywhere.
+func boss_label() -> String:
+	if not debug_encounter.is_empty():
+		if debug_encounter.has(&"the_conductor"):
+			return "Boss"
+		return "Mid-boss" if debug_encounter.has(&"the_brakeman") else ""
+	var stop := current_stop()
+	if stop == null:
+		return ""
+	if stop.boss:
+		return "Boss"
+	return "Mid-boss" if stop.mid_boss else ""
 
 
 ## Records how the current fight ended. A defeat ends the run; a victory pays

@@ -39,6 +39,8 @@ var _story := StoryScreen.new()
 var _vendor := VendorScreen.new()
 var _rest := RestScreen.new()
 var _end := EndScreen.new()
+## True while a debug-launched fight is on screen (see start_debug_fight): nothing is saved or deleted.
+var _debug_fight := false
 
 
 func _ready() -> void:
@@ -56,6 +58,7 @@ func _ready() -> void:
 	_body.resized.connect(_select.recenter)
 	resized.connect(_select.recenter)
 	_show_main_menu()
+	_maybe_start_debug_fight()
 
 
 ## Points a screen at the current run and the body before it is shown.
@@ -224,7 +227,54 @@ func _clear_body() -> void:
 
 
 func _on_fight_finished(victory: bool) -> void:
+	if _debug_fight:
+		# A debug fight is not part of a real run: no rewards, no save; back to the menu.
+		_debug_fight = false
+		_run.debug_encounter.clear()
+		_show_main_menu()
+		return
 	_run.complete_combat(victory)
+	_show_stop()
+
+
+# --- Debug launch (run/debug_launch.gd) -----------------------------------------------------
+
+## Starts straight in the fight asked for on the command line or in the environment, with the
+## chosen character's real deck. Does nothing when no fight was asked for. A malformed request is
+## reported in the menu notice and the log, and the menu is shown as usual.
+func _maybe_start_debug_fight() -> void:
+	var launch := DebugLaunch.from_environment()
+	if not launch.requested:
+		return
+	if launch.list_only:
+		print(DebugLaunch.help_text())
+		return
+	if launch.error != "":
+		push_warning("Debug launch: %s" % launch.error)
+		_notice = launch.error
+		_show_main_menu()
+		return
+	start_debug_fight(launch)
+
+
+## Builds a throwaway run for the character and opens a combat stop that fights `launch.enemy_ids`.
+## The stop is the line's boss or mid-boss stop for those bosses (so the backdrop matches), else the
+## first regular fight. Autosaving is off until the fight ends, so a real save is never replaced.
+func start_debug_fight(launch: DebugLaunch) -> void:
+	_run = RunState.new(randi(), launch.character_id)
+	for index in _run.stops.size():
+		var stop := _run.stops[index]
+		if stop.type != RunState.StopType.COMBAT:
+			continue
+		var matches := stop.boss if launch.enemy_ids.has(&"the_conductor") else (stop.mid_boss if launch.enemy_ids.has(&"the_brakeman") else not (stop.boss or stop.mid_boss))
+		if matches:
+			_run.stop_index = index
+			break
+	_run.debug_encounter.assign(launch.enemy_ids)
+	if launch.hp > 0:
+		_run.player.hp = mini(launch.hp, _run.player.max_hp)
+	_debug_fight = true
+	_reset_screens()
 	_show_stop()
 
 
@@ -261,6 +311,8 @@ func _leave_vendor() -> void:
 
 ## Saves the run at the start of a stop (never mid-fight). A failure is shown, not fatal.
 func _autosave() -> void:
+	if _debug_fight:
+		return
 	if not _run.at_stop_boundary():
 		return
 	var error := RunSave.save(_run, save_path)
@@ -271,6 +323,8 @@ func _autosave() -> void:
 
 ## A finished run has nothing to resume.
 func _delete_save() -> void:
+	if _debug_fight:
+		return
 	var error := RunSave.delete(save_path)
 	if error != "":
 		_notice = error

@@ -16,9 +16,9 @@ func show(on_finished: Callable, on_start_over: Callable) -> void:
 	var battle := BATTLE_SCENE.instantiate()
 	battle.external_combat = combat
 	# The mid-boss and the final boss both get the boss look; only the final one ends the run.
-	var stop := run.current_stop()
-	battle.boss_fight = stop.boss or stop.mid_boss
-	battle.boss_label = "Mid-boss" if stop.mid_boss else "Boss"
+	var label := run.boss_label()
+	battle.boss_fight = label != ""
+	battle.boss_label = label if label != "" else "Boss"
 	battle.character_id = run.character.id if run.character != null else &""
 	battle.destination_key = DestinationArt.battle_key(run.stop_index)
 	battle.relics = run.relics
