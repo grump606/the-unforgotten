@@ -10,6 +10,7 @@ func run() -> int:
 	_failures = 0
 	_test_lose_hp()
 	_test_haunt()
+	_test_haunt_cap()
 	_test_heal_and_haunt_damage()
 	_test_medium_cards()
 	return _failures
@@ -136,6 +137,46 @@ func _test_haunt() -> void:
 	var odd := _fight([dread], 50, [_fx(CardEffect.Kind.HAUNT, 5)])
 	odd.end_player_turn()
 	_check(odd.player.status_turns(Combatant.Status.HAUNTED) == 0 and odd.player.hp == 40, "an enemy intent with HAUNT does nothing to the player")
+
+
+func _capped(cap: int, count: int = 1) -> Array[EnemyData]:
+	var list: Array[EnemyData] = []
+	for i in count:
+		list.append(EnemyData.make("C%d" % i, 100, [], &"", cap))
+	return list
+
+
+func _test_haunt_cap() -> void:
+	var big := _haunt_card(8)
+	var fight := Combat.new(Combatant.new("p", 40), [big, _haunt_card(2), _haunt_card(2), _haunt_card(2)] as Array[CardData], _capped(5))
+	fight.start()
+	_play(fight, big)
+	_check(fight.enemies[0].status_turns(Combatant.Status.HAUNTED) == 5, "Haunt over the cap clamps to it")
+	var adds := Combat.new(Combatant.new("p", 40), [_haunt_card(2), _haunt_card(2), _haunt_card(2)] as Array[CardData], _capped(5))
+	adds.start()
+	for card in adds.piles.hand.duplicate():
+		_play(adds, card)
+		var got: int = adds.enemies[0].status_turns(Combatant.Status.HAUNTED)
+		_check(got <= 5, "stacks never pass the cap (got %d)" % got)
+	_check(adds.enemies[0].status_turns(Combatant.Status.HAUNTED) == 5, "stacks add up to the cap, 2+2+2 gives 5")
+	adds.end_player_turn()
+	_check(adds.enemies[0].hp == 95 and adds.enemies[0].status_turns(Combatant.Status.HAUNTED) == 4, "a capped enemy still takes its Haunt and decays by 1")
+	var free := _fight([big])
+	_play(free, big)
+	_check(free.enemies[0].status_turns(Combatant.Status.HAUNTED) == 8, "an uncapped enemy keeps all 8 Haunt")
+	var sweep := _haunt_card(8, CardData.TargetMode.ALL_ENEMIES)
+	var mixed_list := _capped(5, 1)
+	mixed_list.append(EnemyData.make("U", 100, []))
+	var mixed := Combat.new(Combatant.new("p", 40), [sweep] as Array[CardData], mixed_list)
+	mixed.start()
+	_play(mixed, sweep)
+	_check(mixed.enemies[0].status_turns(Combatant.Status.HAUNTED) == 5 and mixed.enemies[1].status_turns(Combatant.Status.HAUNTED) == 8, "Haunt to all caps only the capped enemy")
+	var scaled := StarterContent.scaled(_capped(5)[0], 1.5)
+	_check(scaled.max_haunt == 5, "scaling an enemy keeps its Haunt cap")
+	var direct := EnemyUnit.new(_capped(3)[0])
+	direct.apply_status(Combatant.Status.HAUNTED, 9)
+	direct.apply_status(Combatant.Status.EXPOSED, 9)
+	_check(direct.status_turns(Combatant.Status.HAUNTED) == 3 and direct.status_turns(Combatant.Status.EXPOSED) == 9, "the cap applies to Haunt only")
 
 
 func _test_heal_and_haunt_damage() -> void:

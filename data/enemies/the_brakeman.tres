@@ -28,4 +28,5 @@ script = ExtResource("1_enemy")
 id = &"the_brakeman"
 display_name = "Bellkeeper"
 max_hp = 96
+max_haunt = 9
 intents = Array[ExtResource("2_effect")]([SubResource("Resource_i1"), SubResource("Resource_i2"), SubResource("Resource_i3"), SubResource("Resource_i4")])

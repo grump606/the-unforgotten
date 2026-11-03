@@ -92,6 +92,13 @@ func _initialize() -> void:
 	var enemy_views: Array[Fighter] = node._enemy_views
 	check(enemy_views.size() == 3 and enemy_views[0].tooltip_text.contains("2 more turns"), "enemy tooltip")
 	check(not enemy_views[1].tooltip_text.contains("more turns"), "no status tooltip unexposed")
+	c.enemies[0].max_haunt = 5
+	c.enemies[0].apply_status(Combatant.Status.HAUNTED, 9)
+	check(node._enemy_tooltip(c.enemies[0]).contains("Haunt capped at 5"), "capped enemy tooltip shows the cap")
+	check(not node._enemy_tooltip(c.enemies[1]).contains("capped"), "uncapped enemy tooltip has no cap line")
+	c.enemies[0].clear_statuses()
+	c.enemies[0].max_haunt = 0
+	c.enemies[0].apply_status(Combatant.Status.EXPOSED, 2)
 	var all_txt := ""
 	for b in node._hand_box.get_children():
 		all_txt += (b as CardView).preview + "\n---\n"

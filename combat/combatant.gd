@@ -20,6 +20,8 @@ var block: int = 0
 var hold: int = 0
 ## Damage each enemy attack on this combatant also deals to the attacker; lasts until the next turn.
 var thorns: int = 0
+## Most Haunt stacks this combatant can carry (0 = no cap); applied Haunt past it is lost.
+var max_haunt: int = 0
 
 var _statuses: Dictionary = {}  # Status -> remaining turns (always > 0)
 
@@ -81,7 +83,10 @@ func status_turns(status: Status) -> int:
 func apply_status(status: Status, turns: int) -> void:
 	if turns <= 0:
 		return
-	_statuses[status] = status_turns(status) + turns
+	var total := status_turns(status) + turns
+	if status == Status.HAUNTED and max_haunt > 0:
+		total = mini(total, max_haunt)
+	_statuses[status] = total
 	changed.emit()
 
 
