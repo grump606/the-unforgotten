@@ -110,15 +110,15 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:13px;overflow-wrap:an
 
 <section id="vendor">
 <div><h2>Vendor</h2><p class="sub">The shop at three stops. A painted stall with the shopkeeper, three card offers, one relic and three services.</p></div>
-<figure><a href="shot_vendor.jpg"><img src="shot_vendor.jpg" alt="Vendor screen: a dark panel over the stall with three cards, a relic offer and three plaque buttons"></a>
-<figcaption><span class="tag">In the game</span><span class="name">Medium, 33/60 HP, 100 gold</span><span class="note">The dark backing panel currently covers most of the stall and the shopkeeper.</span></figcaption></figure>
+<figure><a href="shot_vendor.jpg"><img src="shot_vendor.jpg" alt="Vendor screen: full-screen stall with the greeting, three cards and a relic along the bottom and plaque buttons at the sides"></a>
+<figcaption><span class="tag">In the game</span><span class="name">Deserter, 50/60 HP, 60 gold</span><span class="note">Full-screen stall like a fight: stop title and journey top left, Pause top right, and a bottom row with the gold total, Remove a card and Heal on the left, the offers in the middle and Leave on the right.</span></figcaption></figure>
 <div class="assets">
 <figure class="tile"><div class="stage wide"><img src="bg_vendor.jpg" alt=""></div><span class="label">Stall background</span><span class="path">screens/vendor/bg.png</span></figure>
 <figure class="tile"><div class="stage"><img src="keeper.png" alt=""></div><span class="label">Shopkeeper</span><span class="path">screens/vendor/keeper.png</span></figure>
 <figure class="tile"><div class="stage"><img src="ui_plaque_slate.png" alt=""></div><span class="label">Small plaque</span><span class="path">ui/plaque_slate.png</span></figure>
 </div>
 <div class="facts">
-<div><h3>Contents</h3><p>A greeting banner, three cards at 10, 16 or 24 gold, one relic (about 75 gold) with Buy relic, and the services Remove a card (15), Heal 12 HP (12) and Leave. Unaffordable items are disabled up front. When the player cannot afford the cheapest card the greeting changes.</p></div>
+<div><h3>Contents</h3><p>A greeting banner, three cards at 10, 16 or 24 gold, one relic (about 75 gold, a clickable card-sized plate), and the services Remove a card (15), Heal 12 HP (12) and Leave. Unaffordable or sold items are dimmed up front with SOLD or NEED n GOLD on them, and a purchase shows no message. When the player cannot afford the cheapest card the greeting changes.</p></div>
 <div><h3>Code</h3><p><code>run/screens/vendor_screen.gd</code>, <code>run/vendor_scene.gd</code>, <code>run/vendor.gd</code> (prices). Design notes in <code>docs/VENDOR_ART_DESIGN.md</code>.</p></div>
 <div><h3>Open it</h3><span class="cmd">.\scripts\debug_fight.ps1 -Screen vendor -Character medium</span><p class="note">Add <code>-Gold</code> and <code>-Hp</code>, or <code>vendor:2</code> for the second shop.</p></div>
 </div>

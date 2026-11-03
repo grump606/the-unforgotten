@@ -11,7 +11,7 @@ Two web pages that show what the game's screens look like and what art and code 
 
 The captures were taken at v0.6.6 plus the changes up to the plaque-style menus and the boss HUD (November 2026), at the default window size. When a screen changes, retake its capture and update the page. The facts in the pages (prices, sizes, text) were true at that time.
 
-The vendor capture in both pages shows the dark backing panel covering the stall art; that is how it looked when captured and has since been treated as a known issue.
+The vendor capture in both pages was retaken after the full-screen HUD rework (November 2026, `tools/vendor_sheet.gd`); the other screens keep their earlier captures.
 
 ## Retaking a capture
 
