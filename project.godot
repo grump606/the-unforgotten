@@ -20,6 +20,10 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://art/layers/ui/game_icon.png"
 config/windows_native_icon="res://art/layers/ui/game_icon.ico"
 
+[autoload]
+
+AudioManager="*res://audio/audio_manager.gd"
+
 [display]
 
 window/stretch/mode="canvas_items"

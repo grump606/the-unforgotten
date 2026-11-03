@@ -8,6 +8,11 @@ var continue_button: Button
 var new_run_button: Button
 var exit_button: Button
 var updates_button: Button
+var sound_button: Button
+## The sound page while it replaces the menu's buttons (null otherwise).
+var sound_page: VBoxContainer
+## Kept alive while the page is open: the sliders call back into it.
+var _sound_panel: AudioSettingsPanel
 
 
 ## The label of the update-check toggle for the current setting.
@@ -48,4 +53,31 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 		updates_button.custom_minimum_size = Vector2(BUTTON_WIDTH, 30)
 		updates_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		updates_button.pressed.connect(func() -> void: updates_button.text = update_toggle_text(on_toggle_updates.call()))
+	sound_button = Button.new()
+	sound_button.text = "Sound"
+	box.add_child(sound_button)
+	sound_button.custom_minimum_size = Vector2(BUTTON_WIDTH, 30)
+	sound_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	sound_button.pressed.connect(_open_sound.bind(box))
 	(continue_button if continue_button != null else new_run_button).grab_focus()
+
+
+## Swaps the menu's buttons for the sound page; Back restores them.
+func _open_sound(box: VBoxContainer) -> void:
+	var hidden: Array[Control] = []
+	for child in box.get_children():
+		if child is Control and (child as Control).visible and child != box.get_child(0):
+			(child as Control).visible = false
+			hidden.append(child)
+	sound_page = VBoxContainer.new()
+	sound_page.add_theme_constant_override("separation", 12)
+	box.add_child(sound_page)
+	_sound_panel = AudioSettingsPanel.new()
+	_sound_panel.build(sound_page, func() -> void:
+		box.remove_child(sound_page)
+		sound_page.queue_free()
+		sound_page = null
+		_sound_panel = null
+		for child in hidden:
+			child.visible = true
+		sound_button.grab_focus())
