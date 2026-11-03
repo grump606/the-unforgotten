@@ -28,10 +28,10 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 16.0
-offset_top = 12.0
-offset_right = -16.0
-offset_bottom = -12.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -66,49 +66,74 @@ grow_horizontal = 2
 horizontal_alignment = 1
 mouse_filter = 2
 
-[node name="BottomRow" type="HBoxContainer" parent="Layout"]
+[node name="Hud" type="PanelContainer" parent="Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HudColumn" type="VBoxContainer" parent="Layout/Hud"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="InfoRow" type="HBoxContainer" parent="Layout/Hud/HudColumn"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HudInfo" type="Label" parent="Layout/Hud/HudColumn/InfoRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="PauseSlot" type="HBoxContainer" parent="Layout/Hud/HudColumn/InfoRow"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BottomRow" type="HBoxContainer" parent="Layout/Hud/HudColumn"]
 custom_minimum_size = Vector2(0, 176)
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="LeftBox" type="VBoxContainer" parent="Layout/BottomRow"]
+[node name="LeftBox" type="VBoxContainer" parent="Layout/Hud/HudColumn/BottomRow"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 alignment = 1
 
-[node name="PileLabel" type="Label" parent="Layout/BottomRow/LeftBox"]
+[node name="PileLabel" type="Label" parent="Layout/Hud/HudColumn/BottomRow/LeftBox"]
 unique_name_in_owner = true
 layout_mode = 2
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="HandBox" type="HFlowContainer" parent="Layout/BottomRow"]
+[node name="HandBox" type="HFlowContainer" parent="Layout/Hud/HudColumn/BottomRow"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 168)
 layout_mode = 2
 size_flags_horizontal = 3
 alignment = 1
 
-[node name="RightBox" type="VBoxContainer" parent="Layout/BottomRow"]
+[node name="RightBox" type="VBoxContainer" parent="Layout/Hud/HudColumn/BottomRow"]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
 alignment = 1
 
-[node name="EndTurnButton" type="Button" parent="Layout/BottomRow/RightBox"]
+[node name="EndTurnButton" type="Button" parent="Layout/Hud/HudColumn/BottomRow/RightBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 text = "End Turn"
 
-[node name="NewFightButton" type="Button" parent="Layout/BottomRow/RightBox"]
+[node name="NewFightButton" type="Button" parent="Layout/Hud/HudColumn/BottomRow/RightBox"]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 text = "New Fight"
 
-[node name="LogButton" type="Button" parent="Layout/BottomRow/RightBox"]
+[node name="LogButton" type="Button" parent="Layout/Hud/HudColumn/BottomRow/RightBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Log"

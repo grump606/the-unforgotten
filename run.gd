@@ -3,6 +3,7 @@ extends Control
 ## autosaves and wires the pause menu. Each screen is built by a script under res://run/screens/
 ## (see docs/RUN_SCREEN_STRUCTURE.md); all run rules live in res://run/run_state.gd.
 
+@onready var _layout: VBoxContainer = $Layout
 @onready var _header_row: HBoxContainer = %HeaderRow
 @onready var _header: Label = %HeaderLabel
 @onready var _body: Control = %Body
@@ -167,6 +168,7 @@ func _show_stop() -> void:
 			RunState.StopType.COMBAT:
 				_open(_combat)
 				_combat.show(_on_fight_finished, _new_run)
+				_dock_combat_hud()
 			RunState.StopType.STORY:
 				_open(_story)
 				_story.show()
@@ -220,6 +222,11 @@ func _update_header() -> void:
 
 
 func _clear_body() -> void:
+	# Every screen but a fight has the top header and the framed margin; a fight turns both off again
+	# in _dock_combat_hud. The Pause button must leave the fight before the fight is freed.
+	_undock_pause_button()
+	_header_row.visible = true
+	_set_edge_margin(EDGE_MARGIN)
 	for child in _body.get_children():
 		# Removed at once (not just queued) so a stale button cannot be clicked this frame.
 		_body.remove_child(child)
@@ -378,3 +385,41 @@ func _warm_next_stop() -> void:
 	var backdrop := DestinationArt.battle_key(next_index)
 	if backdrop != &"":
 		PaintedArt.preload_screen(backdrop)
+
+
+# --- Fight HUD -------------------------------------------------------------------------------
+# During a fight the top header and the framed margin go away: the journey line and the Pause button
+# live in the fight's bottom HUD instead (battle.gd, `set_hud_info` and `pause_slot`).
+
+## Screen margin around every non-fight screen.
+const EDGE_MARGIN := 16.0
+
+func _set_edge_margin(margin: float) -> void:
+	_layout.offset_left = margin
+	_layout.offset_top = margin
+	_layout.offset_right = -margin
+	_layout.offset_bottom = -margin
+
+
+## Moves the header text and the Pause button into the fight on screen. Does nothing when the fight
+## could not be built (the "Start over" panel keeps the normal header).
+func _dock_combat_hud() -> void:
+	var battle := _combat.fight
+	if battle == null or not is_instance_valid(battle):
+		return
+	_header_row.visible = false
+	_set_edge_margin(0.0)
+	battle.set_hud_info(_header.text)
+	var slot: Control = battle.pause_slot()
+	if _pause_button.get_parent() != slot:
+		_pause_button.reparent(slot, false)
+		_pause_button.theme_type_variation = MenuStyle.QUIET
+
+
+## Puts the Pause button back in its corner of the screen (it is freed with the fight otherwise).
+func _undock_pause_button() -> void:
+	if _pause_button == null or _pause_button.get_parent() == self:
+		return
+	_pause_button.reparent(self, false)
+	_pause_button.theme_type_variation = &""
+	_pause_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 12)
