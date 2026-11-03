@@ -398,9 +398,10 @@ func _play_hand_card(hand_index: int) -> void:
 		return
 	_begin_batch()
 	if _combat.phase == Combat.Phase.DISCARDING:
-		_combat.toggle_discard(hand_index)
-	else:
-		_combat.play_card(hand_index, _target_index)
+		if _combat.toggle_discard(hand_index):
+			RunScreen.sfx(&"card_select")
+	elif not _combat.play_card(hand_index, _target_index) and _combat.phase == Combat.Phase.PLAYER_TURN and hand_index < _combat.piles.hand.size():
+		RunScreen.sfx(&"unavailable")  # a card that cannot be played right now
 	_end_batch()
 
 
@@ -479,6 +480,7 @@ func _select_target(index: int) -> void:
 func _on_end_turn_pressed() -> void:
 	if _combat == null:
 		return
+	RunScreen.sfx(&"click")
 	_begin_batch()
 	match _combat.phase:
 		Combat.Phase.PLAYER_TURN:
@@ -563,6 +565,7 @@ func _on_combat_ended(victory: bool) -> void:
 
 
 func _on_card_played(card: CardData, targets: Array[EnemyUnit]) -> void:
+	RunScreen.sfx(&"card_play")
 	if _player_view != null and not targets.is_empty() and card.effects.any(func(e: CardEffect) -> bool: return e.is_damage()):
 		_player_view.play_attack()
 		# The hit lands at the top of the lunge, not the moment the card is played.

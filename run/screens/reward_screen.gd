@@ -44,6 +44,8 @@ func start_removing() -> void:
 
 
 func _take(card: CardData) -> void:
+	if card != null:
+		sfx(&"reward")
 	run.resolve_reward(card)
 	refresh.call()
 

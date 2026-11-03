@@ -1,0 +1,28 @@
+AUDIO CREDITS AND LICENSES - The Unforgotten
+
+MUSIC
+  "Minimal Piano and Cello" - Music by Samuel F. Johanns (SamuelFJohanns) from Pixabay.
+  https://pixabay.com/music/ambient-minimal-piano-and-cello-109312/
+  Used for the menus and quieter scenes.
+
+  "Piano and Cello Suspenseful Ambient" - Music by Mircea Iancu (Surprising_Media) from Pixabay.
+  https://pixabay.com/music/modern-classical-piano-and-cello-suspenseful-ambient-493838/
+  Used during battles. The source labels this track as AI generated.
+
+AMBIENCE
+  "Sandy Beach - Calm Waves - Water - Nature Sounds" - Sound Effect by Julius H. (JuliusH) from Pixabay.
+  https://pixabay.com/sound-effects/nature-sandy-beach-calm-waves-water-nature-sounds-8052/
+  Used quietly at the Shore of Names and on the start screens.
+
+  The three recordings above are licensed under the Pixabay Content License
+  (https://pixabay.com/service/license-summary/). They were downloaded 2026-11-02. The game plays
+  edited copies: each was cut and its end blended into its beginning so it repeats without a
+  gap; nothing else was changed. The unedited originals are kept in the source repository.
+
+INTERFACE SOUNDS
+  "Interface Sounds" (1.0) by Kenney (www.kenney.nl), https://kenney.nl/assets/interface-sounds
+  License: Creative Commons Zero (CC0 1.0 Universal),
+  http://creativecommons.org/publicdomain/zero/1.0/
+  Free for personal, educational and commercial projects; crediting Kenney is appreciated but
+  not required. Used unmodified: click_001, confirmation_001, drop_001, error_001, glass_001,
+  select_001.
