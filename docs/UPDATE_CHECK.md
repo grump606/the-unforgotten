@@ -8,7 +8,7 @@ The game contacts `api.github.com` once per launch: a single HTTPS `GET https://
 
 ## Turning it off
 
-In the game: the main menu has a small **Check for updates: On/Off** button in the bottom-right corner. It is saved in `user://settings.json` as `{"update_check_enabled": false}` and applies from then on. Turning it off cancels any request in flight and hides a notice already shown; no request is made at all while it is off. Turning it on asks GitHub right away. It defaults to on. The settings file is treated as untrusted: it is capped at 4 KB and the value must be a real boolean, otherwise the default (on) is used, with no error.
+In the game: the main menu has a small **Update** button in the bottom-right corner: grey when checks are off, teal when on, red when checks are on and a newer version is available (click it to toggle). It is saved in `user://settings.json` as `{"update_check_enabled": false}` and applies from then on. Turning it off cancels any request in flight and hides a notice already shown; no request is made at all while it is off. Turning it on asks GitHub right away. It defaults to on. The settings file is treated as untrusted: it is capped at 4 KB and the value must be a real boolean, otherwise the default (on) is used, with no error.
 
 From outside the game: set the environment variable `THE_UNFORGOTTEN_NO_UPDATE_CHECK` to any non-empty value before launching, for example `$env:THE_UNFORGOTTEN_NO_UPDATE_CHECK = "1"`. The check is also skipped on its own in headless runs (tests, CI, the sims), so those never touch the network. The variable and headless always win: the check runs only if none of the three says no.
 

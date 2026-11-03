@@ -85,7 +85,7 @@ func _show_main_menu() -> void:
 	_notice_shown = _notice != ""
 	_main_menu.attach(loaded.run, _body, _show_stop)
 	_main_menu.show(loaded.run, _continue_run.bind(loaded.run), _new_run.bind(_show_main_menu), func() -> void: exit_callable.call(),
-		_update_notice.user_enabled, _toggle_update_check)
+		_update_notice.user_enabled, _toggle_update_check, _update_notice)
 
 
 ## The main menu's update-check toggle: flips the saved setting and returns the new value. Turning it

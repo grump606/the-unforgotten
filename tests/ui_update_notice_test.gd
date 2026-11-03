@@ -124,12 +124,15 @@ func _initialize() -> void:
 	root.add_child(scene)
 	await process_frame
 	notice = scene._update_notice
-	var toggle := _find_button(scene.get_node("%Body"), "Check for updates: On")
+	var toggle := _find_button(scene.get_node("%Body"), "Update")
 	_check(notice.user_enabled and toggle != null, "the menu offers the update toggle, on by default")
 	if toggle != null:
+		var border := func() -> Color: return (toggle.get_theme_stylebox("normal") as StyleBoxFlat).border_color
+		_check(toggle.text == "Update" and border.call() == MainMenuScreen.UPDATE_ON[0], "the button is teal while checks are on and nothing is new")
 		notice.handle_response(200, _release("v9.9.9"))
+		_check(border.call() == MainMenuScreen.UPDATE_AVAILABLE[0], "the button turns red when an update is available and checks are on")
 		toggle.pressed.emit()
-		_check(toggle.text == "Check for updates: Off" and not notice.user_enabled, "pressing the toggle turns it off")
+		_check(toggle.text == "Update" and not notice.user_enabled and border.call() == MainMenuScreen.UPDATE_OFF[0], "pressing the toggle turns it off and greys the button, even with an update known")
 		_check(not notice.visible, "turning the check off hides a shown notice")
 		_check(not Settings.load_file(test_settings).update_check_enabled, "the off choice is saved")
 		_check(not notice.start() and notice.get_children().all(func(child: Node) -> bool: return not child is HTTPRequest), "no HTTPRequest is created when disabled")
@@ -141,12 +144,12 @@ func _initialize() -> void:
 	scene.settings_path = test_settings
 	root.add_child(scene)
 	await process_frame
-	_check(not scene._update_notice.user_enabled and _find_button(scene.get_node("%Body"), "Check for updates: Off") != null, "the off choice survives a relaunch")
+	_check(not scene._update_notice.user_enabled and _find_button(scene.get_node("%Body"), "Update") != null, "the off choice survives a relaunch")
 	# A field this version does not know (say, from a newer game) must survive the toggle.
 	var seeded := FileAccess.open(test_settings, FileAccess.WRITE)
 	seeded.store_string("{\"update_check_enabled\": false, \"future_field\": 7}")
 	seeded.close()
-	_find_button(scene.get_node("%Body"), "Check for updates: Off").pressed.emit()
+	_find_button(scene.get_node("%Body"), "Update").pressed.emit()
 	var after: Variant = JSON.parse_string(FileAccess.get_file_as_string(test_settings))
 	_check(typeof(after) == TYPE_DICTIONARY and after.get("future_field") == 7.0, "toggling keeps the other fields in the settings file")
 	_check(Settings.load_file(test_settings).update_check_enabled and scene._update_notice.user_enabled, "toggling back on is saved")
