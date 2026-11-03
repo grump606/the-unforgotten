@@ -15,15 +15,44 @@ var sound_page: VBoxContainer
 var _sound_panel: AudioSettingsPanel
 
 
-## The label of the update-check toggle for the current setting.
-static func update_toggle_text(enabled: bool) -> String:
-	return "Check for updates: %s" % ("On" if enabled else "Off")
+const UPDATE_LABEL := "Update"
+## Update button colours: border, text and fill for off, on, and "a newer version is available".
+const UPDATE_OFF := [Color("#4a5358"), Color("#81898b"), Color("#141a22")]
+const UPDATE_ON := [Color("#78a99b"), Color("#a9cfc2"), Color("#1a2a2a")]
+const UPDATE_AVAILABLE := [Color("#e0605a"), Color("#ffe3df"), Color("#5a1d1d")]
+
+
+## The tooltip of the update button for the current state.
+static func update_tooltip(enabled: bool, available: bool) -> String:
+	if enabled and available:
+		return "A newer version is available. Click to turn update checks off."
+	return "Update checks are %s. Click to turn them %s." % ["on" if enabled else "off", "off" if enabled else "on"]
+
+
+## Colours the small update button: grey when checks are off, teal when on, red when checks are on
+## and a newer version is available.
+static func style_update_button(button: Button, enabled: bool, available: bool) -> void:
+	var colours: Array = UPDATE_AVAILABLE if enabled and available else (UPDATE_ON if enabled else UPDATE_OFF)
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		var box := StyleBoxFlat.new()
+		box.bg_color = (colours[2] as Color).lightened(0.12 if state == "hover" else 0.0)
+		box.border_color = colours[0]
+		box.set_border_width_all(1)
+		box.set_corner_radius_all(3)
+		box.content_margin_left = 10
+		box.content_margin_right = 10
+		box.content_margin_top = 2
+		box.content_margin_bottom = 2
+		button.add_theme_stylebox_override(state, box)
+	for key in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		button.add_theme_color_override(key, colours[1])
+	button.tooltip_text = update_tooltip(enabled, available)
 
 
 ## `saved` is the run found on disk, or null. `on_continue` is already bound to it by the caller.
 ## `on_toggle_updates` (when valid) adds the update-check toggle; it is called on each press and
 ## returns the new setting, which the button label then shows.
-func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit: Callable, update_check_on := true, on_toggle_updates := Callable()) -> void:
+func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit: Callable, update_check_on := true, on_toggle_updates := Callable(), update_notice: UpdateNotice = null) -> void:
 	add_backdrop(MenuScene.new())
 	var box := panel("The Unforgotten")
 	var title := box.get_child(0) as Label
@@ -48,12 +77,23 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 	if on_toggle_updates.is_valid():
 		# A small button in the bottom-right corner of the screen, out of the way of the main choices.
 		updates_button = Button.new()
-		updates_button.text = update_toggle_text(update_check_on)
-		updates_button.add_theme_font_size_override("font_size", 12)
+		updates_button.text = UPDATE_LABEL
+		updates_button.add_theme_font_size_override("font_size", 11)
+		updates_button.focus_mode = Control.FOCUS_NONE
 		body.add_child(updates_button)
-		updates_button.tooltip_text = "Look for a newer version when the game opens."
 		updates_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 10)
-		updates_button.pressed.connect(func() -> void: updates_button.text = update_toggle_text(on_toggle_updates.call()))
+		var state := {"enabled": update_check_on}  # a lambda sees plain variables by value, so share a dictionary
+		var restyle := func() -> void:
+			if is_instance_valid(updates_button):
+				style_update_button(updates_button, state.enabled, update_notice != null and update_notice.latest_tag != "")
+		restyle.call()
+		updates_button.pressed.connect(func() -> void:
+			state.enabled = on_toggle_updates.call()
+			restyle.call())
+		if update_notice != null:
+			# The answer from GitHub can arrive while the menu is showing.
+			update_notice.changed.connect(restyle)
+			updates_button.tree_exiting.connect(update_notice.changed.disconnect.bind(restyle))
 	sound_button = Button.new()
 	sound_button.text = "Sound"
 	box.add_child(sound_button)
