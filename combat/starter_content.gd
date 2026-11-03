@@ -346,3 +346,22 @@ static func _load_enemy(path: String) -> EnemyData:
 		push_error("StarterContent: missing or non-EnemyData resource: %s" % path)
 		return null
 	return template.duplicate(true) as EnemyData
+
+
+## Every enemy, regular and boss, by EnemyData id (debug launch and tools; encounters use the path lists).
+static func enemy_ids() -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for path in ALL_ENEMY_PATHS + BOSS_ENEMY_PATHS:
+		var template := load(path) as EnemyData
+		if template != null:
+			ids.append(template.id)
+	return ids
+
+
+## A fresh copy of the enemy with this id (regular or boss), or null if there is none.
+static func enemy_by_id(enemy_id: StringName) -> EnemyData:
+	for path in ALL_ENEMY_PATHS + BOSS_ENEMY_PATHS:
+		var template := load(path) as EnemyData
+		if template != null and template.id == enemy_id:
+			return template.duplicate(true) as EnemyData
+	return null

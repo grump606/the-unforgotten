@@ -35,6 +35,8 @@ const ACCENT_GLOW := 0.07
 var time := 0.0
 ## True for the final-boss fight (the Eraser; id the_conductor): redder lamps, a pale glow ahead, stronger sway.
 var boss := false
+## Set when a boss enters phase two: a harsher mood for the rest of the fight (deeper lamp flicker, red pulses).
+var harsh := false
 ## One of the TINTS keys; anything else (including empty) draws the neutral scene.
 var character_id: StringName = &""
 ## Optional route-selected painting; an empty key retains standalone/class previews.
@@ -68,6 +70,12 @@ func _process(delta: float) -> void:
 	advance(delta)
 
 
+## Switches the harsher phase-two mood on or off.
+func set_harsh(value: bool) -> void:
+	harsh = value
+	queue_redraw()
+
+
 func set_variant(is_boss: bool, id: StringName, location: StringName = &"") -> void:
 	boss = is_boss
 	character_id = id
@@ -94,7 +102,7 @@ func _wobble(speed: float, offset: int) -> float:
 
 ## Lamp brightness: gentle in a normal fight, a harsher flicker for the boss.
 func lamp_level() -> float:
-	return lerpf(0.45 if boss else 0.75, 1.0, _wobble(11.0, 0))
+	return lerpf(0.30 if harsh else (0.45 if boss else 0.75), 1.0, _wobble(19.0 if harsh else 11.0, 0))
 
 
 ## Side to side sway of the carriage in -1..1.
@@ -104,7 +112,7 @@ func sway() -> float:
 
 ## How fast the corridor rushes by, in cycles a second.
 func speed() -> float:
-	return 0.20 if boss else 0.15
+	return 0.26 if harsh else (0.20 if boss else 0.15)
 
 
 func lamp_color() -> Color:
@@ -304,7 +312,16 @@ func _draw_motes(o: Vector2, w: float, h: float) -> void:
 		draw_circle(o + Vector2(fposmod(x, 1.0) * w, y * h), _motes[base + 4], Color(col, 0.10 + 0.20 * twinkle))
 
 
+## Phase two: a red wash that pulses on its own fast flicker.
+func _draw_harsh() -> void:
+	if not harsh:
+		return
+	var pulse := 0.04 + 0.10 * _wobble(14.0, 7) + 0.03 * sin(time * 2.4)
+	draw_rect(Rect2(Vector2.ZERO, size), Color(RED, pulse))
+
+
 func _draw_scrim(w: float, h: float) -> void:
+	_draw_harsh()
 	# Keeps the art subordinate: a light dim overall, darker edges and a darker lower third for the hand.
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.01, 0.01, 0.02, 0.2))
 	var dark := Color(0.01, 0.01, 0.02, 0.6)
