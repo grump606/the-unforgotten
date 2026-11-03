@@ -9,6 +9,7 @@ func run() -> int:
 	_failures = 0
 	_test_values_new_effects()
 	_test_greedy_card_kinds()
+	_test_class_cards_are_played()
 	_test_takes_the_killing_blow()
 	_test_exposes_before_damage()
 	_test_plays_whole_runs_without_illegal_moves()
@@ -180,6 +181,62 @@ func _test_values_new_effects() -> void:
 
 
 ## The greedy policy classes the new damage, defence and HP-cost cards sensibly.
+## Seance, Pocket Watch, Spirit Tithe and Reckoning get played sensibly by both policies.
+func _test_class_cards_are_played() -> void:
+	var seance: CardData = load(StarterContent.SEANCE_PATH)
+	var watch: CardData = load(StarterContent.POCKET_WATCH_PATH)
+	var tithe: CardData = load(StarterContent.SPIRIT_TITHE_PATH)
+	var reckoning: CardData = load(StarterContent.RECKONING_PATH)
+	var shove := _card(&"shove", 1, CardEffect.Kind.DAMAGE, 6)
+	var foes: Array[EnemyData] = [_enemy(200, 1)]
+
+	# Energy-neutral setup is played once, even with attacks in hand that would use all the energy, and
+	# the energy it refunds still buys three Shoves. With an empty draw pile it is left alone (it would
+	# only draw itself back and be replayed to the per-turn cap).
+	for smart in [false, true]:
+		for setup: CardData in [seance, watch]:
+			var deck: Array[CardData] = [setup]
+			for i in 11:
+				deck.append(shove)
+			var combat := Combat.new(Combatant.new("p", 40), deck, foes, 1)
+			combat.start()
+			if not combat.piles.hand.has(setup):
+				continue
+			var plays: Array[StringName] = []
+			combat.card_played.connect(func(card: CardData, _targets: Array[EnemyUnit]) -> void: plays.append(card.id))
+			if smart:
+				SmartPolicy.play_turn(combat)
+			else:
+				SimPolicy.play_turn(combat)
+			_check(plays.count(setup.id) == 1 and plays.count(&"shove") >= 3, "%s is played once and still leaves 3 Shoves (smart %s, plays %s)" % [setup.id, smart, plays])
+			var empty: Array[CardData] = [setup, shove, shove, shove, shove]
+			var drained := Combat.new(Combatant.new("p", 40), empty, foes, 1)
+			drained.start()
+			var drained_plays: Array[StringName] = []
+			drained.card_played.connect(func(card: CardData, _targets: Array[EnemyUnit]) -> void: drained_plays.append(card.id))
+			if smart:
+				SmartPolicy.play_turn(drained)
+			else:
+				SimPolicy.play_turn(drained)
+			_check(not drained_plays.has(setup.id) and drained_plays.count(&"shove") == 3, "%s is not replayed with an empty draw pile (smart %s, plays %s)" % [setup.id, smart, drained_plays])
+
+	# Spirit Tithe is held back with no Haunted enemy.
+	var cold := _combat([tithe, reckoning], foes)
+	var played: Array[StringName] = []
+	cold.card_played.connect(func(card: CardData, _targets: Array[EnemyUnit]) -> void: played.append(card.id))
+	cold.player.hp = 20
+	SimPolicy.play_turn(cold)
+	_check(played.is_empty(), "greedy plays neither Spirit Tithe nor Reckoning with no Haunted enemy")
+
+	# Reckoning hits the most Haunted enemy, not the lowest-HP one.
+	var pair: Array[EnemyData] = [_enemy(100, 1), _enemy(60, 1)]
+	var haunted := _combat([reckoning], pair)
+	haunted.enemies[0].apply_status(Combatant.Status.HAUNTED, 5)
+	haunted.enemies[1].apply_status(Combatant.Status.HAUNTED, 1)
+	SimPolicy.play_turn(haunted)
+	_check(haunted.enemies[0].hp < 100 and haunted.enemies[1].hp >= 59, "greedy aims Reckoning at the most Haunted enemy")
+
+
 func _test_greedy_card_kinds() -> void:
 	for kind in [CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.HAUNT]:
 		_check(SimPolicy.is_damage_card(_custom(1, [_fx(kind, 1)])), "greedy counts kind %d as damage" % kind)
