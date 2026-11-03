@@ -78,6 +78,11 @@ var hotkey := 0:
 	set(value):
 		hotkey = value
 		queue_redraw()
+## True while the card is marked to be thrown away at end of turn (dimmed, stamped DISCARD).
+var discard_marked := false:
+	set(value):
+		discard_marked = value
+		queue_redraw()
 var view_scale := 1.0:
 	set(value):
 		view_scale = value
@@ -231,6 +236,8 @@ func set_hovered(inside: bool) -> void:
 func _on_hover(inside: bool) -> void:
 	if auto_hover:
 		_hovered = inside
+		# A hovered card in an overlapping hand comes to the front.
+		z_index = 1 if inside else 0
 		if inside:
 			set_process(true)
 		queue_redraw()
@@ -322,6 +329,8 @@ func _draw() -> void:
 	draw_line(Vector2(9, 167), Vector2(BASE.x - 9, 167), Color(ink, 0.30), 1.0)
 	draw_line(Vector2(9, 168), Vector2(BASE.x - 9, 168), Color(stock.lightened(0.15), 0.45), 1.0)
 	_draw_strip(Rect2(8, 170, BASE.x - 16, 16), p)
+	if discard_marked:
+		_draw_discard_mark()
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
@@ -377,13 +386,21 @@ func _fit_size(txt: String, width: float, max_size: int, min_size: int) -> int:
 	return size
 
 
-## A small dark badge with the card's hotkey number, tucked under the cost stamp.
+## Dims the card and stamps a red DISCARD band across it (the end-of-turn discard step).
+func _draw_discard_mark() -> void:
+	_box(Rect2(Vector2.ZERO, BASE), Color(0.02, 0.02, 0.04, 0.62), 8)
+	var band := Rect2(0, 78, BASE.x, 34)
+	_box(band, Color(0.62, 0.1, 0.14, 0.95), 2, 2, Color(1.0, 0.82, 0.8, 0.9))
+	_text("DISCARD", band, 18, Color.WHITE, true)
+
+
+## A small dark badge with the card's hotkey number (10 shows as 0), tucked under the cost stamp.
 func _draw_hotkey(c: Vector2) -> void:
 	if hotkey <= 0:
 		return
 	draw_circle(c, 7.5, Color(0, 0, 0, 0.85))
 	draw_arc(c, 6.5, 0, TAU, 20, Color(BADGE, 0.9), 1.0, true)
-	_text(str(hotkey), Rect2(c - Vector2(7, 7), Vector2(14, 14)), 10, Color.WHITE, true)
+	_text(str(hotkey % 10),Rect2(c - Vector2(7, 7), Vector2(14, 14)), 10, Color.WHITE, true)
 
 
 ## Font size for the preview: 10 px, shrinking (to 8) only when it would need more than two lines.

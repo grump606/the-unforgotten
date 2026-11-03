@@ -76,8 +76,23 @@ static func play_turn(combat: Combat) -> bool:
 			return false
 		if combat.phase != Combat.Phase.PLAYER_TURN:
 			return true
-	combat.end_player_turn()
-	return true
+	if combat.phase != Combat.Phase.PLAYER_TURN:
+		return true
+	return combat.end_player_turn(discards_for(combat))
+
+
+## End-of-turn discard: keeps the Combat.HAND_SIZE highest-scoring cards (card_score, weighted by the
+## whole deck's damage/block mix) and discards the rest; discards nothing with HAND_SIZE or fewer.
+static func discards_for(combat: Combat) -> Array[int]:
+	var all: Array[CardData] = []
+	all.append_array(combat.piles.hand)
+	all.append_array(combat.piles.draw_pile)
+	all.append_array(combat.piles.discard_pile)
+	var weights := _weights(all)
+	var scores: Array[float] = []
+	for card in combat.piles.hand:
+		scores.append(card_score(card, weights))
+	return SimPolicy.worst_indices(scores)
 
 
 ## Target indexes to consider: every living enemy for single-target cards, else -1.

@@ -55,6 +55,70 @@ func _check_preview_matches_damage(node: Control, combat: Combat) -> void:
 			combat.piles.hand.clear()
 
 
+## The end-of-turn discard step on screen: marking, the confirm button's wording, Back, and a full
+## 10-card hand fitting on one row of the 1152x648 window.
+func _check_discard_ui(node: Control) -> void:
+	node._start_combat()
+	await process_frame
+	var c: Combat = node._combat
+	var screen := Rect2(Vector2.ZERO, Vector2(node.size))
+	# Ten distinct cards in hand (the hand is set directly, as other tests here do).
+	c.piles.hand.clear()
+	for id in ["bash", "cold_steel", "last_pocket", "spree", "reckoning", "bash", "cold_steel", "last_pocket", "spree", "reckoning"]:
+		c.piles.hand.append(load("res://data/cards/%s.tres" % id))
+	node._refresh()
+	for i in 3:
+		await process_frame
+	var views := CardView.find_all(node._hand_box)
+	check(views.size() == 10, "ten hand cards are shown")
+	var row_y := views[0].get_global_rect().position.y
+	var one_row := true
+	var inside := true
+	for v in views:
+		one_row = one_row and is_equal_approx(v.get_global_rect().position.y, row_y)
+		inside = inside and screen.encloses(v.get_global_rect())
+	check(one_row and inside, "a 10-card hand sits on one row inside the window")
+	var hand_rect: Rect2 = node._hand_box.get_global_rect()
+	var within_box := true
+	for v in views:
+		within_box = within_box and v.get_global_rect().position.x >= hand_rect.position.x - 1.0 and v.get_global_rect().end.x <= hand_rect.end.x + 1.0
+	check(within_box, "the 10 cards stay inside the hand area")
+	var visible_ok := true
+	for i in views.size() - 1:
+		# The left part of each card (cost stamp and hotkey) stays uncovered by its right neighbour.
+		visible_ok = visible_ok and views[i + 1].get_global_rect().position.x - views[i].get_global_rect().position.x >= 40.0
+	check(visible_ok, "each overlapped card still shows at least its left 40 px")
+	check(views[9].hotkey == 10, "the tenth card has hotkey 10 (shown as 0)")
+	# Over the keep limit: the confirm button counts down.
+	node._on_end_turn_pressed()
+	check(c.phase == Combat.Phase.DISCARDING and node._end_turn_button.disabled and node._end_turn_button.text == "Discard 5 more", "a 10-card hand must discard 5: the button is disabled and says so")
+	check(node._result_label.text.contains("Choose cards to discard"), "the discard step shows a hint")
+	views = CardView.find_all(node._hand_box)
+	check(views.all(func(v: CardView) -> bool: return v.is_clickable() and not v.discard_marked), "in the discard step every card is clickable and none is marked yet")
+	for i in 4:
+		views[i].pressed.emit()
+	views = CardView.find_all(node._hand_box)
+	check(views[0].discard_marked and views[3].discard_marked and not views[4].discard_marked, "clicked cards show the DISCARD mark")
+	check(node._end_turn_button.disabled and node._end_turn_button.text == "Discard 1 more", "one more to go")
+	key(node, KEY_0) # the tenth card
+	check(c.discard_marks == ([0, 1, 2, 3, 9] as Array[int]) and not node._end_turn_button.disabled and node._end_turn_button.text == "Discard 5", "key 0 marks the tenth card and enables Discard 5")
+	key(node, KEY_1)
+	check(c.discard_marks.size() == 4 and node._end_turn_button.disabled, "pressing the key again unmarks")
+	node._cancel_button.pressed.emit()
+	check(c.phase == Combat.Phase.PLAYER_TURN and c.piles.hand.size() == 10 and c.discard_marks.is_empty(), "Back returns to the turn with the hand unchanged")
+	check(not node._end_turn_button.disabled and node._end_turn_button.text == "End Turn" and not node._result_label.text.contains("Choose"), "the End Turn button and hint are restored")
+	# A small hand: Keep all, then marking changes the wording.
+	c.piles.hand.assign(c.piles.hand.slice(0, 4))
+	node._refresh()
+	node._on_end_turn_pressed()
+	check(node._end_turn_button.text == "Keep all" and not node._end_turn_button.disabled, "a hand of 4 can simply be kept")
+	CardView.find_all(node._hand_box)[1].pressed.emit()
+	check(node._end_turn_button.text == "Discard 1", "marking a card changes the button to Discard 1")
+	var turn: int = c.turn
+	node._on_end_turn_pressed()
+	check(c.turn == turn + 1 and c.piles.hand.size() == 5, "confirming discards the marked card and draws back to 5")
+
+
 func _initialize() -> void:
 	var node: Control = (load("res://battle.tscn") as PackedScene).instantiate()
 	root.add_child(node)
@@ -127,7 +191,13 @@ func _initialize() -> void:
 	check(node._target_index == 0, "left")
 	var turn: int = c.turn
 	key(node, KEY_E)
-	check(c.turn == turn + 1 or c.phase == Combat.Phase.ENDED, "E ends turn")
+	check(c.phase == Combat.Phase.DISCARDING and c.turn == turn, "E opens the discard step instead of ending the turn")
+	check(node._cancel_button.visible and node._end_turn_button.text == "Keep all" and not node._end_turn_button.disabled, "the discard step offers Keep all and Back")
+	key(node, KEY_BACKSPACE)
+	check(c.phase == Combat.Phase.PLAYER_TURN and not node._cancel_button.visible and node._end_turn_button.text == "End Turn", "Backspace goes back to playing cards")
+	key(node, KEY_E)
+	key(node, KEY_E)
+	check(c.turn == turn + 1 or c.phase == Combat.Phase.ENDED, "E, E ends turn")
 	for i in 10:
 		key(node, KEY_1)
 	check(c.energy >= 0, "no negative energy after rapid presses")
@@ -203,8 +273,9 @@ func _initialize() -> void:
 	c2.player.hp = c2.player.max_hp
 	var emitted := [0]
 	c2.state_changed.connect(func() -> void: emitted[0] += 1)
+	node._on_end_turn_pressed() # opens the discard step
 	var refreshes_before: int = node.refresh_count
-	node._on_end_turn_pressed()
+	node._on_end_turn_pressed() # confirms it
 	var refreshes: int = node.refresh_count - refreshes_before
 	check(emitted[0] > 1, "setup: the enemy phase emits several state changes (%d)" % emitted[0])
 	check(refreshes == 1, "an end turn refreshes the screen once, not per mutation (%d refreshes for %d changes)" % [refreshes, emitted[0]])
@@ -214,5 +285,6 @@ func _initialize() -> void:
 	key(node, KEY_1)
 	key(node, KEY_E)
 	check(c2.piles.hand.size() == h, "enemy phase ignored")
+	await _check_discard_ui(node)
 	print("DONE fails=", fails)
 	quit(1 if fails > 0 else 0)

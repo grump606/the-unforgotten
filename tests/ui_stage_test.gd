@@ -240,7 +240,8 @@ func _initialize() -> void:
 			duel._play_hand_card(i)
 			break
 	check(player_view.lunge_amount() >= 0.0 and player_view._lunge > 0.9, "playing an attack lunges the player")
-	duel._on_end_turn_pressed()
+	duel._on_end_turn_pressed() # opens the discard step
+	duel._on_end_turn_pressed() # keeps the hand
 	var delays: Array[float] = []
 	for v in duel._enemy_views:
 		delays.append(v._lunge_delay)

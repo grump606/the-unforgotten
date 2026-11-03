@@ -221,7 +221,14 @@ func _initialize() -> void:
 						played = true
 						break
 				if not played:
-					battle._on_end_turn_pressed()
+					battle._on_end_turn_pressed() # opens the discard step
+			elif combat.phase == Combat.Phase.DISCARDING:
+				# Mark the surplus (the first cards) and confirm.
+				var mark := 0
+				while not combat.can_confirm_discard() and mark < combat.piles.hand.size():
+					battle._play_hand_card(mark)
+					mark += 1
+				battle._on_end_turn_pressed()
 			elif combat.phase == Combat.Phase.ENDED:
 				fights_ended += 1
 				combat.player.hp = mini(combat.player.hp, combat.player.max_hp)
