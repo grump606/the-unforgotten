@@ -187,7 +187,10 @@ func _show_stop() -> void:
 				_story.show()
 			RunState.StopType.VENDOR:
 				_open(_vendor)
+				_vendor.stop_title = _stop_title
+				_vendor.journey_text = _journey_text
 				_vendor.show()
+				_dock_stall_hud()
 			_:
 				_open(_rest)
 				_rest.show()
@@ -435,6 +438,17 @@ func _dock_combat_hud() -> void:
 	_place_pause_button(MenuStyle.SMALL, 8)
 
 
+## The vendor stall is full screen like a fight: no header or frame, a small Pause button top right
+## (the stall shows the title and journey info itself).
+func _dock_stall_hud() -> void:
+	_header_row.visible = false
+	_set_edge_margin(0.0)
+	_place_pause_button(MenuStyle.PLAQUE_SMALL, 8)
+	RunScreen.compact_plaque(_pause_button, 34.0, 14)
+	_pause_button.reset_size()
+	_pause_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 8)
+
+
 ## Restores the Pause button's normal size after a fight.
 func _undock_pause_button() -> void:
 	if _pause_button != null and _pause_button.theme_type_variation != &"":
@@ -443,6 +457,10 @@ func _undock_pause_button() -> void:
 
 func _place_pause_button(variation: StringName, margin: int) -> void:
 	_pause_button.theme_type_variation = variation
+	_pause_button.remove_theme_font_size_override("font_size")
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		_pause_button.remove_theme_stylebox_override(state)
+	_pause_button.custom_minimum_size = Vector2.ZERO
 	_pause_button.reset_size()
 	_pause_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, margin)
 

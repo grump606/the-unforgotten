@@ -124,12 +124,12 @@ func _initialize() -> void:
 	var body: Control = scene.get_node("%Body")
 	var run_state: RunState = scene._run
 	var offer := run_state.vendor().relic_offer()
-	check(not offer.is_empty() and RelicView.find_all(body).size() == 1, "the vendor panel shows one relic slot")
+	check(not offer.is_empty() and _offer_relics(body).size() == 1, "the vendor panel shows one relic slot")
 	var slot_relic: RelicData = offer["relic"]
-	var slot_view := RelicView.find_all(body)[0]
+	var slot_view: RelicView = _offer_relics(body)[0]
 	check(slot_view.relic == slot_relic and not slot_view.dimmed, "the slot shows the offered relic, undimmed")
 	check(_has_text(body, slot_relic.display_name) and _has_text(body, slot_relic.description) and _has_text(body, "%d gold" % slot_relic.price), "the slot shows its name, effect and price")
-	var buy := _button(body, "Buy relic")
+	var buy := _relic_button(body)
 	check(buy != null and not buy.disabled, "an affordable relic can be bought")
 	check(CardView.find_all(body).size() == run_state.vendor().offers().size(), "the card offers are unchanged")
 	check(_button(body, "Leave") != null and _button(body, "Remove a card (%d gold)" % Vendor.REMOVE_CARD_PRICE) != null, "the other vendor buttons keep their text")
@@ -138,7 +138,7 @@ func _initialize() -> void:
 	await process_frame
 	check(run_state.relics.size() == 1 and run_state.relics[0] == slot_relic and run_state.gold == gold_before - slot_relic.price, "buying adds the relic and spends its price")
 	body = scene.get_node("%Body")
-	check(_has_text(body, "Sold") and _button(body, "Buy relic").disabled and RelicView.find_all(body)[0].dimmed, "a sold relic says Sold and cannot be bought again")
+	check(_has_text(body, "Sold") and _relic_button(body).disabled and _offer_relics(body)[0].dimmed, "a sold relic says Sold and cannot be bought again")
 	check(scene._header_strip.visible and scene._header_strip.count() == 1, "the header strip shows the new relic")
 	check(scene._header.text.contains("Gold %d" % run_state.gold), "the header gold is refreshed")
 	scene.queue_free()
@@ -147,7 +147,7 @@ func _initialize() -> void:
 	scene = await _run_scene(&"pickpocket", RunState.StopType.VENDOR, none, 0)
 	body = scene.get_node("%Body")
 	offer = scene._run.vendor().relic_offer()
-	check(RelicView.find_all(body).size() == 1 and _button(body, "Buy relic").disabled and RelicView.find_all(body)[0].dimmed, "an unaffordable relic is dimmed with a disabled Buy button")
+	check(_offer_relics(body).size() == 1 and _relic_button(body).disabled and _offer_relics(body)[0].dimmed, "an unaffordable relic is dimmed with a disabled plate")
 	check(_has_text(body, "%d gold" % offer["price"]) and not _has_text(body, "Sold"), "an unaffordable relic still shows its price")
 	check(not scene._header_strip.visible, "no relics owned, no header strip")
 	scene.queue_free()
@@ -157,7 +157,7 @@ func _initialize() -> void:
 	scene = await _run_scene(&"medium", RunState.StopType.VENDOR, all_medium, 200)
 	body = scene.get_node("%Body")
 	check(scene._run.vendor().relic_offer().is_empty(), "owning the whole pool leaves no relic offer")
-	check(RelicView.find_all(body).is_empty() and _button(body, "Buy relic") == null, "no relic offer, no relic slot")
+	check(_offer_relics(body).is_empty() and _relic_button(body) == null, "no relic offer, no relic slot")
 	check(CardView.find_all(body).size() == 3 and scene._header_strip.count() == all_medium.size(), "the card offers remain and the header lists every owned relic")
 	# The pause menu lists them too.
 	scene._set_paused(true)
@@ -208,3 +208,13 @@ func _initialize() -> void:
 	RunSave.delete(test_save)
 	print("DONE fails=", fails)
 	quit(1 if fails > 0 else 0)
+
+
+## The relic badges in the vendor's offer slot, not the ones in the top-left strip of owned relics.
+func _offer_relics(root: Node) -> Array:
+	return RelicView.find_all(root).filter(func(view: Node) -> bool: return not view.get_parent() is RelicStrip)
+
+
+## The vendor's clickable relic plate, or null when there is no relic offer.
+func _relic_button(root: Node) -> Button:
+	return root.find_child("RelicOffer", true, false) as Button
