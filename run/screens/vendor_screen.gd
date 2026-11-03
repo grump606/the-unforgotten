@@ -4,7 +4,7 @@ extends RunScreen
 ## Keeps the vendor's own view state (last result message, remove picker) across redraws.
 
 ## The vendor's relic slot: badge size (the plate is the size of an offer card).
-const RELIC_OFFER_SCALE := 1.1
+const RELIC_OFFER_SCALE := 0.8
 ## Height reserved above the speech banner for the shopkeeper's hood (see VendorScene).
 const VENDOR_HEAD_HEIGHT := 104.0
 ## Width of the Remove / Heal column on the left and the Leave column on the right.
@@ -186,6 +186,7 @@ func _relic_slot(offer: Dictionary) -> Control:
 	outer.add_theme_constant_override("separation", 2)
 	var plate := Button.new()
 	plate.name = "RelicOffer"
+	plate.clip_contents = true
 	plate.custom_minimum_size = CardView.BASE * VENDOR_CARD_SCALE
 	plate.tooltip_text = "%s (%d gold)\n%s" % [relic.display_name, price, relic.description]
 	plate.disabled = sold or not affordable
@@ -220,7 +221,7 @@ func _relic_slot(offer: Dictionary) -> Control:
 	column.add_child(name_label)
 	var text := make_label(relic.description)
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.add_theme_font_size_override("font_size", 12)
+	text.add_theme_font_size_override("font_size", 11)
 	text.add_theme_color_override("font_color", Color("#bcc5bd"))
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(text)
