@@ -11,9 +11,6 @@ config_version=5
 [application]
 
 config/name="The Unforgotten"
-; Keeps saves where v0.5.1 and earlier wrote them (the project used to be called Card Battle Prototype).
-config/use_custom_user_dir=true
-config/custom_user_dir_name="Godot/app_userdata/Card Battle Prototype"
 config/version="0.6.6"
 run/main_scene="res://run.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
@@ -22,6 +19,7 @@ config/windows_native_icon="res://art/layers/ui/game_icon.ico"
 
 [autoload]
 
+UserDataMigrationRunner="*res://run/user_data_migration_runner.gd"
 AudioManager="*res://audio/audio_manager.gd"
 
 [display]
