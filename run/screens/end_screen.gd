@@ -11,7 +11,7 @@ func show(on_new_run: Callable, on_continue := Callable()) -> void:
 	var scene := EndScene.new()
 	scene.escaped = run.escaped
 	add_backdrop(scene)
-	var box := panel("%s\nOutcome: %s" % [title, "Escaped" if run.escaped else "Defeated"])
+	var box := panel("%s\nOutcome: %s" % [title, "Escaped" if run.escaped else "Defeated"], true)
 	style_banner(box.get_child(0) as Label)
 	var summary := Label.new()
 	summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

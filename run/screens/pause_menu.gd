@@ -93,10 +93,10 @@ func show_options(message: String) -> void:
 		var strip := RelicStrip.create(run.relics)
 		strip.alignment = BoxContainer.ALIGNMENT_CENTER
 		box.add_child(strip)
-	RunScreen.add_button(box, "Continue", set_paused.bind(false))
+	RunScreen.add_button(box, "Continue", set_paused.bind(false)).theme_type_variation = MenuStyle.PRIMARY
 	RunScreen.add_button(box, "Save & Exit", _try_save_and_exit)
-	RunScreen.add_button(box, "Sound", _show_sound)
-	RunScreen.add_button(box, "New Journey", _confirm_new_run)
+	RunScreen.add_button(box, "Sound", _show_sound).theme_type_variation = MenuStyle.QUIET
+	RunScreen.add_button(box, "New Journey", _confirm_new_run).theme_type_variation = MenuStyle.DANGER
 	_add_label("Your journey is saved on arrival at each destination.\nSave & Exit returns you to the start of this destination.")
 
 
@@ -110,8 +110,8 @@ func _confirm_new_run() -> void:
 	_clear()
 	_add_label("Leave this journey behind?", 36)
 	_add_label("Your current journey will be replaced.")
-	RunScreen.add_button(box, "Begin a new journey", _start_new_run)
-	RunScreen.add_button(box, "Cancel", show_options.bind(""))
+	RunScreen.add_button(box, "Begin a new journey", _start_new_run).theme_type_variation = MenuStyle.DANGER
+	RunScreen.add_button(box, "Cancel", show_options.bind("")).theme_type_variation = MenuStyle.QUIET
 
 
 func _start_new_run() -> void:
