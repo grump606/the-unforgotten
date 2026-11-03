@@ -1,6 +1,6 @@
 # The Unforgotten
 
-> **Renamed (v0.6.0):** this project was called "Card Battle Prototype" and lived at `grump606/card-battle-prototype` (now a private backup). Old design docs may still use the original enemy and relic names; see [`docs/RESKIN.md`](docs/RESKIN.md) for the map. Saves from v0.5.1 and earlier still load.
+> **Renamed (v0.6.0):** this project was called "Card Battle Prototype" and lived at `grump606/card-battle-prototype` (now a private backup). Old design docs may still use the original enemy and relic names; see [`docs/RESKIN.md`](docs/RESKIN.md) for the map. Saves and settings from every earlier version are moved into the new `The Unforgotten` user-data folder the first time the new version is installed or run, and the old folder is removed (see `docs/INSTALLER.md`).
 
 A small turn-based card battler (afterlife-escape theme) built with Godot 4.7, GDScript, targeting Windows PC. The player fights 1 to 3 enemies with a deck of cards; enemies repeat a fixed cycle of intents.
 
