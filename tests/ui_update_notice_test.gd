@@ -61,9 +61,14 @@ func _initialize() -> void:
 	notice.handle_response(200, _release("v0.3.1"))
 	await process_frame
 	await process_frame
-	_check(notice.visible and notice.latest_tag == "v0.3.1", "a newer release shows the notice")
+	_check(notice.latest_tag == "v0.3.1" and not notice.visible, "a newer release does not show the notice by itself")
+	var update_button: Button = scene._main_menu.updates_button
+	_check((update_button.get_theme_stylebox("normal") as StyleBoxFlat).border_color == MainMenuScreen.UPDATE_AVAILABLE[0], "the Update button turns red instead")
+	update_button.pressed.emit()
+	await process_frame
+	_check(notice.visible and notice.user_enabled, "clicking the red Update button shows the notice and keeps the checks on")
 	_check(notice.label.text == "Update available: v0.3.1 (you have 0.3.0)", "the notice says what is available (got '%s')" % notice.label.text)
-	_check(notice.download_button != null and notice.download_button.visible and notice.dismiss_button != null, "the notice has Download and dismiss buttons")
+	_check(notice.download_button != null and notice.download_button.visible and notice.skip_button != null and notice.skip_button.text == "Skip", "the notice has Download and Skip buttons")
 	_check(scene.get_node("%HeaderLabel").text.contains("A voice beyond the quiet"), "the main menu is showing, untouched")
 	_find_button(scene.get_node("%Body"), "New Journey").pressed.emit()
 	await process_frame
@@ -86,10 +91,13 @@ func _initialize() -> void:
 	notice.download_button.pressed.emit()
 	_check(opened == [UpdateCheck.RELEASES_PAGE], "Download ignores any URL in the reply")
 
-	notice.dismiss_button.pressed.emit()
-	_check(not notice.visible, "dismiss hides the notice")
+	notice.skip_button.pressed.emit()
+	await process_frame
+	_check(not notice.visible and not notice.user_enabled, "Skip hides the notice and turns update checks off")
+	_check(not Settings.load_file(test_settings).update_check_enabled, "Skip saves the off choice")
+	DirAccess.remove_absolute(test_settings) # later scenes start with the default (on)
 	notice.set_allowed(true)
-	_check(not notice.visible, "a dismissed notice stays hidden")
+	_check(not notice.visible, "a skipped notice stays hidden")
 	scene.queue_free()
 	await process_frame
 
@@ -103,7 +111,9 @@ func _initialize() -> void:
 	_check(scene.get_node("%HeaderLabel").text.contains("A voice beyond the quiet") and _find_button(scene.get_node("%Body"), "Continue") != null, "setup: the main menu offers Continue")
 	notice.handle_response(200, _release("v0.3.1"))
 	await process_frame
-	_check(notice.visible, "the main menu shows the notice")
+	scene._main_menu.updates_button.pressed.emit()
+	await process_frame
+	_check(notice.visible, "the main menu shows the notice once the Update button is clicked")
 	var body: Control = scene.get_node("%Body")
 	var continue_button := _find_button(body, "Continue")
 	_check(continue_button != null, "the Continue button exists")
@@ -132,8 +142,10 @@ func _initialize() -> void:
 		notice.handle_response(200, _release("v9.9.9"))
 		_check(border.call() == MainMenuScreen.UPDATE_AVAILABLE[0], "the button turns red when an update is available and checks are on")
 		toggle.pressed.emit()
+		_check(notice.visible and notice.user_enabled, "pressing the red button shows the update instead of turning checks off")
+		notice.skip_button.pressed.emit()
 		_check(toggle.text == "Update" and not notice.user_enabled and border.call() == MainMenuScreen.UPDATE_OFF[0], "pressing the toggle turns it off and greys the button, even with an update known")
-		_check(not notice.visible, "turning the check off hides a shown notice")
+		_check(not notice.visible, "Skip hides the shown notice")
 		_check(not Settings.load_file(test_settings).update_check_enabled, "the off choice is saved")
 		_check(not notice.start() and notice.get_children().all(func(child: Node) -> bool: return not child is HTTPRequest), "no HTTPRequest is created when disabled")
 		_check(_find_button(scene.get_node("%Body"), "New Journey") != null and _find_button(scene.get_node("%Body"), "Exit") != null, "New Run and Exit remain")
@@ -185,6 +197,7 @@ func _test_in_game_install() -> void:
 	await process_frame
 
 	notice.handle_response(200, _release("v0.3.1"))
+	notice.reveal()
 	_check(notice.visible and notice.download_button.text == "Update & restart", "with in-game install the button says Update & restart")
 	notice.download_button.pressed.emit()
 	_check(notice.installer.state == UpdateInstaller.State.DOWNLOADING and notice.download_button.disabled and notice.label.text.begins_with("Downloading v0.3.1"), "clicking starts the download and shows progress")

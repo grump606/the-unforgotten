@@ -28,7 +28,7 @@ const UPDATE_AVAILABLE := [Color("#e0605a"), Color("#ffe3df"), Color("#5a1d1d")]
 ## The tooltip of the update button for the current state.
 static func update_tooltip(enabled: bool, available: bool) -> String:
 	if enabled and available:
-		return "A newer version is available. Click to turn update checks off."
+		return "A newer version is available. Click to see it."
 	return "Update checks are %s. Click to turn them %s." % ["on" if enabled else "off", "off" if enabled else "on"]
 
 
@@ -105,11 +105,19 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 		body.add_child(updates_button)
 		updates_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 10)
 		var state := {"enabled": update_check_on}  # a lambda sees plain variables by value, so share a dictionary
+		# The notice owns the setting while it exists (Skip can turn it off from the bar).
+		var enabled_now := func() -> bool:
+			return update_notice.user_enabled if update_notice != null else state.enabled
 		var restyle := func() -> void:
 			if is_instance_valid(updates_button):
-				style_update_button(updates_button, state.enabled, update_notice != null and update_notice.latest_tag != "")
+				var available := update_notice != null and update_notice.latest_tag != ""
+				style_update_button(updates_button, enabled_now.call(), available)
 		restyle.call()
 		updates_button.pressed.connect(func() -> void:
+			# Red (a newer version is waiting): show it instead of switching the checks off.
+			if update_notice != null and enabled_now.call() and update_notice.latest_tag != "":
+				update_notice.reveal()
+				return
 			state.enabled = on_toggle_updates.call()
 			restyle.call())
 		if update_notice != null:

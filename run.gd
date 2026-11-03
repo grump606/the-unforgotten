@@ -60,6 +60,7 @@ func _ready() -> void:
 	_update_notice = UpdateNotice.new()
 	_update_notice.user_enabled = Settings.load_file(settings_path).update_check_enabled
 	add_child(_update_notice)
+	_update_notice.skipped.connect(_skip_update)
 	_update_notice.start() # asynchronous and silent on any failure; skipped headless (docs/UPDATE_CHECK.md)
 	_body.resized.connect(_select.recenter)
 	resized.connect(_select.recenter)
@@ -116,6 +117,12 @@ func _toggle_update_check() -> bool:
 	else:
 		_update_notice.stop()
 	return enabled
+
+
+## Skip on the update bar: turns update checks off (saved like the menu toggle) and hides the bar.
+func _skip_update() -> void:
+	if _update_notice.user_enabled:
+		_toggle_update_check()
 
 
 func _continue_run(saved: RunState) -> void:
