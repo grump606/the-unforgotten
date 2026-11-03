@@ -19,7 +19,10 @@ AppId={{7B1E5C52-3D0A-4F6B-9C41-6A2D8E0F1B73}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher=grump606
-DefaultDirName={autopf}\{#AppName}
+; Upgrades stay in the folder they are in (see DefaultInstallDir); an install still in a folder named after the
+; old name moves to the folder named after the game.
+DefaultDirName={code:DefaultInstallDir}
+UsePreviousAppDir=no
 DefaultGroupName={#AppName}
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
@@ -84,6 +87,38 @@ begin
     Delete(SA, 1, PA);
     Delete(SB, 1, PB);
   end;
+end;
+
+var
+  // The folder of an existing install as it was when setup started, or ''.
+  PreviousInstallDir: String;
+
+// The folder a previous setup installed into, without a trailing backslash, or '' if none.
+function PreviousAppDir(): String;
+begin
+  Result := '';
+  if not RegQueryStringValue(HKCU, UninstallKey, 'Inno Setup: App Path', Result) then
+    if not RegQueryStringValue(HKLM, UninstallKey, 'Inno Setup: App Path', Result) then
+      Result := '';
+  if (Result <> '') and (Result[Length(Result)] = '\') then
+    Delete(Result, Length(Result), 1);
+end;
+
+// True for an install folder still named after the game's old name (Card Battle Prototype).
+function IsOldInstallDir(const Dir: String): Boolean;
+begin
+  Result := CompareText(ExtractFileName(Dir), 'Card Battle Prototype') = 0;
+end;
+
+// Where setup installs by default: the folder of the existing install (so upgrades stay where they are and
+// a folder the user chose is respected), except an install in a folder still named after the old name,
+// which moves to the folder named after the game.
+function DefaultInstallDir(Param: String): String;
+begin
+  if (PreviousInstallDir <> '') and not IsOldInstallDir(PreviousInstallDir) then
+    Result := PreviousInstallDir
+  else
+    Result := ExpandConstant('{autopf}\{#AppName}');
 end;
 
 // The installed version as recorded by a previous setup, or '' if none.
@@ -175,6 +210,7 @@ var
 begin
   Result := True;
 
+  PreviousInstallDir := PreviousAppDir();
   Installed := InstalledVersion();
   if (Installed <> '') and (CompareVersions('{#AppVersion}', Installed) < 0) then
   begin
@@ -208,4 +244,54 @@ end;
 function UpdateReadyMessage(): String;
 begin
   Result := '';
+end;
+
+// The game used to keep its saves in a folder named after its old name (Card Battle Prototype, up to
+// v0.6.6). Copies the run save and the settings from there into the folder named after the game, never
+// over a file that already exists, and removes the old folder once everything arrived. The game does the
+// same at startup (run/user_data_migration.gd), so whichever runs first does the work.
+function CopyDataFile(const OldDir, NewDir, Name: String): Boolean;
+begin
+  Result := True;
+  if not FileExists(OldDir + '\' + Name) then Exit;
+  if FileExists(NewDir + '\' + Name) then Exit;
+  Result := FileCopy(OldDir + '\' + Name, NewDir + '\' + Name, True);
+end;
+
+procedure MigrateOldSaves();
+var
+  Base, OldDir, NewDir: String;
+  AllCopied: Boolean;
+begin
+  Base := ExpandConstant('{userappdata}') + '\Godot\app_userdata';
+  OldDir := Base + '\Card Battle Prototype';
+  NewDir := Base + '\The Unforgotten';
+  if not DirExists(OldDir) then Exit;
+  if not ForceDirectories(NewDir) then Exit;
+  AllCopied := CopyDataFile(OldDir, NewDir, 'run_save.json');
+  AllCopied := CopyDataFile(OldDir, NewDir, 'run_save.json.bak') and AllCopied;
+  AllCopied := CopyDataFile(OldDir, NewDir, 'run_save.json.tmp') and AllCopied;
+  AllCopied := CopyDataFile(OldDir, NewDir, 'settings.json') and AllCopied;
+  AllCopied := CopyDataFile(OldDir, NewDir, 'settings.json.bak') and AllCopied;
+  AllCopied := CopyDataFile(OldDir, NewDir, 'settings.json.tmp') and AllCopied;
+  // Only when every file is safe in the new folder: what is left is logs, caches and leftovers.
+  if AllCopied then DelTree(OldDir, True, True, True);
+end;
+
+// An install that lived in a folder named after the old name has just been installed into the new folder:
+// remove the old folder (the old exe, its uninstaller and nothing else of the player's).
+procedure RemoveOldInstallDir();
+begin
+  if (PreviousInstallDir = '') or not IsOldInstallDir(PreviousInstallDir) then Exit;
+  if CompareText(PreviousInstallDir, RemoveBackslash(ExpandConstant('{app}'))) = 0 then Exit;
+  if DirExists(PreviousInstallDir) then DelTree(PreviousInstallDir, True, True, True);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+  begin
+    MigrateOldSaves();
+    RemoveOldInstallDir();
+  end;
 end;

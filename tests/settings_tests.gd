@@ -85,7 +85,7 @@ func run() -> int:
 	_cleanup()
 	# The project was renamed (v0.6.0) but saves and settings must stay where earlier versions wrote
 	# them: project.godot pins the user folder to the old name (see config/custom_user_dir_name).
-	_check(OS.get_user_data_dir().replace("\\", "/").ends_with("Godot/app_userdata/Card Battle Prototype"), "the user data folder keeps its original name so existing saves load")
+	_check(OS.get_user_data_dir().replace("\\", "/").ends_with("Godot/app_userdata/The Unforgotten"), "the user data folder is named after the game (UserDataMigration moves saves from the old one)")
 	return _failures
 
 
