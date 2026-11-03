@@ -115,6 +115,8 @@ Reading the curve:
 
 Goal: greedy escape 28 to 40 percent and smart 55 to 70 for every class, Brakeman loss smart 8 to 15 percent and greedy at most about 25, no cliff. Judged over seeds 1 to 3, 600 runs per cell (averages below; movements under about 3 points are noise). Stop line, bots, combat rules and cards untouched.
 
+Note (later): the escape rates in this section are as measured at the time. After later changes (real-HP sims, the bot card-play fixes in `docs/NEXT_STEPS.md`) the 600-run, seeds 1-3 averages are greedy 37.7 / 32.3 / 29.6 and smart 60.8 / 70.8 / 65.8 (Deserter / Pickpocket / Medium).
+
 Changes: Pickpocket max HP 34 to 36, Medium max HP 56 to 60, Brakeman HP 90 to 96 and heavy attack 20 to 18. Conductor, `REST_HEAL`, gold and prices unchanged.
 
 | Escape rate (seeds 1-3 avg) | Deserter | Pickpocket | Medium |

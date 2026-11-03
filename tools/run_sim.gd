@@ -20,6 +20,7 @@ const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [-
 var _smart := false
 var _card_stats := false
 var _plays := {} # card id -> times played across all runs
+var _held := {} # card id -> runs whose deck held at least one copy when the run ended
 var _character: StringName = StarterContent.DEFAULT_CHARACTER_ID
 
 
@@ -108,6 +109,11 @@ func _initialize() -> void:
 				escapes_with_relics += 1
 		for relic in run.relics:
 			relics_bought[relic.id] = relics_bought.get(relic.id, 0) + 1
+		var seen := {}
+		for card in run.deck:
+			if not seen.has(card.id):
+				seen[card.id] = true
+				_held[card.id] = _held.get(card.id, 0) + 1
 		heals_used += 1 if run.reward_heal_used else 0
 		removes_used += 1 if run.reward_remove_used else 0
 		if run.escaped:
@@ -152,13 +158,14 @@ func _initialize() -> void:
 		print("%-18s %7d (%.1f%% of runs)" % [desc, deaths_by_desc[desc], 100.0 * deaths_by_desc[desc] / runs])
 	if _card_stats:
 		print("")
-		print("Card plays per run (a card never played shows 0.00)")
+		print("Card plays per run (a card never played shows 0.00), share of runs whose final deck held it, plays per run that held it")
 		var played: Array = []
 		for card in StarterContent.reward_pool(_character):
 			played.append([card.id, _plays.get(card.id, 0)])
 		played.sort_custom(func(a: Array, b: Array) -> bool: return a[1] > b[1])
 		for entry: Array in played:
-			print("%-18s %6.2f" % [entry[0], float(entry[1]) / runs])
+			var held: int = _held.get(entry[0], 0)
+			print("%-18s %6.2f %7.1f%% %8.2f" % [entry[0], float(entry[1]) / runs, 100.0 * held / runs, float(entry[1]) / maxi(held, 1)])
 	quit(0)
 
 

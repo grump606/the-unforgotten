@@ -61,8 +61,10 @@ static func play_turn(combat: Combat) -> bool:
 			if not combat.can_play(i):
 				continue
 			var card: CardData = combat.piles.hand[i]
+			if SimPolicy.recycles_itself(combat, card):
+				continue
 			for target in _targets(combat, card):
-				var score := _play_value(combat, i, target) / (card.cost + 1)
+				var score := _play_value(combat, i, target) / (_net_cost(card) + 1)
 				if score > best_score:
 					best_score = score
 					best_hand = i
@@ -98,7 +100,7 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 	elif card.target_mode == CardData.TargetMode.ALL_ENEMIES:
 		hit = combat.living_enemies()
 	var unblocked := maxi(_incoming_damage(combat) - combat.player.block, 0)
-	var energy_left := combat.energy - card.cost
+	var energy_left := combat.energy - card.cost + _energy_gain(card)
 	var value := 0.0
 	for effect in card.effects:
 		match effect.kind:
@@ -145,6 +147,20 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 								# It only pays if played before the damage, so rank it first.
 								value += EXPOSE_FIRST
 	return value
+
+
+## Energy a card gives back when played (Pocket Watch, Seance).
+static func _energy_gain(card: CardData) -> int:
+	var gained := 0
+	for effect in card.effects:
+		if effect.kind == CardEffect.Kind.GAIN_ENERGY:
+			gained += effect.amount
+	return gained
+
+
+## What a card really costs in energy once its own refund is counted (0 for an energy-neutral card).
+static func _net_cost(card: CardData) -> int:
+	return maxi(card.cost - _energy_gain(card), 0)
 
 
 ## The damage `effect` would deal to `enemy` if its card were played now (before Expose and Block).
