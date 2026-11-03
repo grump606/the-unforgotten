@@ -28,7 +28,7 @@ func show() -> void:
 	add_backdrop(stall)
 	stall.set_gold(run.gold)
 	stall.dimmed = removing
-	var box := panel("What will you carry with you?" if run.gold >= Vendor.PRICE_CHEAP else "\"Empty pockets? Look, then. Looking is free.\"")
+	var box := panel("What will you carry with you?" if run.gold >= Vendor.PRICE_CHEAP else "\"Empty pockets? Look, then. Looking is free.\"", true)
 	style_banner(box.get_child(0) as Label)
 	if not removing:
 		var head := Control.new() # room for the shopkeeper's hood above the speech banner

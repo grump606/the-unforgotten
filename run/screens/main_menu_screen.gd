@@ -59,17 +59,25 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 	MenuStyle.heading(title, 46)
 	title.add_theme_color_override("font_color", Color("#d7d0bc"))
 	title.add_theme_color_override("font_outline_color", Color(0.02, 0.01, 0.02, 0.9))
-	title.add_theme_constant_override("outline_size", 8)
+	title.add_theme_constant_override("outline_size", 3)
 	var subtitle := make_label("Someone still remembers you.")
 	subtitle.add_theme_color_override("font_color", Color("#a6b9b5"))
 	box.add_child(subtitle)
 	if saved != null:
-		box.add_child(make_label("Your journey waits at %s.\n%s  ·  HP %d/%d  ·  Gold %d  ·  Deck %d" % [
+		# The saved run's details sit in a compact panel of their own.
+		var details := PanelContainer.new()
+		details.name = "SavedRunDetails"
+		details.add_theme_stylebox_override("panel", _compact_panel_style())
+		details.add_child(make_label("Your journey waits at %s.\n%s  ·  HP %d/%d  ·  Gold %d  ·  Deck %d" % [
 			DestinationArt.label_at(saved.stop_index), saved.player.display_name, saved.player.hp, saved.player.max_hp, saved.gold, saved.deck.size(),
 		]))
+		box.add_child(details)
 		continue_button = add_button(box, "Continue", on_continue)
 	new_run_button = add_button(box, "New Journey", on_new_run)
 	exit_button = add_button(box, "Exit", on_exit)
+	# One clear primary action: Continue when there is a save, otherwise New Journey.
+	(continue_button if continue_button != null else new_run_button).theme_type_variation = MenuStyle.PRIMARY
+	exit_button.theme_type_variation = MenuStyle.QUIET
 	for button in [continue_button, new_run_button, exit_button]:
 		if button != null:
 			button.custom_minimum_size = Vector2(BUTTON_WIDTH, 36)
@@ -96,11 +104,26 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 			updates_button.tree_exiting.connect(update_notice.changed.disconnect.bind(restyle))
 	sound_button = Button.new()
 	sound_button.text = "Sound"
+	sound_button.theme_type_variation = MenuStyle.QUIET
 	box.add_child(sound_button)
 	sound_button.custom_minimum_size = Vector2(BUTTON_WIDTH, 30)
 	sound_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	sound_button.pressed.connect(_open_sound.bind(box))
 	(continue_button if continue_button != null else new_run_button).grab_focus()
+
+
+## A tighter version of the theme's panel, so the save summary does not dominate the menu.
+static func _compact_panel_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(MenuStyle.PANEL, 0.85)
+	style.border_color = MenuStyle.BORDER
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	return style
 
 
 ## Swaps the menu's buttons for the sound page; Back restores them.
