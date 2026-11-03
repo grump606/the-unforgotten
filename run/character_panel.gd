@@ -10,14 +10,14 @@ signal play_pressed(character_id: StringName)
 
 const BORDER_WIDTH := 4
 const PAD := 5
-const PORTRAIT_HEIGHT := 74.0
+const PORTRAIT_HEIGHT := 66.0
 ## The figures are drawn in a box this tall and scaled down to the portrait.
-const FIGURE_HEIGHT := 70.0
+const FIGURE_HEIGHT := 62.0
 ## The painted portrait shows this top share of the class sprite: head, shoulders and chest.
 const PAINTED_CROP := 0.32
 ## Starting-deck cards: four per row, small enough that three panels sit comfortably across 1152 px
 ## and the whole group fits the window height without crowding the edges.
-const DECK_CARD_SCALE := 0.42
+const DECK_CARD_SCALE := 0.4
 const DECK_COLUMNS := 4
 const DECK_GAP := 2
 const HOVER_SCALE := 1.02
@@ -58,7 +58,7 @@ func _init(character: Character = null) -> void:
 	box.add_child(title)
 	var pitch := _label(c.pitch, 11, Color(_p.ink, 0.85))
 	pitch.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	pitch.custom_minimum_size = Vector2(0, 2.0 * 14.0) # two lines, so decks line up across panels
+	pitch.custom_minimum_size = Vector2(0, 3.0 * 14.0) # three lines (the longest pitch wraps to three), so decks line up across panels
 	box.add_child(pitch)
 	box.add_child(_label("Starting deck:", 12, Color(_p.ink, 0.7)))
 	box.add_child(_deck_grid(c.starting_deck))
