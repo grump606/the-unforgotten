@@ -46,9 +46,9 @@ const ENTRANCE_START_SCALE := 0.8
 @onready var _left_box: VBoxContainer = %LeftBox
 @onready var _pile_label: Label = %PileLabel
 @onready var _hud: PanelContainer = %Hud
-@onready var _hud_info_row: HBoxContainer = %InfoRow
-@onready var _hud_info: Label = %HudInfo
-@onready var _pause_slot: HBoxContainer = %PauseSlot
+
+
+
 @onready var _hand_box: HFlowContainer = %HandBox
 @onready var _end_turn_button: Button = %EndTurnButton
 @onready var _result_label: Label = %ResultLabel
@@ -85,6 +85,12 @@ var _combat: Combat
 var _cancel_button: Button
 var _hint_shown := false
 var _relic_strip: RelicStrip
+## Journey info (see set_journey): top-left stage text, the character title above the orb, the deck count.
+var _stage_info: VBoxContainer
+var _stage_title: Label
+var _stage_journey: Label
+var _character_label: Label
+var _deck_size := -1
 var _victory := false
 var _batch_depth := 0
 var _refresh_pending := false
@@ -250,7 +256,7 @@ func _refresh() -> void:
 	refresh_count += 1
 	_sync_player()
 	_energy_orb.set_energy(_combat.energy, Combat.ENERGY_PER_TURN)
-	_pile_label.text = "Draw %d\nDiscard %d" % [_combat.piles.draw_pile.size(), _combat.piles.discard_pile.size()]
+	_pile_label.text = _pile_text()
 	_keep_target_alive()
 	_sync_enemies()
 	_rebuild_hand()
@@ -842,9 +848,9 @@ func _pulse_confirm(available: bool) -> void:
 		_confirm_tween.tween_property(_end_turn_button, "modulate", Color.WHITE, CONFIRM_PULSE_TIME * 0.5)
 
 
-# --- HUD bar -----------------------------------------------------------------------------------
-# The bottom of the screen is one full-width HUD: an info row (journey line, Pause button) above the
-# controls and the hand. The run screen fills the info row when it embeds a fight.
+# --- HUD bar and journey info ------------------------------------------------------------------
+# The bottom of the screen is one full-width HUD with the energy and piles on the left, the hand, and
+# the turn controls on the right. The run screen adds the journey info with `set_journey`.
 
 ## A dark bar flush with the bottom and side edges, with a thin amber line along its top.
 func _style_hud() -> void:
@@ -859,17 +865,48 @@ func _style_hud() -> void:
 	box.shadow_color = Color(0, 0, 0, 0.45)
 	box.shadow_size = 8
 	_hud.add_theme_stylebox_override("panel", box)
-	_hud_info.add_theme_font_size_override("font_size", 14)
-	_hud_info.add_theme_color_override("font_color", MenuStyle.TEXT_DIM)
 
 
-## The journey line shown at the left of the HUD's info row (stop, character, HP, gold, deck).
-func set_hud_info(text: String) -> void:
-	_hud_info.text = text.replace("\n", "  ·  ")
-	_hud_info_row.visible = true
+## Journey info for a fight inside a run: the stop title and journey number at the top left of the
+## stage (the relic badges move below them), the character's title above the energy orb, and the
+## deck count under the draw and discard counts. Standalone fights never call this.
+func set_journey(stop_title: String, journey: String, character_title: String, deck_size: int) -> void:
+	if _stage_info == null:
+		_stage_info = VBoxContainer.new()
+		_stage_info.position = Vector2(14, 10)
+		_stage_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stage_info.add_theme_constant_override("separation", 0)
+		_stage_title = Label.new()
+		_stage_title.add_theme_font_size_override("font_size", 20)
+		_stage_title.add_theme_color_override("font_color", MenuStyle.TEXT)
+		_stage_title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+		_stage_title.add_theme_constant_override("shadow_offset_y", 2)
+		_stage_info.add_child(_stage_title)
+		_stage_journey = Label.new()
+		_stage_journey.add_theme_font_size_override("font_size", 14)
+		_stage_journey.add_theme_color_override("font_color", MenuStyle.TEXT_DIM)
+		_stage_journey.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+		_stage_journey.add_theme_constant_override("shadow_offset_y", 1)
+		_stage_info.add_child(_stage_journey)
+		for label in [_stage_title, _stage_journey]:
+			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stage.add_child(_stage_info)
+		_character_label = Label.new()
+		_character_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_character_label.add_theme_font_size_override("font_size", 14)
+		_character_label.add_theme_color_override("font_color", MenuStyle.TEXT_DIM)
+		_left_box.add_child(_character_label)
+		_left_box.move_child(_character_label, 0)
+	_stage_title.text = stop_title
+	_stage_journey.text = journey
+	_character_label.text = character_title
+	_deck_size = deck_size
+	# Below the two lines of text, the relic badges keep the left edge.
+	_relic_strip.position = Vector2(4, _stage_info.position.y + 20 + 14 + 14)
+	if _combat != null:
+		_pile_label.text = _pile_text()
 
 
-## Where the run screen docks its Pause button, at the right of the HUD's info row.
-func pause_slot() -> Control:
-	_hud_info_row.visible = true
-	return _pause_slot
+func _pile_text() -> String:
+	var text := "Draw %d\nDiscard %d" % [_combat.piles.draw_pile.size(), _combat.piles.discard_pile.size()]
+	return text + "\nDeck %d" % _deck_size if _deck_size >= 0 else text

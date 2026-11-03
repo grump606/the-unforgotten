@@ -42,6 +42,9 @@ var _rest := RestScreen.new()
 var _end := EndScreen.new()
 ## True while a debug-launched fight is on screen (see start_debug_fight): nothing is saved or deleted.
 var _debug_fight := false
+## The header's two parts, kept so a fight can show them in its own layout (see _dock_combat_hud).
+var _stop_title := ""
+var _journey_text := ""
 
 
 func _ready() -> void:
@@ -216,6 +219,8 @@ func _update_header() -> void:
 		stop_text, position, _run.stops.size(), player.display_name, player.hp, player.max_hp, _run.gold, _run.deck.size(),
 	]
 	_notice_shown = _notice != ""
+	_stop_title = stop_text
+	_journey_text = "Journey %d/%d" % [position, _run.stops.size()]
 	_pause_button.visible = not _run.finished
 	var fighting := not _run.finished and not _run.reward_pending() and _run.current_stop().type == RunState.StopType.COMBAT
 	_header_strip.set_relics([] as Array[RelicData] if fighting else _run.relics)
@@ -388,8 +393,8 @@ func _warm_next_stop() -> void:
 
 
 # --- Fight HUD -------------------------------------------------------------------------------
-# During a fight the top header and the framed margin go away: the journey line and the Pause button
-# live in the fight's bottom HUD instead (battle.gd, `set_hud_info` and `pause_slot`).
+# During a fight the top header and the framed margin go away. The fight shows the stop title and
+# journey number itself (battle.gd `set_journey`), and the Pause button shrinks into the top-right corner.
 
 ## Screen margin around every non-fight screen.
 const EDGE_MARGIN := 16.0
@@ -401,25 +406,25 @@ func _set_edge_margin(margin: float) -> void:
 	_layout.offset_bottom = -margin
 
 
-## Moves the header text and the Pause button into the fight on screen. Does nothing when the fight
-## could not be built (the "Start over" panel keeps the normal header).
+## Hands the header info to the fight on screen and makes the Pause button small. Does nothing when the
+## fight could not be built (the "Start over" panel keeps the normal header).
 func _dock_combat_hud() -> void:
 	var battle := _combat.fight
 	if battle == null or not is_instance_valid(battle):
 		return
 	_header_row.visible = false
 	_set_edge_margin(0.0)
-	battle.set_hud_info(_header.text)
-	var slot: Control = battle.pause_slot()
-	if _pause_button.get_parent() != slot:
-		_pause_button.reparent(slot, false)
-		_pause_button.theme_type_variation = MenuStyle.QUIET
+	battle.set_journey(_stop_title, _journey_text, _run.player.display_name, _run.deck.size())
+	_place_pause_button(MenuStyle.SMALL, 8)
 
 
-## Puts the Pause button back in its corner of the screen (it is freed with the fight otherwise).
+## Restores the Pause button's normal size after a fight.
 func _undock_pause_button() -> void:
-	if _pause_button == null or _pause_button.get_parent() == self:
-		return
-	_pause_button.reparent(self, false)
-	_pause_button.theme_type_variation = &""
-	_pause_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 12)
+	if _pause_button != null and _pause_button.theme_type_variation != &"":
+		_place_pause_button(&"", 12)
+
+
+func _place_pause_button(variation: StringName, margin: int) -> void:
+	_pause_button.theme_type_variation = variation
+	_pause_button.reset_size()
+	_pause_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, margin)
