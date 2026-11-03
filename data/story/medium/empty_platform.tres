@@ -5,5 +5,5 @@
 [resource]
 script = ExtResource("1_beat")
 title = "The Name You Kept"
-text = "Beyond the Bellkeeper's court lie gardens full of unmarked stones. For a moment, you remember the sound of your own name.\n\nThe people resting here look peaceful. None of them look up when you ask where the path leads.\n\nFor a moment, the whispers gather around your name without swallowing it."
+text = "Beyond the Bellkeeper's court lie gardens full of unmarked stones. For a moment, you remember the sound of your own name.\n\nThe people resting here look peaceful. None of them look up when you ask where the path leads.\n\nHere, the whispers gather around your name without swallowing it."
 button_text = "Keep walking"
