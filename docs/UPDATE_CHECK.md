@@ -1,6 +1,6 @@
 # Update check
 
-On launch the game asks GitHub whether a newer release exists. If one does, a small bar at the bottom of the first screen (character select, or the saved-run Continue prompt) says `Update available: v0.3.1 (you have 0.3.0)` with a **Download** button (opens the releases page in the browser) and an **x** to dismiss it. It never blocks play, and it is not shown once a run is under way.
+On launch the game asks GitHub whether a newer release exists. If one does, nothing appears on its own: the main menu's small **Update** button turns red. Clicking the red button shows a small bar at the bottom of the screen (main menu, character select, or the saved-run Continue prompt) that says `Update available: v0.3.1 (you have 0.3.0)` with a **Download** button (opens the releases page in the browser) and a **Skip** button. **Skip** turns update checks off (saved in settings, the Update button goes grey) and the bar goes away, so the menu looks normal again. The bar never blocks play, and it is not shown once a run is under way.
 
 ## Privacy
 
@@ -8,7 +8,7 @@ The game contacts `api.github.com` once per launch: a single HTTPS `GET https://
 
 ## Turning it off
 
-In the game: the main menu has a small **Update** button in the bottom-right corner: grey when checks are off, teal when on, red when checks are on and a newer version is available (click it to toggle). It is saved in `user://settings.json` as `{"update_check_enabled": false}` and applies from then on. Turning it off cancels any request in flight and hides a notice already shown; no request is made at all while it is off. Turning it on asks GitHub right away. It defaults to on. The settings file is treated as untrusted: it is capped at 4 KB and the value must be a real boolean, otherwise the default (on) is used, with no error.
+In the game: the main menu has a small **Update** button in the bottom-right corner: grey when checks are off, teal when on, red when checks are on and a newer version is available. Click it to toggle the checks, except when it is red: then the click shows the update bar instead (use **Skip** there to turn the checks off). It is saved in `user://settings.json` as `{"update_check_enabled": false}` and applies from then on. Turning it off cancels any request in flight and hides a notice already shown; no request is made at all while it is off. Turning it on asks GitHub right away. It defaults to on. The settings file is treated as untrusted: it is capped at 4 KB and the value must be a real boolean, otherwise the default (on) is used, with no error.
 
 From outside the game: set the environment variable `THE_UNFORGOTTEN_NO_UPDATE_CHECK` to any non-empty value before launching, for example `$env:THE_UNFORGOTTEN_NO_UPDATE_CHECK = "1"`. The check is also skipped on its own in headless runs (tests, CI, the sims), so those never touch the network. The variable and headless always win: the check runs only if none of the three says no.
 
@@ -25,7 +25,7 @@ The running version is `application/config/version` in `project.godot`. Versions
 ## Code and tests
 
 - `run/update_check.gd` (`UpdateCheck`): the pure logic (enable rules, tag validation, version compare, reply parsing, notice text).
-- `run/update_notice.gd` (`UpdateNotice`): the bar and the `HTTPRequest`. `handle_response(code, body)` takes a reply directly, which is how tests and `tools/update_sheet.gd` (screenshots) work without a network.
+- `run/update_notice.gd` (`UpdateNotice`): the bar and the `HTTPRequest` (`reveal()` shows the bar, the `skipped` signal is Skip). `handle_response(code, body)` takes a reply directly, which is how tests and `tools/update_sheet.gd` (screenshots) work without a network.
 - `run/settings.gd` (`Settings`): load/save of `user://settings.json`. `run.gd` reads it at launch (`settings_path`, which tests point at a scratch file) and the menu toggle writes it.
 - Tests: `tests/update_check_tests.gd` (in `run_tests.gd`; it also runs `tests/settings_tests.gd`) and `tests/ui_update_notice_test.gd` (`scripts/check.ps1`).
 

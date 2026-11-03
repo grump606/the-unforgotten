@@ -1,11 +1,17 @@
 class_name UpdateNotice
 extends PanelContainer
 ## A small bar at the bottom of the run screen: "Update available: v0.3.1 (you have 0.3.0)" with
-## Download and dismiss buttons. It asks GitHub once per launch (asynchronously, so the game never
-## waits) and stays hidden unless the reply is a clean, newer release. Every failure is silent.
+## Download and Skip buttons. It asks GitHub once per launch (asynchronously, so the game never
+## waits). A newer release does not show the bar by itself: it only turns the main menu's Update
+## button red, and the bar appears when the player clicks that button (`reveal`). Skip turns update
+## checks off (`skipped`; run.gd saves the setting) and the bar goes away. Every failure is silent.
 ## Rules and validation live in run/update_check.gd; see docs/UPDATE_CHECK.md.
 
+## Something the main menu's Update button shows changed (a newer release is known, or the bar was
+## shown or hidden).
 signal changed
+## The player pressed Skip: the owner should turn update checks off.
+signal skipped
 
 ## The running game's version; tests set it to try different comparisons.
 var current_version: String = str(ProjectSettings.get_setting("application/config/version", ""))
@@ -18,7 +24,7 @@ var debug := false
 
 var label: Label
 var download_button: Button
-var dismiss_button: Button
+var skip_button: Button
 ## The newer release's tag once one is known ("" until then).
 var latest_tag := ""
 ## Downloads, verifies and runs the installer when the player clicks the button (see UpdateInstaller).
@@ -28,7 +34,8 @@ var installer := UpdateInstaller.new()
 var use_installer := UpdateInstaller.available()
 
 var _request: HTTPRequest
-var _dismissed := false
+## True once the player has asked to see the update (the red Update button was clicked).
+var revealed := false
 ## False while a screen where the notice does not belong (a run in progress) is showing.
 var _allowed := true
 
@@ -49,13 +56,13 @@ func _init() -> void:
 	download_button.add_theme_font_size_override("font_size", 14)
 	download_button.pressed.connect(_on_download)
 	row.add_child(download_button)
-	dismiss_button = Button.new()
-	dismiss_button.text = "x"
-	dismiss_button.tooltip_text = "Dismiss"
-	dismiss_button.focus_mode = Control.FOCUS_NONE
-	dismiss_button.add_theme_font_size_override("font_size", 14)
-	dismiss_button.pressed.connect(_on_dismiss)
-	row.add_child(dismiss_button)
+	skip_button = Button.new()
+	skip_button.text = "Skip"
+	skip_button.tooltip_text = "Skip this update and turn update checks off"
+	skip_button.focus_mode = Control.FOCUS_NONE
+	skip_button.add_theme_font_size_override("font_size", 14)
+	skip_button.pressed.connect(_on_skip)
+	row.add_child(skip_button)
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.04, 0.03, 0.03, 0.9)
 	style.set_border_width_all(1)
@@ -106,7 +113,19 @@ func stop() -> void:
 	installer.cancel()
 	_finish_request("stopped")
 	latest_tag = ""
+	revealed = false
 	_refresh()
+	changed.emit()
+
+
+## Shows the bar for a known newer release (the player clicked the red Update button). Does nothing
+## while there is no newer release.
+func reveal() -> void:
+	if latest_tag == "":
+		return
+	revealed = true
+	_refresh()
+	changed.emit()
 
 
 ## Whether the screen showing now is one where the notice belongs; it shows only when allowed.
@@ -126,10 +145,11 @@ func handle_response(code: int, body: PackedByteArray) -> void:
 	label.text = UpdateCheck.notice_text(tag, current_version)
 	download_button.text = "Update & restart" if use_installer else "Download"
 	_refresh()
+	changed.emit() # the menu's Update button turns red
 
 
 func _refresh() -> void:
-	var show_it := latest_tag != "" and _allowed and not _dismissed
+	var show_it := latest_tag != "" and _allowed and revealed
 	if show_it != visible:
 		visible = show_it
 		changed.emit()
@@ -183,9 +203,11 @@ func _on_installer_changed() -> void:
 			download_button.disabled = false
 
 
-func _on_dismiss() -> void:
-	_dismissed = true
+func _on_skip() -> void:
+	installer.cancel()
+	revealed = false
 	_refresh()
+	skipped.emit()
 
 
 func _log(message: String) -> void:
