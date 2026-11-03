@@ -6,10 +6,10 @@ const PLAYER_START_HP := 40
 ## Keys 1-9 pick hand cards 1-9 and 0 picks the 10th.
 const MAX_HAND_KEYS := 10
 ## Hand cards are drawn smaller than full size so a hand fits beside the enemy row and log.
-const HAND_CARD_SCALE := 0.85
+const HAND_CARD_SCALE := 0.7
 ## A hand too wide for one row first shrinks its cards down to this scale, then overlaps them
 ## (the left edge with the cost stamp and hotkey stays visible; a hovered card comes to the front).
-const HAND_CARD_SCALE_MIN := 0.72
+const HAND_CARD_SCALE_MIN := 0.6
 ## Gap between hand cards when they do not need to overlap.
 const HAND_GAP := 4
 ## Used for the fit calculation before the hand box has been laid out (headless / first frame).
@@ -34,11 +34,21 @@ const PLAYER_X := 0.19
 const ENEMY_BAND := Vector2(0.40, 0.98)
 ## Seconds between one enemy's attack and the next in the enemy phase.
 const ENEMY_STAGGER := 0.4
+## The boss HP bar: its horizontal span (fractions of the stage width) and the gap above it.
+const BOSS_BAR_X := Vector2(0.35, 0.65)
+const BOSS_BAR_TOP := 6.0
+## Seconds the phase banner stays up in total, and the boss entrance scale-in start.
+const PHASE_BANNER_TIME := 1.8
+const ENTRANCE_START_SCALE := 0.8
 
 @onready var _backdrop: BattleBackdrop = %Backdrop
 @onready var _stage: Control = %Stage
 @onready var _left_box: VBoxContainer = %LeftBox
 @onready var _pile_label: Label = %PileLabel
+@onready var _hud: PanelContainer = %Hud
+
+
+
 @onready var _hand_box: HFlowContainer = %HandBox
 @onready var _end_turn_button: Button = %EndTurnButton
 @onready var _result_label: Label = %ResultLabel
@@ -62,6 +72,9 @@ var seed_override: int = -1
 var boss_fight := false
 ## Shown as the first log line of a boss fight ("Boss" or "Mid-boss"); both use the boss backdrop.
 var boss_label := "Boss"
+## Show the ~2 s boss entrance before turn 1. Off by default when running headless so UI tests that drive a boss
+## fight are not blocked; the intro tests turn it on.
+var show_boss_intro := DisplayServer.get_name() != "headless"
 var character_id: StringName = &""
 var destination_key: StringName = &""
 ## The run's relics, shown as badges beside the player's HP (the strip hides when there are none).
@@ -72,6 +85,12 @@ var _combat: Combat
 var _cancel_button: Button
 var _hint_shown := false
 var _relic_strip: RelicStrip
+## Journey info (see set_journey): top-left stage text, the character title above the orb, the deck count.
+var _stage_info: VBoxContainer
+var _stage_title: Label
+var _stage_journey: Label
+var _character_label: Label
+var _deck_size := -1
 var _victory := false
 var _batch_depth := 0
 var _refresh_pending := false
@@ -93,12 +112,24 @@ var _seen_player_block := 0
 var _preview: CardView
 var _confirm_ready := false
 var _confirm_tween: Tween
+## Boss presentation: the entrance overlay, the wide HP bar on top of the stage, the phase banner and flash.
+var _intro: BossIntro
+var _boss_bar: BossBar
+var _entrance_tween: Tween
+var _banner: Label
+var _banner_tween: Tween
+var _flash: ColorRect
+var _flash_tween: Tween
 
 
 func _ready() -> void:
 	# Embedded in the run screen the theme is inherited; run on its own (F6) it needs its own.
 	if get_parent() == get_tree().root:
 		MenuStyle.apply_theme_only(self)
+	_style_hud()
+	_pile_label.add_theme_font_size_override("font_size", 13)
+	_pile_label.add_theme_constant_override("line_spacing", -2)
+	_left_box.add_theme_constant_override("separation", 2)
 	_end_turn_button.theme_type_variation = MenuStyle.PRIMARY
 	_log_button.theme_type_variation = MenuStyle.QUIET
 	_backdrop.set_variant(boss_fight, character_id, destination_key)
@@ -183,15 +214,19 @@ func _attach(combat: Combat) -> void:
 	_combat.combat_ended.connect(_on_combat_ended)
 	_combat.card_played.connect(_on_card_played)
 	_combat.enemy_acted.connect(_on_enemy_acted)
+	_combat.enemy_phase_changed.connect(_on_enemy_phase_changed)
 	_target_index = 0
 	_result_label.text = ""
 	_log_label.clear()
+	_backdrop.set_harsh(false)
 	if boss_fight:
 		_log_label.append_text("[b]%s fight[/b]\n" % boss_label)
 	_new_fight_button.hide()
 	_begin_batch()
 	_combat.start()
 	_end_batch()
+	if boss_fight and show_boss_intro:
+		_start_boss_intro()
 
 
 ## Combat emits state_changed on every mutation, so one action (a card play, the whole enemy
@@ -224,7 +259,7 @@ func _refresh() -> void:
 	refresh_count += 1
 	_sync_player()
 	_energy_orb.set_energy(_combat.energy, Combat.ENERGY_PER_TURN)
-	_pile_label.text = "Draw %d\nDiscard %d" % [_combat.piles.draw_pile.size(), _combat.piles.discard_pile.size()]
+	_pile_label.text = _pile_text()
 	_keep_target_alive()
 	_sync_enemies()
 	_rebuild_hand()
@@ -298,11 +333,14 @@ func _sync_enemies() -> void:
 		for i in _combat.enemies.size():
 			var view := Fighter.new()
 			view.phase = i * 1.9
-			view.set_enemy(_combat.enemies[i])
+			view.set_enemy(_combat.enemies[i], boss_fight)
 			view.pressed.connect(_select_target.bind(i))
 			_stage.add_child(view)
 			_enemy_views.append(view)
+		_sync_boss_bar()
 		_layout_stage()
+	if _boss_bar != null:
+		_boss_bar.refresh()
 	for i in _enemy_views.size():
 		var enemy := _combat.enemies[i]
 		var view := _enemy_views[i]
@@ -320,6 +358,11 @@ func _layout_stage() -> void:
 		_player_view.position = Vector2(w * PLAYER_X - _player_view.size.x / 2.0, h - _player_view.size.y)
 	if _enemy_views.is_empty():
 		return
+	if _boss_bar != null:
+		_boss_bar.position = Vector2(w * BOSS_BAR_X.x, BOSS_BAR_TOP)
+		_boss_bar.size = Vector2(w * (BOSS_BAR_X.y - BOSS_BAR_X.x), BossBar.HEIGHT)
+	for view in _enemy_views:
+		view.fit_boss(h - BOSS_BAR_TOP - BossBar.HEIGHT - 6.0)
 	var total := ENEMY_GAP * (_enemy_views.size() - 1)
 	for view in _enemy_views:
 		total += view.size.x
@@ -537,6 +580,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
 		return
+	if _intro != null and is_instance_valid(_intro) and not _intro.is_done():
+		get_viewport().set_input_as_handled()
+		_intro.skip()
+		return
 	if _new_fight_button.visible:
 		if key.keycode == KEY_N:
 			get_viewport().set_input_as_handled()
@@ -617,6 +664,116 @@ func _on_enemy_acted(enemy: EnemyUnit, intent: CardEffect) -> void:
 	_seen_player_block = _combat.player.block
 
 
+## Creates the wide boss HP bar on the stage for a boss fight (once per fight).
+func _sync_boss_bar() -> void:
+	if _boss_bar != null:
+		_discard_node(_boss_bar)
+		_boss_bar = null
+	if not boss_fight or _combat.enemies.is_empty():
+		return
+	_boss_bar = BossBar.new()
+	_boss_bar.setup(_combat.enemies[0], boss_label)
+	_boss_bar.label_text = ("MID-BOSS" if boss_label == "Mid-boss" else "FINAL BOSS")
+	_stage.add_child(_boss_bar)
+
+
+## True while the boss entrance overlay is up (read by tests).
+func intro_visible() -> bool:
+	return _intro != null and is_instance_valid(_intro) and not _intro.is_done()
+
+
+## True while the phase banner is showing (read by tests).
+func phase_banner_visible() -> bool:
+	return _banner != null and _banner.visible
+
+
+func _start_boss_intro() -> void:
+	if _combat.enemies.is_empty():
+		return
+	var boss := _combat.enemies[0]
+	_intro = BossIntro.new()
+	_intro.setup("MID-BOSS" if boss_label == "Mid-boss" else "FINAL BOSS", boss.display_name)
+	_intro.finished.connect(_on_intro_finished)
+	add_child(_intro)
+	if not CardView.reduced_motion and not _enemy_views.is_empty():
+		var view := _enemy_views[0]
+		view.entrance = ENTRANCE_START_SCALE
+		_entrance_tween = create_tween()
+		_entrance_tween.tween_property(view, "entrance", 1.0, BossIntro.DURATION).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+func _on_intro_finished() -> void:
+	if _entrance_tween != null:
+		_entrance_tween.kill()
+	for view in _enemy_views:
+		view.entrance = 1.0
+	_intro = null
+
+
+## A boss (or any enemy with a phase two) enters its second phase: banner, flash, shake, harsher backdrop
+## and an immediate redraw so the new phase's intent shows.
+func _on_enemy_phase_changed(enemy: EnemyUnit, _new_phase: int) -> void:
+	var title := enemy.data.phase_two_title if enemy.data.phase_two_title != "" else "Enraged"
+	_log_label.append_text("[b]%s: %s[/b]\n" % [enemy.display_name, title])
+	var index := _combat.enemies.find(enemy)
+	if index >= 0 and index < _enemy_views.size():
+		_enemy_views[index].shake()
+	if boss_fight:
+		_backdrop.set_harsh(true)
+	_show_phase_banner(title)
+	_flash_screen()
+	_on_state_changed()
+
+
+func _show_phase_banner(title: String) -> void:
+	if _banner == null:
+		_banner = Label.new()
+		_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_banner.z_index = 40
+		MenuStyle.heading(_banner, 52)
+		_banner.add_theme_color_override("font_color", MenuStyle.DAMAGE)
+		_banner.add_theme_color_override("font_outline_color", Color(0.05, 0.0, 0.0, 0.9))
+		_banner.add_theme_constant_override("outline_size", 8)
+		add_child(_banner)
+	_banner.text = title.to_upper()
+	_banner.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_banner.offset_top = 120.0
+	_banner.offset_bottom = 200.0
+	_banner.modulate.a = 1.0
+	_banner.show()
+	if _banner_tween != null:
+		_banner_tween.kill()
+	if not is_inside_tree():
+		return
+	var reduced := CardView.reduced_motion
+	_banner_tween = create_tween()
+	if not reduced:
+		_banner.modulate.a = 0.0
+		_banner_tween.tween_property(_banner, "modulate:a", 1.0, 0.2)
+	_banner_tween.tween_interval(PHASE_BANNER_TIME * (0.4 if reduced else 1.0) - 0.5)
+	_banner_tween.tween_property(_banner, "modulate:a", 0.0, 0.3)
+	_banner_tween.tween_callback(_banner.hide)
+
+
+## A quick red flash over the whole screen (skipped under reduced motion).
+func _flash_screen() -> void:
+	if CardView.reduced_motion or not is_inside_tree():
+		return
+	if _flash == null:
+		_flash = ColorRect.new()
+		_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_flash.z_index = 39
+		add_child(_flash)
+		_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	if _flash_tween != null:
+		_flash_tween.kill()
+	_flash.color = Color(MenuStyle.DAMAGE, 0.45)
+	_flash_tween = create_tween()
+	_flash_tween.tween_property(_flash, "color:a", 0.0, 0.5)
+
+
 ## Re-applies the hover look to the hand card under the pointer after a rebuild (the new views
 ## get no mouse_entered until the mouse moves). Every other card is cleared, so none sticks.
 func _restore_hover(mouse := Vector2(-1.0, -1.0)) -> void:
@@ -692,3 +849,67 @@ func _pulse_confirm(available: bool) -> void:
 	for beat in 2:
 		_confirm_tween.tween_property(_end_turn_button, "modulate", amber, CONFIRM_PULSE_TIME * 0.5)
 		_confirm_tween.tween_property(_end_turn_button, "modulate", Color.WHITE, CONFIRM_PULSE_TIME * 0.5)
+
+
+# --- HUD bar and journey info ------------------------------------------------------------------
+# The bottom of the screen is one full-width HUD with the energy and piles on the left, the hand, and
+# the turn controls on the right. The run screen adds the journey info with `set_journey`.
+
+## A dark bar flush with the bottom and side edges, with a thin amber line along its top.
+func _style_hud() -> void:
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(MenuStyle.BG, 0.93)
+	box.border_color = Color(MenuStyle.AMBER, 0.55)
+	box.border_width_top = 1
+	box.content_margin_left = 16
+	box.content_margin_right = 16
+	box.content_margin_top = 6
+	box.content_margin_bottom = 8
+	box.shadow_color = Color(0, 0, 0, 0.45)
+	box.shadow_size = 8
+	_hud.add_theme_stylebox_override("panel", box)
+
+
+## Journey info for a fight inside a run: the stop title and journey number at the top left of the
+## stage (the relic badges move below them), the character's title above the energy orb, and the
+## deck count under the draw and discard counts. Standalone fights never call this.
+func set_journey(stop_title: String, journey: String, character_title: String, deck_size: int) -> void:
+	if _stage_info == null:
+		_stage_info = VBoxContainer.new()
+		_stage_info.position = Vector2(14, 10)
+		_stage_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stage_info.add_theme_constant_override("separation", 0)
+		_stage_title = Label.new()
+		_stage_title.add_theme_font_size_override("font_size", 20)
+		_stage_title.add_theme_color_override("font_color", MenuStyle.TEXT)
+		_stage_title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+		_stage_title.add_theme_constant_override("shadow_offset_y", 2)
+		_stage_info.add_child(_stage_title)
+		_stage_journey = Label.new()
+		_stage_journey.add_theme_font_size_override("font_size", 14)
+		_stage_journey.add_theme_color_override("font_color", MenuStyle.TEXT_DIM)
+		_stage_journey.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+		_stage_journey.add_theme_constant_override("shadow_offset_y", 1)
+		_stage_info.add_child(_stage_journey)
+		for label in [_stage_title, _stage_journey]:
+			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_stage.add_child(_stage_info)
+		_character_label = Label.new()
+		_character_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_character_label.add_theme_font_size_override("font_size", 12)
+		_character_label.add_theme_color_override("font_color", MenuStyle.TEXT_DIM)
+		_left_box.add_child(_character_label)
+		_left_box.move_child(_character_label, 0)
+	_stage_title.text = stop_title
+	_stage_journey.text = journey
+	_character_label.text = character_title
+	_deck_size = deck_size
+	# Below the two lines of text, the relic badges keep the left edge.
+	_relic_strip.position = Vector2(4, _stage_info.position.y + 20 + 14 + 14)
+	if _combat != null:
+		_pile_label.text = _pile_text()
+
+
+func _pile_text() -> String:
+	var text := "Draw %d\nDiscard %d" % [_combat.piles.draw_pile.size(), _combat.piles.discard_pile.size()]
+	return text + "\nDeck %d" % _deck_size if _deck_size >= 0 else text

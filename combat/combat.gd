@@ -27,6 +27,8 @@ signal state_changed
 ## `targets` are the enemies the card hit (empty for SELF cards).
 signal card_played(card: CardData, targets: Array[EnemyUnit])
 signal enemy_acted(enemy: EnemyUnit, intent: CardEffect)
+## An enemy crossed its HP threshold and began phase 2 (`enemy.phase == 2`; its next intent is already the new one).
+signal enemy_phase_changed(enemy: EnemyUnit, phase: int)
 signal combat_ended(victory: bool)
 
 var player: Combatant
@@ -166,6 +168,7 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 	if not relics.is_empty():
 		_apply_play_relics()
 	card_played.emit(card, targets)
+	_check_phases()
 	if not _check_end():
 		state_changed.emit()
 	return true
@@ -249,6 +252,7 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 	# Haunt hurts first, so an enemy it kills never acts.
 	for enemy in living_enemies():
 		enemy.lose_hp(enemy.status_turns(Combatant.Status.HAUNTED))
+	_check_phases()
 	if _check_end():
 		return true
 	for enemy in living_enemies():
@@ -259,6 +263,7 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 			enemy_acted.emit(enemy, intent)
 		enemy.advance_intent()
 		enemy.tick_statuses()
+		_check_phases()
 		if _check_end():
 			return true
 	# After the enemies act, so a 1-turn status on the player still covers the
@@ -402,3 +407,10 @@ func _check_end() -> bool:
 	combat_ended.emit(victory)
 	_disconnect_player()
 	return true
+
+
+## Moves any enemy that has just crossed its phase threshold into phase two and announces it.
+func _check_phases() -> void:
+	for enemy in living_enemies():
+		if enemy.check_phase():
+			enemy_phase_changed.emit(enemy, enemy.phase)

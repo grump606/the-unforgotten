@@ -3,6 +3,7 @@ extends Control
 ## autosaves and wires the pause menu. Each screen is built by a script under res://run/screens/
 ## (see docs/RUN_SCREEN_STRUCTURE.md); all run rules live in res://run/run_state.gd.
 
+@onready var _layout: VBoxContainer = $Layout
 @onready var _header_row: HBoxContainer = %HeaderRow
 @onready var _header: Label = %HeaderLabel
 @onready var _body: Control = %Body
@@ -39,6 +40,11 @@ var _story := StoryScreen.new()
 var _vendor := VendorScreen.new()
 var _rest := RestScreen.new()
 var _end := EndScreen.new()
+## True while a debug-launched fight is on screen (see start_debug_fight): nothing is saved or deleted.
+var _debug_fight := false
+## The header's two parts, kept so a fight can show them in its own layout (see _dock_combat_hud).
+var _stop_title := ""
+var _journey_text := ""
 
 
 func _ready() -> void:
@@ -56,6 +62,7 @@ func _ready() -> void:
 	_body.resized.connect(_select.recenter)
 	resized.connect(_select.recenter)
 	_show_main_menu()
+	_maybe_start_debug_fight()
 
 
 ## Points a screen at the current run and the body before it is shown.
@@ -164,6 +171,7 @@ func _show_stop() -> void:
 			RunState.StopType.COMBAT:
 				_open(_combat)
 				_combat.show(_on_fight_finished, _new_run)
+				_dock_combat_hud()
 			RunState.StopType.STORY:
 				_open(_story)
 				_story.show()
@@ -211,12 +219,19 @@ func _update_header() -> void:
 		stop_text, position, _run.stops.size(), player.display_name, player.hp, player.max_hp, _run.gold, _run.deck.size(),
 	]
 	_notice_shown = _notice != ""
+	_stop_title = stop_text
+	_journey_text = "Journey %d/%d" % [position, _run.stops.size()]
 	_pause_button.visible = not _run.finished
 	var fighting := not _run.finished and not _run.reward_pending() and _run.current_stop().type == RunState.StopType.COMBAT
 	_header_strip.set_relics([] as Array[RelicData] if fighting else _run.relics)
 
 
 func _clear_body() -> void:
+	# Every screen but a fight has the top header and the framed margin; a fight turns both off again
+	# in _dock_combat_hud. The Pause button must leave the fight before the fight is freed.
+	_undock_pause_button()
+	_header_row.visible = true
+	_set_edge_margin(EDGE_MARGIN)
 	for child in _body.get_children():
 		# Removed at once (not just queued) so a stale button cannot be clicked this frame.
 		_body.remove_child(child)
@@ -224,7 +239,54 @@ func _clear_body() -> void:
 
 
 func _on_fight_finished(victory: bool) -> void:
+	if _debug_fight:
+		# A debug fight is not part of a real run: no rewards, no save; back to the menu.
+		_debug_fight = false
+		_run.debug_encounter.clear()
+		_show_main_menu()
+		return
 	_run.complete_combat(victory)
+	_show_stop()
+
+
+# --- Debug launch (run/debug_launch.gd) -----------------------------------------------------
+
+## Starts straight in the fight asked for on the command line or in the environment, with the
+## chosen character's real deck. Does nothing when no fight was asked for. A malformed request is
+## reported in the menu notice and the log, and the menu is shown as usual.
+func _maybe_start_debug_fight() -> void:
+	var launch := DebugLaunch.from_environment()
+	if not launch.requested:
+		return
+	if launch.list_only:
+		print(DebugLaunch.help_text())
+		return
+	if launch.error != "":
+		push_warning("Debug launch: %s" % launch.error)
+		_notice = launch.error
+		_show_main_menu()
+		return
+	start_debug_fight(launch)
+
+
+## Builds a throwaway run for the character and opens a combat stop that fights `launch.enemy_ids`.
+## The stop is the line's boss or mid-boss stop for those bosses (so the backdrop matches), else the
+## first regular fight. Autosaving is off until the fight ends, so a real save is never replaced.
+func start_debug_fight(launch: DebugLaunch) -> void:
+	_run = RunState.new(randi(), launch.character_id)
+	for index in _run.stops.size():
+		var stop := _run.stops[index]
+		if stop.type != RunState.StopType.COMBAT:
+			continue
+		var matches := stop.boss if launch.enemy_ids.has(&"the_conductor") else (stop.mid_boss if launch.enemy_ids.has(&"the_brakeman") else not (stop.boss or stop.mid_boss))
+		if matches:
+			_run.stop_index = index
+			break
+	_run.debug_encounter.assign(launch.enemy_ids)
+	if launch.hp > 0:
+		_run.player.hp = mini(launch.hp, _run.player.max_hp)
+	_debug_fight = true
+	_reset_screens()
 	_show_stop()
 
 
@@ -261,6 +323,8 @@ func _leave_vendor() -> void:
 
 ## Saves the run at the start of a stop (never mid-fight). A failure is shown, not fatal.
 func _autosave() -> void:
+	if _debug_fight:
+		return
 	if not _run.at_stop_boundary():
 		return
 	var error := RunSave.save(_run, save_path)
@@ -271,6 +335,8 @@ func _autosave() -> void:
 
 ## A finished run has nothing to resume.
 func _delete_save() -> void:
+	if _debug_fight:
+		return
 	var error := RunSave.delete(save_path)
 	if error != "":
 		_notice = error
@@ -324,3 +390,41 @@ func _warm_next_stop() -> void:
 	var backdrop := DestinationArt.battle_key(next_index)
 	if backdrop != &"":
 		PaintedArt.preload_screen(backdrop)
+
+
+# --- Fight HUD -------------------------------------------------------------------------------
+# During a fight the top header and the framed margin go away. The fight shows the stop title and
+# journey number itself (battle.gd `set_journey`), and the Pause button shrinks into the top-right corner.
+
+## Screen margin around every non-fight screen.
+const EDGE_MARGIN := 16.0
+
+func _set_edge_margin(margin: float) -> void:
+	_layout.offset_left = margin
+	_layout.offset_top = margin
+	_layout.offset_right = -margin
+	_layout.offset_bottom = -margin
+
+
+## Hands the header info to the fight on screen and makes the Pause button small. Does nothing when the
+## fight could not be built (the "Start over" panel keeps the normal header).
+func _dock_combat_hud() -> void:
+	var battle := _combat.fight
+	if battle == null or not is_instance_valid(battle):
+		return
+	_header_row.visible = false
+	_set_edge_margin(0.0)
+	battle.set_journey(_stop_title, _journey_text, _run.player.display_name, _run.deck.size())
+	_place_pause_button(MenuStyle.SMALL, 8)
+
+
+## Restores the Pause button's normal size after a fight.
+func _undock_pause_button() -> void:
+	if _pause_button != null and _pause_button.theme_type_variation != &"":
+		_place_pause_button(&"", 12)
+
+
+func _place_pause_button(variation: StringName, margin: int) -> void:
+	_pause_button.theme_type_variation = variation
+	_pause_button.reset_size()
+	_pause_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, margin)
