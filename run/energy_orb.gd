@@ -3,7 +3,7 @@ extends Control
 ## The player's energy as a glowing orb with "current/max" inside (bottom left of the battle screen).
 ## It dims when there is no energy left.
 
-const SIZE := 78.0
+const SIZE := 56.0
 const ENERGY_COLOR := Color("#e8b773")
 
 var current := 0

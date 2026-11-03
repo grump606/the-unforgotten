@@ -4,8 +4,8 @@ extends Control
 ## A tick marks the HP percent where phase two begins, so the player sees it coming. Drawing only; the battle
 ## calls refresh() when the fight state changes.
 
-const HEIGHT := 56.0
-const BAR_H := 20.0
+const HEIGHT := 36.0
+const BAR_H := 12.0
 const BACK := Color(0.08, 0.025, 0.03, 0.92)
 const FILL := Color(0.55, 0.10, 0.08)
 const FILL_ENRAGED := Color(0.86, 0.26, 0.10)
@@ -53,8 +53,7 @@ func _draw() -> void:
 		return
 	var enraged := unit.phase == 2
 	var bar := bar_rect()
-	HudIcons.text(self, label_text, Rect2(0, 0, size.x * 0.3, 14), 12, Color(MenuStyle.AMBER, 0.9), false, 2)
-	draw_string(_font, Vector2(0, 14.0 + 17.0), unit.display_name, HORIZONTAL_ALIGNMENT_LEFT, size.x, 22, MenuStyle.TEXT)
+	draw_string(_font, Vector2(0, 17.0), unit.display_name, HORIZONTAL_ALIGNMENT_LEFT, size.x, 19, MenuStyle.TEXT)
 	var has_block := unit.block > 0
 	var frame := MenuStyle.BLOCK if has_block else (MenuStyle.DAMAGE if enraged else FRAME)
 	HudIcons.box(self, bar, BACK, 3, 2 if has_block else 1, frame)
@@ -68,11 +67,11 @@ func _draw() -> void:
 		var x := bar.position.x + bar.size.x * marker_ratio()
 		var crossed := enraged
 		var col := Color(MenuStyle.AMBER, 0.45 if crossed else 0.95)
-		draw_line(Vector2(x, bar.position.y - 4.0), Vector2(x, bar.end.y + 4.0), col, 2.0)
-		draw_colored_polygon(PackedVector2Array([Vector2(x - 5, bar.position.y - 8.0), Vector2(x + 5, bar.position.y - 8.0), Vector2(x, bar.position.y - 2.0)]), col)
-	HudIcons.text(self, "%d/%d" % [maxi(unit.hp, 0), unit.max_hp], bar, 13, Color(1, 1, 1), true, 3)
+		draw_line(Vector2(x, bar.position.y - 3.0), Vector2(x, bar.end.y + 3.0), col, 2.0)
+		draw_colored_polygon(PackedVector2Array([Vector2(x - 4, bar.position.y - 6.0), Vector2(x + 4, bar.position.y - 6.0), Vector2(x, bar.position.y - 1.0)]), col)
+	HudIcons.text(self, "%d/%d" % [maxi(unit.hp, 0), unit.max_hp], bar, 10, Color(1, 1, 1), true, 2)
 	if has_block:
-		var c := Vector2(bar.end.x + 16.0, bar.get_center().y)
-		HudIcons.shield(self, c, 15.0, Color(0, 0, 0, 0.6))
-		HudIcons.shield(self, c, 13.0, Color(MenuStyle.BLOCK.darkened(0.3)))
-		HudIcons.text(self, str(unit.block), Rect2(c - Vector2(14, 12), Vector2(28, 24)), 14, Color(1, 1, 1), true, 3)
+		var c := Vector2(bar.end.x + 12.0, bar.get_center().y)
+		HudIcons.shield(self, c, 11.0, Color(0, 0, 0, 0.6))
+		HudIcons.shield(self, c, 9.5, Color(MenuStyle.BLOCK.darkened(0.3)))
+		HudIcons.text(self, str(unit.block), Rect2(c - Vector2(10, 9), Vector2(20, 18)), 11, Color(1, 1, 1), true, 2)

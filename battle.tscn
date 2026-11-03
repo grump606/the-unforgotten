@@ -75,7 +75,7 @@ layout_mode = 2
 theme_override_constants/separation = 6
 
 [node name="BottomRow" type="HBoxContainer" parent="Layout/Hud/HudColumn"]
-custom_minimum_size = Vector2(0, 176)
+custom_minimum_size = Vector2(0, 136)
 layout_mode = 2
 theme_override_constants/separation = 10
 
@@ -93,7 +93,7 @@ autowrap_mode = 3
 
 [node name="HandBox" type="HFlowContainer" parent="Layout/Hud/HudColumn/BottomRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 168)
+custom_minimum_size = Vector2(0, 134)
 layout_mode = 2
 size_flags_horizontal = 3
 alignment = 1

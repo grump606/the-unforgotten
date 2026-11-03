@@ -6,10 +6,10 @@ const PLAYER_START_HP := 40
 ## Keys 1-9 pick hand cards 1-9 and 0 picks the 10th.
 const MAX_HAND_KEYS := 10
 ## Hand cards are drawn smaller than full size so a hand fits beside the enemy row and log.
-const HAND_CARD_SCALE := 0.85
+const HAND_CARD_SCALE := 0.7
 ## A hand too wide for one row first shrinks its cards down to this scale, then overlaps them
 ## (the left edge with the cost stamp and hotkey stays visible; a hovered card comes to the front).
-const HAND_CARD_SCALE_MIN := 0.72
+const HAND_CARD_SCALE_MIN := 0.6
 ## Gap between hand cards when they do not need to overlap.
 const HAND_GAP := 4
 ## Used for the fit calculation before the hand box has been laid out (headless / first frame).
@@ -35,7 +35,7 @@ const ENEMY_BAND := Vector2(0.40, 0.98)
 ## Seconds between one enemy's attack and the next in the enemy phase.
 const ENEMY_STAGGER := 0.4
 ## The boss HP bar: its horizontal span (fractions of the stage width) and the gap above it.
-const BOSS_BAR_X := Vector2(0.26, 0.74)
+const BOSS_BAR_X := Vector2(0.35, 0.65)
 const BOSS_BAR_TOP := 6.0
 ## Seconds the phase banner stays up in total, and the boss entrance scale-in start.
 const PHASE_BANNER_TIME := 1.8
@@ -127,6 +127,9 @@ func _ready() -> void:
 	if get_parent() == get_tree().root:
 		MenuStyle.apply_theme_only(self)
 	_style_hud()
+	_pile_label.add_theme_font_size_override("font_size", 13)
+	_pile_label.add_theme_constant_override("line_spacing", -2)
+	_left_box.add_theme_constant_override("separation", 2)
 	_end_turn_button.theme_type_variation = MenuStyle.PRIMARY
 	_log_button.theme_type_variation = MenuStyle.QUIET
 	_backdrop.set_variant(boss_fight, character_id, destination_key)
@@ -359,7 +362,7 @@ func _layout_stage() -> void:
 		_boss_bar.position = Vector2(w * BOSS_BAR_X.x, BOSS_BAR_TOP)
 		_boss_bar.size = Vector2(w * (BOSS_BAR_X.y - BOSS_BAR_X.x), BossBar.HEIGHT)
 	for view in _enemy_views:
-		view.fit_boss(h - BOSS_BAR_TOP - 24.0)
+		view.fit_boss(h - BOSS_BAR_TOP - BossBar.HEIGHT - 6.0)
 	var total := ENEMY_GAP * (_enemy_views.size() - 1)
 	for view in _enemy_views:
 		total += view.size.x
@@ -893,7 +896,7 @@ func set_journey(stop_title: String, journey: String, character_title: String, d
 		_stage.add_child(_stage_info)
 		_character_label = Label.new()
 		_character_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_character_label.add_theme_font_size_override("font_size", 14)
+		_character_label.add_theme_font_size_override("font_size", 12)
 		_character_label.add_theme_color_override("font_color", MenuStyle.TEXT_DIM)
 		_left_box.add_child(_character_label)
 		_left_box.move_child(_character_label, 0)
