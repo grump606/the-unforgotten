@@ -49,8 +49,7 @@ func _run(run_seed: int, character_id: StringName) -> int:
 	var character := StarterContent.character(character_id)
 	if character == null:
 		return 1
-	var deck: Array[CardData] = []
-	deck.assign(character.starting_deck)
+	var deck := StarterContent.starter_deck(character.id)
 	if deck.is_empty():
 		printerr("run_stub: extended deck failed to load")
 		return 1
