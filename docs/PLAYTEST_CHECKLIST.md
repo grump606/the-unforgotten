@@ -1,9 +1,9 @@
-# Playtest checklist (v0.6.4)
+# Playtest checklist (v0.7.3)
 
 The numbers are tuned against bots, not people. Play with a pen: note what felt off, not why. Tune afterwards with the sims (`README.md`, "Balance simulation").
 
 ## Before you start
-- [ ] Install v0.6.3 first, then check the in-game update (see "Update flow") before playing on v0.6.4.
+- [ ] Install v0.7.2 first, then check the in-game update (see "Update flow") before playing on v0.7.3.
 - [ ] Play each class at least once to the end or to a loss: Deserter, Pickpocket, Medium. Note the class, the stop you died at, and what killed you.
 
 ## Per class (rate each 1 to 5: boring / fair / too hard / too easy)
@@ -38,8 +38,8 @@ The numbers are tuned against bots, not people. Play with a pen: note what felt 
 - [ ] Dragging a card to an enemy: attack and area cards drag, self cards do not, a plain click still plays on the selected enemy. Over each enemy the label and gold HP ghost match what the hit then does (Block, Exposed). A drop plays on that enemy without changing the selected one; releasing elsewhere, Esc or right-click cancels. Does the 8 px start distance feel right on a trackpad or touch screen? Is the label readable over the biggest figures, and over a boss (whose gold HP ghost shows on the wide bar at the top, not under the figure)?
 
 ## Update flow (once)
-- [ ] With v0.6.3 installed, launch it: a notice offers v0.6.4.
-- [ ] Download, then restart: the installer runs silently and the game relaunches as v0.6.4.
+- [ ] With v0.7.2 installed, launch it: a notice offers v0.7.3.
+- [ ] Download, then restart: the installer runs silently and the game relaunches as v0.7.3.
 - [ ] A failure shows a clear message and the game keeps running.
 
 ## After
