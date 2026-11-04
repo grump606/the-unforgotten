@@ -298,9 +298,9 @@ All other cards are unchanged.
 - Fight-only created cards (Trinket) live in `data/created/`, loaded from an explicit list, never in rewards,
   vendors or starting decks, like the status cards.
 
-**Starter decks.** Each class starts with its own signature card instead of one shared deck: 5 Shove, 3 Slip
-Past, 1 Glimpse the Exit and 1 signature (Thief: Light Fingers; Deserter: Dig In; Medium: Cold Whisper).
-Still 10 cards.
+**Starter decks.** Each class already starts with its own 10-card deck (about 4 class cards and 6 neutral
+cards); Phase 4 leaves the three starter decks unchanged. Retuned cards that appear in them (Light Fingers,
+Find the Seam, Filch, Last Keepsake for the Thief, and Glimpse the Exit for everyone) change with the retune.
 
 **Content tests (identity checks).** No enemy intent uses a temporary stack; no card targets enemies with a
 temporary stack. Each class keeps its signature keywords (Thief: Ready, Shaken, Add card, multi-hit, Malice.
@@ -312,31 +312,28 @@ rate should stay within about 5 points of the baseline for each class. The bots 
 yet, so this is a sanity check, not a verdict.
 
 **Sub-PRs into `thief-rework`:**
-- 4a groundwork: `data/created/` and its loader, per-class starter decks, per-class sim baselines, the neutral
+- 4a groundwork: `data/created/` and its loader, the `starter_deck` helper, per-class sim baselines, the neutral
   retunes, golden table updates.
 - 4b Thief, 4c Deserter, 4d Medium (parallel after 4a): the retunes and new cards for that class.
 - 4e: identity and keyword-coverage tests, a final balance pass, README card list.
 
 **Balance baseline** (`run_sim.gd --runs 150 --seed 7 --character C --policy P`, 2026-11-04). Before is
-commit 0e071ee (the old starter decks: each class held its own mix of class cards); after is Phase 4a (the
-new starter decks and the two neutral retunes). Escapes out of 150:
+commit 0e071ee; after is Phase 4a, where only the neutral retunes (Glimpse the Exit, Flurry) change play, since
+the starter decks are untouched. Escapes out of 150:
 
 | Class | Policy | Before | After |
 |---|---|---|---|
-| Thief | greedy | 25 (16.7%) | 11 (7.3%) |
-| Thief | smart | 71 (47.3%) | 54 (36.0%) |
-| Deserter | greedy | 33 (22.0%) | 70 (46.7%) |
-| Deserter | smart | 72 (48.0%) | 109 (72.7%) |
-| Medium | greedy | 34 (22.7%) | 48 (32.0%) |
-| Medium | smart | 97 (64.7%) | 73 (48.7%) |
+| Thief | greedy | 25 (16.7%) | 22 (14.7%) |
+| Thief | smart | 71 (47.3%) | 73 (48.7%) |
+| Deserter | greedy | 33 (22.0%) | 27 (18.0%) |
+| Deserter | smart | 72 (48.0%) | 77 (51.3%) |
+| Medium | greedy | 34 (22.7%) | 34 (22.7%) |
+| Medium | smart | 97 (64.7%) | 75 (50.0%) |
 
-The 4a moves are well past 5 points, and nearly all of it is the starter deck: the old decks held four
-class cards (Thief: Mark the Weak, Lift, Sleight, Last Pocket; Deserter: Shoulder Charge, Iron Resolve,
-Hold the Line, Bash; Medium: Confess, Lingering Dread, Penance, Cold Whisper) and the new ones hold one,
-swapping the rest for Shove and Slip Past. The Deserter's old starting cards were weaker in the bots' hands
-than plain Shove and Slip Past plus Dig In; the Thief and Medium lose cards their bots used well. The
-Glimpse the Exit and Flurry retunes are small next to that. Not attributed card by card; the 4b-4d class
-retunes and the 4e balance pass move these again, so the targets are the 4e numbers, not these.
+The Thief and Deserter smart rates stay within 5 points. The Medium's smart rate drops 14.7 points: every
+class starts with Glimpse the Exit, which now draws 1 instead of 2 (plus a Glimpse the smart bot may not use
+well), and the Medium's deck leans on seeing cards. Not isolated further; the retunes in 4b-4d and the 4e
+balance pass move these again, so the targets are the 4e numbers.
 
 Relics and enemy content are out of scope here (phase 5).
 

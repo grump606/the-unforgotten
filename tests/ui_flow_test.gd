@@ -118,7 +118,7 @@ func _initialize() -> void:
 	for id in StarterContent.character_ids():
 		var character := StarterContent.character(id)
 		_check(select_text.contains(character.display_name) and select_text.contains("%d HP" % character.max_hp) and select_text.contains(character.pitch), "the select screen shows %s with HP and pitch" % id)
-	_check(select_text.contains("5 Shove") and select_text.contains("Starting deck"), "the select screen shows each starting deck")
+	_check(select_text.contains("3 Shove") and select_text.contains("Starting deck"), "the select screen shows each starting deck")
 	# One bordered panel per character, the group centred in the window, a focusable Play button each.
 	await process_frame
 	var panels: Array[CharacterPanel] = []

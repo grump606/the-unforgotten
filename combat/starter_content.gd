@@ -131,8 +131,8 @@ static func deck() -> Array[CardData]:
 	return cards
 
 
-## The deck a run of this character starts with: 5 Shove, 3 Slip Past, 1 Glimpse the Exit and 1 signature
-## card (see the character's resource, data/characters). A fresh array of the shared card instances.
+## The deck a run of this character starts with: a fresh array of the shared card instances from the
+## character's resource (data/characters), which owns the composition.
 ## An id with no character falls back to deck(), the neutral deck; that is for standalone battles and tests
 ## that have no character, and runs always pass a real character id.
 static func starter_deck(character_id: StringName) -> Array[CardData]:
