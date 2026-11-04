@@ -10,6 +10,13 @@ enum State { NORMAL, HOVER, SELECTED, UNPLAYABLE }
 const BASE := Vector2(136, 190)
 ## Extra height so a raised (hover/selected) card has room to lift without moving the layout.
 const LIFT := 6.0
+## Height of the keyword line at the top of the effect text.
+const KEYWORD_H := 11.0
+## Opacity of a Fading card.
+const FADING_ALPHA := 0.8
+## Keyword line colours: on dark class stock and on the pale neutral paper.
+const KEYWORD_INK := Color("#e8b773")
+const KEYWORD_INK_PAPER := Color("#8a4a14")
 const BACKDROP := Color(0.05, 0.05, 0.08)
 const BADGE := Color("#e8b773")
 const BADGE_BAD := Color(0.78, 0.18, 0.20)
@@ -142,6 +149,8 @@ func _ready() -> void:
 func set_card(new_card: CardData) -> void:
 	card = new_card
 	class_id = palette_id(new_card)
+	# A Fading card reads as half there: slightly see-through, with a dashed edge (see _draw).
+	self_modulate = Color(1, 1, 1, FADING_ALPHA) if new_card != null and new_card.fading else Color.WHITE
 	queue_redraw()
 
 
@@ -351,7 +360,8 @@ func _raised() -> bool:
 func _draw() -> void:
 	if card == null:
 		return
-	var muted := state == State.UNPLAYABLE
+	# A Dormant card is always muted (it can never be played), even where its state is NORMAL.
+	var muted := state == State.UNPLAYABLE or card.dormant
 	var p := _palette(class_id, muted, not muted and _raised())
 	var top := LIFT * (1.0 - _lift)
 	draw_set_transform(Vector2(0, top * view_scale), 0.0, Vector2(view_scale, view_scale))
@@ -366,6 +376,8 @@ func _draw() -> void:
 	_box(Rect2(Vector2.ZERO, BASE), frame, 8)
 	_box(Rect2(4, 4, BASE.x - 8, BASE.y - 8), stock, 5)
 	_draw_class_frame(p)
+	if card.fading:
+		_dashed_rect(Rect2(1.5, 1.5, BASE.x - 3, BASE.y - 3), Color(1, 1, 1, 0.75))
 
 	# Header: price stamp, class label, emblem.
 	var header := Rect2(8, 6, BASE.x - 16, 24)
@@ -390,6 +402,8 @@ func _draw() -> void:
 	else:
 		_draw_window_motif(win, p)
 		_draw_card_icons(win, p)
+	if card.anchor:
+		_draw_anchor(Vector2(win.end.x - 10, win.position.y + 10))
 
 	# Effect text.
 	var body := Rect2(9, 110, BASE.x - 18, 56)
@@ -503,7 +517,8 @@ func _draw_cost(c: Vector2, muted: bool) -> void:
 	draw_circle(c, 13.5, col)
 	draw_arc(c, 10.5, 0, TAU, 28, Color(0, 0, 0, 0.35), 1.0, true)
 	var ink := Color.WHITE if muted else Color(0.14, 0.1, 0.04)
-	_text(str(card.cost), Rect2(c - Vector2(13, 13), Vector2(26, 26)), 17, ink, true)
+	# A Surge card spends all the energy there is, so its stamp shows X, not a number.
+	_text(cost_text(), Rect2(c - Vector2(13, 13), Vector2(26, 26)), 17, ink, true)
 
 
 # --- class frames, emblems, motifs ------------------------------------------------------
@@ -661,7 +676,41 @@ func _draw_card_icons(win: Rect2, p: Dictionary) -> void:
 		x -= 23.0
 
 
+## The text of the keyword line ("FORGOTTEN · SURGE"), empty for a card without keywords.
+func keyword_text() -> String:
+	return " · ".join(card.keyword_lines()).to_upper() if card != null else ""
+
+
+## What the cost stamp shows: X for a Surge card, else the energy cost.
+func cost_text() -> String:
+	return "X" if card.surge else str(card.cost)
+
+
+## A small anchor in a dark disc (the Anchor keyword marker).
+func _draw_anchor(c: Vector2) -> void:
+	draw_circle(c, 9.0, Color(0, 0, 0, 0.7))
+	draw_arc(c, 9.0, 0, TAU, 20, Color(KEYWORD_INK, 0.7), 1.0, true)
+	var col := KEYWORD_INK
+	draw_arc(c + Vector2(0, -5.2), 1.6, 0, TAU, 10, col, 1.2, true)
+	draw_line(c + Vector2(0, -3.6), c + Vector2(0, 4.6), col, 1.3)
+	draw_line(c + Vector2(-2.6, -1.4), c + Vector2(2.6, -1.4), col, 1.3)
+	draw_arc(c + Vector2(0, 0.6), 4.6, 0.25, PI - 0.25, 10, col, 1.3, true)
+
+
+## The keyword line (for example "FORGOTTEN · SURGE") in a small accent colour.
+func _draw_keywords(rect: Rect2, ink: Color) -> void:
+	var txt := keyword_text()
+	var col := KEYWORD_INK_PAPER if class_id == &"" else KEYWORD_INK
+	_text(txt, rect, _fit_size(txt, rect.size.x, 9, 7), col, true)
+	draw_line(Vector2(rect.position.x + 14, rect.end.y), Vector2(rect.end.x - 14, rect.end.y), Color(ink, 0.18), 1.0)
+
+
 func _draw_body(body: Rect2, ink: Color) -> void:
+	if keyword_text() != "":
+		var band := Rect2(body.position.x, body.position.y, body.size.x, KEYWORD_H)
+		_draw_keywords(band, ink)
+		body.position.y += KEYWORD_H + 1
+		body.size.y -= KEYWORD_H + 1
 	var lines := PackedStringArray()
 	for effect in card.effects:
 		lines.append(effect.describe())
@@ -693,7 +742,8 @@ func _draw_strip(strip: Rect2, p: Dictionary) -> void:
 	var left := Rect2(strip.position.x + 5, strip.position.y, room, strip.size.y)
 	if note != "":
 		# A long note shrinks (down to 9 px) rather than being cut off.
-		_text(note, left, _fit_size(note, room, 11, 9), WARN)
+		# WARN amber vanishes on the pale neutral paper, so those cards use the darker keyword amber.
+		_text(note, left, _fit_size(note, room, 11, 9), WARN if class_id != &"" else KEYWORD_INK_PAPER)
 		return
 	var parts := PackedStringArray()
 	match card.target_mode:
