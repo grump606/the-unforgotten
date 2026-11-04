@@ -26,6 +26,13 @@ func run() -> int:
 	_test_shaken_timing_and_self_cost()
 	_test_every_new_kind_fight_finishes()
 	_test_run_stub_leak_check()
+	_test_glimpse_choice_resolved()
+	_test_recall_choice_resolved()
+	_test_two_queued_choices()
+	_test_dormant_hand_discards()
+	_test_add_dread_never_played()
+	_test_damage_per_forgotten_estimates()
+	_test_cycling_deck_fight_finishes()
 	return _failures
 
 
@@ -567,3 +574,191 @@ func _test_run_stub_leak_check() -> void:
 	var blocked := Combatant.new("p", 40)
 	blocked.block = 3
 	_check(stub.leaked_state(blocked) != "", "leftover Block is caught")
+
+
+func _dread() -> CardData:
+	return StarterContent.status_card(&"dread")
+
+
+func _murmur() -> CardData:
+	return StarterContent.status_card(&"murmur")
+
+
+func _strike(damage: int) -> CardData:
+	return _card(&"strike", 1, CardEffect.Kind.DAMAGE, damage)
+
+
+func _count_of(combat: Combat, card: CardData) -> int:
+	var total := 0
+	for pile in [combat.piles.hand, combat.piles.draw_pile, combat.piles.discard_pile, combat.piles.forgotten]:
+		total += pile.count(card)
+	return total
+
+
+## Plays turns with the chosen policy until the fight ends or `turn_cap` turns pass; false on an illegal move.
+func _run_fight(combat: Combat, use_smart: bool, turn_cap: int) -> bool:
+	var turns := 0
+	while SimPolicy.is_acting(combat) and turns < turn_cap:
+		if not _play(combat, use_smart):
+			return false
+		turns += 1
+	return true
+
+
+func _resolve(combat: Combat, use_smart: bool) -> bool:
+	return SmartPolicy.resolve_choice(combat) if use_smart else SimPolicy.resolve_choice(combat)
+
+
+## Both bots answer a Glimpse by binning Dormant cards and below-average ones, keeping the good cards, and
+## the fight carries on.
+func _test_glimpse_choice_resolved() -> void:
+	for use_smart in [false, true]:
+		var dread := _dread()
+		var good := _strike(9)
+		var good2 := _strike(9)
+		var glimpse := _custom(0, [_fx(CardEffect.Kind.GLIMPSE, 3)], CardData.TargetMode.SELF)
+		var combat := _combat_with_hand([glimpse])
+		# Top of the draw pile is the end of the array: Dread is seen first.
+		combat.piles.draw_pile.assign([good, good2, dread])
+		_check(combat.play_card(0, -1) and combat.has_choice(), "Glimpse opens a choice (smart %s)" % use_smart)
+		_check(_resolve(combat, use_smart), "the bot resolves the Glimpse (smart %s)" % use_smart)
+		_check(combat.phase == Combat.Phase.PLAYER_TURN and not combat.has_choice(), "the turn resumes after the Glimpse (smart %s)" % use_smart)
+		_check(not combat.piles.draw_pile.has(dread) and combat.piles.discard_pile.has(dread), "Dread is discarded from the draw pile (smart %s)" % use_smart)
+		_check(combat.piles.draw_pile.size() == 2, "the good cards stay on the draw pile (smart %s)" % use_smart)
+		_check(_run_fight(combat, use_smart, 80) and combat.phase == Combat.Phase.ENDED, "the fight continues to the end after a Glimpse (smart %s)" % use_smart)
+
+
+## Both bots answer a Recall by returning the best Forgotten card.
+func _test_recall_choice_resolved() -> void:
+	for use_smart in [false, true]:
+		var weak := _card(&"weak", 1, CardEffect.Kind.BLOCK, 2)
+		var best := _strike(12)
+		var other := _card(&"other", 1, CardEffect.Kind.BLOCK, 4)
+		var recall := _custom(0, [_fx(CardEffect.Kind.RECALL, 1)], CardData.TargetMode.SELF)
+		var combat := _combat_with_hand([recall])
+		combat.piles.forgotten.assign([weak, best, other])
+		_check(combat.play_card(0, -1) and combat.has_choice(), "Recall opens a choice (smart %s)" % use_smart)
+		_check(_resolve(combat, use_smart), "the bot resolves the Recall (smart %s)" % use_smart)
+		_check(combat.piles.hand.has(best) and combat.piles.forgotten.size() == 2, "the best Forgotten card is returned (smart %s)" % use_smart)
+		_check(_run_fight(combat, use_smart, 80) and combat.phase == Combat.Phase.ENDED, "the fight continues to the end after a Recall (smart %s)" % use_smart)
+
+
+## A card that queues a Glimpse and a Recall leaves two choices; no bot stalls on them.
+func _test_two_queued_choices() -> void:
+	for use_smart in [false, true]:
+		var both := _custom(0, [_fx(CardEffect.Kind.GLIMPSE, 2), _fx(CardEffect.Kind.RECALL, 1)], CardData.TargetMode.SELF)
+		var combat := _combat_with_hand([both])
+		combat.piles.draw_pile.assign([_strike(5), _dread()])
+		combat.piles.forgotten.assign([_strike(7)])
+		_check(combat.play_card(0, -1) and combat.has_choice(), "the first of two choices opens (smart %s)" % use_smart)
+		_check(_resolve(combat, use_smart) and combat.has_choice(), "the second choice opens after the first (smart %s)" % use_smart)
+		var cleared := SmartPolicy.resolve_choices(combat) if use_smart else SimPolicy.resolve_choices(combat)
+		_check(cleared and not combat.has_choice() and combat.phase == Combat.Phase.PLAYER_TURN, "both choices are settled (smart %s)" % use_smart)
+		# And through play_turn itself: the choices are met mid-turn and the turn still ends.
+		var again := _custom(0, [_fx(CardEffect.Kind.GLIMPSE, 2), _fx(CardEffect.Kind.RECALL, 1)], CardData.TargetMode.SELF)
+		var second := _combat_with_hand([again])
+		second.piles.draw_pile.assign([_strike(5), _dread()])
+		second.piles.forgotten.assign([_strike(7)])
+		var turn_before := second.turn
+		_check(_play(second, use_smart) and second.turn == turn_before + 1 and not second.has_choice(), "play_turn resolves queued choices and ends the turn (smart %s)" % use_smart)
+
+
+## A hand of five playable cards and a Dread discards the Dread; a Murmur (Fading, not counted) is never offered.
+func _test_dormant_hand_discards() -> void:
+	var hand: Array[CardData] = []
+	for i in 5:
+		hand.append(_strike(6 + i))
+	hand.append(_dread())
+	hand.append(_murmur())
+	var combat := _combat_with_hand(hand)
+	var expected: Array[int] = [5]
+	_check(SimPolicy.discards_for(combat) == expected, "greedy discards the Dread and not the Murmur")
+	_check(SmartPolicy.discards_for(combat) == expected, "smart discards the Dread and not the Murmur")
+	_check(not combat.can_discard_card(6), "a Murmur cannot be discarded")
+	_check(not combat.can_play(5) and not combat.can_play(6), "Dread and Murmur are never playable")
+	for use_smart in [false, true]:
+		var fight := _combat_with_hand(hand.duplicate())
+		_check(_run_fight(fight, use_smart, 80) and fight.phase == Combat.Phase.ENDED, "a hand with Dormant junk does not stall (smart %s)" % use_smart)
+
+
+## No bot plays a card whose only effect is to add Dread to its own piles; a real card that adds a good one is worth it.
+func _test_add_dread_never_played() -> void:
+	var dread := _dread()
+	for pile in [CardEffect.Pile.HAND, CardEffect.Pile.DRAW, CardEffect.Pile.DISCARD]:
+		var adder := _custom(0, [CardEffect.make(CardEffect.Kind.ADD_CARD, 1, 0, 0, 1, false, false, dread, pile)], CardData.TargetMode.SELF)
+		for use_smart in [false, true]:
+			var combat := _combat_with_hand([adder], 400)
+			combat.piles.draw_pile.clear()
+			_check(_play(combat, use_smart), "a turn with an Add-Dread card is legal (smart %s)" % use_smart)
+			_check(_count_of(combat, dread) == 0, "Add Dread to pile %d is never played (smart %s)" % [pile, use_smart])
+	var gift := _custom(0, [CardEffect.make(CardEffect.Kind.ADD_CARD, 1, 0, 0, 1, false, false, _strike(9), CardEffect.Pile.HAND)], CardData.TargetMode.SELF)
+	var combat2 := _combat_with_hand([gift])
+	_check(SmartPolicy._play_value(combat2, 0, -1) > 0.0, "adding a good playable card to hand has positive value")
+	var costly := _custom(0, [CardEffect.make(CardEffect.Kind.ADD_CARD, 1, 0, 0, 1, false, false, dread, CardEffect.Pile.HAND)], CardData.TargetMode.SELF)
+	var combat3 := _combat_with_hand([costly])
+	_check(SmartPolicy._play_value(combat3, 0, -1) < 0.0, "adding Dread to yourself has negative value")
+	var weights := {"damage": 1.0, "block": 1.0}
+	_check(SmartPolicy.card_score(costly, weights) < 0.0 and SmartPolicy.card_score(gift, weights) > 0.0, "card_score prices Add card by what it adds")
+	var glimpse := _custom(0, [_fx(CardEffect.Kind.GLIMPSE, 3)], CardData.TargetMode.SELF)
+	var empty := _combat_with_hand([glimpse])
+	empty.piles.draw_pile.clear()
+	_check(SmartPolicy._play_value(empty, 0, -1) == 0.0, "Glimpse with an empty draw pile is worth nothing")
+	var recall := _custom(0, [_fx(CardEffect.Kind.RECALL, 1)], CardData.TargetMode.SELF)
+	var none := _combat_with_hand([recall])
+	_check(SmartPolicy._play_value(none, 0, -1) == 0.0, "Recall with an empty Forgotten pile is worth nothing")
+	none.piles.forgotten.assign([_strike(9)])
+	_check(SmartPolicy._play_value(none, 0, -1) > 0.0, "Recall with a good Forgotten card is worth something")
+
+
+## Damage per Forgotten grows with the Forgotten pile, in both the play estimate and the greedy bot's use of it.
+func _test_damage_per_forgotten_estimates() -> void:
+	var dpf := _custom(1, [_fx(CardEffect.Kind.DAMAGE_PER_FORGOTTEN, 3)])
+	var previous := -1.0
+	for count in [0, 2, 4]:
+		var combat := _combat_with_hand([dpf])
+		for i in count:
+			combat.piles.forgotten.append(_strike(1))
+		var value := SmartPolicy._play_value(combat, 0, 0)
+		_check(value > previous, "the estimate grows with the Forgotten count (%d)" % count)
+		previous = value
+	var weights := {"damage": 1.0, "block": 1.0}
+	_check(SmartPolicy.card_score(dpf, weights) > 0.0, "card_score gives damage per Forgotten a nominal value")
+	for use_smart in [false, true]:
+		var idle := _combat_with_hand([dpf])
+		_play(idle, use_smart)
+		_check(idle.enemies[0].hp == 40, "damage per Forgotten with an empty Forgotten pile is not played (smart %s)" % use_smart)
+		var loaded := _combat_with_hand([dpf])
+		for i in 3:
+			loaded.piles.forgotten.append(_strike(1))
+		_play(loaded, use_smart)
+		_check(loaded.enemies[0].hp == 40 - 9, "damage per Forgotten hits for 3 x the Forgotten pile (smart %s)" % use_smart)
+
+
+## A seeded fight with every new kind in the deck against an enemy that shuffles Dread and Murmur in each
+## turn finishes for both policies, and the deck is untouched.
+func _test_cycling_deck_fight_finishes() -> void:
+	for use_smart in [false, true]:
+		var deck: Array[CardData] = []
+		for i in 4:
+			var spent := _strike(5)
+			spent.forgotten = true
+			deck.append(spent)
+		deck.append(_strike(6))
+		deck.append(_card(&"guard", 1, CardEffect.Kind.BLOCK, 5))
+		deck.append(_custom(0, [_fx(CardEffect.Kind.GLIMPSE, 3)], CardData.TargetMode.SELF))
+		deck.append(_custom(1, [_fx(CardEffect.Kind.RECALL, 1)], CardData.TargetMode.SELF))
+		deck.append(_custom(1, [CardEffect.make(CardEffect.Kind.ADD_CARD, 1, 0, 0, 1, false, false, _strike(4), CardEffect.Pile.HAND)], CardData.TargetMode.SELF))
+		deck.append(_custom(1, [_fx(CardEffect.Kind.DAMAGE_PER_FORGOTTEN, 2)]))
+		var intents: Array[CardEffect] = [
+			CardEffect.make(CardEffect.Kind.ADD_CARD, 2, 0, 0, 1, false, false, _dread(), CardEffect.Pile.DRAW),
+			CardEffect.make(CardEffect.Kind.ADD_CARD, 1, 0, 0, 1, false, false, _murmur(), CardEffect.Pile.HAND),
+			CardEffect.make(CardEffect.Kind.DAMAGE, 3),
+		]
+		var enemies: Array[EnemyData] = [EnemyData.make("shuffler", 70, intents)]
+		var before := deck.duplicate()
+		var combat := Combat.new(Combatant.new("p", 60), deck, enemies, 5)
+		combat.start()
+		var ok := _run_fight(combat, use_smart, 200)
+		_check(ok, "the cycling fight has no illegal move (smart %s)" % use_smart)
+		_check(combat.phase == Combat.Phase.ENDED, "the cycling fight finishes without a stall (smart %s, turn %d)" % [use_smart, combat.turn])
+		_check(deck == before, "created cards never enter the deck (smart %s)" % use_smart)
