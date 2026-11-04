@@ -27,6 +27,8 @@ const DIG_IN_PATH := "res://data/cards/dig_in.tres"
 const COLD_STEEL_PATH := "res://data/cards/cold_steel.tres"
 const COUNTER_STANCE_PATH := "res://data/cards/counter_stance.tres"
 const LAST_STAND_PATH := "res://data/cards/last_stand.tres"
+# Phase 4c (Deserter) new cards.
+const DIG_DEEP_PATH := "res://data/cards/dig_deep.tres"
 const LIFT_PATH := "res://data/cards/lift.tres"
 const SLEIGHT_PATH := "res://data/cards/sleight.tres"
 const POCKET_WATCH_PATH := "res://data/cards/pocket_watch.tres"
@@ -74,6 +76,8 @@ const ALL_CARD_PATHS: Array[String] = [
 	MARK_THE_WEAK_PATH, CUTTING_WORD_PATH, HAMSTRING_PATH, SECOND_WIND_PATH,
 	# Phase 4b Thief cards.
 	SHARPEN_PATH, QUICK_STUDY_PATH, CLEANED_OUT_PATH,
+	# Phase 4c (Deserter).
+	DIG_DEEP_PATH,
 	# Phase 4d: Medium
 	REMEMBER_PATH, CHORUS_OF_THE_LOST_PATH, HOLLOW_BARGAIN_PATH,
 ]
