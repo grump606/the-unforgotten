@@ -86,6 +86,23 @@ const ENEMY_BLOCK_VALUE := 0.7
 ## Cost per turn of a Shaken / Frayed the player puts on itself.
 const SELF_SHAKEN_COST := 4.0
 const SELF_FRAYED_COST := 3.0
+## Glimpse: value of each of the top n cards that is junk (Dormant, or scoring below the average card).
+const GLIMPSE_JUNK_VALUE := 1.0
+## Recall / Add card: share of a card's full value (card_score x (cost + 1)) counted when the card lands
+## in hand and can be paid for this turn, when it lands in hand but cannot, in the draw pile (it comes
+## round again), and in the discard pile (only after a reshuffle).
+const HAND_PLAYABLE_SHARE := 0.5
+const HAND_UNPLAYABLE_SHARE := 0.15
+const DRAW_ADD_SHARE := 0.3
+const DISCARD_ADD_SHARE := 0.1
+## Cost of adding a Dormant card to the player's own piles, per card (it clogs the cycle or a draw slot).
+const DORMANT_ADD_COST := 3.0
+## Forgotten pile size assumed when a card is scored outside a fight (damage per Forgotten).
+const TYPICAL_FORGOTTEN := 3
+## card_score of one Glimpse card (a typical junk card seen, not always there to bin).
+const GLIMPSE_SCORE_PER_CARD := 0.5
+## card_score of one Recall pick: about a typical card, discounted since the Forgotten pile may be empty.
+const RECALL_SCORE_PER_CARD := 2.0
 ## card_score of a Dormant card: it can never be played, so it ranks below everything.
 const DORMANT_SCORE := -1.0
 
@@ -94,6 +111,11 @@ const DORMANT_SCORE := -1.0
 ## turn. Returns false (after logging) if a chosen play is rejected.
 static func play_turn(combat: Combat) -> bool:
 	while true:
+		# An open Glimpse / Recall pick blocks everything else, so it is settled before each decision.
+		if not resolve_choices(combat):
+			return false
+		if combat.phase != Combat.Phase.PLAYER_TURN:
+			return true
 		var best_hand := -1
 		var best_target := -1
 		var best_score := 0.0
@@ -117,11 +139,58 @@ static func play_turn(combat: Combat) -> bool:
 		if not combat.play_card(best_hand, best_target):
 			printerr("SmartPolicy: policy chose an unplayable card (index %d)" % best_hand)
 			return false
-		if combat.phase != Combat.Phase.PLAYER_TURN:
-			return true
-	if combat.phase != Combat.Phase.PLAYER_TURN:
-		return true
 	return combat.end_player_turn(discards_for(combat))
+
+
+## Resolves every open choice with this policy's picks (see resolve_choice). False only if one is stuck.
+static func resolve_choices(combat: Combat) -> bool:
+	return SimPolicy.resolve_choices(combat, resolve_choice)
+
+
+## Picks for the open Glimpse / Recall choice (falls back to Combat.auto_resolve_choice if invalid).
+##  - Glimpse: discards every Dormant card and every card whose card_score (deck weights) is below the
+##    average card_score of the non-Dormant cards in hand, draw and discard; keeps the rest.
+##  - Recall: returns exactly choice_required() Forgotten cards, highest card_score first (earlier wins ties).
+static func resolve_choice(combat: Combat) -> bool:
+	if not combat.has_choice():
+		return true
+	var weights := _combat_weights(combat)
+	var cards := combat.choice_cards()
+	var picks: Array[int] = []
+	if combat.choice_kind() == CardEffect.Kind.GLIMPSE:
+		var average := _average_in_cycle(combat, weights)
+		for i in cards.size():
+			var junk: bool = cards[i].dormant or card_score(cards[i], weights) < average
+			if junk:
+				picks.append(i)
+	else:
+		var scores: Array[float] = []
+		for card in cards:
+			scores.append(card_score(card, weights))
+		picks = SimPolicy.best_indices(scores, combat.choice_required())
+	return SimPolicy.finish_choice(combat, picks)
+
+
+## Damage / block weights of every card the fight has (hand, draw, discard and Forgotten piles).
+static func _combat_weights(combat: Combat) -> Dictionary:
+	var all: Array[CardData] = []
+	all.append_array(combat.piles.hand)
+	all.append_array(combat.piles.draw_pile)
+	all.append_array(combat.piles.discard_pile)
+	all.append_array(combat.piles.forgotten)
+	return _weights(all)
+
+
+## Average card_score of the non-Dormant cards in hand, draw and discard piles; 0 with none.
+static func _average_in_cycle(combat: Combat, weights: Dictionary) -> float:
+	var total := 0.0
+	var count := 0
+	for pile in [combat.piles.hand, combat.piles.draw_pile, combat.piles.discard_pile]:
+		for card: CardData in pile:
+			if not card.dormant:
+				total += card_score(card, weights)
+				count += 1
+	return total / count if count > 0 else 0.0
 
 
 ## End-of-turn discard: keeps the Combat.HAND_SIZE highest-scoring cards (card_score, weighted by the
@@ -173,7 +242,7 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 		var amount := _scaled_amount(combat, card, effect)
 		match effect.kind:
 			CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, \
-			CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT:
+			CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
 				for enemy in hit:
 					var lost := _hits_hp_lost(combat.player, enemy, _effect_damage(combat, effect, enemy), _hit_count(combat, card, effect))
 					var threat := _threat(combat, enemy)
@@ -219,7 +288,61 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 				value += _stack_value(combat, hand_index, effect, hit, energy_left, incoming)
 			CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
 				value += _debuff_value(combat, card, hand_index, effect, hit, incoming)
+			CardEffect.Kind.GLIMPSE:
+				value += _glimpse_value(combat, effect)
+			CardEffect.Kind.RECALL:
+				value += _recall_value(combat, effect, energy_left)
+			CardEffect.Kind.ADD_CARD:
+				value += _added_value(combat, effect, energy_left)
 	return value
+
+
+## Value of a Glimpse: GLIMPSE_JUNK_VALUE for each of the top cards of the draw pile (up to the effect's
+## amount) that is Dormant or scores below the average card; 0 when none is junk or the pile is empty.
+static func _glimpse_value(combat: Combat, effect: CardEffect) -> float:
+	var weights := _combat_weights(combat)
+	var average := _average_in_cycle(combat, weights)
+	var junk := 0
+	for card in combat.piles.top_cards(effect.amount):
+		if card.dormant or card_score(card, weights) < average:
+			junk += 1
+	return GLIMPSE_JUNK_VALUE * junk
+
+
+## Value of a Recall: the best `amount` Forgotten cards it could return, each worth HAND_PLAYABLE_SHARE of
+## its full value when payable this turn, else HAND_UNPLAYABLE_SHARE; 0 with an empty Forgotten pile.
+static func _recall_value(combat: Combat, effect: CardEffect, energy_left: int) -> float:
+	var weights := _combat_weights(combat)
+	var values: Array[float] = []
+	for card in combat.piles.forgotten:
+		values.append(_landed_value(card, weights, HAND_PLAYABLE_SHARE if card.cost <= energy_left else HAND_UNPLAYABLE_SHARE))
+	values.sort()
+	values.reverse()
+	var total := 0.0
+	for k in mini(effect.amount, values.size()):
+		total += values[k]
+	return total
+
+
+## Value of an Add card effect for the player's own piles: a Dormant card is a cost (DORMANT_ADD_COST each),
+## any other card is worth a share of its full value that depends on where it lands.
+static func _added_value(combat: Combat, effect: CardEffect, energy_left: int) -> float:
+	if effect.card == null:
+		return 0.0
+	if effect.card.dormant:
+		return -DORMANT_ADD_COST * effect.amount
+	var share := DISCARD_ADD_SHARE
+	match effect.pile:
+		CardEffect.Pile.HAND:
+			share = HAND_PLAYABLE_SHARE if effect.card.cost <= energy_left else HAND_UNPLAYABLE_SHARE
+		CardEffect.Pile.DRAW:
+			share = DRAW_ADD_SHARE
+	return effect.amount * _landed_value(effect.card, _combat_weights(combat), share)
+
+
+## `share` of a card's whole value (card_score is per energy + 1, so it is scaled back up), never below 0.
+static func _landed_value(card: CardData, weights: Dictionary, share: float) -> float:
+	return maxf(card_score(card, weights), 0.0) * (card.cost + 1) * share
 
 
 ## Value of a Malice or Ward effect (see the header): a positive stack for the user, a negative one on `hit`.
@@ -369,6 +492,8 @@ static func _effect_damage(combat: Combat, effect: CardEffect, enemy: EnemyUnit)
 			return effect.amount + effect.bonus * combat.plays_this_turn
 		CardEffect.Kind.DAMAGE_PER_HAUNT:
 			return enemy.status_turns(Combatant.Status.HAUNTED) * effect.amount
+		CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
+			return combat.piles.forgotten.size() * effect.amount
 	return effect.amount
 
 
@@ -524,7 +649,8 @@ static func _weights(deck: Array[CardData]) -> Dictionary:
 	}
 
 
-static func card_score(card: CardData, weights: Dictionary) -> float:
+## `depth` stops an Add card effect whose card adds itself from scoring forever.
+static func card_score(card: CardData, weights: Dictionary, depth: int = 0) -> float:
 	if card.dormant:
 		return DORMANT_SCORE
 	var total := 0.0
@@ -558,8 +684,31 @@ static func card_score(card: CardData, weights: Dictionary) -> float:
 				total += _stack_score(card, effect, weights)
 			CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
 				total += _debuff_score(card, effect)
+			CardEffect.Kind.GLIMPSE:
+				total += amount * GLIMPSE_SCORE_PER_CARD
+			CardEffect.Kind.RECALL:
+				total += amount * RECALL_SCORE_PER_CARD
+			CardEffect.Kind.ADD_CARD:
+				total += _added_score(effect, weights, depth)
 	# A Surge spends all its energy, so it is divided by a typical amount rather than its cost of 0.
 	return total / ((TYPICAL_SURGE_ENERGY if card.surge else card.cost) + 1)
+
+
+## Deck-scoring value of an Add card effect: a Dormant card is a cost, any other card a share of its
+## value by pile (the same shares as in a fight; a card added to hand counts as playable).
+static func _added_score(effect: CardEffect, weights: Dictionary, depth: int) -> float:
+	if effect.card == null or depth > 0:
+		return 0.0
+	if effect.card.dormant:
+		return -DORMANT_ADD_COST * effect.amount
+	var share := DISCARD_ADD_SHARE
+	match effect.pile:
+		CardEffect.Pile.HAND:
+			share = HAND_PLAYABLE_SHARE
+		CardEffect.Pile.DRAW:
+			share = DRAW_ADD_SHARE
+	var inner := maxf(card_score(effect.card, weights, depth + 1), 0.0) * (effect.card.cost + 1) * share
+	return effect.amount * inner
 
 
 ## Deck-scoring value of a Malice / Ward effect: a positive stack for the user is worth its amount on
@@ -611,6 +760,8 @@ static func _nominal_damage_once(effect: CardEffect) -> float:
 			return float(effect.amount + 2 * effect.bonus)
 		CardEffect.Kind.DAMAGE_PER_HAUNT:
 			return float(TYPICAL_HAUNT * effect.amount)
+		CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
+			return float(TYPICAL_FORGOTTEN * effect.amount)
 		CardEffect.Kind.HAUNT:
 			return HAUNT_VALUE * _haunt_total(effect.amount)
 	return 0.0
