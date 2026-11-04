@@ -30,8 +30,7 @@ func _initialize() -> void:
 	if character == null:
 		quit(1)
 		return
-	var deck: Array[CardData] = []
-	deck.assign(character.starting_deck)
+	var deck := StarterContent.starter_deck(character.id)
 	_player_hp = character.max_hp
 	if deck.is_empty():
 		printerr("balance_sim: the deck failed to load")

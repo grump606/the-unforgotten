@@ -110,7 +110,8 @@ func _init(rng_seed: int = 0, character_id: StringName = StarterContent.DEFAULT_
 		# fight then fails cleanly because Combat rejects an empty deck.
 		character = Character.new()
 	player = Combatant.new(character.display_name, character.max_hp)
-	deck.assign(character.starting_deck)
+	if character.id != &"":
+		deck.assign(StarterContent.starter_deck(character.id))
 	stops = _default_line()
 
 
