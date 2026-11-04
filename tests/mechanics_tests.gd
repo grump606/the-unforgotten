@@ -401,7 +401,11 @@ func _snapshot(combat: Combat) -> Array:
 		combat.player.hp, combat.player.block, combat.player.hold, combat.player.thorns,
 		combat.energy, combat.piles.hand.size(),
 		combat.player.status_turns(Combatant.Status.EXPOSED),
+		combat.player.stacks(Combatant.Status.MALICE), combat.player.stacks(Combatant.Status.WARD),
+		combat.player.status_turns(Combatant.Status.SHAKEN), combat.player.status_turns(Combatant.Status.FRAYED),
 		enemy.hp, enemy.block, enemy.status_turns(Combatant.Status.HAUNTED), enemy.status_turns(Combatant.Status.EXPOSED),
+		enemy.status_turns(Combatant.Status.SHAKEN), enemy.status_turns(Combatant.Status.FRAYED),
+		enemy.stacks(Combatant.Status.MALICE), enemy.stacks(Combatant.Status.WARD),
 	]
 
 
