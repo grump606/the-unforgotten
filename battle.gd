@@ -293,8 +293,14 @@ func _sync_turn_controls() -> void:
 			_end_turn_button.text = "Keep all"
 		else:
 			_end_turn_button.text = "Discard %d" % marked
-		var keep := _combat.piles.hand.size() - marked
-		_result_label.text = "Choose cards to discard. You keep %d of up to %d." % [keep, Combat.HAND_SIZE]
+		# Anchor and Fading cards are not part of the 5: they cannot be marked and are not counted.
+		var keep := _combat.piles.counted_in_hand() - marked
+		var text := "Choose cards to discard. You keep %d of up to %d." % [keep, Combat.HAND_SIZE]
+		if _count_hand(func(c: CardData) -> bool: return c.anchor) > 0:
+			text += " Anchor cards stay."
+		if _count_hand(func(c: CardData) -> bool: return c.fading) > 0:
+			text += " Fading cards left in hand will be Forgotten."
+		_result_label.text = text
 		_hint_shown = true
 		return
 	_pulse_confirm(false)
@@ -303,6 +309,15 @@ func _sync_turn_controls() -> void:
 	if _hint_shown and phase != Combat.Phase.ENDED:
 		_result_label.text = ""
 	_hint_shown = false
+
+
+## How many cards in hand satisfy `test`.
+func _count_hand(test: Callable) -> int:
+	var count := 0
+	for card in _combat.piles.hand:
+		if test.call(card):
+			count += 1
+	return count
 
 
 ## Moves the selection to the first living enemy if the current one is defeated.
@@ -416,8 +431,9 @@ func _rebuild_hand() -> void:
 		view.hotkey = i + 1 if i < MAX_HAND_KEYS else 0
 		view.preview = _damage_preview(card).strip_edges() if not discarding else ""
 		if discarding:
-			# Every card can be toggled; marked ones are dimmed and stamped.
-			view.set_state(CardView.State.NORMAL)
+			# Cards that can be discarded toggle; marked ones are dimmed and stamped. Anchor and Fading
+			# cards cannot be marked, and say what happens to them instead.
+			view.set_state(CardView.State.NORMAL, "" if _combat.can_discard_card(i) else _undiscardable_note(card))
 			view.discard_marked = _combat.discard_marks.has(i)
 		elif _combat.can_play(i):
 			view.set_state(CardView.State.NORMAL)
@@ -454,11 +470,18 @@ func _fit_hand() -> float:
 	return scale
 
 
+## What happens to a card the discard step will not let the player mark.
+func _undiscardable_note(card: CardData) -> String:
+	return "FORGOTTEN AT END" if card.fading else "ANCHOR: STAYS"
+
+
 ## Why a hand card cannot be played right now, as a short warning for the card ("" when the
 ## fight is not on the player's turn, where nothing is playable and no card needs a warning).
 func _unplayable_note(card: CardData) -> String:
 	if _combat.phase != Combat.Phase.PLAYER_TURN:
 		return ""
+	if card.dormant:
+		return "DORMANT"
 	if card.cost > _combat.energy:
 		return "NEED %d ENERGY" % card.cost
 	if card.hp_cost() >= _combat.player.hp:
@@ -599,7 +622,7 @@ func _damage_preview(card: CardData) -> String:
 	for effect in card.effects:
 		if effect.is_damage():
 			damage_effects.append(effect)
-	if damage_effects.is_empty():
+	if damage_effects.is_empty() or card.dormant:
 		return ""
 	var block: int = _combat.player.block
 	# The card being played will count as one more play this turn.
@@ -610,7 +633,7 @@ func _damage_preview(card: CardData) -> String:
 		for effect in damage_effects:
 			if effect.kind == CardEffect.Kind.DAMAGE_PER_HAUNT:
 				return ""
-			all_base += effect.raw_damage(block, 0, plays)
+			all_base += effect.raw_damage(block, 0, plays) * _hit_count(card, effect)
 		return "\nDeals %d (x%d enemies)" % [all_base, _combat.living_enemies().size()]
 	var target := _combat.enemies[_target_index]
 	if card.target_mode != CardData.TargetMode.SINGLE_ENEMY or target.is_dead():
@@ -618,12 +641,22 @@ func _damage_preview(card: CardData) -> String:
 	return _target_preview(card, target).get("text", "")
 
 
+## How many times `effect` of `card` would hit if played now. A Surge card's per_energy damage hits
+## once per point of the energy it WOULD spend (all the current energy).
+func _hit_count(card: CardData, effect: CardEffect) -> int:
+	var count := maxi(effect.hits, 1)
+	if card.surge and effect.per_energy:
+		count *= _combat.energy
+	return count
+
+
 ## DISPLAY-ONLY: what `card` would do to this one enemy (works for single-target and all-enemies
-## cards alike, so a drag can compare enemies). Returns {} when the card deals no damage or the
-## enemy is dead, else {text, dealt, lost}: `dealt` is the damage after Exposed, `lost` what is
-## left after Block, and `text` is the card-face line ("\nDeals 15 (10 vs Exposed), 6 after Block").
+## cards alike, so a drag can compare enemies). Returns {} when the card deals no damage, is Dormant, or
+## the enemy is dead, else {text, dealt, lost}: `dealt` is the damage after Exposed summed over every
+## hit, `lost` what is left after Block (hit by hit), and `text` is the card-face line
+## ("\nDeals 15 (10 vs Exposed), 6 after Block", or "\nDeals 12 (3 x4)" for a multi-hit).
 func _target_preview(card: CardData, target: EnemyUnit) -> Dictionary:
-	if target == null or target.is_dead():
+	if target == null or target.is_dead() or card.dormant or not _has_damage(card):
 		return {}
 	var block: int = _combat.player.block
 	var plays: int = _combat.plays_this_turn + 1
@@ -632,10 +665,9 @@ func _target_preview(card: CardData, target: EnemyUnit) -> Dictionary:
 	for effect in card.effects:
 		if effect.is_damage():
 			var raw := effect.raw_damage(block, target.status_turns(Combatant.Status.HAUNTED), plays)
-			base += raw
-			hits.append(raw)
-	if hits.is_empty():
-		return {}
+			for _h in _hit_count(card, effect):
+				base += raw
+				hits.append(raw)
 	var exposed := target.status_turns(Combatant.Status.EXPOSED) > 0
 	var target_block := target.block
 	var dealt := 0
@@ -649,9 +681,26 @@ func _target_preview(card: CardData, target: EnemyUnit) -> Dictionary:
 	var text := "\nDeals %d" % dealt
 	if exposed:
 		text = "\nDeals %d (%d vs Exposed)" % [base, dealt]
+	elif hits.size() > 1 and _uniform(hits):
+		text = "\nDeals %d (%d x%d)" % [dealt, hits[0], hits.size()]
 	if target.block > 0:
 		text += ", %d after Block" % lost
 	return {"text": text, "dealt": dealt, "lost": mini(lost, target.hp)}
+
+
+func _has_damage(card: CardData) -> bool:
+	for effect in card.effects:
+		if effect.is_damage():
+			return true
+	return false
+
+
+## True when every hit in `hits` is the same size.
+func _uniform(hits: Array[int]) -> bool:
+	for hit in hits:
+		if hit != hits[0]:
+			return false
+	return true
 
 
 func _select_target(index: int) -> void:
@@ -1035,5 +1084,5 @@ func set_journey(stop_title: String, journey: String, character_title: String, d
 
 
 func _pile_text() -> String:
-	var text := "Draw %d\nDiscard %d" % [_combat.piles.draw_pile.size(), _combat.piles.discard_pile.size()]
+	var text := "Draw %d\nDiscard %d\nForgotten %d" % [_combat.piles.draw_pile.size(), _combat.piles.discard_pile.size(), _combat.piles.forgotten.size()]
 	return text + "\nDeck %d" % _deck_size if _deck_size >= 0 else text
