@@ -382,7 +382,7 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 		for _hit in hit_count:
 			# plays_this_turn already counts the card being played.
 			# Malice and Shaken of the source, Expose of the target, then Block.
-			var raw := effect.raw_damage(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_this_turn)
+			var raw := effect.raw_damage(EffectContext.make(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_this_turn, piles.forgotten.size()))
 			target.take_damage_final(Combatant.hit_damage(raw, source, target))
 			# Thorns: an enemy attack on the player also hurts the attacker, once per hit.
 			if effect.kind == CardEffect.Kind.DAMAGE and target == player and source != player and player.thorns > 0:

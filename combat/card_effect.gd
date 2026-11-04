@@ -79,19 +79,19 @@ func reach() -> Reach:
 
 ## Damage of one hit before Expose and Block (0 for a non-damage kind). Pure, so the
 ## battle preview and Combat share one rule. `plays_including_this` counts the card
-## being played, as Combat.plays_this_turn does during resolution.
-func raw_damage(source_block: int, target_haunt: int, plays_including_this: int) -> int:
+## being played, as Combat.plays_this_turn does during resolution (see EffectContext).
+func raw_damage(ctx: EffectContext) -> int:
 	match kind:
 		Kind.DAMAGE:
 			return amount
 		Kind.DAMAGE_PER_BLOCK:
-			return source_block * amount
+			return ctx.block * amount
 		Kind.DAMAGE_IF_BLOCK:
-			return bonus if source_block >= threshold else amount
+			return bonus if ctx.block >= threshold else amount
 		Kind.DAMAGE_PER_PLAY:
-			return amount + bonus * maxi(plays_including_this - 1, 0)
+			return amount + bonus * maxi(ctx.plays - 1, 0)
 		Kind.DAMAGE_PER_HAUNT:
-			return target_haunt * amount
+			return ctx.haunt * amount
 	return 0
 
 
