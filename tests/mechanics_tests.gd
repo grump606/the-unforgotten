@@ -352,12 +352,12 @@ func _test_thief_cards() -> void:
 		cards[card.id] = card
 	for id in [&"lift", &"sleight", &"pocket_watch", &"last_pocket", &"spree"]:
 		_check(cards.has(id) and (cards[id] as CardData).character == &"thief", "%s is a Thief card" % id)
-	_check(cards[&"lift"].describe() == "Deal 3, Draw 1", "Filch text")
-	_check(cards[&"pocket_watch"].describe() == "Gain 1 energy, Draw 1", "Borrowed Time text")
+	_check(cards[&"lift"].describe() == "Deal 3, Add 1 Trinket to your hand", "Filch text")
+	_check(cards[&"pocket_watch"].describe() == "Gain 2 energy", "Borrowed Time text")
 	_check(cards[&"last_pocket"].describe() == "Deal 4, +3 for each card played earlier this turn", "Last Keepsake text")
 	_check(cards[&"sleight"].cost == 0 and cards[&"lift"].cost == 1 and cards[&"spree"].cost == 2, "costs: Light Fingers 0, Filch 1, Many Hands 2")
 
-	# A real chain: Light Fingers (0) exposes, Borrowed Time (net 0 energy), Last Keepsake (third card).
+	# A real chain: Light Fingers (0) exposes, Borrowed Time (net +1 energy), Last Keepsake (third card).
 	var sleight: CardData = cards[&"sleight"]
 	var watch: CardData = cards[&"pocket_watch"]
 	var last_pocket: CardData = cards[&"last_pocket"]
@@ -365,7 +365,7 @@ func _test_thief_cards() -> void:
 	chain.start()
 	chain.play_card(chain.piles.hand.find(sleight), 0)
 	chain.play_card(chain.piles.hand.find(watch))
-	_check(chain.energy == Combat.ENERGY_PER_TURN, "Light Fingers and Borrowed Time together cost no energy")
+	_check(chain.energy == Combat.ENERGY_PER_TURN + 1, "Light Fingers and Borrowed Time together gain 1 energy")
 	chain.play_card(chain.piles.hand.find(last_pocket), 0)
 	_check(chain.enemies[0].hp == 100 - (4 + 3 * 2) * 3 / 2, "Last Keepsake as the third card on an Exposed target deals (4 + 6) x 1.5 = 15")
 
