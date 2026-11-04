@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cvqeldq7ry1bu" path="res://combat/card_data.gd" id="1_card"]
 [ext_resource type="Script" uid="uid://v0wf0vn2ro0b" path="res://combat/card_effect.gd" id="2_effect"]
+[ext_resource type="Resource" path="res://data/created/trinket.tres" id="3_trinket"]
 
 [sub_resource type="Resource" id="Resource_e1"]
 script = ExtResource("2_effect")
@@ -10,8 +11,10 @@ amount = 3
 
 [sub_resource type="Resource" id="Resource_e2"]
 script = ExtResource("2_effect")
-kind = 2
+kind = 19
 amount = 1
+card = ExtResource("3_trinket")
+pile = 0
 
 [resource]
 script = ExtResource("1_card")

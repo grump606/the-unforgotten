@@ -543,7 +543,7 @@ func _test_status_cards_content() -> void:
 	for card in StarterContent.all_cards():
 		registry_ids[card.id] = true
 		for effect in card.effects:
-			_check(effect.card == null or effect.card.dormant, "no data/cards card adds a playable status: %s" % card.id)
+			_check(effect.card == null or effect.card.dormant or StarterContent.CREATED_CARD_PATHS.has(effect.card.id), "no data/cards card adds a playable status other than a created card: %s" % card.id)
 	_check(not registry_ids.has(&"dread") and not registry_ids.has(&"murmur"), "status cards are not in the card registry")
 	for path in StarterContent.ALL_CARD_PATHS:
 		_check(not path.begins_with("res://data/status"), "the registry paths never point into data/status")
