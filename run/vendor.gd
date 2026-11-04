@@ -59,6 +59,11 @@ const FRAYED_VALUE_PER_TURN := 1
 const MALICE_VALUE_PER_STACK := 6
 const WARD_VALUE_PER_STACK := 5
 const TEMPORARY_STACK_VALUE_PER_STACK := 2
+## Glimpse: each card looked at is a small chance to bin a dud. Recall: a Forgotten card back in hand
+## is about a drawn card less the Forgotten cost. Damage per Forgotten card assumes a typical pile of 2.
+const GLIMPSE_VALUE_PER_CARD := 1
+const RECALL_VALUE_PER_CARD := 3
+const TYPICAL_FORGOTTEN := 2
 
 
 ## Gold awarded for winning a fight against `enemy_count` enemies.
@@ -153,7 +158,29 @@ static func _base_effect_value(effect: CardEffect, amount: int) -> int:
 			if effect.temporary:
 				return absi(amount) * TEMPORARY_STACK_VALUE_PER_STACK
 			return absi(amount) * (MALICE_VALUE_PER_STACK if effect.kind == CardEffect.Kind.MALICE else WARD_VALUE_PER_STACK)
+		CardEffect.Kind.GLIMPSE:
+			return amount * GLIMPSE_VALUE_PER_CARD
+		CardEffect.Kind.RECALL:
+			return amount * RECALL_VALUE_PER_CARD
+		CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
+			return amount * TYPICAL_FORGOTTEN
+		CardEffect.Kind.ADD_CARD:
+			return amount * _added_card_value(effect.card)
 	return UNVALUED
+
+
+## Value of one copy of a created card: its own card_value, which is large and negative for a Dormant
+## card (junk is a cost for whoever receives it, so a card adding one is worth less) and positive for a
+## playable one. 0 for no card. Depth-limited so a card that adds itself cannot recurse forever.
+static var _added_depth := 0
+
+static func _added_card_value(card: CardData) -> int:
+	if card == null or _added_depth >= 3:
+		return 0
+	_added_depth += 1
+	var value := card_value(card)
+	_added_depth -= 1
+	return value
 
 
 ## The single price rule: value < MID_FROM -> PRICE_CHEAP, value < PRICEY_FROM ->

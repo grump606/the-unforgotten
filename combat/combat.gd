@@ -5,8 +5,9 @@ extends RefCounted
 ## player's Combatant and deck, and reads the outcome from `combat_ended`.
 
 ## DISCARDING is the end-of-turn step where the player picks cards to throw away (see begin_discard);
-## it is appended last so the older phases keep their numeric values.
-enum Phase { NOT_STARTED, PLAYER_TURN, ENEMY_TURN, ENDED, DISCARDING }
+## it is appended last so the older phases keep their numeric values. CHOOSING is the pick step after a
+## card with GLIMPSE or RECALL (see has_choice / resolve_choice); nothing else can happen until it resolves.
+enum Phase { NOT_STARTED, PLAYER_TURN, ENEMY_TURN, ENDED, DISCARDING, CHOOSING }
 
 ## Hand rules (easy to change here):
 ##  - HAND_SIZE: the most cards you may KEEP at end of turn, and the hand each turn starts back up
@@ -45,6 +46,25 @@ var plays_this_turn: int = 0
 var discard_marks: Array[int] = []
 ## The run's relics for this fight (see RelicData); empty changes nothing.
 var relics: Array[RelicData] = []
+
+## The open pick step while phase == CHOOSING (see has_choice). Built when it opens, so a second
+## GLIMPSE sees the draw pile as the first one left it.
+class Choice extends RefCounted:
+	## CardEffect.Kind.GLIMPSE or CardEffect.Kind.RECALL.
+	var kind: CardEffect.Kind = CardEffect.Kind.GLIMPSE
+	## What may be picked. GLIMPSE: the top cards of the draw pile in draw order (indices match
+	## CardPiles.top_cards). RECALL: the whole Forgotten pile (indices match CardPiles.forgotten).
+	var cards: Array[CardData] = []
+	## Fewest picks that resolve it (0 for GLIMPSE; min(n, Forgotten size) for RECALL) and the most.
+	var required := 0
+	var max_picks := 0
+
+# Choices queued by the card being played ({kind, amount} Dictionaries, in effect order). They open one
+# after another once the whole card has resolved; `_choice` is the one currently open.
+var _choice_queue: Array[Dictionary] = []
+var _choice: Choice = null
+# A null-card ADD_CARD logs once per fight, not once per play.
+var _warned_null_card := false
 
 # Duration statuses (EXPOSED, SHAKEN, FRAYED: Status -> turns) that enemy intents applied to the
 # player this enemy phase. They are held back until the player's statuses have ticked, so they start
@@ -106,6 +126,7 @@ func abandon() -> void:
 	if phase == Phase.ENDED:
 		return
 	phase = Phase.ENDED
+	_clear_choices()
 	_disconnect_player()
 	player.clear_block()
 	player.clear_statuses()
@@ -175,8 +196,107 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 	card_played.emit(card, targets)
 	_check_phases()
 	if not _check_end():
+		# Queued Glimpse / Recall picks open only now, after everything else the card did.
+		_open_next_choice()
 		state_changed.emit()
 	return true
+
+
+func _clear_choices() -> void:
+	_choice_queue.clear()
+	_choice = null
+
+
+## Opens the next queued choice that has something to pick (GLIMPSE needs a non-empty draw pile, RECALL
+## a non-empty Forgotten pile; otherwise it is skipped) and enters Phase.CHOOSING. No-op if none.
+func _open_next_choice() -> void:
+	while not _choice_queue.is_empty():
+		var entry: Dictionary = _choice_queue.pop_front()
+		var choice := Choice.new()
+		choice.kind = entry["kind"]
+		var n: int = entry["amount"]
+		if choice.kind == CardEffect.Kind.GLIMPSE:
+			choice.cards = piles.top_cards(n)
+			choice.required = 0
+		else:
+			choice.cards = piles.forgotten.duplicate()
+			choice.required = mini(n, choice.cards.size())
+		choice.max_picks = choice.cards.size() if choice.kind == CardEffect.Kind.GLIMPSE else choice.required
+		if choice.cards.is_empty():
+			continue
+		_choice = choice
+		phase = Phase.CHOOSING
+		return
+
+
+## True while a Glimpse or Recall pick is open (phase == CHOOSING).
+func has_choice() -> bool:
+	return _choice != null
+
+
+## The cards on offer, in the order the indices of resolve_choice refer to (empty with no choice).
+func choice_cards() -> Array[CardData]:
+	return _choice.cards if _choice != null else []
+
+
+## CardEffect.Kind.GLIMPSE (the picks are DISCARDED from the draw pile top) or CardEffect.Kind.RECALL
+## (the picks are returned to hand). Meaningless with no choice open (returns GLIMPSE).
+func choice_kind() -> CardEffect.Kind:
+	return _choice.kind if _choice != null else CardEffect.Kind.GLIMPSE
+
+
+## Fewest picks that resolve the choice: 0 for Glimpse, min(n, Forgotten size) for Recall.
+func choice_required() -> int:
+	return _choice.required if _choice != null else 0
+
+
+## Most picks allowed: every card for Glimpse, the required number for Recall.
+func choice_max() -> int:
+	return _choice.max_picks if _choice != null else 0
+
+
+## True if `indices` are unique, in range of choice_cards(), and between choice_required() and choice_max().
+func can_resolve_choice(indices: Array[int]) -> bool:
+	if _choice == null or phase != Phase.CHOOSING:
+		return false
+	if indices.size() < _choice.required or indices.size() > _choice.max_picks:
+		return false
+	var seen := {}
+	for i in indices:
+		if i < 0 or i >= _choice.cards.size() or seen.has(i):
+			return false
+		seen[i] = true
+	return true
+
+
+## Applies the picks and closes the choice: Glimpse discards the picked cards (in the order given) from
+## the draw pile top; Recall moves the picked Forgotten cards to the hand (to discard if it is full).
+## Then the next queued choice opens, or the phase returns to PLAYER_TURN. False, changing nothing, if
+## can_resolve_choice(indices) is false.
+func resolve_choice(indices: Array[int]) -> bool:
+	if not can_resolve_choice(indices):
+		return false
+	if _choice.kind == CardEffect.Kind.GLIMPSE:
+		piles.discard_from_draw_top(indices)
+	else:
+		piles.recall_from_forgotten(indices, HAND_MAX)
+	_choice = null
+	phase = Phase.PLAYER_TURN
+	_open_next_choice()
+	state_changed.emit()
+	return true
+
+
+## Headless / bot default: resolves the open choice with the least-effort legal picks (Glimpse discards
+## nothing; Recall takes the first required Forgotten cards). Tools make smarter picks. False if no choice.
+func auto_resolve_choice() -> bool:
+	if _choice == null:
+		return false
+	var picks: Array[int] = []
+	if _choice.kind == CardEffect.Kind.RECALL:
+		for i in _choice.required:
+			picks.append(i)
+	return resolve_choice(picks)
 
 
 ## True if hand card `hand_index` may be discarded at end of turn: Anchor and Fading cards may not.
@@ -382,7 +502,7 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 		for _hit in hit_count:
 			# plays_this_turn already counts the card being played.
 			# Malice and Shaken of the source, Expose of the target, then Block.
-			var raw := effect.raw_damage(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_this_turn)
+			var raw := effect.raw_damage(EffectContext.make(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_this_turn, piles.forgotten.size()))
 			target.take_damage_final(Combatant.hit_damage(raw, source, target))
 			# Thorns: an enemy attack on the player also hurts the attacker, once per hit.
 			if effect.kind == CardEffect.Kind.DAMAGE and target == player and source != player and player.thorns > 0:
@@ -411,6 +531,19 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 			# Only the player has a hand.
 			if source == player:
 				piles.draw(amount, HAND_MAX)
+		CardEffect.Kind.GLIMPSE, CardEffect.Kind.RECALL:
+			# Only the player has piles to pick from; the pick opens after the card resolves.
+			if source == player and amount > 0:
+				_choice_queue.append({"kind": effect.kind, "amount": amount})
+		CardEffect.Kind.ADD_CARD:
+			# A card's copies and an enemy intent's both land in the player's piles.
+			if effect.card == null:
+				if not _warned_null_card:
+					_warned_null_card = true
+					push_error("Combat._apply: ADD_CARD effect has no card")
+			else:
+				for _copy in maxi(amount, 0):
+					piles.add_card(effect.card, effect.pile, HAND_MAX)
 		CardEffect.Kind.EXPOSE, CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
 			var status := _duration_status(effect.kind)
 			if source == player:
@@ -446,6 +579,7 @@ func _check_end() -> bool:
 	if not (victory or player.is_dead()):
 		return false
 	phase = Phase.ENDED
+	_clear_choices()
 	# Block and statuses are per-fight; clear them so callers between fights do
 	# not see them stale.
 	player.clear_block()
