@@ -37,7 +37,7 @@ func _test_new_cards_load() -> void:
 		StarterContent.STEADY_BREATH_PATH: [1, [CardEffect.Kind.DRAW, CardEffect.Kind.BLOCK]],
 		StarterContent.SHOULDER_CHARGE_PATH: [2, [CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK]],
 		StarterContent.HAMSTRING_PATH: [2, [CardEffect.Kind.DAMAGE, CardEffect.Kind.EXPOSE]],
-		StarterContent.IRON_RESOLVE_PATH: [2, [CardEffect.Kind.BLOCK]],
+		StarterContent.IRON_RESOLVE_PATH: [2, [CardEffect.Kind.BLOCK, CardEffect.Kind.WARD]],
 		StarterContent.FLURRY_PATH: [0, [CardEffect.Kind.DAMAGE]],
 		StarterContent.GUARDED_STRIKE_PATH: [1, [CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK]],
 	}
@@ -265,7 +265,7 @@ func _test_mid_boss_encounter() -> void:
 ## Characters own their starting decks and class cards; neutral cards are shared.
 func _test_characters_and_pools() -> void:
 	var all := StarterContent.all_cards()
-	_check(all.size() == StarterContent.ALL_CARD_PATHS.size() and all.size() == 35, "all_cards loads all 35 cards")
+	_check(all.size() == StarterContent.ALL_CARD_PATHS.size() and all.size() == 36, "all_cards loads all 36 cards")
 	var ids := {}
 	for card in all:
 		_check(not ids.has(card.id), "card id is unique: %s" % card.id)
