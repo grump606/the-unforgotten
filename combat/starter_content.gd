@@ -27,6 +27,8 @@ const DIG_IN_PATH := "res://data/cards/dig_in.tres"
 const COLD_STEEL_PATH := "res://data/cards/cold_steel.tres"
 const COUNTER_STANCE_PATH := "res://data/cards/counter_stance.tres"
 const LAST_STAND_PATH := "res://data/cards/last_stand.tres"
+# Phase 4c (Deserter) new cards.
+const DIG_DEEP_PATH := "res://data/cards/dig_deep.tres"
 const LIFT_PATH := "res://data/cards/lift.tres"
 const SLEIGHT_PATH := "res://data/cards/sleight.tres"
 const POCKET_WATCH_PATH := "res://data/cards/pocket_watch.tres"
@@ -64,6 +66,8 @@ const ALL_CARD_PATHS: Array[String] = [
 	CONFESS_PATH, LINGERING_DREAD_PATH, COLD_WHISPER_PATH, PENANCE_PATH, GRAVE_CHILL_PATH,
 	SPIRIT_TITHE_PATH, SEANCE_PATH, BLEED_THE_VEIL_PATH, RECKONING_PATH,
 	MARK_THE_WEAK_PATH, CUTTING_WORD_PATH, HAMSTRING_PATH, SECOND_WIND_PATH,
+	# Phase 4c (Deserter).
+	DIG_DEEP_PATH,
 ]
 ## Status cards: Dormant cards that enemies add to the player's piles mid-fight (Dread: Dormant; Murmur:
 ## Dormant and Fading). An explicit id -> path table, kept OUT of ALL_CARD_PATHS, the reward pools,
