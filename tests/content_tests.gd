@@ -340,6 +340,7 @@ func _test_registry_entries_load() -> void:
 		_check(card != null, "card registry entry loads as CardData: %s" % path)
 		if card != null:
 			_check(not card_ids.has(card.id), "card id is unique: %s" % card.id)
+			_check(not (card.fading and card.anchor), "card is not both Fading and Anchor: %s" % card.id)
 			card_ids[card.id] = true
 	var relic_ids := {}
 	for path in StarterContent.RELIC_PATHS:

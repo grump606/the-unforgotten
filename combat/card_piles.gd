@@ -6,6 +6,9 @@ extends RefCounted
 var draw_pile: Array[CardData] = []
 var hand: Array[CardData] = []
 var discard_pile: Array[CardData] = []
+## Cards removed for the rest of the fight (Forgotten). The deck is never modified, so they are
+## back next fight.
+var forgotten: Array[CardData] = []
 
 var _rng: RandomNumberGenerator
 
@@ -35,12 +38,50 @@ func draw(count: int, hand_limit: int = -1) -> int:
 	return drawn
 
 
-## Moves the card at `hand_index` to the discard pile and returns it.
+## Moves the draw pile's Ready cards into the hand (from the top of the pile down, stopping at
+## `hand_limit` cards in hand). Returns how many moved. Meant to run before the normal turn-1 draw.
+func draw_ready(hand_limit: int) -> int:
+	var moved := 0
+	var i := draw_pile.size() - 1
+	while i >= 0 and hand.size() < hand_limit:
+		if draw_pile[i].ready:
+			hand.append(draw_pile[i])
+			draw_pile.remove_at(i)
+			moved += 1
+		i -= 1
+	return moved
+
+
+## Moves the card at `hand_index` to the discard pile (or the Forgotten pile for a Forgotten card)
+## and returns it.
 func play(hand_index: int) -> CardData:
 	var card: CardData = hand[hand_index]
 	hand.remove_at(hand_index)
-	discard_pile.append(card)
+	if card.forgotten:
+		forgotten.append(card)
+	else:
+		discard_pile.append(card)
 	return card
+
+
+## Moves every Fading card still in hand to the Forgotten pile. Returns how many moved.
+func forget_fading_in_hand() -> int:
+	var moved := 0
+	for k in range(hand.size() - 1, -1, -1):
+		if hand[k].fading:
+			forgotten.append(hand[k])
+			hand.remove_at(k)
+			moved += 1
+	return moved
+
+
+## Hand cards that count toward the 5 kept: everything except Anchor and Fading cards.
+func counted_in_hand() -> int:
+	var n := 0
+	for card in hand:
+		if not card.anchor and not card.fading:
+			n += 1
+	return n
 
 
 ## Moves the hand cards at `hand_indices` (valid, unique) to the discard pile, in hand order.
