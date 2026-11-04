@@ -72,6 +72,11 @@ const STATUS_CARD_PATHS := {
 	&"dread": "res://data/status/dread.tres",
 	&"murmur": "res://data/status/murmur.tres",
 }
+## Created cards: playable cards that exist only inside a fight, made by other cards (the Thief's Trinket
+## comes from Filch). An explicit id -> path table, kept OUT of ALL_CARD_PATHS, the reward pools, vendors,
+## the price table and every starting deck; data/created is never scanned. Add a created card by putting
+## its .tres in data/created and listing it here, and nowhere else. Empty until the first one ships.
+const CREATED_CARD_PATHS := {}
 ## Every relic, in a fixed order. A relic's `character` tag says who may be offered it (empty = everyone).
 const RELIC_PATHS: Array[String] = [
 	"res://data/relics/travelling_flask.tres", "res://data/relics/brass_token_purse.tres", "res://data/relics/ticket_stub_charm.tres",
@@ -107,6 +112,8 @@ const RAMP_PER_FIGHT := 0.012
 const TIER1_BIG_PAIR_CHANCE := 0.2
 
 
+## The neutral 10-card deck (5 Shove, 4 Slip Past, 1 Glimpse the Exit) for standalone battles and tests with
+## no character; runs use starter_deck(character_id).
 ## Card definitions are immutable data, so deck slots of the same card share one instance.
 ## Returns an empty deck (and logs the cause) if any card resource fails to load.
 static func deck() -> Array[CardData]:
@@ -121,6 +128,21 @@ static func deck() -> Array[CardData]:
 	for i in 4:
 		cards.append(slip_past)
 	cards.append(glimpse_exit)
+	return cards
+
+
+## The deck a run of this character starts with: a fresh array of the shared card instances from the
+## character's resource (data/characters), which owns the composition.
+## An id with no character falls back to deck(), the neutral deck; that is for standalone battles and tests
+## that have no character, and runs always pass a real character id.
+static func starter_deck(character_id: StringName) -> Array[CardData]:
+	if not CHARACTER_PATHS.has(character_id):
+		return deck()
+	var loaded := character(character_id)
+	if loaded == null or loaded.starting_deck.is_empty():
+		return deck()
+	var cards: Array[CardData] = []
+	cards.assign(loaded.starting_deck)
 	return cards
 
 
@@ -340,6 +362,14 @@ static func status_card(id: StringName) -> CardData:
 		push_error("StarterContent.status_card: unknown status card id %s" % id)
 		return null
 	return _load_card(STATUS_CARD_PATHS[id])
+
+
+## A created card by id, or null (cause logged) for an unknown id or a bad resource.
+static func created_card(id: StringName) -> CardData:
+	if not CREATED_CARD_PATHS.has(id):
+		push_error("StarterContent.created_card: unknown created card id %s" % id)
+		return null
+	return _load_card(CREATED_CARD_PATHS[id])
 
 
 static func _load_card(path: String) -> CardData:

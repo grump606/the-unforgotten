@@ -229,6 +229,9 @@ func _initialize() -> void:
 					battle._play_hand_card(mark)
 					mark += 1
 				battle._on_end_turn_pressed()
+			elif combat.phase == Combat.Phase.CHOOSING:
+				# Glimpse the Exit opens a pick: keep every card (discard none) through the overlay's handler.
+				battle._on_choice_confirmed([] as Array[int])
 			elif combat.phase == Combat.Phase.ENDED:
 				fights_ended += 1
 				combat.player.hp = mini(combat.player.hp, combat.player.max_hp)

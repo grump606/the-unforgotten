@@ -225,7 +225,8 @@ func _test_payoff_pricing() -> void:
 
 
 ## Golden table of id -> [value, price] for every data/cards card, taken before the keyword and
-## multi-hit valuation existed. None of these cards uses a keyword, so nothing may move.
+## multi-hit valuation existed. Update it on purpose whenever a card is retuned (Flurry and Glimpse the
+## Exit changed in Phase 4a); a new card is added with its computed value and price.
 const GOLDEN := {
 	"bash": [7, 16],
 	"bleed_the_veil": [34, 24],
@@ -236,8 +237,8 @@ const GOLDEN := {
 	"counter_stance": [20, 24],
 	"cutting_word": [7, 16],
 	"dig_in": [4, 10],
-	"flurry": [3, 10],
-	"glimpse_exit": [8, 16],
+	"flurry": [4, 10],
+	"glimpse_exit": [7, 16],
 	"grave_chill": [16, 24],
 	"guarded_strike": [8, 16],
 	"hamstring": [14, 24],
