@@ -154,6 +154,8 @@ func start_combat() -> Combat:
 	if not debug_encounter.is_empty():
 		for enemy_id in debug_encounter:
 			var enemy := StarterContent.enemy_by_id(enemy_id)
+			if enemy == null:
+				enemy = DebugLaunch.prototype_enemy(enemy_id) # debug-only prototype enemies
 			if enemy != null:
 				enemies.append(enemy)
 	elif stop.boss:
