@@ -428,6 +428,225 @@ func _check_keywords(node: Control) -> void:
 	check(c.piles.forgotten.size() == 2 and c.piles.hand.has(_proto("anchor_ward")), "confirming forgets the Fading card and keeps the Anchor card in hand")
 
 
+func _chip_labels(view: Fighter) -> Dictionary:
+	var out := {}
+	for chip in view.status_chips():
+		out[chip.kind] = chip.label
+	return out
+
+
+## Phase 2b: status badges on both sides, live card numbers, previews and intents through the shared pipeline.
+func _check_statuses(node: Control) -> void:
+	var datas: Array[EnemyData] = []
+	for id in ["lost_shade", "cinder_hound"]:
+		datas.append(load("res://data/enemies/%s.tres" % id) as EnemyData)
+	node._start_with(Combatant.new("Wanderer", 60), datas, 1)
+	node._refresh()
+	await process_frame
+	var c: Combat = node._combat
+	c.energy = 9
+	c.player.clear_block()
+	c.plays_this_turn = 0
+	for e in c.enemies:
+		e.clear_statuses()
+		e.clear_block()
+		e.max_hp = 500
+		e.hp = 500
+	node._select_target(0)
+	var enemy: EnemyUnit = c.enemies[0]
+	var enemy_view: Fighter = node._enemy_views[0]
+	var player_view: Fighter = node._player_view
+
+	# Badges: every status shows with its number (turns, or the signed stack), on enemy and player alike.
+	for pair in [[enemy, enemy_view], [c.player, player_view]]:
+		var unit: Combatant = pair[0]
+		var view: Fighter = pair[1]
+		unit.clear_statuses()
+		node._refresh()
+		check(_chip_labels(view).is_empty(), "%s: no badges without statuses" % unit.display_name)
+		unit.apply_status(Combatant.Status.SHAKEN, 2)
+		unit.apply_status(Combatant.Status.FRAYED, 3)
+		unit.apply_status(Combatant.Status.MALICE, 2)
+		unit.apply_status(Combatant.Status.WARD, -1)
+		node._refresh()
+		var labels := _chip_labels(view)
+		check(labels.get(&"shaken") == "2" and labels.get(&"frayed") == "3" and labels.get(&"malice") == "+2" and labels.get(&"ward") == "-1", "%s: badges show turns and signed stacks: %s" % [unit.display_name, str(labels)])
+		var chips := view.status_chips()
+		var ward_chip: Dictionary = chips[chips.size() - 1]
+		var malice_chip: Dictionary = chips[chips.size() - 2]
+		check(ward_chip.color == CardView.STATUS_NEGATIVE and malice_chip.color == CardView.kind_color(CardEffect.Kind.MALICE), "%s: a debuff badge is tinted red, a buff keeps its colour" % unit.display_name)
+		# Temporary stacks count, and a stack that cancels to 0 has no badge.
+		unit.apply_temp_stack(Combatant.Status.MALICE, 3)
+		unit.apply_status(Combatant.Status.WARD, 1)
+		node._refresh()
+		labels = _chip_labels(view)
+		check(labels.get(&"malice") == "+5" and not labels.has(&"ward"), "%s: temporary stacks show and a stack at 0 has no badge: %s" % [unit.display_name, str(labels)])
+		# Everything at once: pills wrap into rows that stay inside the figure and never overlap.
+		unit.apply_status(Combatant.Status.WARD, 4)
+		unit.apply_status(Combatant.Status.EXPOSED, 2)
+		unit.apply_status(Combatant.Status.HAUNTED, 3)
+		unit.hold = 4
+		unit.thorns = 12
+		node._refresh()
+		var rects := view.chip_rects()
+		var ok := rects.size() == 8 and view.status_chips().size() == 8
+		for i in rects.size():
+			ok = ok and Rect2(Vector2.ZERO, view.size).encloses(rects[i])
+			for j in range(i + 1, rects.size()):
+				ok = ok and not rects[i].intersects(rects[j])
+		check(ok, "%s: eight badges fit inside the figure without overlap" % unit.display_name)
+		unit.clear_statuses()
+	node._refresh()
+
+	# Tooltips explain each rule in one line.
+	c.player.apply_status(Combatant.Status.SHAKEN, 2)
+	c.player.apply_status(Combatant.Status.FRAYED, 1)
+	c.player.apply_status(Combatant.Status.MALICE, -2)
+	c.player.apply_status(Combatant.Status.WARD, 3)
+	node._refresh()
+	var tip: String = player_view.tooltip_text
+	check(tip.contains("Shaken 2: deals 25% less damage") and tip.contains("Frayed 1: gains 25% less Block") and tip.contains("Malice -2: -2 damage on every hit") and tip.contains("Ward +3: +3 Block from every card"), "the player tooltip explains each status: " + tip.replace("\n", " | "))
+	c.player.clear_statuses()
+
+	# Live card numbers: printed with no modifier, green when raised, red when lowered, equal when they cancel.
+	var strike := _proto("strike")
+	var guard := _proto("guard")
+	var face_view := CardView.new()
+	node.add_child(face_view)
+	face_view.set_card(strike)
+	check(face_view.body_lines()[0].text == "Deal 6" and face_view.body_lines()[0].delta == 0, "outside a fight a card shows its printed numbers")
+	face_view.live = c.player
+	check(face_view.body_lines()[0].text == "Deal 6" and face_view.body_lines()[0].delta == 0, "with no modifier the live number equals the printed one")
+	c.player.apply_status(Combatant.Status.MALICE, 2)
+	check(face_view.body_lines()[0].text == "Deal 8" and face_view.body_lines()[0].delta == 1, "Malice +2 raises Deal 6 to 8 (green)")
+	c.player.apply_temp_stack(Combatant.Status.MALICE, -1)
+	check(face_view.body_lines()[0].text == "Deal 7" and face_view.body_lines()[0].delta == 1, "a temporary stack counts in the live number")
+	c.player.clear_statuses()
+	c.player.apply_status(Combatant.Status.SHAKEN, 2)
+	check(face_view.body_lines()[0].text == "Deal 4" and face_view.body_lines()[0].delta == -1, "Shaken lowers Deal 6 to 4 (red)")
+	c.player.apply_status(Combatant.Status.MALICE, -9)
+	check(face_view.body_lines()[0].text == "Deal 0" and face_view.body_lines()[0].delta == -1, "heavy negative Malice shows Deal 0")
+	face_view.set_card(guard)
+	c.player.clear_statuses()
+	c.player.apply_status(Combatant.Status.FRAYED, 2)
+	check(face_view.body_lines()[0].text == "Block 4" and face_view.body_lines()[0].delta == -1, "Frayed lowers Block 6 to 4 (red)")
+	c.player.apply_status(Combatant.Status.WARD, 2)
+	check(face_view.body_lines()[0].text == "Block 6" and face_view.body_lines()[0].delta == 0, "Ward +2 and Frayed cancel: Block 6 equals the printed number")
+	c.player.apply_status(Combatant.Status.WARD, 4)
+	check(face_view.body_lines()[0].text == "Block 9" and face_view.body_lines()[0].delta == 1, "Ward +6 then Frayed raises Block 6 to 9 (green): " + face_view.body_lines()[0].text)
+	check(face_view.body_lines()[0].text == "Block %d" % c.player.block_from_card(6), "the live Block is the engine's block_from_card")
+	c.player.clear_statuses()
+	c.player.apply_status(Combatant.Status.MALICE, 1)
+	face_view.set_card(_proto("double_strike"))
+	check(face_view.body_lines()[0].text == "Deal 4 x2" and face_view.body_lines()[0].delta == 1, "a multi-hit shows the per-hit number: " + face_view.body_lines()[0].text)
+	face_view.set_card(_proto("surge_slash"))
+	check(face_view.body_lines()[0].text == "Deal 4 x energy spent", "a Surge hit shows the per-hit number: " + face_view.body_lines()[0].text)
+	face_view.set_card(_proto("surge_guard"))
+	c.player.apply_status(Combatant.Status.WARD, 2)
+	check(face_view.body_lines()[0].delta == 0 and face_view.body_lines()[0].text == "Block 4 per energy spent", "Block that scales with energy keeps its printed text")
+	face_view.set_card(_proto("shake_foe"))
+	check(face_view.body_lines()[0].delta == 0 and face_view.body_lines()[0].text == "Shaken 2", "a status effect line is never rewritten")
+	face_view.set_card(_proto("dormant_burden"))
+	check(face_view.body_lines()[0].delta == 0, "a Dormant card is unaffected")
+	face_view.queue_free()
+	# Hand cards are bound to the player, so they follow its statuses.
+	c.player.clear_statuses()
+	c.player.apply_status(Combatant.Status.MALICE, 3)
+	c.piles.hand.assign([strike, guard])
+	node._refresh()
+	var hand := CardView.find_all(node._hand_box)
+	check(hand[0].live == c.player and hand[0].body_lines()[0].text == "Deal 9", "a hand card shows the live number")
+
+	# The drag preview and card-face preview go through hit_damage: they must equal the damage really dealt.
+	var dbl := _proto("double_strike")
+	var setups := [[0, 0, false, 0], [3, 0, false, 0], [3, 2, false, 0], [3, 2, true, 0], [-2, 0, true, 5], [-9, 2, false, 0], [2, 2, true, 7], [0, 3, false, 4]]
+	for card in [strike, dbl]:
+		for setup in setups:
+			var label := "%s malice %d shaken %d exposed %s block %d" % [card.id, setup[0], setup[1], str(setup[2]), setup[3]]
+			c.player.clear_statuses()
+			enemy.clear_statuses()
+			enemy.clear_block()
+			enemy.hp = 500
+			c.energy = 9
+			if setup[0] != 0:
+				c.player.apply_status(Combatant.Status.MALICE, setup[0])
+			if setup[1] > 0:
+				c.player.apply_status(Combatant.Status.SHAKEN, setup[1])
+			if setup[2]:
+				enemy.apply_status(Combatant.Status.EXPOSED, 2)
+			enemy.gain_block(setup[3])
+			c.piles.hand.assign([card])
+			node._refresh()
+			var info: Dictionary = node._target_preview(card, enemy)
+			var views := CardView.find_all(node._hand_box)
+			var face: String = views[0].preview
+			# Drag it over the enemy: the figure's drop label is the same preview.
+			node._on_drag_started(views[0])
+			node._on_drag_moved(enemy_view.get_global_rect().get_center())
+			var drop_text: String = enemy_view.drop_text
+			node._end_drag()
+			var before := enemy.hp
+			check(c.play_card(0, 0), "%s: played" % label)
+			var lost := before - enemy.hp
+			check(info.get("lost", -1) == lost, "%s: the preview says %s, the hit lost %d" % [label, str(info), lost])
+			check(face.strip_edges() == info.text.strip_edges() and drop_text == info.text.strip_edges(), "%s: the card face and the drag label show the same preview (%s | %s)" % [label, face.replace("\n", " "), drop_text])
+	# The all-enemies line also uses the player's Malice.
+	c.player.clear_statuses()
+	c.player.apply_status(Combatant.Status.MALICE, 2)
+	c.energy = 9
+	var sweep := load("res://data/cards/sweep.tres") as CardData
+	c.piles.hand.assign([sweep])
+	node._refresh()
+	var sweep_text: String = (CardView.find_all(node._hand_box)[0] as CardView).preview
+	check(sweep_text.contains("Deals %d" % (sweep.effects[0].amount + 2)), "the all-enemies preview includes Malice: " + sweep_text.replace("\n", " "))
+	c.player.clear_statuses()
+
+	# Enemy Omen: the damage shown to the player includes the enemy's Malice and Shaken, then the player's Expose.
+	var attack := CardEffect.make(CardEffect.Kind.DAMAGE, 8)
+	var plain := EnemyData.make("Dummy", 30, [attack] as Array[CardEffect], &"dummy")
+	var dummy := EnemyUnit.new(plain)
+	for setup in [[0, 0, 0], [3, 0, 0], [3, 2, 0], [-2, 0, 0], [3, 2, 2], [-9, 0, 0]]:
+		dummy.clear_statuses()
+		c.player.clear_statuses()
+		if setup[0] != 0:
+			dummy.apply_status(Combatant.Status.MALICE, setup[0])
+		if setup[1] > 0:
+			dummy.apply_status(Combatant.Status.SHAKEN, setup[1])
+		if setup[2] > 0:
+			c.player.apply_status(Combatant.Status.EXPOSED, setup[2])
+		var shown := Fighter.effective_intent(dummy, c.player)
+		# What a real hit does to a copy of the player in the same state.
+		var probe := Combatant.new("Probe", 500)
+		if setup[2] > 0:
+			probe.apply_status(Combatant.Status.EXPOSED, setup[2])
+		probe.take_damage_final(Combatant.hit_damage(8, dummy, probe))
+		var real := 500 - probe.hp
+		check(shown.amount == real, "enemy intent %s: shown %d, dealt %d" % [str(setup), shown.amount, real])
+	# On the real fighter: the badge number and the tooltip line.
+	c.player.clear_statuses()
+	enemy.clear_statuses()
+	var enemy_intent := enemy.current_intent()
+	if enemy_intent != null and enemy_intent.kind == CardEffect.Kind.DAMAGE:
+		enemy.apply_status(Combatant.Status.MALICE, 4)
+		enemy.apply_status(Combatant.Status.SHAKEN, 2)
+		node._refresh()
+		var want := Combatant.hit_damage(enemy_intent.amount, enemy, c.player)
+		check(Fighter.effective_intent(enemy, c.player).amount == want and want != enemy_intent.amount and node._enemy_tooltip(enemy).contains("Next: Deal %d" % want), "the enemy tooltip shows the damage after its Malice and Shaken: " + node._enemy_tooltip(enemy).replace("\n", " | "))
+	check(enemy_view.intent_target == c.player, "the enemy figure aims its Omen at the player")
+	enemy.clear_statuses()
+	# Intents that apply the new statuses are shown as printed, and every intent kind draws.
+	for kind in [CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD]:
+		var eff := CardEffect.make(kind, -2 if kind == CardEffect.Kind.WARD else 2)
+		var unit := EnemyUnit.new(EnemyData.make("Caster", 10, [eff] as Array[CardEffect], &"caster"))
+		var fighter := Fighter.new()
+		node.add_child(fighter)
+		fighter.set_enemy(unit)
+		fighter.intent_target = c.player
+		await process_frame
+		check(Fighter.effective_intent(unit, c.player) == eff, "an intent of kind %d is shown as printed" % kind)
+		fighter.queue_free()
+
+
 func _initialize() -> void:
 	var node: Control = (load("res://battle.tscn") as PackedScene).instantiate()
 	root.add_child(node)
@@ -605,5 +824,6 @@ func _initialize() -> void:
 	_check_preview(node)
 	_check_drag(node)
 	await _check_keywords(node)
+	await _check_statuses(node)
 	print("DONE fails=", fails)
 	quit(1 if fails > 0 else 0)
