@@ -37,9 +37,9 @@ Per-turn grants happen after `start_turn_block()` (which resets Block to Hold an
 | Regulation Dog Tags | Deserter | FIGHT_START_BLOCK 8 | 55 |
 | Barbed Greatcoat | Deserter | TURN_START_THORNS 3 | 65 |
 | Field Ration Tin | Deserter | TURN_START_BLOCK 3 | 75 |
-| Silk Gloves | Pickpocket | FIRST_PLAY_DRAW 1 | 70 |
-| Skeleton Key | Pickpocket | FIRST_TURN_ENERGY 1 | 60 |
-| Marked Deck | Pickpocket | PLAYS_BLOCK 4 | 65 |
+| Silk Gloves | Thief | FIRST_PLAY_DRAW 1 | 70 |
+| Skeleton Key | Thief | FIRST_TURN_ENERGY 1 | 60 |
+| Marked Deck | Thief | PLAYS_BLOCK 4 | 65 |
 | Grave Dirt | Medium | FIGHT_START_HAUNT 2 | 60 |
 | Planchette | Medium | TURN_START_HEAL_PER_HAUNTED 2 | 70 |
 | Bone Rosary | Medium | HAUNT_BONUS 1 | 75 |

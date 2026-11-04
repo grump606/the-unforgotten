@@ -15,4 +15,4 @@ id = &"last_pocket"
 display_name = "Last Pocket"
 cost = 1
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1")])
-character = &"pickpocket"
+character = &"thief"

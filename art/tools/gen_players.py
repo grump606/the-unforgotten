@@ -1,7 +1,7 @@
 """Generate side-view full-body player sprite candidates with the style LoRA, cut them out, and make
 a contact sheet to pick from.
 
-  python gen_players.py [class ...]      (no args = deserter pickpocket medium)
+  python gen_players.py [class ...]      (no args = deserter thief medium)
 
 Writes art/work/players/<class>/raw_<seed>.png, cut_<seed>.png (transparent) and sheet.png.
 Pick one per class and copy it to art/work/players/<class>/pick.png.
@@ -26,7 +26,7 @@ LORA = ("cbpstyle.safetensors", "0.6")
 CLASSES = {
     "deserter": "a weary deserter soldier in a battered rust-coloured greatcoat and dented steel pauldron, "
                 "holding a notched sword low, tattered cape, grim set jaw, rust and steel colours",
-    "pickpocket": "a lean nimble pickpocket in a teal hooded jacket with brass buckles, flat cap, "
+    "thief": "a lean nimble pickpocket in a teal hooded jacket with brass buckles, flat cap, "
                   "a dagger in one hand and a stolen pocket watch dangling in the other, teal and brass colours",
     "medium": "a gaunt spirit medium in a long violet shawl and bone-white gloves, holding a glowing "
               "pale lantern, pale ghostly wisps curling around her, violet and bone colours, no lamppost, no street lamp",

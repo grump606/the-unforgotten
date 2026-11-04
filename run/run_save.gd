@@ -10,6 +10,8 @@ extends RefCounted
 const VERSION := 3
 ## The oldest format migrate() can upgrade. Anything older is rejected.
 const MIN_VERSION := 2
+## The Thief's id before it was renamed (releases up to 0.7.3); accepted on load and mapped to "thief".
+const LEGACY_PICKPOCKET_ID := "pickpocket"
 const DEFAULT_PATH := "user://run_save.json"
 const MAX_FILE_BYTES := 1048576
 const MAX_DECK := 200
@@ -79,6 +81,9 @@ static func from_dict(data: Variant) -> Result:
 		return Result.fail(error)
 	d = migrate(d, _int(d, "version", 0, 1000000))
 	var character_id: Variant = d.get("character")
+	# Saves from releases up to 0.7.3 name the Thief by its old id. Same format, so no version bump.
+	if typeof(character_id) == TYPE_STRING and character_id == LEGACY_PICKPOCKET_ID:
+		character_id = "thief"
 	error = _check_character(character_id)
 	if error != "":
 		return Result.fail(error)

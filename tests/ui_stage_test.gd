@@ -51,7 +51,7 @@ func _initialize() -> void:
 		check(fighter.size.x >= Fighter.MIN_WIDTH and fighter.size.y == Fighter.OVERHEAD + fighter.figure_height + Fighter.UNDER, "%s fighter size" % unit.display_name)
 		check(fighter.facing < 0.0 and fighter.figure_rect().size.x > 20.0, "%s faces the player" % unit.display_name)
 		fighter.queue_free()
-	for id in [&"deserter", &"pickpocket", &"medium", &""]:
+	for id in [&"deserter", &"thief", &"medium", &""]:
 		var f := Fighter.new()
 		holder.add_child(f)
 		f.set_player(Combatant.new("Wanderer", 40), id)

@@ -215,7 +215,7 @@ func _draw_frame_decor(whole: Rect2) -> void:
 		&"deserter":
 			for pt in [Vector2(3, 3), Vector2(whole.end.x - 3, 3), Vector2(3, whole.end.y - 3), whole.end - Vector2(3, 3)]:
 				draw_circle(pt, 1.8, Color(0.2, 0.1, 0.05))
-		&"pickpocket":
+		&"thief":
 			var r := whole.grow(-7)
 			var x := r.position.x + 4
 			while x < r.end.x - 4:
@@ -279,8 +279,8 @@ func _draw_figure_code(origin: Vector2, cx: float) -> void:
 	match class_id:
 		&"deserter":
 			_draw_deserter(cx)
-		&"pickpocket":
-			_draw_pickpocket(cx)
+		&"thief":
+			_draw_thief(cx)
 		&"medium":
 			_draw_medium(cx)
 
@@ -304,7 +304,7 @@ func _draw_deserter(cx: float) -> void:
 		draw_colored_polygon(PackedVector2Array([Vector2(cx + side * 56, h - 24), Vector2(cx + side * 36, h - 34), Vector2(cx + side * 34, h - 28), Vector2(cx + side * 54, h - 18)]), Color(accent, 0.8)) # epaulettes
 
 
-func _draw_pickpocket(cx: float) -> void:
+func _draw_thief(cx: float) -> void:
 	var h := FIGURE_HEIGHT
 	var accent: Color = _p.accent
 	var cloak := Color(0.04, 0.10, 0.11)
@@ -379,7 +379,7 @@ func _draw_emblem(c: Vector2) -> void:
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-6, -7), c + Vector2(6, -7), c + Vector2(5, 5), c + Vector2(0, 8), c + Vector2(-5, 5)]), glyph)
 			draw_line(c + Vector2(-3, -2), c + Vector2(3, -2), frame, 1.2)
 			draw_line(c + Vector2(-3, 2), c + Vector2(3, 2), frame, 1.2)
-		&"pickpocket":
+		&"thief":
 			# A keyhole.
 			draw_circle(c + Vector2(0, -2.5), 4.0, glyph)
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-1.8, 0), c + Vector2(1.8, 0), c + Vector2(3.8, 7.5), c + Vector2(-3.8, 7.5)]), glyph)

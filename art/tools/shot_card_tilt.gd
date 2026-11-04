@@ -11,7 +11,7 @@ func _initialize() -> void:
 	for i in 3:
 		var v := CardView.new()
 		v.card = load("res://data/cards/%s.tres" % ["bash", "seance", "lift"][i])
-		v.class_id = [&"deserter", &"medium", &"pickpocket"][i]
+		v.class_id = [&"deserter", &"medium", &"thief"][i]
 		v.view_scale = 2.0
 		v.auto_hover = true
 		v.position = Vector2(80 + i * 360, 60)

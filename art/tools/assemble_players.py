@@ -16,7 +16,7 @@ OUT = os.path.join(HERE, "..", "layers", "players")
 
 
 def main():
-    for name in sys.argv[1:] or ["deserter", "pickpocket", "medium"]:
+    for name in sys.argv[1:] or ["deserter", "thief", "medium"]:
         img = Image.open(os.path.join(WORK, name, "pick.png")).convert("RGBA")
         img = img.crop(img.getchannel("A").point(lambda a: 255 if a > 20 else 0).getbbox())
         if img.height > 900:

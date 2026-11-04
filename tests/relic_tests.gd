@@ -335,12 +335,12 @@ func _at_vendor(rng_seed: int, character: StringName = &"deserter") -> RunState:
 func _test_run_state_relics() -> void:
 	var state := RunState.new(3)
 	_check(state.relics.is_empty() and not state.vendor_buy_relic().ok, "a fresh run has no relics and cannot buy one off a vendor stop")
-	state = _at_vendor(8, &"pickpocket")
+	state = _at_vendor(8, &"thief")
 	state.gold = 500
 	var offer := state.vendor().relic_offer()
 	_check(not offer.is_empty(), "the vendor stocks a relic")
 	var relic: RelicData = offer["relic"]
-	_check(relic.character == &"" or relic.character == &"pickpocket", "the offer is neutral or the character's own")
+	_check(relic.character == &"" or relic.character == &"thief", "the offer is neutral or the character's own")
 	var max_before := state.player.max_hp
 	var bought := state.vendor_buy_relic()
 	_check(bought.ok and state.relics == [relic] and state.gold == 500 - relic.price, "vendor_buy_relic records the relic and syncs gold")
@@ -431,7 +431,7 @@ func _test_save_round_trip() -> void:
 
 func _test_save_rejects_bad_relics() -> void:
 	var own := String(StarterContent.relic_pool(&"deserter")[3].id)
-	var other := String(StarterContent.relic_pool(&"pickpocket")[3].id)
+	var other := String(StarterContent.relic_pool(&"thief")[3].id)
 	var good := RunSave.to_dict(RunState.new(3, &"deserter"))
 	good["relics"] = [own]
 	_check(RunSave.from_dict(good).run != null, "a valid relic id loads")

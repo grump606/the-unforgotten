@@ -19,4 +19,4 @@ id = &"lift"
 display_name = "Lift"
 cost = 1
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
-character = &"pickpocket"
+character = &"thief"

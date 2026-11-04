@@ -125,6 +125,8 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 		launch.gold = int(gold_text)
 	if character_text.strip_edges() != "":
 		var wanted := _normalize(character_text)
+		if wanted == "pickpocket": # the Thief's old id
+			wanted = "thief"
 		var found := false
 		for id in StarterContent.character_ids():
 			if _normalize(String(id)) == wanted:
