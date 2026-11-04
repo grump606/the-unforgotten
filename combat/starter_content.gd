@@ -65,6 +65,13 @@ const ALL_CARD_PATHS: Array[String] = [
 	SPIRIT_TITHE_PATH, SEANCE_PATH, BLEED_THE_VEIL_PATH, RECKONING_PATH,
 	MARK_THE_WEAK_PATH, CUTTING_WORD_PATH, HAMSTRING_PATH, SECOND_WIND_PATH,
 ]
+## Status cards: Dormant cards that enemies add to the player's piles mid-fight (Dread: Dormant; Murmur:
+## Dormant and Fading). An explicit id -> path table, kept OUT of ALL_CARD_PATHS, the reward pools,
+## vendors and starting decks; data/status is never scanned.
+const STATUS_CARD_PATHS := {
+	&"dread": "res://data/status/dread.tres",
+	&"murmur": "res://data/status/murmur.tres",
+}
 ## Every relic, in a fixed order. A relic's `character` tag says who may be offered it (empty = everyone).
 const RELIC_PATHS: Array[String] = [
 	"res://data/relics/travelling_flask.tres", "res://data/relics/brass_token_purse.tres", "res://data/relics/ticket_stub_charm.tres",
@@ -327,6 +334,14 @@ static func _pick_path(paths: Array[String], rng: RandomNumberGenerator) -> Stri
 ## Returns null (after logging an error) if the resource is missing or not a
 ## CardData. Checked explicitly rather than with assert so debug and release
 ## builds behave the same.
+## A status card by id (`dread` or `murmur`), or null (cause logged) for an unknown id or a bad resource.
+static func status_card(id: StringName) -> CardData:
+	if not STATUS_CARD_PATHS.has(id):
+		push_error("StarterContent.status_card: unknown status card id %s" % id)
+		return null
+	return _load_card(STATUS_CARD_PATHS[id])
+
+
 static func _load_card(path: String) -> CardData:
 	var card: CardData = null
 	if ResourceLoader.exists(path):
