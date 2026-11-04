@@ -32,6 +32,10 @@ const SLEIGHT_PATH := "res://data/cards/sleight.tres"
 const POCKET_WATCH_PATH := "res://data/cards/pocket_watch.tres"
 const LAST_POCKET_PATH := "res://data/cards/last_pocket.tres"
 const SPREE_PATH := "res://data/cards/spree.tres"
+## Phase 4b Thief cards.
+const SHARPEN_PATH := "res://data/cards/sharpen.tres"
+const QUICK_STUDY_PATH := "res://data/cards/quick_study.tres"
+const CLEANED_OUT_PATH := "res://data/cards/cleaned_out.tres"
 const CONFESS_PATH := "res://data/cards/confess.tres"
 const LINGERING_DREAD_PATH := "res://data/cards/lingering_dread.tres"
 const COLD_WHISPER_PATH := "res://data/cards/cold_whisper.tres"
@@ -68,6 +72,8 @@ const ALL_CARD_PATHS: Array[String] = [
 	CONFESS_PATH, LINGERING_DREAD_PATH, COLD_WHISPER_PATH, PENANCE_PATH, GRAVE_CHILL_PATH,
 	SPIRIT_TITHE_PATH, SEANCE_PATH, BLEED_THE_VEIL_PATH, RECKONING_PATH,
 	MARK_THE_WEAK_PATH, CUTTING_WORD_PATH, HAMSTRING_PATH, SECOND_WIND_PATH,
+	# Phase 4b Thief cards.
+	SHARPEN_PATH, QUICK_STUDY_PATH, CLEANED_OUT_PATH,
 	# Phase 4d: Medium
 	REMEMBER_PATH, CHORUS_OF_THE_LOST_PATH, HOLLOW_BARGAIN_PATH,
 ]
@@ -81,8 +87,10 @@ const STATUS_CARD_PATHS := {
 ## Created cards: playable cards that exist only inside a fight, made by other cards (the Thief's Trinket
 ## comes from Filch). An explicit id -> path table, kept OUT of ALL_CARD_PATHS, the reward pools, vendors,
 ## the price table and every starting deck; data/created is never scanned. Add a created card by putting
-## its .tres in data/created and listing it here, and nowhere else. Empty until the first one ships.
-const CREATED_CARD_PATHS := {}
+## its .tres in data/created and listing it here, and nowhere else.
+const CREATED_CARD_PATHS := {
+	&"trinket": "res://data/created/trinket.tres",
+}
 ## Every relic, in a fixed order. A relic's `character` tag says who may be offered it (empty = everyone).
 const RELIC_PATHS: Array[String] = [
 	"res://data/relics/travelling_flask.tres", "res://data/relics/brass_token_purse.tres", "res://data/relics/ticket_stub_charm.tres",
