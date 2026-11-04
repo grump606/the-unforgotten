@@ -6,13 +6,18 @@
 [sub_resource type="Resource" id="Resource_effect"]
 script = ExtResource("2_effect")
 kind = 1
-amount = 8
+amount = 6
+
+[sub_resource type="Resource" id="Resource_ward"]
+script = ExtResource("2_effect")
+kind = 17
+amount = 2
 
 [resource]
 script = ExtResource("1_card")
 id = &"iron_resolve"
 display_name = "Iron Resolve"
 cost = 2
-effects = Array[ExtResource("2_effect")]([SubResource("Resource_effect")])
+effects = Array[ExtResource("2_effect")]([SubResource("Resource_effect"), SubResource("Resource_ward")])
 target_mode = 2
 character = &"deserter"
