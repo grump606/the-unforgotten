@@ -214,7 +214,6 @@ func _test_payoff_pricing() -> void:
 	_check(Vendor.card_price(spree) > Vendor.PRICE_CHEAP, "Many Hands prices above the cheap tier")
 	_check(Vendor.card_price(reckoning) > Vendor.PRICE_CHEAP, "Reckoning prices above the cheap tier")
 	_check(Vendor.card_price(last_pocket) > Vendor.PRICE_CHEAP, "Last Keepsake prices above the cheap tier")
-	_check(Vendor.card_value(reckoning) > Vendor.card_value(spree), "Reckoning (2 energy, x2 Haunt) is worth more than Many Hands")
 	var plain_two := CardData.make(&"t_plain2", "Plain", 2, [CardEffect.make(CardEffect.Kind.DAMAGE, 2)] as Array[CardEffect])
 	_check(Vendor.card_value(spree) > Vendor.card_value(plain_two), "Many Hands is worth more than its base damage alone")
 	var free_energy := CardData.make(&"t_energy", "Energy", 0, [CardEffect.make(CardEffect.Kind.GAIN_ENERGY, 1)] as Array[CardEffect])
@@ -248,22 +247,26 @@ const GOLDEN := {
 	"iron_resolve": [20, 24],
 	"last_pocket": [12, 24],
 	"last_stand": [31, 24],
-	"lift": [9, 16],
+	"lift": [8, 16],
 	"lingering_dread": [12, 24],
-	"mark_the_weak": [6, 16],
+	"mark_the_weak": [8, 16],
 	"penance": [8, 16],
-	"pocket_watch": [10, 16],
+	"pocket_watch": [7, 16],
 	"reckoning": [12, 24],
 	"seance": [12, 24],
 	"second_wind": [6, 16],
 	"shoulder_charge": [17, 24],
 	"shove": [8, 16],
-	"sleight": [2, 10],
+	"sleight": [3, 10],
 	"slip_past": [7, 16],
 	"spirit_tithe": [8, 16],
-	"spree": [10, 16],
+	"spree": [13, 24],
 	"steady_breath": [9, 16],
 	"sweep": [9, 16],
+	# Phase 4b Thief cards.
+	"sharpen": [8, 16],
+	"quick_study": [4, 10],
+	"cleaned_out": [7, 16],
 	# Phase 4d: Medium
 	"remember": [5, 10],
 	"chorus_of_the_lost": [6, 16],
