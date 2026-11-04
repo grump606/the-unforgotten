@@ -23,6 +23,18 @@ extends RefCounted
 ## The per-energy ratio makes the policy spend its energy on the best total rather
 ## than the single best card, and free cards (ratio = value) are played early.
 ##
+##  - Malice / Ward gained by the user: +amount on every later damage hit (Block card), valued per
+##    hit (per Block effect) it will boost: the other affordable cards in hand this turn, plus, for a
+##    stack that lasts the fight, TYPICAL_REMAINING_TURNS more turns of TYPICAL_HITS_PER_TURN hits. A
+##    temporary stack counts this turn's cards only. One that boosts a card in hand gets a large ordering
+##    bonus (MALICE_FIRST / WARD_FIRST), like Expose. Negative Malice / Ward on an enemy is worth the
+##    damage / Block its next intent loses per turn (a stack on an enemy that is temporary is cleared
+##    before the enemy acts, so it is worth nothing).
+##  - Shaken on an enemy: a quarter of its next attack, for up to SHAKEN_TURNS_CAP turns, 0 if it has no
+##    attack, is already Shaken, or the damage in hand kills it. Frayed on an enemy: a quarter of the Block
+##    it is about to gain (0 if it is not about to Block). Shaken or Frayed on the player (a SELF card) is
+##    a cost, so such a card only plays when its other effects outweigh it.
+##
 ## Rewards and vendor: a card is scored for the deck as it stands, by effect, as
 ## sum(damage x w_damage, block x w_block, draw x 2.5, expose x 2) divided by
 ## (cost + 1). w_damage / w_block lean toward whichever of damage and block points
@@ -48,10 +60,32 @@ const HEAL_VALUE := 1.5 # per HP healed
 ## What a typical Block is worth when a card's damage scales with it (Bash, Cold Steel, Reckoning).
 const TYPICAL_BLOCK := 6
 const TYPICAL_HAUNT := 4
+## A typical enemy attack, for scoring a Shaken card outside a fight.
+const TYPICAL_ENEMY_HIT := 8
 ## Energy a Surge is assumed to spend when a card is scored outside a fight (rewards, vendor, discards).
 const TYPICAL_SURGE_ENERGY := 2
 ## Ordering nudge for a Fading card worth playing: it is lost if still in hand at the end of the turn.
 const FADING_URGENCY := 2.0
+## Player turns still to come in a fight when a Malice / Ward stack that lasts the fight is played now.
+const TYPICAL_REMAINING_TURNS := 3
+## Damage hits (and Block effects) the player lands per turn, for the same estimate.
+const TYPICAL_HITS_PER_TURN := 2
+## Value per extra damage point of Malice, per Block point of Ward (half a useful Block point: it can be wasted).
+const MALICE_VALUE := 1.0
+const WARD_VALUE := 1.0
+## Ordering bonuses so a buff that boosts a card in hand is played before it (cf. EXPOSE_FIRST).
+const MALICE_FIRST := 8.0
+const WARD_FIRST := 8.0
+## Turns of Shaken counted for an enemy (its intents beyond that are unknown), and the value per point of
+## damage prevented (high while Block is short of the incoming damage, low once Block already covers it).
+const SHAKEN_TURNS_CAP := 2
+const PREVENTED_VALUE := 2.0
+const PREVENTED_VALUE_COVERED := 0.5
+## Value per point of Block an enemy loses to Frayed / negative Ward.
+const ENEMY_BLOCK_VALUE := 0.7
+## Cost per turn of a Shaken / Frayed the player puts on itself.
+const SELF_SHAKEN_COST := 4.0
+const SELF_FRAYED_COST := 3.0
 ## card_score of a Dormant card: it can never be played, so it ranks below everything.
 const DORMANT_SCORE := -1.0
 
@@ -131,7 +165,8 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 		hit.append(combat.enemies[target])
 	elif card.target_mode == CardData.TargetMode.ALL_ENEMIES:
 		hit = combat.living_enemies()
-	var unblocked := maxi(_incoming_damage(combat) - combat.player.block, 0)
+	var incoming := _incoming_damage(combat)
+	var unblocked := maxi(incoming - combat.player.block, 0)
 	var energy_left := combat.energy - _spent_energy(combat, card) + _energy_gain(card)
 	var value := 0.0
 	for effect in card.effects:
@@ -140,7 +175,7 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 			CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, \
 			CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT:
 				for enemy in hit:
-					var lost := _hits_hp_lost(enemy, _effect_damage(combat, effect, enemy), _hit_count(combat, card, effect))
+					var lost := _hits_hp_lost(combat.player, enemy, _effect_damage(combat, effect, enemy), _hit_count(combat, card, effect))
 					var threat := _threat(combat, enemy)
 					value += lost * (1.0 + float(threat) / maxi(enemy.hp, 1))
 					if lost >= enemy.hp:
@@ -163,9 +198,10 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 				var healed := mini(amount * _haunted_count(combat), combat.player.max_hp - combat.player.hp)
 				value += HEAL_VALUE * healed
 			CardEffect.Kind.BLOCK:
-				var useful := mini(amount, unblocked)
+				var gained := combat.player.block_from_card(amount)
+				var useful := mini(gained, unblocked)
 				unblocked -= useful
-				value += 2.0 * useful + 0.1 * (amount - useful)
+				value += 2.0 * useful + 0.1 * (gained - useful)
 			CardEffect.Kind.DRAW:
 				value += (1.5 if energy_left > 0 else 0.2) * amount
 			CardEffect.Kind.EXPOSE:
@@ -179,7 +215,111 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 							if boosted > 0:
 								# It only pays if played before the damage, so rank it first.
 								value += EXPOSE_FIRST
+			CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
+				value += _stack_value(combat, hand_index, effect, hit, energy_left, incoming)
+			CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
+				value += _debuff_value(combat, card, hand_index, effect, hit, incoming)
 	return value
+
+
+## Value of a Malice or Ward effect (see the header): a positive stack for the user, a negative one on `hit`.
+static func _stack_value(combat: Combat, hand_index: int, effect: CardEffect, hit: Array[EnemyUnit], energy_left: int, incoming: int) -> float:
+	var is_malice := effect.kind == CardEffect.Kind.MALICE
+	if effect.amount >= 0:
+		var uses_now := _other_uses(combat, hand_index, energy_left, is_malice)
+		var future := 0 if effect.temporary else TYPICAL_REMAINING_TURNS * TYPICAL_HITS_PER_TURN
+		var total := float(effect.amount) * (uses_now + future) * (MALICE_VALUE if is_malice else WARD_VALUE)
+		var wanted_now := is_malice or incoming > combat.player.block
+		if not wanted_now:
+			total *= 0.25 # no Block is needed this turn, so only the later uses count for much
+		if uses_now > 0 and wanted_now:
+			total += MALICE_FIRST if is_malice else WARD_FIRST
+		return total
+	# Negative: a debuff on the enemies, valued from what their next intent loses each turn. A temporary
+	# stack on an enemy is cleared before it acts (Combat), so it never helps.
+	if effect.temporary:
+		return 0.0
+	var total := 0.0
+	var turns := float(TYPICAL_REMAINING_TURNS + 1)
+	for enemy in hit:
+		var intent := enemy.current_intent()
+		if intent == null:
+			continue
+		if is_malice and intent.kind == CardEffect.Kind.DAMAGE:
+			var after := Combatant.hit_damage(intent.amount, _with_stack(enemy, effect), combat.player) * maxi(intent.hits, 1)
+			total += (_threat(combat, enemy) - after) * turns * PREVENTED_VALUE
+		elif not is_malice and intent.kind == CardEffect.Kind.BLOCK:
+			total += mini(-effect.amount, intent.amount) * ENEMY_BLOCK_VALUE * turns
+	return total
+
+
+## Value of a Shaken or Frayed effect: on enemies a debuff, on the player (a SELF card) a cost.
+static func _debuff_value(combat: Combat, card: CardData, hand_index: int, effect: CardEffect, hit: Array[EnemyUnit], incoming: int) -> float:
+	var shaken := effect.kind == CardEffect.Kind.SHAKEN
+	if card.target_mode == CardData.TargetMode.SELF:
+		return -(SELF_SHAKEN_COST if shaken else SELF_FRAYED_COST) * effect.amount
+	var total := 0.0
+	var per_point := PREVENTED_VALUE if incoming > combat.player.block else PREVENTED_VALUE_COVERED
+	var turns := mini(effect.amount, SHAKEN_TURNS_CAP)
+	for enemy in hit:
+		var intent := enemy.current_intent()
+		if intent == null:
+			continue
+		if shaken:
+			if intent.kind != CardEffect.Kind.DAMAGE or enemy.status_turns(Combatant.Status.SHAKEN) > 0:
+				continue
+			if _other_damage_total(combat, hand_index) >= enemy.hp + enemy.block:
+				continue # about to die: nothing left to prevent
+			var after := Combatant.hit_damage(intent.amount, _with_stack(enemy, effect), combat.player) * maxi(intent.hits, 1)
+			total += (_threat(combat, enemy) - after) * turns * per_point
+		elif intent.kind == CardEffect.Kind.BLOCK and enemy.stacks(Combatant.Status.FRAYED) == 0:
+			total += _frayed_loss(intent.amount) * ENEMY_BLOCK_VALUE * turns
+	return total
+
+
+## A stand-in for `enemy` as an attacker with `effect` added (extra Malice, or Shaken), so the shared
+## pipeline prices the hit it would then deal. The real enemy is never touched.
+static func _with_stack(enemy: EnemyUnit, effect: CardEffect) -> Combatant:
+	var dummy := Combatant.new("tmp", 1)
+	var malice := enemy.stacks(Combatant.Status.MALICE)
+	if effect.kind == CardEffect.Kind.MALICE:
+		malice += effect.amount
+	dummy.apply_temp_stack(Combatant.Status.MALICE, malice)
+	if effect.kind == CardEffect.Kind.SHAKEN or enemy.stacks(Combatant.Status.SHAKEN) > 0:
+		dummy.apply_status(Combatant.Status.SHAKEN, 1)
+	return dummy
+
+
+## Block points a Block of `amount` loses to Frayed (3/4, rounded down, never below 1).
+static func _frayed_loss(amount: int) -> int:
+	return 0 if amount <= 0 else amount - maxi(amount * Combatant.REDUCED_NUM / Combatant.REDUCED_DEN, 1)
+
+
+## Damage hits (is_malice) or Block effects of the other cards in hand that `energy_left` can pay for.
+static func _other_uses(combat: Combat, hand_index: int, energy_left: int, is_malice: bool) -> int:
+	var total := 0
+	for j in combat.piles.hand.size():
+		var other: CardData = combat.piles.hand[j]
+		if j == hand_index or other.cost > energy_left:
+			continue
+		for effect in other.effects:
+			if is_malice and effect.is_damage():
+				total += maxi(effect.hits, 1)
+			elif not is_malice and effect.kind == CardEffect.Kind.BLOCK:
+				total += 1
+	return total
+
+
+## Raw damage of the other cards in hand (affordable or not): a rough "will the enemy die anyway" check.
+static func _other_damage_total(combat: Combat, hand_index: int) -> int:
+	var total := 0
+	for j in combat.piles.hand.size():
+		if j == hand_index:
+			continue
+		for effect in combat.piles.hand[j].effects:
+			if effect.kind == CardEffect.Kind.DAMAGE:
+				total += effect.amount * maxi(effect.hits, 1)
+	return total
 
 
 ## Energy playing `card` now spends: its cost, or everything there is for a Surge.
@@ -253,20 +393,14 @@ static func _haunted_count(combat: Combat) -> int:
 	return count
 
 
-## HP `enemy` would lose to a hit of `amount` (after Expose and its own block).
-static func _hp_lost(enemy: EnemyUnit, amount: int) -> int:
-	var hit := enemy.damage_after_status(amount)
-	return mini(maxi(hit - enemy.block, 0), enemy.hp)
-
-
-## HP `enemy` would lose to `hits` hits of `amount` each: Block absorbs across the hits and Expose
-## applies to every hit.
-static func _hits_hp_lost(enemy: EnemyUnit, amount: int, hits: int) -> int:
+## HP `enemy` would lose to `hits` hits of raw damage `amount` each from `attacker`: every hit goes through
+## the shared pipeline (attacker Malice and Shaken, then the enemy's Expose) and Block absorbs across the hits.
+static func _hits_hp_lost(attacker: Combatant, enemy: EnemyUnit, amount: int, hits: int) -> int:
 	var block := enemy.block
 	var hp := enemy.hp
 	var total := 0
 	for _h in hits:
-		var dealt := enemy.damage_after_status(amount)
+		var dealt := Combatant.hit_damage(amount, attacker, enemy)
 		var absorbed := mini(block, dealt)
 		block -= absorbed
 		var lost := mini(dealt - absorbed, hp)
@@ -275,19 +409,13 @@ static func _hits_hp_lost(enemy: EnemyUnit, amount: int, hits: int) -> int:
 	return total
 
 
-## Damage the enemy's next intent would deal to the player, 0 for other intents.
+## Damage the enemy's next intent would deal to the player (shared pipeline), 0 for other intents.
 static func _threat(combat: Combat, enemy: EnemyUnit) -> int:
-	var intent := enemy.current_intent()
-	if intent != null and intent.kind == CardEffect.Kind.DAMAGE:
-		return combat.player.damage_after_status(intent.amount)
-	return 0
+	return SimPolicy.intent_hit(combat, enemy)
 
 
 static func _incoming_damage(combat: Combat) -> int:
-	var total := 0
-	for enemy in combat.living_enemies():
-		total += _threat(combat, enemy)
-	return total
+	return SimPolicy._incoming_damage(combat)
 
 
 ## Sum of damage amounts of the other cards in hand that `energy_left` can pay for
@@ -426,8 +554,40 @@ static func card_score(card: CardData, weights: Dictionary) -> float:
 				total -= amount * 1.3
 			CardEffect.Kind.HEAL_PER_HAUNTED:
 				total += amount * HEAL_VALUE
+			CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
+				total += _stack_score(card, effect, weights)
+			CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
+				total += _debuff_score(card, effect)
 	# A Surge spends all its energy, so it is divided by a typical amount rather than its cost of 0.
 	return total / ((TYPICAL_SURGE_ENERGY if card.surge else card.cost) + 1)
+
+
+## Deck-scoring value of a Malice / Ward effect: a positive stack for the user is worth its amount on
+## TYPICAL_HITS_PER_TURN hits (or Block effects) a turn, for this turn only when temporary, else the
+## fight's typical remaining turns too; a negative one on an enemy is worth the damage it cuts from one
+## attack a turn (Malice) or half that (Ward, only matters against Block), and nothing when temporary.
+static func _stack_score(card: CardData, effect: CardEffect, weights: Dictionary) -> float:
+	var is_malice := effect.kind == CardEffect.Kind.MALICE
+	if effect.amount >= 0:
+		var turns := 1 if effect.temporary else TYPICAL_REMAINING_TURNS + 1
+		var weight: float = weights["damage"] if is_malice else weights["block"]
+		return effect.amount * TYPICAL_HITS_PER_TURN * turns * (MALICE_VALUE if is_malice else WARD_VALUE) * weight
+	if effect.temporary:
+		return 0.0
+	var cut := float(-effect.amount) * (TYPICAL_REMAINING_TURNS + 1)
+	return cut * PREVENTED_VALUE_COVERED * (2.0 if is_malice else 1.0)
+
+
+## Deck-scoring value of a Shaken / Frayed effect: on enemies, SHAKEN_TURNS_CAP turns of a quarter of a
+## typical TYPICAL_ENEMY_HIT (Frayed: of a typical Block); on the player a cost.
+static func _debuff_score(card: CardData, effect: CardEffect) -> float:
+	var shaken := effect.kind == CardEffect.Kind.SHAKEN
+	if card.target_mode == CardData.TargetMode.SELF:
+		return -(SELF_SHAKEN_COST if shaken else SELF_FRAYED_COST) * effect.amount
+	var turns := mini(effect.amount, SHAKEN_TURNS_CAP)
+	if shaken:
+		return turns * 0.25 * TYPICAL_ENEMY_HIT * PREVENTED_VALUE_COVERED * 2.0
+	return turns * 0.25 * TYPICAL_BLOCK * ENEMY_BLOCK_VALUE * 0.5
 
 
 ## Rough damage an effect is worth in a deck-scoring context (a typical Block, Haunt or number of
