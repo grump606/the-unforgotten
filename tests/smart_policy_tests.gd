@@ -21,6 +21,11 @@ func run() -> int:
 	_test_surge_spends_all_energy()
 	_test_multi_hit_scoring()
 	_test_keyword_hand_finishes_a_fight()
+	_test_estimates_use_the_pipeline()
+	_test_buffs_played_before_what_they_boost()
+	_test_shaken_timing_and_self_cost()
+	_test_every_new_kind_fight_finishes()
+	_test_run_stub_leak_check()
 	return _failures
 
 
@@ -365,11 +370,11 @@ func _test_multi_hit_scoring() -> void:
 	var single: Array[CardData] = [_card(&"x", 1, CardEffect.Kind.DAMAGE, 3)]
 	var combat := _combat_with_hand(single)
 	var enemy := combat.enemies[0]
-	_check(SmartPolicy._hits_hp_lost(enemy, 3, 3) == 9, "three hits of 3 remove 9 HP")
+	_check(SmartPolicy._hits_hp_lost(combat.player, enemy, 3, 3) == 9, "three hits of 3 remove 9 HP")
 	enemy.block = 4
-	_check(SmartPolicy._hits_hp_lost(enemy, 3, 3) == 5, "block absorbs across the hits (5 of 9 get through)")
+	_check(SmartPolicy._hits_hp_lost(combat.player, enemy, 3, 3) == 5, "block absorbs across the hits (5 of 9 get through)")
 	enemy.block = 0
-	_check(SmartPolicy._hits_hp_lost(enemy, 3, 99) == enemy.hp, "overkill is not counted")
+	_check(SmartPolicy._hits_hp_lost(combat.player, enemy, 3, 99) == enemy.hp, "overkill is not counted")
 	var effects: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.DAMAGE, 3, 0, 0, 3)]
 	var multi := CardData.make(&"multi", "Multi", 1, effects)
 	var hand: Array[CardData] = [multi]
@@ -402,3 +407,163 @@ func _test_keyword_hand_finishes_a_fight() -> void:
 				break
 			guard += 1
 		_check(combat.phase == Combat.Phase.ENDED and combat.enemies[0].is_dead(), "the bot wins a fight with keyword cards without stalling (smart %s, turns %d)" % [use_smart, guard])
+
+
+## A card of one effect on the given target mode (cost 1 unless given).
+func _one(kind: CardEffect.Kind, amount: int, mode: CardData.TargetMode, temporary: bool = false, cost: int = 1) -> CardData:
+	var effects: Array[CardEffect] = [CardEffect.make(kind, amount, 0, 0, 1, false, temporary)]
+	return CardData.make(&"one", "One", cost, effects, mode)
+
+
+## Both bots' incoming and outgoing estimates go through Combatant.hit_damage / block_from_card.
+func _test_estimates_use_the_pipeline() -> void:
+	var hand: Array[CardData] = [_card(&"x", 1, CardEffect.Kind.DAMAGE, 3)]
+	var combat := _combat_with_hand(hand)
+	var enemy := combat.enemies[0]
+	var enemies: Array[EnemyData] = [_enemy(30, 8)]
+	var fight := _combat([_card(&"y", 1, CardEffect.Kind.BLOCK, 4)], enemies)
+	var foe := fight.enemies[0]
+	_check(SimPolicy._incoming_damage(fight) == 8 and SmartPolicy._incoming_damage(fight) == 8, "baseline incoming damage is the intent")
+	foe.apply_status(Combatant.Status.MALICE, 2)
+	_check(SimPolicy._incoming_damage(fight) == 10 and SmartPolicy._incoming_damage(fight) == 10, "incoming damage includes enemy Malice")
+	foe.apply_status(Combatant.Status.SHAKEN, 1)
+	_check(SimPolicy._incoming_damage(fight) == 7 and SmartPolicy._incoming_damage(fight) == 7, "incoming damage includes enemy Shaken (10 x3/4 = 7)")
+	fight.player.apply_status(Combatant.Status.EXPOSED, 1)
+	var expected := Combatant.hit_damage(8, foe, fight.player)
+	_check(expected > 7 and SimPolicy._incoming_damage(fight) == expected and SmartPolicy._incoming_damage(fight) == expected, "incoming damage includes the player's Expose after Malice and Shaken")
+	# Outgoing: the player's Malice and Shaken, then the enemy's Expose.
+	_check(SmartPolicy._hits_hp_lost(combat.player, enemy, 3, 1) == 3, "baseline card damage")
+	combat.player.apply_status(Combatant.Status.MALICE, 2)
+	_check(SmartPolicy._hits_hp_lost(combat.player, enemy, 3, 2) == 10, "card damage includes player Malice per hit")
+	combat.player.apply_status(Combatant.Status.SHAKEN, 1)
+	_check(SmartPolicy._hits_hp_lost(combat.player, enemy, 3, 1) == 3, "card damage includes player Shaken ((3+2) x3/4 = 3)")
+	enemy.apply_status(Combatant.Status.EXPOSED, 1)
+	_check(SmartPolicy._hits_hp_lost(combat.player, enemy, 3, 1) == Combatant.hit_damage(3, combat.player, enemy), "card damage includes the enemy's Expose")
+	# Block: Ward adds, Frayed cuts.
+	var guard := _card(&"g", 1, CardEffect.Kind.BLOCK, 4)
+	var g_hand: Array[CardData] = [guard]
+	var blocking := _combat_with_hand(g_hand)
+	blocking.enemies[0].apply_status(Combatant.Status.MALICE, 20)
+	var plain := SmartPolicy._play_value(blocking, 0, -1)
+	blocking.player.apply_status(Combatant.Status.WARD, 2)
+	var warded := SmartPolicy._play_value(blocking, 0, -1)
+	_check(warded > plain, "a Block card is worth more with Ward (%f vs %f)" % [warded, plain])
+	blocking.player.apply_status(Combatant.Status.WARD, -2)
+	blocking.player.apply_status(Combatant.Status.FRAYED, 1)
+	var frayed := SmartPolicy._play_value(blocking, 0, -1)
+	_check(frayed < plain, "a Block card is worth less when Frayed (%f vs %f)" % [frayed, plain])
+
+
+## Malice is gained before the attacks it boosts, and Ward before the Block cards.
+func _test_buffs_played_before_what_they_boost() -> void:
+	for use_smart in [false, true]:
+		var gain := _one(CardEffect.Kind.MALICE, 2, CardData.TargetMode.SELF)
+		var hit := _card(&"hit", 1, CardEffect.Kind.DAMAGE, 5)
+		var hand: Array[CardData] = [hit, gain]
+		var combat := _combat_with_hand(hand, 40)
+		_check(_play(combat, use_smart), "Malice hand plays a turn (smart %s)" % use_smart)
+		_check(combat.enemies[0].hp == 40 - 7, "Malice is gained before the hit: 5 + 2 damage (smart %s, hp %d)" % [use_smart, combat.enemies[0].hp])
+	var ward := _one(CardEffect.Kind.WARD, 2, CardData.TargetMode.SELF)
+	var guard := _card(&"g", 1, CardEffect.Kind.BLOCK, 4)
+	var hand2: Array[CardData] = [guard, ward]
+	var combat2 := _combat_with_hand(hand2, 40)
+	_check(SimPolicy._pick_card(combat2) == 1, "greedy gains Ward before the Block card")
+	_check(SmartPolicy._play_value(combat2, 1, -1) > SmartPolicy._play_value(combat2, 0, -1), "smart values Ward above the Block card it boosts")
+	# A temporary Malice is worth something only with a card to boost.
+	var temp := _one(CardEffect.Kind.MALICE, 2, CardData.TargetMode.SELF, true)
+	var with_hit: Array[CardData] = [_card(&"hit", 1, CardEffect.Kind.DAMAGE, 5), temp]
+	var c := _combat_with_hand(with_hit, 40)
+	var alone: Array[CardData] = [temp]
+	var c_alone := _combat_with_hand(alone, 40)
+	_check(SmartPolicy._play_value(c, 1, -1) > 0.0 and SmartPolicy._play_value(c_alone, 0, -1) == 0.0, "temporary Malice is worth something only with a card to boost")
+	_check(SimPolicy._pick_card(c_alone) == -1, "greedy skips a temporary Malice with nothing to boost")
+
+
+## Shaken on an enemy is played before a big hit but not onto a nearly dead enemy; a self-Shaken is never
+## played for nothing.
+func _test_shaken_timing_and_self_cost() -> void:
+	var shake := _one(CardEffect.Kind.SHAKEN, 2, CardData.TargetMode.SINGLE_ENEMY)
+	var enemies: Array[EnemyData] = [_enemy(40, 14)]
+	var big := _combat([shake], enemies)
+	_check(SmartPolicy._play_value(big, 0, 0) > 0.0, "Shaken is worth playing before a big hit")
+	_check(_play(big, true) and big.enemies[0].status_turns(Combatant.Status.SHAKEN) > 0, "the smart bot plays Shaken on a big attacker")
+	var big_g := _combat([shake], enemies)
+	_check(_play(big_g, false) and big_g.enemies[0].status_turns(Combatant.Status.SHAKEN) > 0, "the greedy bot plays Shaken on a big attacker")
+	var hit := _card(&"hit", 1, CardEffect.Kind.DAMAGE, 6)
+	var near_dead := _combat_with_hand([shake, hit] as Array[CardData], 5)
+	_check(SmartPolicy._play_value(near_dead, 0, 0) == 0.0, "Shaken is worth nothing on an enemy the hand kills")
+	_check(_play(near_dead, true) and near_dead.enemies[0].is_dead() and near_dead.enemies[0].status_turns(Combatant.Status.SHAKEN) == 0, "the smart bot kills instead of shaking a nearly dead enemy")
+	var block_intent: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.BLOCK, 3)]
+	var passive_enemy: Array[EnemyData] = [EnemyData.make("e", 30, block_intent)]
+	var passive := _combat([shake], passive_enemy)
+	_check(SmartPolicy._play_value(passive, 0, 0) == 0.0, "Shaken is worth nothing on an enemy with no attack")
+	# Self-targeted Shaken / Frayed: a pure cost.
+	for kind in [CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED]:
+		var self_cost := _one(kind, 1, CardData.TargetMode.SELF)
+		for use_smart in [false, true]:
+			var combat := _combat([self_cost], enemies)
+			_check(SmartPolicy._play_value(combat, 0, -1) < 0.0, "a self-targeted debuff has negative value")
+			_check(_play(combat, use_smart), "turn with only a self-debuff card ends")
+			_check(combat.player.status_turns(Combatant.Status.SHAKEN) == 0 and combat.player.status_turns(Combatant.Status.FRAYED) == 0, "the bot never plays a self-debuff for nothing (smart %s)" % use_smart)
+
+
+## A seeded fight whose deck holds every new kind (both signs, temporary and not, self and enemy targets)
+## finishes for both bots with no stall and no illegal move.
+func _test_every_new_kind_fight_finishes() -> void:
+	var enemy_intents: Array[CardEffect] = [
+		CardEffect.make(CardEffect.Kind.DAMAGE, 6),
+		CardEffect.make(CardEffect.Kind.BLOCK, 6),
+		CardEffect.make(CardEffect.Kind.SHAKEN, 1),
+		CardEffect.make(CardEffect.Kind.MALICE, 1),
+		CardEffect.make(CardEffect.Kind.DAMAGE, 5),
+	]
+	for use_smart in [false, true]:
+		var deck: Array[CardData] = [
+			_card(&"a", 1, CardEffect.Kind.DAMAGE, 5),
+			_card(&"b", 1, CardEffect.Kind.DAMAGE, 6),
+			_card(&"c", 1, CardEffect.Kind.BLOCK, 5),
+			_one(CardEffect.Kind.MALICE, 2, CardData.TargetMode.SELF),
+			_one(CardEffect.Kind.MALICE, 3, CardData.TargetMode.SELF, true),
+			_one(CardEffect.Kind.WARD, 2, CardData.TargetMode.SELF),
+			_one(CardEffect.Kind.WARD, 2, CardData.TargetMode.SELF, true),
+			_one(CardEffect.Kind.SHAKEN, 2, CardData.TargetMode.SINGLE_ENEMY),
+			_one(CardEffect.Kind.FRAYED, 2, CardData.TargetMode.SINGLE_ENEMY),
+			_one(CardEffect.Kind.MALICE, -2, CardData.TargetMode.SINGLE_ENEMY),
+			_one(CardEffect.Kind.WARD, -2, CardData.TargetMode.SINGLE_ENEMY),
+			_one(CardEffect.Kind.SHAKEN, 1, CardData.TargetMode.SELF),
+			_one(CardEffect.Kind.FRAYED, 1, CardData.TargetMode.SELF),
+		]
+		var enemies: Array[EnemyData] = [EnemyData.make("e", 60, enemy_intents)]
+		var combat := Combat.new(Combatant.new("p", 80), deck, enemies, 11)
+		combat.start()
+		var turns := 0
+		while combat.phase == Combat.Phase.PLAYER_TURN and turns < 60:
+			var ok := _play(combat, use_smart)
+			_check(ok, "every-kind turn is legal (smart %s)" % use_smart)
+			if not ok:
+				break
+			turns += 1
+		_check(combat.phase == Combat.Phase.ENDED, "the every-kind fight finishes without a stall (smart %s, turns %d)" % [use_smart, turns])
+		# The card scorers handle every kind (finite numbers).
+		var weights := {"damage": 1.0, "block": 1.0}
+		for card in deck:
+			var score := SmartPolicy.card_score(card, weights)
+			_check(not is_nan(score) and not is_inf(score), "card_score is finite for every kind")
+
+
+## run_stub's leak check sees leftover Shaken, Frayed, Malice and Ward, temporary stacks included.
+func _test_run_stub_leak_check() -> void:
+	var stub: GDScript = load("res://tools/run_stub.gd")
+	var player := Combatant.new("p", 40)
+	_check(stub.leaked_state(player) == "", "a clean player leaks nothing")
+	for status in [Combatant.Status.SHAKEN, Combatant.Status.FRAYED, Combatant.Status.MALICE, Combatant.Status.WARD, Combatant.Status.EXPOSED]:
+		var dirty := Combatant.new("p", 40)
+		dirty.apply_status(status, 1)
+		_check(stub.leaked_state(dirty) != "", "leftover status %d is caught" % status)
+	for status in [Combatant.Status.MALICE, Combatant.Status.WARD]:
+		var temp := Combatant.new("p", 40)
+		temp.apply_temp_stack(status, 2)
+		_check(stub.leaked_state(temp) != "", "a leftover temporary stack of status %d is caught" % status)
+	var blocked := Combatant.new("p", 40)
+	blocked.block = 3
+	_check(stub.leaked_state(blocked) != "", "leftover Block is caught")
