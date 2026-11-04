@@ -373,7 +373,7 @@ func _initialize() -> void:
 	check(node._target_index == 2, "shift-tab back skips defeated")
 	key(node, KEY_LEFT)
 	check(node._target_index == 0, "left")
-	# The card played above may have drawn extra cards (Second Wind, Steady Breath), leaving more than
+	# The card played above may have drawn extra cards (Borrowed Breath, Steady Breath), leaving more than
 	# HAND_SIZE in hand; then the discard step rightly asks to "Discard N more" instead of "Keep all".
 	# Trim to a keepable hand so the Keep all / E, E steps below do not depend on the random draw.
 	while c.piles.hand.size() > Combat.HAND_SIZE:

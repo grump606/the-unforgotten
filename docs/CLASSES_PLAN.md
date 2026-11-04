@@ -7,7 +7,7 @@ Three playable characters (Deserter, Thief, Medium), each with a class card pool
 ## Decisions assumed (change any before Phase 1)
 
 - Neutral pool: Slip Past, Brace, Shove, Glimpse the Exit, Flurry, Sweep.
-- Existing non-neutral cards move into classes: Deserter gets Shoulder Charge, Iron Resolve, Guarded Strike, Heavy Blow, Steady Breath. Thief gets Mark the Weak, Cutting Word, Hamstring, Second Wind. The Medium has no existing cards.
+- Existing non-neutral cards move into classes: Deserter gets Shoulder Charge, Iron Resolve, Guarded Strike, Heavy Blow, Steady Breath. Thief gets Find the Seam, Cutting Word, Hamstring, Borrowed Breath. The Medium has no existing cards.
 - Starting deck (10 cards): 3 Shove, 2 Slip Past, 1 Glimpse the Exit, plus 4 class cards.
 - Starting HP: Deserter 47, Thief 34, Medium 41 (tuned in Phase 6; the Medium's HP-cost cards make it the most HP-sensitive class).
 - Counter-Stance keeps its thorns effect (the costliest new mechanic; swap it if it proves awkward).
@@ -21,7 +21,7 @@ Neutral (cost, effect): Slip Past (1, Block 5), Brace (0, Block 2), Shove (1, Da
 
 **Deserter** (starting class cards in bold). New: **Hold the Line** (1, Block 5, Hold 2), **Bash** (1, Damage equal to current Block), Dig In (0, Block 2, Hold 2), Cold Steel (1, Damage 5, or 10 with 10+ Block), Counter-Stance (2, Block 8, thorns 4 this enemy phase), Last Stand (3, Block 14, Hold 10). Existing: **Shoulder Charge**, **Iron Resolve**, Guarded Strike, Heavy Blow, Steady Breath.
 
-**Thief**. New: **Lift** (1, Damage 3, Draw 1), **Sleight** (0, Expose 1), Pocket Watch (1, gain 1 energy, Draw 1), Last Pocket (1, Damage 4 plus 3 per card played earlier this turn), Spree (2, Damage 2 per card played this turn, counting itself). Existing: **Mark the Weak**, Cutting Word, Hamstring, Second Wind.
+**Thief**. New: **Filch** (1, Damage 3, Draw 1), **Light Fingers** (0, Expose 1), Borrowed Time (1, gain 1 energy, Draw 1), Last Keepsake (1, Damage 4 plus 3 per card played earlier this turn), Many Hands (2, Damage 2 per card played this turn, counting itself). Existing: **Find the Seam**, Cutting Word, Hamstring, Borrowed Breath.
 
 **Medium**. All new: **Confess** (1, lose 4 HP, Damage 12), **Lingering Dread** (1, Haunt 4), **Penance** (1, lose 2 HP, Block 8), **Cold Whisper** (0, Haunt 2), Grave Chill (2, Damage 6, Haunt 3), Spirit Tithe (1, heal 3 per Haunted enemy), Seance (1, lose 3 HP, Draw 3, gain 1 energy), Bleed the Veil (2, lose 6 HP, Haunt 8 to all), Reckoning (2, Damage equal to double the target's Haunt).
 

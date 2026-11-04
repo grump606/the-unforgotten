@@ -75,7 +75,7 @@ func _test_prices() -> void:
 	# The free cycling cards must not sit in the cheapest tier next to plain block.
 	var second_wind := load(StarterContent.SECOND_WIND_PATH) as CardData
 	var brace := load(StarterContent.BRACE_PATH) as CardData
-	_check(Vendor.card_price(second_wind) > Vendor.card_price(brace), "Second Wind (free block + draw) costs more than Brace (free block)")
+	_check(Vendor.card_price(second_wind) > Vendor.card_price(brace), "Borrowed Breath (free block + draw) costs more than Brace (free block)")
 	_check(Vendor.PRICE_CHEAP < Vendor.PRICE_MID and Vendor.PRICE_MID < Vendor.PRICE_PRICEY, "tiers ascend")
 
 
@@ -207,12 +207,12 @@ func _test_payoff_pricing() -> void:
 	var spree := load("res://data/cards/spree.tres") as CardData
 	var reckoning := load("res://data/cards/reckoning.tres") as CardData
 	var last_pocket := load("res://data/cards/last_pocket.tres") as CardData
-	_check(Vendor.card_price(spree) > Vendor.PRICE_CHEAP, "Spree prices above the cheap tier")
+	_check(Vendor.card_price(spree) > Vendor.PRICE_CHEAP, "Many Hands prices above the cheap tier")
 	_check(Vendor.card_price(reckoning) > Vendor.PRICE_CHEAP, "Reckoning prices above the cheap tier")
-	_check(Vendor.card_price(last_pocket) > Vendor.PRICE_CHEAP, "Last Pocket prices above the cheap tier")
-	_check(Vendor.card_value(reckoning) > Vendor.card_value(spree), "Reckoning (2 energy, x2 Haunt) is worth more than Spree")
+	_check(Vendor.card_price(last_pocket) > Vendor.PRICE_CHEAP, "Last Keepsake prices above the cheap tier")
+	_check(Vendor.card_value(reckoning) > Vendor.card_value(spree), "Reckoning (2 energy, x2 Haunt) is worth more than Many Hands")
 	var plain_two := CardData.make(&"t_plain2", "Plain", 2, [CardEffect.make(CardEffect.Kind.DAMAGE, 2)] as Array[CardEffect])
-	_check(Vendor.card_value(spree) > Vendor.card_value(plain_two), "Spree is worth more than its base damage alone")
+	_check(Vendor.card_value(spree) > Vendor.card_value(plain_two), "Many Hands is worth more than its base damage alone")
 	var free_energy := CardData.make(&"t_energy", "Energy", 0, [CardEffect.make(CardEffect.Kind.GAIN_ENERGY, 1)] as Array[CardEffect])
 	_check(Vendor.card_price(free_energy) > Vendor.PRICE_CHEAP - 1 and Vendor.card_value(free_energy) == Vendor.ENERGY_VALUE, "gained energy has a deliberate value")
 	var costly := CardData.make(&"t_hpcost", "HP", 1, [CardEffect.make(CardEffect.Kind.DAMAGE, 8), CardEffect.make(CardEffect.Kind.LOSE_HP, 4)] as Array[CardEffect])
