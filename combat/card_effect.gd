@@ -28,14 +28,22 @@ enum Kind { DAMAGE, BLOCK, DRAW, EXPOSE, HOLD, DAMAGE_PER_BLOCK, DAMAGE_IF_BLOCK
 ## Second number for kinds that need one (see DAMAGE_IF_BLOCK); 0 otherwise.
 @export var bonus: int = 0
 @export var threshold: int = 0
+## Multi-hit: a damage effect applies this many times (each hit is separate for Block, Expose and
+## Barbs). Values below 1 count as 1.
+@export var hits: int = 1
+## Surge scaling: on a Surge card the energy spent multiplies `hits` (damage kinds) or `amount`
+## (every other kind). Ignored on a card without Surge and on enemy intents.
+@export var per_energy: bool = false
 
 
-static func make(effect_kind: Kind, effect_amount: int, effect_bonus: int = 0, effect_threshold: int = 0) -> CardEffect:
+static func make(effect_kind: Kind, effect_amount: int, effect_bonus: int = 0, effect_threshold: int = 0, effect_hits: int = 1, effect_per_energy: bool = false) -> CardEffect:
 	var effect := CardEffect.new()
 	effect.kind = effect_kind
 	effect.amount = effect_amount
 	effect.bonus = effect_bonus
 	effect.threshold = effect_threshold
+	effect.hits = effect_hits
+	effect.per_energy = effect_per_energy
 	return effect
 
 
@@ -77,7 +85,23 @@ func raw_damage(source_block: int, target_haunt: int, plays_including_this: int)
 	return 0
 
 
+## Text of the effect. Suffix wording: multi-hit damage appends " x2" ("Deal 3 x2"); per_energy
+## damage reads "Deal 3 x energy spent" (its hits scale with the energy) and any other per_energy
+## effect appends " per energy spent" ("Block 4 per energy spent").
 func describe() -> String:
+	var text := _describe_base()
+	if is_damage():
+		if per_energy:
+			return "%s x energy spent" % text
+		if hits > 1:
+			return "%s x%d" % [text, hits]
+		return text
+	if per_energy:
+		return "%s per energy spent" % text
+	return text
+
+
+func _describe_base() -> String:
 	match kind:
 		Kind.DAMAGE:
 			return "Deal %d" % amount
