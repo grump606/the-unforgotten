@@ -315,20 +315,20 @@ func _test_damage_per_play() -> void:
 	for i in 3:
 		_play(again, many[i])
 	again.end_player_turn()
-	# A deck of four cards is redrawn whole, so Last Pocket is in the new hand.
+	# A deck of four cards is redrawn whole, so Last Keepsake is in the new hand.
 	_play(again, last_pocket)
 	_check(again.enemies[0].hp == 96, "the count resets with the new turn (a first play deals the base 4)")
 
-	# Spree: 2 per card played, counting itself.
+	# Many Hands: 2 per card played, counting itself.
 	var spree := _attack_card(0, [_fx(CardEffect.Kind.DAMAGE_PER_PLAY, 2, 2)])
 	var alone := _fight([spree])
 	_play(alone, spree)
-	_check(alone.enemies[0].hp == 98, "Spree alone deals 2")
+	_check(alone.enemies[0].hp == 98, "Many Hands alone deals 2")
 	var after_two := _fight([filler_a, filler_b, spree])
 	_play(after_two, filler_a)
 	_play(after_two, filler_b)
 	_play(after_two, spree)
-	_check(after_two.enemies[0].hp == 94, "Spree as the third card deals 2 x 3 = 6")
+	_check(after_two.enemies[0].hp == 94, "Many Hands as the third card deals 2 x 3 = 6")
 
 	# Every target of an all-enemies card takes the same scaled damage.
 	var sweep := CardData.make(&"s", "S", 0, [_fx(CardEffect.Kind.DAMAGE_PER_PLAY, 1, 1)], CardData.TargetMode.ALL_ENEMIES)
@@ -352,12 +352,12 @@ func _test_thief_cards() -> void:
 		cards[card.id] = card
 	for id in [&"lift", &"sleight", &"pocket_watch", &"last_pocket", &"spree"]:
 		_check(cards.has(id) and (cards[id] as CardData).character == &"thief", "%s is a Thief card" % id)
-	_check(cards[&"lift"].describe() == "Deal 3, Draw 1", "Lift text")
-	_check(cards[&"pocket_watch"].describe() == "Gain 1 energy, Draw 1", "Pocket Watch text")
-	_check(cards[&"last_pocket"].describe() == "Deal 4, +3 for each card played earlier this turn", "Last Pocket text")
-	_check(cards[&"sleight"].cost == 0 and cards[&"lift"].cost == 1 and cards[&"spree"].cost == 2, "costs: Sleight 0, Lift 1, Spree 2")
+	_check(cards[&"lift"].describe() == "Deal 3, Draw 1", "Filch text")
+	_check(cards[&"pocket_watch"].describe() == "Gain 1 energy, Draw 1", "Borrowed Time text")
+	_check(cards[&"last_pocket"].describe() == "Deal 4, +3 for each card played earlier this turn", "Last Keepsake text")
+	_check(cards[&"sleight"].cost == 0 and cards[&"lift"].cost == 1 and cards[&"spree"].cost == 2, "costs: Light Fingers 0, Filch 1, Many Hands 2")
 
-	# A real chain: Sleight (0) exposes, Pocket Watch (net 0 energy), Last Pocket (third card).
+	# A real chain: Light Fingers (0) exposes, Borrowed Time (net 0 energy), Last Keepsake (third card).
 	var sleight: CardData = cards[&"sleight"]
 	var watch: CardData = cards[&"pocket_watch"]
 	var last_pocket: CardData = cards[&"last_pocket"]
@@ -365,9 +365,9 @@ func _test_thief_cards() -> void:
 	chain.start()
 	chain.play_card(chain.piles.hand.find(sleight), 0)
 	chain.play_card(chain.piles.hand.find(watch))
-	_check(chain.energy == Combat.ENERGY_PER_TURN, "Sleight and Pocket Watch together cost no energy")
+	_check(chain.energy == Combat.ENERGY_PER_TURN, "Light Fingers and Borrowed Time together cost no energy")
 	chain.play_card(chain.piles.hand.find(last_pocket), 0)
-	_check(chain.enemies[0].hp == 100 - (4 + 3 * 2) * 3 / 2, "Last Pocket as the third card on an Exposed target deals (4 + 6) x 1.5 = 15")
+	_check(chain.enemies[0].hp == 100 - (4 + 3 * 2) * 3 / 2, "Last Keepsake as the third card on an Exposed target deals (4 + 6) x 1.5 = 15")
 
 
 ## Every CardEffect.Kind must have a describe text, a vendor valuation and a Combat handler. Adding a

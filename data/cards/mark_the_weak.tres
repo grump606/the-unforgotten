@@ -11,7 +11,7 @@ amount = 2
 [resource]
 script = ExtResource("1_card")
 id = &"mark_the_weak"
-display_name = "Mark the Weak"
+display_name = "Find the Seam"
 cost = 1
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_effect")])
 character = &"thief"
