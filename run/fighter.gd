@@ -65,6 +65,10 @@ var art_key: StringName = &"ghost"
 var class_id: StringName = &""
 var figure_height := DEFAULT_HEIGHT
 var targeted := false
+## Drag-and-drop feedback, see set_drop_hover.
+var drop_hover := false
+var drop_text := ""
+var drop_lost := -1
 ## A boss is drawn BOSS_SCALE larger and has no per-figure HP bar (the battle shows a wide one on top).
 var is_boss := false
 ## Extra scale of the drawn figure (the boss entrance tweens it up to 1).
@@ -237,6 +241,16 @@ func is_defeated() -> bool:
 
 func set_targeted(value: bool) -> void:
 	targeted = value
+	queue_redraw()
+
+
+## While a card is dragged over this enemy: ring it, show the card's result on it as a label
+## (`text` such as "Deals 15 (6 vs Exposed), 2 after Block") and ghost the HP it would take
+## (`lost`, -1 for none) on the bar. set_drop_hover(false) clears all three.
+func set_drop_hover(on: bool, text := "", lost := -1) -> void:
+	drop_hover = on
+	drop_text = text.strip_edges() if on else ""
+	drop_lost = lost if on else -1
 	queue_redraw()
 
 
@@ -452,7 +466,31 @@ func _draw() -> void:
 		var mx := size.x / 2.0
 		var my := 4.0 + sin(time * 4.0) * 2.0
 		draw_colored_polygon(PackedVector2Array([Vector2(mx - 9, my), Vector2(mx + 9, my), Vector2(mx, my + 9)]), CardView.SELECT_GOLD)
+	if drop_hover and not is_defeated():
+		_draw_drop_hover(ground)
 	_draw_floats()
+
+
+## The drag target look: a bright ring at the feet and, over the figure, the card's result in a pill
+## (one line per clause, so it stays narrow).
+func _draw_drop_hover(ground: Vector2) -> void:
+	var rx := figure_width() * 0.5 + 10.0
+	var pts := PackedVector2Array()
+	for i in 33:
+		var ang := TAU * i / 32.0
+		pts.append(ground + Vector2(cos(ang) * rx, sin(ang) * rx * 0.16))
+	draw_polyline(pts, Color(1, 1, 1, 0.95), 3.0, true)
+	if drop_text == "":
+		return
+	var lines := drop_text.split(", ")
+	var line_h := 20.0
+	var width := 0.0
+	for line in lines:
+		width = maxf(width, line.length() * 7.5 + 18.0)
+	var box := Rect2(Vector2(size.x / 2.0 - width / 2.0, OVERHEAD + figure_height * 0.4), Vector2(width, line_h * lines.size() + 6.0))
+	HudIcons.box(self, box, Color(0.04, 0.03, 0.05, 0.92), 8, 2, CardView.SELECT_GOLD)
+	for i in lines.size():
+		HudIcons.text(self, lines[i], Rect2(box.position + Vector2(0, 3.0 + line_h * i), Vector2(width, line_h)), 13, Color(0.97, 0.95, 0.92), true, 3)
 
 
 func draw_ellipse_shadow(c: Vector2, rx: float, col: Color) -> void:
@@ -564,6 +602,13 @@ func _draw_bar(a: float) -> void:
 	var ratio := clampf(float(unit.hp) / maxf(float(unit.max_hp), 1.0), 0.0, 1.0)
 	if ratio > 0.0:
 		HudIcons.box(self, Rect2(bar.position + Vector2(1, 1), Vector2(maxf((bar.size.x - 2) * ratio, 4.0), bar.size.y - 2)), Color(CardView.HP_RED, a), 3)
+	if drop_hover and drop_lost > 0:
+		# The HP the card would take, ghosted in gold between what would remain and what is there now.
+		var inner := bar.size.x - 2.0
+		var left := clampf(float(unit.hp - drop_lost) / maxf(float(unit.max_hp), 1.0), 0.0, 1.0) * inner
+		var right := ratio * inner
+		if right > left:
+			HudIcons.box(self, Rect2(bar.position + Vector2(1.0 + left, 1.0), Vector2(right - left, bar.size.y - 2.0)), Color(CardView.SELECT_GOLD, 0.9 * a), 3)
 	HudIcons.text(self, "%d/%d" % [maxi(unit.hp, 0), unit.max_hp], bar, 12, Color(1, 1, 1, a), true, 3)
 	if has_block:
 		var pop := 1.0 + sin(_pop * PI) * 0.35

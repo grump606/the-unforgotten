@@ -63,6 +63,13 @@ const KEYWORDS := {
 signal pressed
 ## Emitted when the pointer enters or leaves (also via set_hovered), for cards that auto_hover.
 signal hover_changed(inside: bool)
+## Drag lifecycle of a `draggable` card; positions are in viewport coordinates.
+signal drag_started
+signal drag_moved(global_pos: Vector2)
+signal drag_ended(global_pos: Vector2)
+signal drag_cancelled
+## Pixels the pointer must travel with the button held before a press counts as a drag, not a click.
+const DRAG_THRESHOLD := 8.0
 
 var card: CardData
 ## Which palette the current card uses: &"" (neutral) or a class id.
@@ -100,6 +107,12 @@ var clickable := false:
 		clickable = value
 		_update_mouse_filter()
 
+## When true (and the card is not Unplayable) the card can be dragged out of the hand. Off by default.
+var draggable := false
+
+var _pressing := false
+var _dragging := false
+var _press_global := Vector2.ZERO
 var _hovered := false
 var _tilt := Vector2.ZERO
 ## 0 (resting) to 1 (raised); eases over LIFT_TIME unless reduced_motion.
@@ -230,12 +243,50 @@ func _update_mouse_filter() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP if clickable else (Control.MOUSE_FILTER_PASS if auto_hover else Control.MOUSE_FILTER_IGNORE)
 
 
-## Like a Button, a click counts when the mouse is released over the card.
+## Like a Button, a click counts when the mouse is released over the card. A draggable card that
+## the pointer moves DRAG_THRESHOLD away from while held becomes a drag instead: the owner gets
+## drag_started / drag_moved and then drag_ended (or drag_cancelled), and `pressed` does not fire.
 func _gui_input(event: InputEvent) -> void:
 	var click := event as InputEventMouseButton
-	if click != null and click.button_index == MOUSE_BUTTON_LEFT and not click.pressed and is_clickable() and Rect2(Vector2.ZERO, size).has_point(click.position):
-		accept_event()
-		pressed.emit()
+	if click != null and click.button_index == MOUSE_BUTTON_LEFT and click.pressed:
+		_pressing = draggable and is_clickable()
+		_press_global = click.global_position
+		return
+	if click != null and click.button_index == MOUSE_BUTTON_RIGHT and click.pressed and _pressing:
+		cancel_drag()
+		return
+	var motion := event as InputEventMouseMotion
+	if motion != null and _pressing:
+		if not _dragging and motion.global_position.distance_to(_press_global) >= DRAG_THRESHOLD:
+			_dragging = true
+			drag_started.emit()
+		if _dragging:
+			drag_moved.emit(motion.global_position)
+		return
+	if click != null and click.button_index == MOUSE_BUTTON_LEFT and not click.pressed:
+		var was_dragging := _dragging
+		_pressing = false
+		_dragging = false
+		if was_dragging:
+			accept_event()
+			drag_ended.emit(click.global_position)
+		elif is_clickable() and Rect2(Vector2.ZERO, size).has_point(click.position):
+			accept_event()
+			pressed.emit()
+
+
+## True while a drag that started on this card is in progress.
+func is_dragging() -> bool:
+	return _dragging
+
+
+## Abandons a press or drag in progress (Esc, right-click): the release that follows does nothing.
+func cancel_drag() -> void:
+	var was_dragging := _dragging
+	_pressing = false
+	_dragging = false
+	if was_dragging:
+		drag_cancelled.emit()
 
 
 ## Sets the hover look directly (the owner uses this to restore it after rebuilding a view under the pointer).
