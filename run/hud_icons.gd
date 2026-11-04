@@ -37,7 +37,7 @@ static func shield(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void:
 static func intent(ci: CanvasItem, kind: int, c: Vector2, col: Color, size := 1.0) -> void:
 	var bright := col.lightened(0.3)
 	match kind:
-		CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT:
+		CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
 			var rot := PI / 4.0
 			var blade := PackedVector2Array()
 			for u in [Vector2(0, -1.0), Vector2(0.2, -0.75), Vector2(0.2, 0.25), Vector2(-0.2, 0.25), Vector2(-0.2, -0.75)]:
@@ -62,6 +62,28 @@ static func intent(ci: CanvasItem, kind: int, c: Vector2, col: Color, size := 1.
 			status(ci, &"malice", c, bright, 2.0 * size)
 		CardEffect.Kind.WARD:
 			status(ci, &"ward", c, bright, 2.0 * size)
+		CardEffect.Kind.ADD_CARD: # a card with a plus: something is shuffled into your cards
+			var back := PackedVector2Array([c + Vector2(-7, -8) * size, c + Vector2(2, -8) * size, c + Vector2(2, 4) * size, c + Vector2(-7, 4) * size])
+			ci.draw_colored_polygon(back, col)
+			var front := PackedVector2Array([c + Vector2(-2, -4) * size, c + Vector2(7, -4) * size, c + Vector2(7, 8) * size, c + Vector2(-2, 8) * size])
+			ci.draw_colored_polygon(front, bright)
+			ci.draw_line(c + Vector2(2.5, 0.5) * size, c + Vector2(2.5, 6) * size, col.darkened(0.6), 1.6)
+			ci.draw_line(c + Vector2(-0.2, 3.2) * size, c + Vector2(5.2, 3.2) * size, col.darkened(0.6), 1.6)
+		CardEffect.Kind.GLIMPSE: # an eye
+			var almond := PackedVector2Array()
+			for i in 7:
+				var x := -1.0 + i / 3.0
+				almond.append(c + Vector2(x * 9.0, -5.0 * (1.0 - x * x)) * size)
+			for i in 7:
+				var x := 1.0 - i / 3.0
+				almond.append(c + Vector2(x * 9.0, 5.0 * (1.0 - x * x)) * size)
+			ci.draw_colored_polygon(almond, bright)
+			ci.draw_circle(c, 3.2 * size, col.darkened(0.6))
+			ci.draw_circle(c, 1.6 * size, bright)
+		CardEffect.Kind.RECALL: # a returning arrow
+			ci.draw_arc(c, 6.0 * size, deg_to_rad(-60), deg_to_rad(215), 14, bright, 2.2 * size, true)
+			var tip := c + Vector2.from_angle(deg_to_rad(215)) * 6.0 * size
+			ci.draw_colored_polygon(PackedVector2Array([tip + Vector2(0.2, -4.6) * size, tip + Vector2(3.6, 2.4) * size, tip + Vector2(-3.8, 2.4) * size]), bright)
 		_:
 			diamond(ci, c, 7.0 * size, bright)
 
