@@ -35,6 +35,7 @@ The numbers are tuned against bots, not people. Play with a pen: note what felt 
 - [ ] Intent and HP readouts, the log toggle, the damage preview on cards.
 - [ ] Backdrops in motion (battle, rest, vendor), the main menu and character select, the pause menu (centred in a normal launch).
 - [ ] Anything that stutters or drops frames (note the screen and the GPU).
+- [ ] Dragging a card to an enemy: attack and area cards drag, self cards do not, a plain click still plays on the selected enemy. Over each enemy the label and gold HP ghost match what the hit then does (Block, Exposed). A drop plays on that enemy without changing the selected one; releasing elsewhere, Esc or right-click cancels. Does the 8 px start distance feel right on a trackpad or touch screen? Is the label readable over the biggest figures, and over a boss (which has its top bar instead of a per-figure HP bar)?
 
 ## Update flow (once)
 - [ ] With v0.6.3 installed, launch it: a notice offers v0.6.4.
