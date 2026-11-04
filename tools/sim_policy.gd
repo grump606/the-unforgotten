@@ -4,24 +4,111 @@ extends RefCounted
 ## Uses only the public Combat API.
 
 
+## Most choices one call settles (a card queues a handful at most); the cap only guards a stuck engine.
+const MAX_CHOICES_PER_CALL := 32
+
+
 ## Plays cards until the policy passes or the fight ends, then ends the turn.
 ## Combat.MAX_PLAYS_PER_TURN stops a self-recycling zero-cost deck (no card is
 ## playable once it is hit), so this always terminates. Returns false (after
 ## logging) if the policy picked an unplayable card.
 static func play_turn(combat: Combat) -> bool:
 	while true:
+		# An open Glimpse / Recall pick blocks everything else, so it is settled before each decision.
+		if not resolve_choices(combat):
+			return false
+		if combat.phase != Combat.Phase.PLAYER_TURN:
+			return true
 		var pick := _pick_card(combat)
 		if pick == -1:
 			break
 		if not combat.play_card(pick, _target_for(combat, combat.piles.hand[pick])):
 			printerr("SimPolicy: policy chose an unplayable card (index %d)" % pick)
 			return false
-		if combat.phase != Combat.Phase.PLAYER_TURN:
-			break
-	# A play can end the fight (the last enemy died); there is then no turn left to end.
-	if combat.phase != Combat.Phase.PLAYER_TURN:
-		return true
 	return combat.end_player_turn(discards_for(combat))
+
+
+## True while the player still has something to do in the fight: a turn to play or a choice to settle.
+## The loops that drive a fight use it so a pick left open can never end them as if the fight had stalled.
+static func is_acting(combat: Combat) -> bool:
+	return combat.phase == Combat.Phase.PLAYER_TURN or combat.phase == Combat.Phase.CHOOSING
+
+
+## Resolves every open Glimpse / Recall pick (a card can queue several). False, after logging, only if
+## a choice could not be closed at all, which would otherwise stall the fight.
+## `resolver` settles one choice (default: this policy's resolve_choice; SmartPolicy passes its own).
+static func resolve_choices(combat: Combat, resolver: Callable = Callable()) -> bool:
+	var resolve := resolver if resolver.is_valid() else resolve_choice
+	var guard := 0
+	while combat.has_choice():
+		guard += 1
+		if guard > MAX_CHOICES_PER_CALL or not resolve.call(combat):
+			printerr("SimPolicy: could not resolve the open choice")
+			return false
+	return true
+
+
+## Greedy picks for the open choice, falling back to Combat.auto_resolve_choice when they are invalid.
+##  - Glimpse: discards every Dormant card (Dread, Murmur) and every card whose glimpse_score is below
+##    the average of the non-Dormant cards in hand, draw and discard; keeps the rest. May discard nothing.
+##  - Recall: returns exactly choice_required() Forgotten cards, the highest keep_score first (earlier
+##    cards win ties).
+static func resolve_choice(combat: Combat) -> bool:
+	if not combat.has_choice():
+		return true
+	var cards := combat.choice_cards()
+	var picks: Array[int] = []
+	if combat.choice_kind() == CardEffect.Kind.GLIMPSE:
+		var average := _average_glimpse_score(combat)
+		for i in cards.size():
+			var junk: bool = cards[i].dormant or glimpse_score(cards[i]) < average
+			if junk:
+				picks.append(i)
+	else:
+		var scores: Array[float] = []
+		for card in cards:
+			scores.append(keep_score(combat, card))
+		picks = best_indices(scores, combat.choice_required())
+	return finish_choice(combat, picks)
+
+
+## Applies `picks` to the open choice, or the engine's default resolution if they are not legal.
+static func finish_choice(combat: Combat, picks: Array[int]) -> bool:
+	if combat.can_resolve_choice(picks):
+		return combat.resolve_choice(picks)
+	return combat.auto_resolve_choice()
+
+
+## Indices (sorted) of the `count` highest `scores`; earlier cards win ties.
+static func best_indices(scores: Array[float], count: int) -> Array[int]:
+	var order: Array[int] = []
+	for i in scores.size():
+		order.append(i)
+	order.sort_custom(func(a: int, b: int) -> bool: return scores[a] > scores[b] or (scores[a] == scores[b] and a < b))
+	var out: Array[int] = []
+	for k in mini(count, order.size()):
+		out.append(order[k])
+	out.sort()
+	return out
+
+
+## Average glimpse_score of the non-Dormant cards in hand, draw pile and discard pile (the cycle the
+## cards on offer belong to); 0 with none.
+static func _average_glimpse_score(combat: Combat) -> float:
+	var total := 0.0
+	var count := 0
+	for pile in [combat.piles.hand, combat.piles.draw_pile, combat.piles.discard_pile]:
+		for card: CardData in pile:
+			if not card.dormant:
+				total += glimpse_score(card)
+				count += 1
+	return total / count if count > 0 else 0.0
+
+
+## keep_score without this moment's state (pointless now, too costly in HP): how good the card is in
+## the deck, which is what matters for a card that would only be drawn later.
+static func glimpse_score(card: CardData) -> float:
+	return _base_tier(card) * 10.0 - card.cost
 
 
 ## End-of-turn discard: keeps the Combat.HAND_SIZE best counted cards by keep_score and discards the rest.
@@ -60,14 +147,21 @@ static func worst_indices(scores: Array[float]) -> Array[int]:
 ## then the rest, cheaper first (easier to afford next turn); a card it would refuse to play anyway
 ## (pointless now, or too costly in HP) ranks last.
 static func keep_score(combat: Combat, card: CardData) -> float:
-	var tier := 1.0
-	if is_damage_card(card) or _is_permanent_buff(card):
-		tier = 3.0
-	elif is_block_card(card):
-		tier = 2.0
+	var tier := _base_tier(card)
 	if _is_pointless(combat, card) or _too_costly_in_hp(combat, card) or card.dormant:
 		tier = 0.0
 	return tier * 10.0 - card.cost
+
+
+## 3 for an attack or a permanent buff, 2 for defence, 1 for the rest, 0 for a Dormant card.
+static func _base_tier(card: CardData) -> float:
+	if card.dormant:
+		return 0.0
+	if is_damage_card(card) or _is_permanent_buff(card):
+		return 3.0
+	if is_block_card(card):
+		return 2.0
+	return 1.0
 
 
 ## Hand index to play next, or -1 to end the turn. Priority: an Expose card
@@ -97,6 +191,12 @@ static func _pick_card(combat: Combat) -> int:
 			rank = 4.0
 		elif _expose_sets_up_damage(combat, i) or _buff_sets_up(combat, card):
 			rank = -1
+		elif _has_effect(card, CardEffect.Kind.GLIMPSE):
+			# Sets up the draws, so it goes early (pointless ones were skipped above).
+			rank = -0.75
+		elif _has_effect(card, CardEffect.Kind.RECALL):
+			# Early when it returns a card playable this turn; otherwise it can wait until last.
+			rank = -0.25 if _recall_returns_playable(combat, card) else 3.0
 		elif card.fading:
 			# It is lost at the end of the turn, so play it before the ordinary cards.
 			rank = -0.5
@@ -153,11 +253,47 @@ static func recycles_itself(combat: Combat, card: CardData) -> bool:
 static func _is_pointless(combat: Combat, card: CardData) -> bool:
 	if recycles_itself(combat, card):
 		return true
+	if _has_effect(card, CardEffect.Kind.GLIMPSE) and combat.piles.draw_pile.is_empty():
+		return not _has_other_value(card, CardEffect.Kind.GLIMPSE)
+	if _has_effect(card, CardEffect.Kind.RECALL) and combat.piles.forgotten.is_empty():
+		return not _has_other_value(card, CardEffect.Kind.RECALL)
+	if _has_effect(card, CardEffect.Kind.DAMAGE_PER_FORGOTTEN) and combat.piles.forgotten.is_empty():
+		return not _has_other_value(card, CardEffect.Kind.DAMAGE_PER_FORGOTTEN)
+	if _adds_only_dormant(card):
+		return true
 	if _has_effect(card, CardEffect.Kind.HEAL_PER_HAUNTED):
 		return _haunted_target(combat) == -1 or combat.player.hp >= combat.player.max_hp
 	if _has_effect(card, CardEffect.Kind.DAMAGE_PER_HAUNT):
 		return _haunted_target(combat) == -1
 	return _is_pointless_status(combat, card)
+
+
+## True if a Forgotten card that is not Dormant costs no more than the energy left once `card` is paid.
+static func _recall_returns_playable(combat: Combat, card: CardData) -> bool:
+	for other in combat.piles.forgotten:
+		if not other.dormant and other.cost <= combat.energy - card.cost:
+			return true
+	return false
+
+
+## True if the card has an effect other than `kind` that does something on its own (damage, Block, Draw,
+## energy...), so a pointless `kind` effect does not make the whole card pointless.
+static func _has_other_value(card: CardData, kind: CardEffect.Kind) -> bool:
+	for effect in card.effects:
+		if effect.kind != kind and effect.kind not in [CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL]:
+			return true
+	return false
+
+
+## True for a card whose only job is to add a Dormant card (Dread, Murmur) to the player's own piles:
+## it can only clog the cycle, so the greedy bot never plays it. (Any other effect on the card is valued
+## as usual.)
+static func _adds_only_dormant(card: CardData) -> bool:
+	var adds := false
+	for effect in card.effects:
+		if effect.kind == CardEffect.Kind.ADD_CARD and effect.card != null and effect.card.dormant:
+			adds = true
+	return adds and not _has_other_value(card, CardEffect.Kind.ADD_CARD)
 
 
 ## True if a card of the Malice / Ward / Shaken / Frayed family would do nothing useful now (the greedy
@@ -288,7 +424,7 @@ static func buy_relic(run: RunState) -> bool:
 static func is_damage_card(card: CardData) -> bool:
 	for effect in card.effects:
 		match effect.kind:
-			CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.HAUNT:
+			CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN, CardEffect.Kind.HAUNT:
 				return true
 	return false
 
