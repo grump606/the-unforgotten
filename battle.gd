@@ -20,6 +20,11 @@ const HAND_MAX_OVERLAP := 0.55
 const BADGE_SCALE := 0.85
 ## Scale of the inspection preview shown above the hand for the hovered card.
 const PREVIEW_SCALE := 1.6
+## The card ghost that follows the pointer during a drag: a little smaller than the hand card and
+## see-through, with the hovered enemy's result label drawn above it (Fighter.DROP_LABEL_Z).
+const DRAG_GHOST_SCALE := 0.85
+const DRAG_GHOST_ALPHA := 0.7
+const DRAG_GHOST_Z := 20
 ## Seconds per beat of the amber pulse (two beats) when the discard-step confirm button becomes available.
 const CONFIRM_PULSE_TIME := 0.35
 
@@ -496,8 +501,9 @@ func _on_drag_started(view: CardView) -> void:
 	_drag_view = view
 	view.modulate.a = 0.35
 	_drag_ghost = CardView.new()
-	_drag_ghost.view_scale = view.view_scale * 1.1
-	_drag_ghost.z_index = 20
+	_drag_ghost.view_scale = view.view_scale * DRAG_GHOST_SCALE
+	_drag_ghost.modulate.a = DRAG_GHOST_ALPHA
+	_drag_ghost.z_index = DRAG_GHOST_Z
 	_drag_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_drag_ghost.set_card(view.card)
 	_drag_ghost.set_state(CardView.State.NORMAL)

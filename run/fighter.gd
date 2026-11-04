@@ -18,6 +18,9 @@ const POP_TIME := 0.35
 const FADE_TIME := 0.7
 const FLOAT_TIME := 1.1
 const BAR_H := 16.0
+## z_index of the drop label layer: above the dragged card's ghost (battle.gd DRAG_GHOST_Z), so the
+## result is never covered by the card.
+const DROP_LABEL_Z := 30
 
 ## Enemy id (EnemyData.id) -> art key (sprite files, figure height). Keyed by id, never by display name, so
 ## renaming an enemy cannot break its art. Any other id uses the generic ghost.
@@ -89,6 +92,8 @@ var _art_facing := -1.0
 ## Floating number for damage the Block absorbed (blue, against the red of HP lost).
 const BLOCKED_COLOR := Color(0.55, 0.78, 1.0)
 
+## Child control above the drag ghost that draws the drop label (see set_drop_hover).
+var _drop_layer: Control
 var _flash := 0.0
 var _shake := 0.0
 var _lunge := 0.0
@@ -116,6 +121,12 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	_drop_layer = Control.new()
+	_drop_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drop_layer.z_index = DROP_LABEL_Z
+	_drop_layer.size = size
+	_drop_layer.draw.connect(_draw_drop_label)
+	add_child(_drop_layer)
 	visibility_changed.connect(_on_visibility_changed)
 	mouse_entered.connect(_on_hover.bind(true))
 	mouse_exited.connect(_on_hover.bind(false))
@@ -183,6 +194,8 @@ func _reset() -> void:
 func _resize() -> void:
 	custom_minimum_size = Vector2(maxf(figure_width() + 20.0, MIN_WIDTH), OVERHEAD + figure_height + UNDER)
 	size = custom_minimum_size
+	if _drop_layer != null:
+		_drop_layer.size = size
 	queue_redraw()
 
 
@@ -251,6 +264,7 @@ func set_drop_hover(on: bool, text := "", lost := -1) -> void:
 	drop_hover = on
 	drop_text = text.strip_edges() if on else ""
 	drop_lost = lost if on else -1
+	_drop_layer.queue_redraw()
 	queue_redraw()
 
 
@@ -471,8 +485,7 @@ func _draw() -> void:
 	_draw_floats()
 
 
-## The drag target look: a bright ring at the feet and, over the figure, the card's result in a pill
-## (one line per clause, so it stays narrow).
+## The drag target look: a bright ring at the feet (the label is _draw_drop_label).
 func _draw_drop_hover(ground: Vector2) -> void:
 	var rx := figure_width() * 0.5 + 10.0
 	var pts := PackedVector2Array()
@@ -480,7 +493,12 @@ func _draw_drop_hover(ground: Vector2) -> void:
 		var ang := TAU * i / 32.0
 		pts.append(ground + Vector2(cos(ang) * rx, sin(ang) * rx * 0.16))
 	draw_polyline(pts, Color(1, 1, 1, 0.95), 3.0, true)
-	if drop_text == "":
+
+
+## The card's result in a pill over the figure (one line per clause, so it stays narrow); drawn on
+## the layer above the drag ghost.
+func _draw_drop_label() -> void:
+	if not drop_hover or is_defeated() or drop_text == "":
 		return
 	var lines := drop_text.split(", ")
 	var line_h := 20.0
@@ -488,9 +506,9 @@ func _draw_drop_hover(ground: Vector2) -> void:
 	for line in lines:
 		width = maxf(width, line.length() * 7.5 + 18.0)
 	var box := Rect2(Vector2(size.x / 2.0 - width / 2.0, OVERHEAD + figure_height * 0.4), Vector2(width, line_h * lines.size() + 6.0))
-	HudIcons.box(self, box, Color(0.04, 0.03, 0.05, 0.92), 8, 2, CardView.SELECT_GOLD)
+	HudIcons.box(_drop_layer, box, Color(0.04, 0.03, 0.05, 0.92), 8, 2, CardView.SELECT_GOLD)
 	for i in lines.size():
-		HudIcons.text(self, lines[i], Rect2(box.position + Vector2(0, 3.0 + line_h * i), Vector2(width, line_h)), 13, Color(0.97, 0.95, 0.92), true, 3)
+		HudIcons.text(_drop_layer, lines[i], Rect2(box.position + Vector2(0, 3.0 + line_h * i), Vector2(width, line_h)), 13, Color(0.97, 0.95, 0.92), true, 3)
 
 
 func draw_ellipse_shadow(c: Vector2, rx: float, col: Color) -> void:
