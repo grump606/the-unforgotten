@@ -190,6 +190,30 @@ func _check_drag(node: Control) -> void:
 	check(not node.is_dragging_card() and not enemy_views[2].drop_hover and shove_view.modulate.a == 1.0, "Esc cancels the drag and puts the card back")
 	_mouse_button(shove_view, false, centers[2])
 	check(c.enemies[2].hp == hp_before, "the release after Esc plays nothing")
+	# A boss has no HP bar of its own: the ghost goes on the wide bar at the top, and clears with the drag.
+	node.boss_fight = true
+	node.show_boss_intro = false
+	var boss_datas: Array[EnemyData] = [load("res://data/enemies/the_brakeman.tres") as EnemyData]
+	node._start_with(Combatant.new("Wanderer", 40), boss_datas, 1)
+	node._refresh()
+	var bc: Combat = node._combat
+	bc.energy = 9
+	bc.enemies[0].clear_block()
+	bc.piles.hand.clear()
+	bc.piles.hand.append(load("res://data/cards/shove.tres"))
+	node._refresh()
+	var boss_view: Fighter = node._enemy_views[0]
+	var boss_card := CardView.find_all(node._hand_box)[0]
+	check(node._boss_bar != null and node._boss_bar.drop_lost == -1, "setup: a boss fight with an idle boss bar")
+	_mouse_button(boss_card, true, boss_card.get_global_rect().get_center())
+	_mouse_move(boss_card, boss_view.get_global_rect().get_center())
+	check(node._boss_bar.drop_lost == 6 and boss_view.drop_hover, "dragging over the boss ghosts the HP it would lose on the boss bar")
+	_mouse_move(boss_card, Vector2(-900, -900))
+	check(node._boss_bar.drop_lost == -1, "moving off the boss clears the boss bar ghost")
+	_mouse_move(boss_card, boss_view.get_global_rect().get_center())
+	key(node, KEY_ESCAPE)
+	check(node._boss_bar.drop_lost == -1, "cancelling the drag clears the boss bar ghost")
+	node.boss_fight = false
 
 
 ## The full-size inspection preview shows for a hovered hand card, ignores the mouse, and hides again.
