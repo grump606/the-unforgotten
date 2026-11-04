@@ -48,6 +48,12 @@ const HEAL_VALUE := 1.5 # per HP healed
 ## What a typical Block is worth when a card's damage scales with it (Bash, Cold Steel, Reckoning).
 const TYPICAL_BLOCK := 6
 const TYPICAL_HAUNT := 4
+## Energy a Surge is assumed to spend when a card is scored outside a fight (rewards, vendor, discards).
+const TYPICAL_SURGE_ENERGY := 2
+## Ordering nudge for a Fading card worth playing: it is lost if still in hand at the end of the turn.
+const FADING_URGENCY := 2.0
+## card_score of a Dormant card: it can never be played, so it ranks below everything.
+const DORMANT_SCORE := -1.0
 
 
 ## Plays cards until nothing is worth playing or the fight ends, then ends the
@@ -64,7 +70,10 @@ static func play_turn(combat: Combat) -> bool:
 			if SimPolicy.recycles_itself(combat, card):
 				continue
 			for target in _targets(combat, card):
-				var score := _play_value(combat, i, target) / (_net_cost(card) + 1)
+				var value := _play_value(combat, i, target)
+				if card.fading and value > 0.0:
+					value += FADING_URGENCY
+				var score := value / (_spent_energy(combat, card) + 1)
 				if score > best_score:
 					best_score = score
 					best_hand = i
@@ -89,10 +98,18 @@ static func discards_for(combat: Combat) -> Array[int]:
 	all.append_array(combat.piles.draw_pile)
 	all.append_array(combat.piles.discard_pile)
 	var weights := _weights(all)
+	# Anchor and Fading cards do not count toward the five and cannot be discarded: never offer them.
+	var candidates: Array[int] = []
 	var scores: Array[float] = []
-	for card in combat.piles.hand:
-		scores.append(card_score(card, weights))
-	return SimPolicy.worst_indices(scores)
+	for i in combat.piles.hand.size():
+		if combat.can_discard_card(i):
+			candidates.append(i)
+			scores.append(card_score(combat.piles.hand[i], weights))
+	var out: Array[int] = []
+	for k in SimPolicy.worst_indices(scores):
+		out.append(candidates[k])
+	out.sort()
+	return out
 
 
 ## Target indexes to consider: every living enemy for single-target cards, else -1.
@@ -115,41 +132,42 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 	elif card.target_mode == CardData.TargetMode.ALL_ENEMIES:
 		hit = combat.living_enemies()
 	var unblocked := maxi(_incoming_damage(combat) - combat.player.block, 0)
-	var energy_left := combat.energy - card.cost + _energy_gain(card)
+	var energy_left := combat.energy - _spent_energy(combat, card) + _energy_gain(card)
 	var value := 0.0
 	for effect in card.effects:
+		var amount := _scaled_amount(combat, card, effect)
 		match effect.kind:
 			CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, \
 			CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT:
 				for enemy in hit:
-					var lost := _hp_lost(enemy, _effect_damage(combat, effect, enemy))
+					var lost := _hits_hp_lost(enemy, _effect_damage(combat, effect, enemy), _hit_count(combat, card, effect))
 					var threat := _threat(combat, enemy)
 					value += lost * (1.0 + float(threat) / maxi(enemy.hp, 1))
 					if lost >= enemy.hp:
 						value += 4.0 + 1.5 * threat
 			CardEffect.Kind.HOLD:
 				# Block kept for next turn: worth about a third of useful Block.
-				value += 0.8 * effect.amount
+				value += 0.8 * amount
 			CardEffect.Kind.THORNS:
-				value += THORNS_VALUE * effect.amount * _attackers(combat)
+				value += THORNS_VALUE * amount * _attackers(combat)
 			CardEffect.Kind.GAIN_ENERGY:
 				# Energy only matters while it is what stops me playing cards.
-				value += (2.0 if energy_left < 2 else 0.4) * effect.amount
+				value += (2.0 if energy_left < 2 else 0.4) * amount
 			CardEffect.Kind.HAUNT:
 				for enemy in hit:
-					value += HAUNT_VALUE * mini(_haunt_total(effect.amount), enemy.hp)
+					value += HAUNT_VALUE * mini(_haunt_total(amount), enemy.hp)
 			CardEffect.Kind.LOSE_HP:
 				# Dearer the lower the player already is.
-				value -= effect.amount * (1.0 + 12.0 / maxi(combat.player.hp - effect.amount, 1))
+				value -= amount * (1.0 + 12.0 / maxi(combat.player.hp - amount, 1))
 			CardEffect.Kind.HEAL_PER_HAUNTED:
-				var healed := mini(effect.amount * _haunted_count(combat), combat.player.max_hp - combat.player.hp)
+				var healed := mini(amount * _haunted_count(combat), combat.player.max_hp - combat.player.hp)
 				value += HEAL_VALUE * healed
 			CardEffect.Kind.BLOCK:
-				var useful := mini(effect.amount, unblocked)
+				var useful := mini(amount, unblocked)
 				unblocked -= useful
-				value += 2.0 * useful + 0.1 * (effect.amount - useful)
+				value += 2.0 * useful + 0.1 * (amount - useful)
 			CardEffect.Kind.DRAW:
-				value += (1.5 if energy_left > 0 else 0.2) * effect.amount
+				value += (1.5 if energy_left > 0 else 0.2) * amount
 			CardEffect.Kind.EXPOSE:
 				if card.target_mode == CardData.TargetMode.SELF:
 					value -= 5.0
@@ -157,11 +175,32 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 					for enemy in hit:
 						if enemy.status_turns(Combatant.Status.EXPOSED) == 0:
 							var boosted := _other_damage(combat, hand_index, energy_left)
-							value += 0.5 * boosted + 0.3 * effect.amount
+							value += 0.5 * boosted + 0.3 * amount
 							if boosted > 0:
 								# It only pays if played before the damage, so rank it first.
 								value += EXPOSE_FIRST
 	return value
+
+
+## Energy playing `card` now spends: its cost, or everything there is for a Surge.
+static func _spent_energy(combat: Combat, card: CardData) -> int:
+	return combat.energy if card.surge else card.cost
+
+
+## `effect.amount` as it would apply now: a per_energy effect on a Surge card is multiplied by the energy
+## spent (damage kinds scale their hits instead, see _hit_count).
+static func _scaled_amount(combat: Combat, card: CardData, effect: CardEffect) -> int:
+	if card.surge and effect.per_energy and not effect.is_damage():
+		return effect.amount * combat.energy
+	return effect.amount
+
+
+## Hits `effect` would land now: its hits (at least 1), times the energy spent for a per_energy Surge.
+static func _hit_count(combat: Combat, card: CardData, effect: CardEffect) -> int:
+	var hits := maxi(effect.hits, 1)
+	if card.surge and effect.per_energy:
+		hits *= combat.energy
+	return hits
 
 
 ## Energy a card gives back when played (Borrowed Time, Seance).
@@ -220,6 +259,22 @@ static func _hp_lost(enemy: EnemyUnit, amount: int) -> int:
 	return mini(maxi(hit - enemy.block, 0), enemy.hp)
 
 
+## HP `enemy` would lose to `hits` hits of `amount` each: Block absorbs across the hits and Expose
+## applies to every hit.
+static func _hits_hp_lost(enemy: EnemyUnit, amount: int, hits: int) -> int:
+	var block := enemy.block
+	var hp := enemy.hp
+	var total := 0
+	for _h in hits:
+		var dealt := enemy.damage_after_status(amount)
+		var absorbed := mini(block, dealt)
+		block -= absorbed
+		var lost := mini(dealt - absorbed, hp)
+		hp -= lost
+		total += lost
+	return total
+
+
 ## Damage the enemy's next intent would deal to the player, 0 for other intents.
 static func _threat(combat: Combat, enemy: EnemyUnit) -> int:
 	var intent := enemy.current_intent()
@@ -245,7 +300,7 @@ static func _other_damage(combat: Combat, hand_index: int, energy_left: int) -> 
 			continue
 		for effect in other.effects:
 			if effect.kind == CardEffect.Kind.DAMAGE:
-				total += effect.amount
+				total += effect.amount * maxi(effect.hits, 1)
 	return total
 
 
@@ -342,6 +397,8 @@ static func _weights(deck: Array[CardData]) -> Dictionary:
 
 
 static func card_score(card: CardData, weights: Dictionary) -> float:
+	if card.dormant:
+		return DORMANT_SCORE
 	var total := 0.0
 	for effect in card.effects:
 		var nominal := _nominal_damage(effect)
@@ -349,29 +406,40 @@ static func card_score(card: CardData, weights: Dictionary) -> float:
 			var spread := 1.3 if card.target_mode == CardData.TargetMode.ALL_ENEMIES else 1.0
 			total += nominal * weights["damage"] * spread
 			continue
+		var amount := effect.amount
+		if effect.per_energy:
+			amount *= TYPICAL_SURGE_ENERGY
 		match effect.kind:
 			CardEffect.Kind.BLOCK:
-				total += effect.amount * weights["block"]
+				total += amount * weights["block"]
 			CardEffect.Kind.DRAW:
-				total += effect.amount * DRAW_VALUE
+				total += amount * DRAW_VALUE
 			CardEffect.Kind.EXPOSE:
-				total += effect.amount * EXPOSE_VALUE
+				total += amount * EXPOSE_VALUE
 			CardEffect.Kind.HOLD:
-				total += effect.amount * 0.8
+				total += amount * 0.8
 			CardEffect.Kind.THORNS:
-				total += effect.amount * 1.5
+				total += amount * 1.5
 			CardEffect.Kind.GAIN_ENERGY:
-				total += effect.amount * 3.0
+				total += amount * 3.0
 			CardEffect.Kind.LOSE_HP:
-				total -= effect.amount * 1.3
+				total -= amount * 1.3
 			CardEffect.Kind.HEAL_PER_HAUNTED:
-				total += effect.amount * HEAL_VALUE
-	return total / (card.cost + 1)
+				total += amount * HEAL_VALUE
+	# A Surge spends all its energy, so it is divided by a typical amount rather than its cost of 0.
+	return total / ((TYPICAL_SURGE_ENERGY if card.surge else card.cost) + 1)
 
 
 ## Rough damage an effect is worth in a deck-scoring context (a typical Block, Haunt or number of
 ## earlier plays stands in for the state a real fight would supply). 0 for non-damage effects.
 static func _nominal_damage(effect: CardEffect) -> float:
+	var multiplier := float(maxi(effect.hits, 1))
+	if effect.per_energy:
+		multiplier *= TYPICAL_SURGE_ENERGY
+	return _nominal_damage_once(effect) * multiplier
+
+
+static func _nominal_damage_once(effect: CardEffect) -> float:
 	match effect.kind:
 		CardEffect.Kind.DAMAGE:
 			return float(effect.amount)
