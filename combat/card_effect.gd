@@ -18,10 +18,14 @@ extends Resource
 ## kill the player: see CardData.hp_cost).
 ## HEAL_PER_HAUNTED: heal `amount` for each living enemy that is Haunted.
 ## DAMAGE_PER_HAUNT: damage equal to the target's Haunt times `amount`.
+## SHAKEN / FRAYED (`amount` = turns): like EXPOSE. The attacker deals / the user gains 25% less.
+## MALICE / WARD (`amount`, signed): a stacking bonus to each hit dealt / each Block gained from cards,
+## lasting the fight (or this turn only with `temporary`). A positive amount buffs the user; a negative
+## amount debuffs the targets (an enemy intent: positive buffs the enemy, negative debuffs the player).
 ## ADDING A KIND: append it to Kind (never reorder), then touch only: is_damage()/reach() and
 ## describe() here, the handler in Combat._apply, and Vendor.effect_value. tests/mechanics_tests.gd
 ## walks every Kind and fails if any of those is missing.
-enum Kind { DAMAGE, BLOCK, DRAW, EXPOSE, HOLD, DAMAGE_PER_BLOCK, DAMAGE_IF_BLOCK, THORNS, GAIN_ENERGY, DAMAGE_PER_PLAY, HAUNT, LOSE_HP, HEAL_PER_HAUNTED, DAMAGE_PER_HAUNT }
+enum Kind { DAMAGE, BLOCK, DRAW, EXPOSE, HOLD, DAMAGE_PER_BLOCK, DAMAGE_IF_BLOCK, THORNS, GAIN_ENERGY, DAMAGE_PER_PLAY, HAUNT, LOSE_HP, HEAL_PER_HAUNTED, DAMAGE_PER_HAUNT, SHAKEN, FRAYED, MALICE, WARD }
 
 @export var kind: Kind = Kind.DAMAGE
 @export var amount: int = 0
@@ -34,9 +38,11 @@ enum Kind { DAMAGE, BLOCK, DRAW, EXPOSE, HOLD, DAMAGE_PER_BLOCK, DAMAGE_IF_BLOCK
 ## Surge scaling: on a Surge card the energy spent multiplies `hits` (damage kinds) or `amount`
 ## (every other kind). Ignored on a card without Surge and on enemy intents.
 @export var per_energy: bool = false
+## MALICE and WARD only: the stacks are temporary and expire when the owner's next turn starts.
+@export var temporary: bool = false
 
 
-static func make(effect_kind: Kind, effect_amount: int, effect_bonus: int = 0, effect_threshold: int = 0, effect_hits: int = 1, effect_per_energy: bool = false) -> CardEffect:
+static func make(effect_kind: Kind, effect_amount: int, effect_bonus: int = 0, effect_threshold: int = 0, effect_hits: int = 1, effect_per_energy: bool = false, effect_temporary: bool = false) -> CardEffect:
 	var effect := CardEffect.new()
 	effect.kind = effect_kind
 	effect.amount = effect_amount
@@ -44,6 +50,7 @@ static func make(effect_kind: Kind, effect_amount: int, effect_bonus: int = 0, e
 	effect.threshold = effect_threshold
 	effect.hits = effect_hits
 	effect.per_energy = effect_per_energy
+	effect.temporary = effect_temporary
 	return effect
 
 
@@ -57,13 +64,16 @@ func is_damage() -> bool:
 
 
 ## Where a played card applies this effect: the card's chosen enemies (ENEMIES), the player
-## (SELF), or both (BOTH: EXPOSE, which on a SELF-targeted card exposes the player and on
-## any other card exposes its targets). Enemy intents ignore this and always act on the player.
+## (SELF), or both (BOTH: EXPOSE, SHAKEN and FRAYED, which on a SELF-targeted card exposes the player and on
+## any other card exposes its targets). MALICE and WARD are SELF when positive and ENEMIES when
+## negative. Enemy intents ignore this and always act on the player.
 func reach() -> Reach:
 	if is_damage() or kind == Kind.HAUNT:
 		return Reach.ENEMIES
-	if kind == Kind.EXPOSE:
+	if kind in [Kind.EXPOSE, Kind.SHAKEN, Kind.FRAYED]:
 		return Reach.BOTH
+	if kind in [Kind.MALICE, Kind.WARD]:
+		return Reach.SELF if amount >= 0 else Reach.ENEMIES
 	return Reach.SELF
 
 
@@ -90,6 +100,8 @@ func raw_damage(source_block: int, target_haunt: int, plays_including_this: int)
 ## effect appends " per energy spent" ("Block 4 per energy spent").
 func describe() -> String:
 	var text := _describe_base()
+	if temporary and kind in [Kind.MALICE, Kind.WARD]:
+		text += " this turn"
 	if is_damage():
 		if per_energy:
 			return "%s x energy spent" % text
@@ -131,4 +143,12 @@ func _describe_base() -> String:
 			return "Heal %d per Haunted enemy" % amount
 		Kind.DAMAGE_PER_HAUNT:
 			return "Deal damage equal to the target's Haunt" if amount == 1 else "Deal %dx the target's Haunt" % amount
+		Kind.SHAKEN:
+			return "Shaken %d" % amount
+		Kind.FRAYED:
+			return "Frayed %d" % amount
+		Kind.MALICE:
+			return "Malice %+d" % amount
+		Kind.WARD:
+			return "Ward %+d" % amount
 	return ""
