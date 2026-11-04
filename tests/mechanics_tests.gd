@@ -387,6 +387,10 @@ func _test_every_kind_is_covered() -> void:
 		combat.start()
 		combat.player.gain_block(5)
 		combat.enemies[0].apply_status(Combatant.Status.HAUNTED, 3)
+		# Forgotten-pile kinds need something in that pile; ADD_CARD needs a card to add.
+		combat.piles.forgotten.append(filler[0])
+		combat.piles.forgotten.append(filler[1])
+		effect.card = filler[2]
 		var card := _attack_card(0, [effect])
 		combat.piles.hand.append(card)
 		var before := _snapshot(combat)
@@ -399,7 +403,7 @@ func _snapshot(combat: Combat) -> Array:
 	var enemy := combat.enemies[0]
 	return [
 		combat.player.hp, combat.player.block, combat.player.hold, combat.player.thorns,
-		combat.energy, combat.piles.hand.size(),
+		combat.energy, combat.piles.hand.size(), combat.phase, combat.piles.forgotten.size(), combat.piles.draw_pile.size(),
 		combat.player.status_turns(Combatant.Status.EXPOSED),
 		combat.player.stacks(Combatant.Status.MALICE), combat.player.stacks(Combatant.Status.WARD),
 		combat.player.status_turns(Combatant.Status.SHAKEN), combat.player.status_turns(Combatant.Status.FRAYED),

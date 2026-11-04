@@ -50,10 +50,11 @@ const PALETTES := {
 ## Primary icon = the first of these that the card has (scaled damage reads before plain damage).
 const ICON_PRIORITY: Array[CardEffect.Kind] = [
 	CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY,
-	CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE, CardEffect.Kind.HAUNT, CardEffect.Kind.BLOCK,
+	CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN, CardEffect.Kind.DAMAGE, CardEffect.Kind.HAUNT, CardEffect.Kind.BLOCK,
 	CardEffect.Kind.THORNS, CardEffect.Kind.EXPOSE, CardEffect.Kind.HOLD, CardEffect.Kind.GAIN_ENERGY,
 	CardEffect.Kind.DRAW, CardEffect.Kind.HEAL_PER_HAUNTED, CardEffect.Kind.LOSE_HP,
 	CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD,
+	CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL,
 ]
 const KIND_COLORS := {
 	CardEffect.Kind.DAMAGE: Color("#d96b65"), CardEffect.Kind.BLOCK: Color("#83b4cf"),
@@ -63,6 +64,7 @@ const KIND_COLORS := {
 	CardEffect.Kind.LOSE_HP: Color(0.92, 0.26, 0.32), CardEffect.Kind.HEAL_PER_HAUNTED: Color(0.96, 0.52, 0.62),
 	CardEffect.Kind.SHAKEN: Color(0.97, 0.62, 0.30), CardEffect.Kind.FRAYED: Color(0.78, 0.70, 0.55),
 	CardEffect.Kind.MALICE: Color(0.84, 0.45, 0.95), CardEffect.Kind.WARD: Color(0.46, 0.62, 1.0),
+	CardEffect.Kind.GLIMPSE: Color(0.55, 0.85, 0.95), CardEffect.Kind.ADD_CARD: Color(0.70, 0.70, 0.78), CardEffect.Kind.RECALL: Color(0.86, 0.78, 0.55),
 }
 ## Tint of a debuff (a negative Malice or Ward) on a status pill.
 const STATUS_NEGATIVE := Color(0.95, 0.35, 0.35)
