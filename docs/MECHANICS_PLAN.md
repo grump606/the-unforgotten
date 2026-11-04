@@ -317,6 +317,27 @@ yet, so this is a sanity check, not a verdict.
 - 4b Thief, 4c Deserter, 4d Medium (parallel after 4a): the retunes and new cards for that class.
 - 4e: identity and keyword-coverage tests, a final balance pass, README card list.
 
+**Balance baseline** (`run_sim.gd --runs 150 --seed 7 --character C --policy P`, 2026-11-04). Before is
+commit 0e071ee (the old starter decks: each class held its own mix of class cards); after is Phase 4a (the
+new starter decks and the two neutral retunes). Escapes out of 150:
+
+| Class | Policy | Before | After |
+|---|---|---|---|
+| Thief | greedy | 25 (16.7%) | 11 (7.3%) |
+| Thief | smart | 71 (47.3%) | 54 (36.0%) |
+| Deserter | greedy | 33 (22.0%) | 70 (46.7%) |
+| Deserter | smart | 72 (48.0%) | 109 (72.7%) |
+| Medium | greedy | 34 (22.7%) | 48 (32.0%) |
+| Medium | smart | 97 (64.7%) | 73 (48.7%) |
+
+The 4a moves are well past 5 points, and nearly all of it is the starter deck: the old decks held four
+class cards (Thief: Mark the Weak, Lift, Sleight, Last Pocket; Deserter: Shoulder Charge, Iron Resolve,
+Hold the Line, Bash; Medium: Confess, Lingering Dread, Penance, Cold Whisper) and the new ones hold one,
+swapping the rest for Shove and Slip Past. The Deserter's old starting cards were weaker in the bots' hands
+than plain Shove and Slip Past plus Dig In; the Thief and Medium lose cards their bots used well. The
+Glimpse the Exit and Flurry retunes are small next to that. Not attributed card by card; the 4b-4d class
+retunes and the 4e balance pass move these again, so the targets are the 4e numbers, not these.
+
 Relics and enemy content are out of scope here (phase 5).
 
 ## Cross-cutting work
