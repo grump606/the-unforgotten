@@ -130,7 +130,8 @@ func can_play(hand_index: int) -> bool:
 		phase == Phase.PLAYER_TURN
 		and hand_index >= 0
 		and hand_index < piles.hand.size()
-		and piles.hand[hand_index].cost <= energy
+		and not piles.hand[hand_index].dormant
+		and (piles.hand[hand_index].surge or piles.hand[hand_index].cost <= energy)
 		# A card that costs HP cannot be the one that kills the player.
 		and piles.hand[hand_index].hp_cost() < player.hp
 		and plays_this_turn < MAX_PLAYS_PER_TURN
@@ -155,16 +156,20 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 		CardData.TargetMode.ALL_ENEMIES:
 			targets = living_enemies()
 	var card := piles.play(hand_index)
-	energy -= card.cost
+	# Surge spends all the energy there is; other cards spend their cost.
+	var spent := energy if card.surge else card.cost
+	energy -= spent
 	plays_this_turn += 1
+	# Multiplier for per_energy effects: only a Surge card has one.
+	var scale := spent if card.surge else 1
 	for effect in card.effects:
 		var reach := effect.reach()
 		# SELF cards expose the player; other EXPOSE cards expose their targets.
 		if reach == CardEffect.Reach.SELF or (reach == CardEffect.Reach.BOTH and mode == CardData.TargetMode.SELF):
-			_apply(effect, player, player)
+			_apply(effect, player, player, scale)
 		if reach != CardEffect.Reach.SELF:
 			for target in targets:
-				_apply(effect, player, target)
+				_apply(effect, player, target, scale)
 	if not relics.is_empty():
 		_apply_play_relics()
 	card_played.emit(card, targets)
@@ -174,20 +179,29 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 	return true
 
 
-## True if `discard_indices` are valid, unique hand indices and no more than HAND_SIZE cards would
-## stay in hand. Discarding more than required (or everything) is allowed.
+## True if hand card `hand_index` may be discarded at end of turn: Anchor and Fading cards may not.
+func can_discard_card(hand_index: int) -> bool:
+	if hand_index < 0 or hand_index >= piles.hand.size():
+		return false
+	var card := piles.hand[hand_index]
+	return not card.anchor and not card.fading
+
+
+## True if `discard_indices` are valid, unique, discardable hand indices and no more than HAND_SIZE
+## counted cards (not Anchor, not Fading) would stay in hand. Discarding more than required (or
+## every discardable card) is allowed.
 func is_valid_discard(discard_indices: Array[int]) -> bool:
 	var seen := {}
 	for i in discard_indices:
-		if i < 0 or i >= piles.hand.size() or seen.has(i):
+		if not can_discard_card(i) or seen.has(i):
 			return false
 		seen[i] = true
-	return piles.hand.size() - discard_indices.size() <= HAND_SIZE
+	return piles.counted_in_hand() - discard_indices.size() <= HAND_SIZE
 
 
 ## How many more cards must be marked before the discard can be confirmed (0 when it can).
 func discard_required() -> int:
-	return maxi(piles.hand.size() - discard_marks.size() - HAND_SIZE, 0)
+	return maxi(piles.counted_in_hand() - discard_marks.size() - HAND_SIZE, 0)
 
 
 func can_confirm_discard() -> bool:
@@ -216,9 +230,9 @@ func cancel_discard() -> bool:
 
 
 ## Marks or unmarks hand card `hand_index` for discard. False (nothing changes) outside the
-## discard step or for a bad index.
+## discard step, for a bad index, or for an Anchor or Fading card (see can_discard_card).
 func toggle_discard(hand_index: int) -> bool:
-	if phase != Phase.DISCARDING or hand_index < 0 or hand_index >= piles.hand.size():
+	if phase != Phase.DISCARDING or not can_discard_card(hand_index):
 		return false
 	var at := discard_marks.find(hand_index)
 	if at >= 0:
@@ -249,6 +263,8 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 	phase = Phase.ENEMY_TURN
 	discard_marks.clear()
 	piles.discard_cards(discard_indices)
+	# Fading cards that were not played are lost before the enemies act.
+	piles.forget_fading_in_hand()
 	# Haunt hurts first, so an enemy it kills never acts.
 	for enemy in living_enemies():
 		enemy.lose_hp(enemy.status_turns(Combatant.Status.HAUNTED))
@@ -303,8 +319,12 @@ func _begin_player_turn() -> void:
 	plays_this_turn = 0
 	player.start_turn_block()
 	_apply_turn_start_relics()
+	# Ready cards join the opening hand first.
+	if turn == 1:
+		piles.draw_ready(HAND_MAX)
 	# Kept cards count toward the starting hand: draw back up to HAND_SIZE (nothing if 5 were kept).
-	piles.draw(maxi(HAND_SIZE - piles.hand.size(), 0), HAND_MAX)
+	# Anchor and Fading cards in hand do not count, so they do not shrink the refill.
+	piles.draw(maxi(HAND_SIZE - piles.counted_in_hand(), 0), HAND_MAX)
 	state_changed.emit()
 
 
@@ -351,41 +371,47 @@ func _apply_turn_start_relics() -> void:
 ## `target` receives damage and statuses; `source` receives block and draws.
 ## An enemy intent with EXPOSE exposes the player; see `_pending_player_expose`
 ## for when it takes effect.
-func _apply(effect: CardEffect, source: Combatant, target: Combatant) -> void:
+## `energy_scale` is the energy a Surge card spent (1 otherwise); it multiplies per_energy effects.
+func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_scale: int = 1) -> void:
 	if effect.is_damage():
-		# plays_this_turn already counts the card being played.
-		target.take_damage(effect.raw_damage(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_this_turn))
-		# Thorns: an enemy attack on the player also hurts the attacker.
-		if effect.kind == CardEffect.Kind.DAMAGE and target == player and source != player and player.thorns > 0:
-			source.take_damage(player.thorns)
+		var hit_count := maxi(effect.hits, 1)
+		if effect.per_energy:
+			hit_count *= energy_scale
+		for _hit in hit_count:
+			# plays_this_turn already counts the card being played.
+			target.take_damage(effect.raw_damage(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_this_turn))
+			# Thorns: an enemy attack on the player also hurts the attacker, once per hit.
+			if effect.kind == CardEffect.Kind.DAMAGE and target == player and source != player and player.thorns > 0:
+				source.take_damage(player.thorns)
 		return
+	var amount := effect.amount * energy_scale if effect.per_energy else effect.amount
 	match effect.kind:
 		CardEffect.Kind.HOLD:
-			source.add_hold(effect.amount)
+			source.add_hold(amount)
 		CardEffect.Kind.THORNS:
-			source.add_thorns(effect.amount)
+			source.add_thorns(amount)
 		CardEffect.Kind.GAIN_ENERGY:
 			if source == player:
-				energy += maxi(effect.amount, 0)
+				energy += maxi(amount, 0)
 		CardEffect.Kind.HAUNT:
 			if source == player:
 				# The Haunt bonus only boosts a Haunt that was going to be applied at all.
-				target.apply_status(Combatant.Status.HAUNTED, effect.amount + (_relic_total(RelicData.Kind.HAUNT_BONUS) if effect.amount > 0 else 0))
+				target.apply_status(Combatant.Status.HAUNTED, amount + (_relic_total(RelicData.Kind.HAUNT_BONUS) if amount > 0 else 0))
 		CardEffect.Kind.LOSE_HP:
-			source.lose_hp(effect.amount)
+			source.lose_hp(amount)
 		CardEffect.Kind.HEAL_PER_HAUNTED:
-			source.heal(effect.amount * _haunted_count())
+			source.heal(amount * _haunted_count())
 		CardEffect.Kind.BLOCK:
-			source.gain_block(effect.amount)
+			source.gain_block(amount)
 		CardEffect.Kind.DRAW:
 			# Only the player has a hand.
 			if source == player:
-				piles.draw(effect.amount, HAND_MAX)
+				piles.draw(amount, HAND_MAX)
 		CardEffect.Kind.EXPOSE:
 			if source == player:
-				target.apply_status(Combatant.Status.EXPOSED, effect.amount)
+				target.apply_status(Combatant.Status.EXPOSED, amount)
 			elif target == player:
-				_pending_player_expose += maxi(effect.amount, 0)
+				_pending_player_expose += maxi(amount, 0)
 		_:
 			push_error("Combat._apply: no handler for CardEffect kind %d" % effect.kind)
 
