@@ -12,7 +12,7 @@ bonus = 2
 [resource]
 script = ExtResource("1_card")
 id = &"spree"
-display_name = "Spree"
+display_name = "Many Hands"
 cost = 2
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1")])
 character = &"thief"

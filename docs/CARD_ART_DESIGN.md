@@ -38,7 +38,7 @@ Plain DAMAGE (as primary icon) picks a weapon from the card's own data, first ma
 
 | Variant | Rule | Icon | Cards today |
 |---|---|---|---|
-| needle | class thief | thin pin with ring eye and thread | Cutting Word, Hamstring, Lift |
+| needle | class thief | thin pin with ring eye and thread | Cutting Word, Hamstring, Filch |
 | bone | class medium | pale bone club | Grave Chill |
 | sweep | target ALL_ENEMIES | wide arc slash (plus the enemy pips) | Sweep |
 | fist | id in `FIST_IDS` (shove, shoulder_charge) | fist with motion lines | Shove, Shoulder Charge |

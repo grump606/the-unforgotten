@@ -66,10 +66,10 @@ static func keep_score(combat: Combat, card: CardData) -> float:
 ## when it can set up another affordable damage card this turn, then 0-cost
 ## cards, then block if the enemies' intents out-damage current block, then
 ## damage, then anything else affordable. Energy-neutral setup (a card that refunds its own cost, like
-## Pocket Watch and Seance) ranks with the 0-cost cards, since it only adds cards to play. Reckoning
+## Borrowed Time and Seance) ranks with the 0-cost cards, since it only adds cards to play. Reckoning
 ## waits until the Haunt cards are played, and it and Spirit Tithe are skipped while they would do
-## nothing. (Holding Spree and Last Pocket back until last was tried: it starved them of energy, and
-## Last Pocket's plays fell from 10 to 4 per run.)
+## nothing. (Holding Many Hands and Last Keepsake back until last was tried: it starved them of energy, and
+## Last Keepsake's plays fell from 10 to 4 per run.)
 static func _pick_card(combat: Combat) -> int:
 	var need_block := _incoming_damage(combat) > combat.player.block
 	var best := -1
@@ -97,7 +97,7 @@ static func _pick_card(combat: Combat) -> int:
 	return best
 
 
-## True if the card gives back at least the energy it costs (Pocket Watch, Seance).
+## True if the card gives back at least the energy it costs (Borrowed Time, Seance).
 static func _refunds_cost(card: CardData) -> bool:
 	var gained := 0
 	for effect in card.effects:
@@ -106,7 +106,7 @@ static func _refunds_cost(card: CardData) -> bool:
 	return gained > 0 and gained >= card.cost
 
 
-## True for an energy-refunding draw card (Pocket Watch, Seance) while the draw pile holds fewer cards
+## True for an energy-refunding draw card (Borrowed Time, Seance) while the draw pile holds fewer cards
 ## than it draws: it would reshuffle the discard and mostly draw itself back, so the bot would replay it
 ## up to the per-turn cap for nothing. Both policies skip it then.
 static func recycles_itself(combat: Combat, card: CardData) -> bool:

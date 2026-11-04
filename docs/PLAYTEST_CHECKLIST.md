@@ -8,9 +8,9 @@ The numbers are tuned against bots, not people. Play with a pen: note what felt 
 
 ## Per class (rate each 1 to 5: boring / fair / too hard / too easy)
 - [ ] **Deserter** (skill-sensitive): is Hold readable and worth it? Do you feel weak early, strong late, or just fine?
-- [ ] **Thief** (burst): do the per-play cards (Spree, Last Pocket, Pocket Watch) feel good? Is anything pointless?
+- [ ] **Thief** (burst): do the per-play cards (Many Hands, Last Keepsake, Borrowed Time) feel good? Is anything pointless?
 - [ ] **Medium** (Haunt, HP costs): is Haunt satisfying or confusing? Do the HP-cost cards (Confess, Penance, Seance) feel risky or free? Is it too easy in ordinary fights?
-- [ ] Cards that felt weak or that you never played. The bots' verdict: Spree, Reckoning and Spirit Tithe are probably weak.
+- [ ] Cards that felt weak or that you never played. The bots' verdict: Many Hands, Reckoning and Spirit Tithe are probably weak.
 
 ## Keeping cards and the end-of-turn discard step (new, branch `hand-keep`)
 - [ ] Clarity: after pressing End Turn, is it obvious you are choosing cards to throw away? Is the "DISCARD" stamp, the hint line and the button wording ("Keep all", "Discard N", "Discard N more") clear?
