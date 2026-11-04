@@ -81,8 +81,9 @@ func _run(run_seed: int, character_id: StringName) -> int:
 		_outcome = 0
 		combat.start()
 		# Per-fight state must start clean even though the Combatant is reused.
-		if player.block != 0 or player.status_turns(Combatant.Status.EXPOSED) != 0:
-			printerr("run_stub: state leaked into fight %d (block %d, exposed %d)" % [fight_no, player.block, player.status_turns(Combatant.Status.EXPOSED)])
+		var leaked := leaked_state(player)
+		if leaked != "":
+			printerr("run_stub: state leaked into fight %d (%s)" % [fight_no, leaked])
 			return 1
 		if not _play(combat):
 			return 1
@@ -98,6 +99,18 @@ func _run(run_seed: int, character_id: StringName) -> int:
 		print("%s | reward %s (deck %d), rest +%d -> HP %d" % [line, reward.display_name, deck.size(), healed, player.hp])
 	print("Run result: VICTORY, final HP %d/%d, deck %d" % [player.hp, player.max_hp, deck.size()])
 	return 0
+
+
+## Describes the per-fight state still on `player` (Block, any status or stack, temporary stacks
+## included), "" when clean: a fight must start clean even though the Combatant is reused between fights.
+static func leaked_state(player: Combatant) -> String:
+	var parts: PackedStringArray = []
+	if player.block != 0:
+		parts.append("block %d" % player.block)
+	for status in Combatant.Status.values():
+		if player.status_turns(status) != 0 or player.stacks(status) != 0:
+			parts.append("%s %d (temp %d)" % [str(Combatant.Status.keys()[status]).to_lower(), player.status_turns(status), player.stacks(status) - player.status_turns(status)])
+	return ", ".join(parts)
 
 
 ## Plays the fight to its end with the trivial policy. Returns false on an internal failure.

@@ -61,7 +61,7 @@ static func worst_indices(scores: Array[float]) -> Array[int]:
 ## (pointless now, or too costly in HP) ranks last.
 static func keep_score(combat: Combat, card: CardData) -> float:
 	var tier := 1.0
-	if is_damage_card(card):
+	if is_damage_card(card) or _is_permanent_buff(card):
 		tier = 3.0
 	elif is_block_card(card):
 		tier = 2.0
@@ -95,14 +95,18 @@ static func _pick_card(combat: Combat) -> int:
 			if combat.energy == 0 and _scales_with_energy(card):
 				continue
 			rank = 4.0
-		elif _expose_sets_up_damage(combat, i):
+		elif _expose_sets_up_damage(combat, i) or _buff_sets_up(combat, card):
 			rank = -1
 		elif card.fading:
 			# It is lost at the end of the turn, so play it before the ordinary cards.
 			rank = -0.5
 		elif card.cost == 0 or _refunds_cost(card):
 			rank = 0
-		elif need_block and is_block_card(card):
+		elif _is_permanent_buff(card):
+			# A stack for the whole fight is worth more the earlier it is played.
+			rank = 0.5
+		elif need_block and (is_block_card(card) or _has_effect(card, CardEffect.Kind.SHAKEN)):
+			# Shaken on an attacker cuts the hit like Block does.
 			rank = 1
 		elif _has_effect(card, CardEffect.Kind.DAMAGE_PER_HAUNT):
 			rank = 2.5
@@ -153,6 +157,70 @@ static func _is_pointless(combat: Combat, card: CardData) -> bool:
 		return _haunted_target(combat) == -1 or combat.player.hp >= combat.player.max_hp
 	if _has_effect(card, CardEffect.Kind.DAMAGE_PER_HAUNT):
 		return _haunted_target(combat) == -1
+	return _is_pointless_status(combat, card)
+
+
+## True if a card of the Malice / Ward / Shaken / Frayed family would do nothing useful now (the greedy
+## bot's rule; SmartPolicy prices them instead): a self-targeted Shaken or Frayed is a pure cost, Shaken
+## needs an enemy that attacks and is not already Shaken, Frayed or a negative Ward needs an enemy about
+## to Block, a negative Malice needs an attacker, and a temporary buff needs a card it would boost.
+static func _is_pointless_status(combat: Combat, card: CardData) -> bool:
+	var energy_left := combat.energy - card.cost
+	for effect in card.effects:
+		match effect.kind:
+			CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
+				if card.target_mode == CardData.TargetMode.SELF:
+					return true
+				var found := false
+				for enemy in combat.living_enemies():
+					if effect.kind == CardEffect.Kind.SHAKEN:
+						found = found or (intent_hit(combat, enemy) > 0 and enemy.status_turns(Combatant.Status.SHAKEN) == 0)
+					else:
+						found = found or _blocks_next(enemy)
+				if not found:
+					return true
+			CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
+				if effect.amount < 0:
+					var found := false
+					for enemy in combat.living_enemies():
+						found = found or (_blocks_next(enemy) if effect.kind == CardEffect.Kind.WARD else intent_hit(combat, enemy) > 0)
+					# A temporary stack on an enemy is cleared before it acts (Combat), so it never helps.
+					if not found or effect.temporary:
+						return true
+				elif effect.temporary and not buff_has_target(combat, card, effect, energy_left):
+					return true
+	return false
+
+
+## True if `enemy`'s next intent is a Block.
+static func _blocks_next(enemy: EnemyUnit) -> bool:
+	var intent := enemy.current_intent()
+	return intent != null and intent.kind == CardEffect.Kind.BLOCK
+
+
+## True if another affordable card in hand would use a positive Malice (damage) or Ward (Block) from `card`.
+static func buff_has_target(combat: Combat, card: CardData, effect: CardEffect, energy_left: int) -> bool:
+	for other in combat.piles.hand:
+		if other == card or other.cost > energy_left:
+			continue
+		if (is_damage_card(other) if effect.kind == CardEffect.Kind.MALICE else _has_effect(other, CardEffect.Kind.BLOCK)):
+			return true
+	return false
+
+
+## True for a positive Malice or Ward the user keeps (a stack for the rest of the fight): worth playing early.
+static func _is_permanent_buff(card: CardData) -> bool:
+	for effect in card.effects:
+		if effect.kind in [CardEffect.Kind.MALICE, CardEffect.Kind.WARD] and effect.amount > 0 and not effect.temporary:
+			return true
+	return false
+
+
+## True if the card gives a positive Malice or Ward that another card in hand would use this turn.
+static func _buff_sets_up(combat: Combat, card: CardData) -> bool:
+	for effect in card.effects:
+		if effect.kind in [CardEffect.Kind.MALICE, CardEffect.Kind.WARD] and effect.amount > 0 				and buff_has_target(combat, card, effect, combat.energy - card.cost):
+			return true
 	return false
 
 
@@ -245,13 +313,21 @@ static func _has_effect(card: CardData, kind: CardEffect.Kind) -> bool:
 	return false
 
 
+## HP-before-Block the player would take from the living enemies' next intents, through the shared
+## damage pipeline (enemy Malice and Shaken, then the player's Expose).
 static func _incoming_damage(combat: Combat) -> int:
 	var total := 0
 	for enemy in combat.living_enemies():
-		var intent := enemy.current_intent()
-		if intent != null and intent.kind == CardEffect.Kind.DAMAGE:
-			total += combat.player.damage_after_status(intent.amount)
+		total += intent_hit(combat, enemy)
 	return total
+
+
+## Damage `enemy`'s next intent deals the player (all its hits, before Block), 0 for a non-damage intent.
+static func intent_hit(combat: Combat, enemy: EnemyUnit) -> int:
+	var intent := enemy.current_intent()
+	if intent == null or intent.kind != CardEffect.Kind.DAMAGE:
+		return 0
+	return Combatant.hit_damage(intent.amount, enemy, combat.player) * maxi(intent.hits, 1)
 
 
 ## Index into combat.enemies of the living enemy with the least HP (first on ties).
