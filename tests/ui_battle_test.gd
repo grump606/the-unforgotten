@@ -302,6 +302,132 @@ func _check_discard_ui(node: Control) -> void:
 	check(c.turn == turn + 1 and c.piles.hand.size() == 5, "confirming discards the marked card and draws back to 5")
 
 
+func _proto(id: String) -> CardData:
+	return load("res://data/prototype/%s.tres" % id) as CardData
+
+
+## Keyword cards on screen: keyword line and X cost on the face, Dormant cannot be played, Anchor and Fading
+## cards cannot be marked for discard and do not count toward the 5, the Forgotten count, and multi-hit
+## and Surge previews.
+func _check_keywords(node: Control) -> void:
+	node._start_combat()
+	await process_frame
+	var c: Combat = node._combat
+	c.player.clear_block()
+	c.plays_this_turn = 0
+	c.energy = 3
+	for e in c.enemies:
+		e.clear_statuses()
+		e.clear_block()
+		e.max_hp = 500
+		e.hp = 500
+	node._select_target(0)
+
+	# Card face: keyword line, X cost, markers.
+	var face := CardView.new()
+	face.set_card(_proto("surge_slash"))
+	check(face.keyword_text() == "SURGE" and face.cost_text() == "X", "a Surge card shows the SURGE keyword line and an X cost")
+	face.set_card(_proto("forgotten_strike"))
+	check(face.keyword_text() == "FORGOTTEN" and face.cost_text() == "1", "a Forgotten card shows its keyword line and a numeric cost")
+	face.set_card(load("res://data/cards/bash.tres"))
+	check(face.keyword_text() == "" and face.cost_text() == "1", "a plain card has no keyword line")
+	face.set_card(_proto("fading_jab"))
+	check(face.self_modulate.a < 1.0, "a Fading card is drawn semi-transparent")
+	face.free()
+
+	# Dormant: not clickable, not draggable, not playable, no preview.
+	c.piles.hand.assign([_proto("dormant_burden"), _proto("double_strike")])
+	node._refresh()
+	await process_frame
+	var views := CardView.find_all(node._hand_box)
+	check(views[0].state == CardView.State.UNPLAYABLE and not views[0].is_clickable() and views[0].note == "DORMANT", "a Dormant card is unplayable and says so")
+	check(views[0].preview == "", "a Dormant card shows no damage preview")
+	var hand_n := c.piles.hand.size()
+	var origin := views[0].get_global_rect().position + Vector2(20, 20)
+	_mouse_button(views[0], true, origin)
+	_mouse_move(views[0], origin + Vector2(80, 0))
+	check(not node.is_dragging_card() and not views[0].is_dragging(), "a Dormant card cannot be dragged")
+	_mouse_button(views[0], false, origin + Vector2(80, 0))
+	_mouse_button(views[0], true, origin)
+	_mouse_button(views[0], false, origin)
+	node._play_hand_card(0)
+	check(c.piles.hand.size() == hand_n and c.energy == 3, "clicking a Dormant card plays nothing")
+	check(node._target_preview(_proto("dormant_burden"), c.enemies[0]).is_empty(), "a Dormant card has no target preview")
+
+	# Multi-hit preview: 3 x2 against 4 Block, then also Exposed (3 -> 4 per hit, rounded down).
+	var dbl := _proto("double_strike")
+	c.enemies[0].gain_block(4)
+	var info: Dictionary = node._target_preview(dbl, c.enemies[0])
+	check(info.dealt == 6 and info.lost == 2, "3 x2 against 4 Block deals 6 and loses 2 HP (%s)" % str(info))
+	check(info.text.contains("Deals 6 (3 x2)") and info.text.contains("2 after Block"), "multi-hit text: " + info.text.replace("
+", " | "))
+	c.enemies[0].apply_status(Combatant.Status.EXPOSED, 2)
+	info = node._target_preview(dbl, c.enemies[0])
+	check(info.dealt == 8 and info.lost == 4, "3 x2 against 4 Block and Exposed deals 8 and loses 4 HP (%s)" % str(info))
+	var hp_before: int = c.enemies[0].hp
+	c.piles.hand.assign([dbl])
+	node._refresh()
+	c.energy = 3
+	c.play_card(0, 0)
+	check(hp_before - c.enemies[0].hp == info.lost, "the multi-hit preview matches the real damage")
+	c.enemies[0].clear_statuses()
+	c.enemies[0].clear_block()
+
+	# Surge preview scales with the energy that would be spent; clicking plays it for all the energy.
+	var slash := _proto("surge_slash")
+	c.energy = 4
+	info = node._target_preview(slash, c.enemies[0])
+	check(info.dealt == 12 and info.text.contains("Deals 12 (3 x4)"), "Surge Slash at 4 energy previews 12: " + info.text.replace("
+", " | "))
+	c.energy = 2
+	check(node._target_preview(slash, c.enemies[0]).dealt == 6, "at 2 energy the Surge preview is 6")
+	c.energy = 0
+	check(node._target_preview(slash, c.enemies[0]).dealt == 0, "at 0 energy the Surge preview is 0")
+	c.energy = 3
+	c.piles.hand.assign([slash])
+	node._refresh()
+	views = CardView.find_all(node._hand_box)
+	check(views[0].is_clickable() and views[0].cost_text() == "X" and views[0].preview.contains("Deals 9"), "a Surge card is playable and previews with the current energy: " + views[0].preview.replace("
+", " | "))
+	hp_before = c.enemies[0].hp
+	views[0].pressed.emit()
+	check(c.energy == 0 and hp_before - c.enemies[0].hp == 9, "clicking a Surge card spends all energy and hits once per energy")
+	c.energy = 0
+	c.piles.hand.assign([slash])
+	node._refresh()
+	check(CardView.find_all(node._hand_box)[0].is_clickable(), "a Surge card stays playable at 0 energy")
+
+	# Pile label shows the Forgotten count.
+	check(node._pile_label.text.contains("Forgotten 0"), "the pile label lists Forgotten: " + node._pile_label.text.replace("
+", " | "))
+	c.energy = 3
+	var discarded_before := c.piles.discard_pile.size()
+	c.piles.hand.assign([_proto("forgotten_strike")])
+	node._refresh()
+	c.play_card(0, 0)
+	check(node._pile_label.text.contains("Forgotten 1") and node._pile_label.text.contains("Discard %d
+" % discarded_before), "a played Forgotten card is counted under Forgotten, not Discard: " + node._pile_label.text.replace("
+", " | "))
+
+	# Discard step: Anchor and Fading cards cannot be marked and do not count toward the 5.
+	var plain := load("res://data/cards/bash.tres") as CardData
+	c.piles.hand.assign([plain, plain, plain, plain, plain, plain, plain, _proto("anchor_ward"), _proto("fading_jab")])
+	node._refresh()
+	node._on_end_turn_pressed()
+	check(c.phase == Combat.Phase.DISCARDING and node._end_turn_button.text == "Discard 2 more", "7 counted cards plus Anchor and Fading must discard 2: " + node._end_turn_button.text)
+	check(node._result_label.text.contains("keep 7 of up to 5") and node._result_label.text.contains("Fading cards left in hand will be Forgotten"), "the prompt counts only normal cards and warns about Fading: " + node._result_label.text)
+	views = CardView.find_all(node._hand_box)
+	check(views[7].note == "ANCHOR: STAYS" and views[8].note == "FORGOTTEN AT END", "Anchor and Fading cards say what happens to them in the discard step")
+	views[7].pressed.emit()
+	views[8].pressed.emit()
+	check(c.discard_marks.is_empty() and not CardView.find_all(node._hand_box)[7].discard_marked, "Anchor and Fading cards cannot be marked")
+	views[0].pressed.emit()
+	views[1].pressed.emit()
+	check(not node._end_turn_button.disabled and node._end_turn_button.text == "Discard 2", "marking two normal cards is enough")
+	node._on_end_turn_pressed()
+	check(c.piles.forgotten.size() == 2 and c.piles.hand.has(_proto("anchor_ward")), "confirming forgets the Fading card and keeps the Anchor card in hand")
+
+
 func _initialize() -> void:
 	var node: Control = (load("res://battle.tscn") as PackedScene).instantiate()
 	root.add_child(node)
@@ -478,5 +604,6 @@ func _initialize() -> void:
 	await _check_discard_ui(node)
 	_check_preview(node)
 	_check_drag(node)
+	await _check_keywords(node)
 	print("DONE fails=", fails)
 	quit(1 if fails > 0 else 0)

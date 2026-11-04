@@ -68,6 +68,19 @@ func _initialize() -> void:
 	check(CardView.palette_id(unknown) == &"" and CardView.primary_kind(unknown) == -1, "unknown class falls back to neutral")
 	for kind in CardEffect.Kind.values():
 		check(CardView.ICON_PRIORITY.has(kind), "kind %d has an icon" % kind)
+	# Prototype keyword cards build and draw in every state.
+	for file in DirAccess.get_files_at("res://data/prototype"):
+		if not file.ends_with(".tres"):
+			continue
+		var proto := load("res://data/prototype/" + file) as CardData
+		var proto_view := CardView.new()
+		holder.add_child(proto_view)
+		proto_view.set_card(proto)
+		for state in [CardView.State.NORMAL, CardView.State.HOVER, CardView.State.SELECTED, CardView.State.UNPLAYABLE]:
+			proto_view.set_state(state)
+		proto_view.discard_marked = true
+		check(proto_view.cost_text() == ("X" if proto.surge else str(proto.cost)) and (proto_view.keyword_text() != "") == (not proto.keyword_lines().is_empty()), "%s shows the right cost stamp and keyword line" % proto.id)
+	await process_frame
 	_check_damage_variants()
 	print("DONE fails=", fails)
 	quit(1 if fails > 0 else 0)

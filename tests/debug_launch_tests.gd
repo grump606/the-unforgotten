@@ -16,6 +16,7 @@ func run() -> int:
 	_test_list()
 	_test_run_state_uses_debug_encounter()
 	_test_screens()
+	_test_proto()
 	return _failures
 
 
@@ -119,3 +120,20 @@ func _test_screens() -> void:
 	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor", "--fight=eraser"]), {}).error != "", "a fight and a screen together is an error")
 	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor", "--gold=-5"]), {}).error != "", "negative gold is an error")
 	_check(DebugLaunch.screen_count("vendor") == 3 and DebugLaunch.screen_count("rest") >= 3, "the default line has three shops and several rests")
+
+
+func _test_proto() -> void:
+	var launch := DebugLaunch.parse(PackedStringArray(["--proto"]), {})
+	_check(launch.requested and launch.proto and launch.error == "" and launch.enemy_ids.size() == 1, "--proto alone starts a fight with the prototype deck")
+	launch = DebugLaunch.parse(PackedStringArray(["--proto", "--fight=crow"]), {})
+	_check(launch.proto and launch.enemy_ids == [&"mourning_crow"], "--proto keeps the chosen enemy")
+	_check(not DebugLaunch.parse(PackedStringArray(["--fight=crow"]), {}).proto, "no --proto means the normal deck")
+	var deck := DebugLaunch.prototype_deck()
+	_check(deck.size() == DebugLaunch.PROTO_CARD_PATHS.size() * DebugLaunch.PROTO_COPIES and not deck.has(null), "the prototype deck holds every prototype card")
+	var in_pool := false
+	for card in StarterContent.all_cards():
+		in_pool = in_pool or String(card.id).begins_with("proto_")
+	for character_id in StarterContent.character_ids():
+		for card in StarterContent.reward_pool(character_id):
+			in_pool = in_pool or String(card.id).begins_with("proto_")
+	_check(not in_pool, "prototype cards are not in the card registry or any reward pool")
