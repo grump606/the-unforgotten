@@ -219,7 +219,8 @@ static func _is_permanent_buff(card: CardData) -> bool:
 ## True if the card gives a positive Malice or Ward that another card in hand would use this turn.
 static func _buff_sets_up(combat: Combat, card: CardData) -> bool:
 	for effect in card.effects:
-		if effect.kind in [CardEffect.Kind.MALICE, CardEffect.Kind.WARD] and effect.amount > 0 				and buff_has_target(combat, card, effect, combat.energy - card.cost):
+		var is_buff: bool = effect.kind in [CardEffect.Kind.MALICE, CardEffect.Kind.WARD] and effect.amount > 0
+		if is_buff and buff_has_target(combat, card, effect, combat.energy - card.cost):
 			return true
 	return false
 
