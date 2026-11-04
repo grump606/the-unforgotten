@@ -45,6 +45,10 @@ const SPIRIT_TITHE_PATH := "res://data/cards/spirit_tithe.tres"
 const SEANCE_PATH := "res://data/cards/seance.tres"
 const BLEED_THE_VEIL_PATH := "res://data/cards/bleed_the_veil.tres"
 const RECKONING_PATH := "res://data/cards/reckoning.tres"
+# Phase 4d: Medium cards that feed on the Forgotten pile.
+const REMEMBER_PATH := "res://data/cards/remember.tres"
+const CHORUS_OF_THE_LOST_PATH := "res://data/cards/chorus_of_the_lost.tres"
+const HOLLOW_BARGAIN_PATH := "res://data/cards/hollow_bargain.tres"
 const CINDER_HOUND_PATH := "res://data/enemies/cinder_hound.tres"
 const MOURNING_CROW_PATH := "res://data/enemies/mourning_crow.tres"
 const WISP_PATH := "res://data/enemies/skittering_wisp.tres"
@@ -70,6 +74,8 @@ const ALL_CARD_PATHS: Array[String] = [
 	MARK_THE_WEAK_PATH, CUTTING_WORD_PATH, HAMSTRING_PATH, SECOND_WIND_PATH,
 	# Phase 4b Thief cards.
 	SHARPEN_PATH, QUICK_STUDY_PATH, CLEANED_OUT_PATH,
+	# Phase 4d: Medium
+	REMEMBER_PATH, CHORUS_OF_THE_LOST_PATH, HOLLOW_BARGAIN_PATH,
 ]
 ## Status cards: Dormant cards that enemies add to the player's piles mid-fight (Dread: Dormant; Murmur:
 ## Dormant and Fading). An explicit id -> path table, kept OUT of ALL_CARD_PATHS, the reward pools,
