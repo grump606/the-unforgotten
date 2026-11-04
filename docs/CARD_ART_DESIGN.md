@@ -12,10 +12,10 @@ Hand fit: the hand is an `HFlowContainer` (`battle.tscn`, min height 100) in a 1
 
 | Class | Stock / frame | Header label, frame decor | Emblem | Art window motif |
 |---|---|---|---|---|
-| Neutral | cream `(.90,.86,.76)` / grey `(.50,.47,.43)`, dark ink | `ADMIT ONE`, plain rule | punched hole | faint ring |
-| Deserter | steel `(.27,.29,.32)` / rust `(.66,.31,.14)`, light ink | `DESERTER`, hazard stripes, corner rivets | hex bolt | diagonal stripes |
-| Thief | dusk teal `(.11,.29,.31)` / brass `(.80,.62,.26)` | `THIEF`, stitched thread border | keyhole | ruled lines |
-| Medium | bruised violet `(.24,.15,.30)` / bone `(.86,.82,.70)` | `MEDIUM`, dots, bone double line | candle | concentric eye rings |
+| Neutral | keepsake paper `#D7D0BC` / slate `#526979`, dark ink | `KEEPSAKE`, plain rule | punched hole | faint ring |
+| Deserter | steel `#29313A` / rust `#A66A50`, light ink | `DESERTER`, hazard stripes, corner rivets | hex bolt | diagonal stripes |
+| Thief | dusk teal `#253D3D` / sage `#78A99B` | `THIEF`, stitched thread border | keyhole | ruled lines |
+| Medium | bruised violet `#342F42` / lilac `#9A89AD` | `MEDIUM`, dots, bone double line | candle | concentric eye rings |
 
 Neutral is the only light card, so class cards read as "darker, coloured, framed" next to it. Shared: cost badge amber `(.96,.78,.30)` with dark number, art window near-black tinted per class, icon colours by kind.
 

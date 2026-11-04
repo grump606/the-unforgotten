@@ -11,7 +11,7 @@ amount = 6
 [sub_resource type="Resource" id="Resource_e2"]
 script = ExtResource("2_effect")
 kind = 10
-amount = 8
+amount = 6
 
 [resource]
 script = ExtResource("1_card")

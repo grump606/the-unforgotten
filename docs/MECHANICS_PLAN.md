@@ -317,31 +317,73 @@ yet, so this is a sanity check, not a verdict.
 - 4b Thief, 4c Deserter, 4d Medium (parallel after 4a): the retunes and new cards for that class.
 - 4e: identity and keyword-coverage tests, a final balance pass, README card list.
 
-**Balance baseline** (`run_sim.gd --runs 150 --seed 7 --character C --policy P`, 2026-11-04). Before is
-commit 0e071ee; after is Phase 4a, where only the neutral retunes (Glimpse the Exit, Flurry) change play, since
-the starter decks are untouched. Escapes out of 150:
+**Balance baseline** (`run_sim.gd --runs 150 --seed S --character C --policy P`, 2026-11-04). Escapes out of
+150 (percent in brackets). Before is the original pre-phase-4 tree (commit 0e071ee, seed 7 only), merged
+4b-4d is the tree after the class PRs, final 4e is after the balance pass below. Target: smart 40-60%
+(60-90 escapes) per class on both seeds; greedy (the dumb robustness bot) at least 12% (18 escapes).
 
-| Class | Policy | Before | After |
-|---|---|---|---|
-| Thief | greedy | 25 (16.7%) | 22 (14.7%) |
-| Thief | smart | 71 (47.3%) | 73 (48.7%) |
-| Deserter | greedy | 33 (22.0%) | 27 (18.0%) |
-| Deserter | smart | 72 (48.0%) | 77 (51.3%) |
-| Medium | greedy | 34 (22.7%) | 34 (22.7%) |
-| Medium | smart | 97 (64.7%) | 75 (50.0%) |
+| Class | Policy | Before (seed 7) | Merged 4b-4d, seed 7 | Merged 4b-4d, seed 11 | Final 4e, seed 7 | Final 4e, seed 11 |
+|---|---|---|---|---|---|---|
+| Thief | smart | 71 (47.3%) | 71 (47.3%) | 91 (60.7%) | 71 (47.3%) | 91 (60.7%) |
+| Thief | greedy | 25 (16.7%) | 50 (33.3%) | 62 (41.3%) | 50 (33.3%) | 62 (41.3%) |
+| Deserter | smart | 72 (48.0%) | 131 (87.3%) | 134 (89.3%) | 75 (50.0%) | 76 (50.7%) |
+| Deserter | greedy | 33 (22.0%) | 103 (68.7%) | 110 (73.3%) | 65 (43.3%) | 62 (41.3%) |
+| Medium | smart | 97 (64.7%) | 110 (73.3%) | 107 (71.3%) | 86 (57.3%) | 85 (56.7%) |
+| Medium | greedy | 34 (22.7%) | 17 (11.3%) | 21 (14.0%) | 14 (9.3%) | 20 (13.3%) |
 
-The Thief and Deserter smart rates stay within 5 points. The Medium's smart rate drops 14.7 points. Isolated
-on the Medium smart sim (seed 7, 150 runs): the original Draw 2 gives 97; Draw 1 alone gives 89 (the lost draw
-costs about 8 points); Glimpse 3 plus Draw 1 gives 75 (the Glimpse costs another 14). A player can always
-decline a Glimpse, so the extra loss is the smart bot's Glimpse rule (it bins every card scoring below the
-average card), not the card. Tried instead: binning only Dormant cards gives Medium 91 but Thief 51 (down from
-73); binning below half the average gives Medium 89, Thief 51. The rule helps decks that cycle (Thief) and
-hurts decks whose good cards score low in `card_score` (Medium, whose Haunt and HP-cost cards it undervalues).
-Left as is: the bot's Glimpse and scoring are a known weakness for the 4e balance pass.
+Left over after the pass: Thief smart on seed 11 is 91, one escape over the band (the Thief was not changed in
+4e: its strength is Last Keepsake, an old card, and the new Thief cards are almost never taken or played by
+the smart bot); Medium greedy on seed 7 is 14, below the 18 floor (seed 11 is 20).
 
-**Reference for 4b-4d:** the "After" column is the baseline each class PR is measured against, so a class
-retune is judged on its own change (target: smart escape rate within about 5 points of it per class, or an
-explanation). Treat the sim as a sanity check, not a verdict.
+**Experiments** (smart escapes, seed 7 / seed 11; each row keeps the earlier kept rows):
+
+| Lever | Value | Class | Seed 7 / seed 11 | Kept |
+|---|---|---|---|---|
+| (merged tree) | | Deserter | 131 / 134 | |
+| Iron Resolve Ward (permanent) | +2 -> +1 | Deserter | 102 / 108 | yes |
+| Heavy Blow damage | 20 -> 17 | Deserter | 87 / 97 | |
+| Dig Deep Block per energy | 5 -> 4 (on top of 17) | Deserter | 86 / 98 | no, no effect |
+| Heavy Blow damage | 20 -> 16 | Deserter | 90 / 91 | yes |
+| Last Stand Block | 14 -> 12 | Deserter | 75 / 76 | yes |
+| (merged tree) | | Medium | 110 / 107 | |
+| Remember cost | 1 -> 2 | Medium | 110 / 107 | no, the smart bot never takes it |
+| Bleed the Veil Haunt | 8 -> 6 | Medium | 86 / 85 | yes |
+| Seance Draw | 3 -> 2 | Medium | 126 / 123 | no, it made the Medium stronger |
+| Bleed the Veil Haunt | 8 -> 7 | Medium | 102 / 103 | no |
+| Bleed the Veil Haunt 6, HP cost 5 | | Medium | 90 / 86 | no, at the band edge |
+| Bleed the Veil Haunt 6, HP cost 4 | | Medium | 97 / 105 | no |
+
+Medium greedy while tuning (seed 7 / seed 11): Bleed the Veil Haunt 8 gives 17 / 21, Haunt 6 gives 14 / 20,
+Haunt 6 with HP cost 5 gives 15 / 25, with HP cost 4 gives 15 / 29. Chorus of the Lost 2x -> 3x changed
+nothing (15 / 25), Hollow Bargain Draw 2 -> 3 gave 14 / 28. The greedy bot's Medium run is dominated by the
+starter deck and the once-per-fight Bleed the Veil; no number in the lever list lifts seed 7 to 18 without
+pushing the smart rate out of band. Remember, Chorus of the Lost and Hollow Bargain never change the smart
+result: the smart bot does not take them in rewards.
+
+**Final values of the changed cards** (Phase 4e):
+
+| Card | Merged 4b-4d | Final |
+|---|---|---|
+| Heavy Blow | 2, Deal 20, Forgotten | 2, Deal 16, Forgotten |
+| Iron Resolve | 2, Block 6, Ward +2 (permanent) | 2, Block 6, Ward +1 (permanent) |
+| Last Stand | 3, Block 14, Hold 10, Anchor | 3, Block 12, Hold 10, Anchor |
+| Bleed the Veil | 2, lose 6 HP, Haunt 8 all, Forgotten | 2, lose 6 HP, Haunt 6 all, Forgotten |
+
+Every other card keeps its Phase 4b-4d numbers (Dig Deep Block 5 per energy, Remember cost 1, Chorus of the
+Lost 2x, Hollow Bargain Draw 2, Seance unchanged).
+
+Before 4e, on the Medium smart sim with seed 7 (150 runs): the original Draw 2 on Glimpse the Exit gives 97;
+Draw 1 alone gives 89; Glimpse 3 plus Draw 1 gives 75. A player can always decline a Glimpse, so the extra
+loss is the smart bot's Glimpse rule (it bins every card scoring below the average card), not the card. The
+rule helps decks that cycle (Thief) and hurts decks whose good cards score low in `card_score` (Medium, whose
+Haunt and HP-cost cards it undervalues).
+
+**Bot weaknesses worth a later pass:** the smart bot's Glimpse binning (above); neither bot takes or plays
+Remember, Chorus of the Lost or Hollow Bargain well (the smart bot never takes them, greedy plays Chorus
+about 0.9 times a run), so their numbers are untested by the sim; greedy has no Recall or Forgotten
+judgement; the Thief's new cards (Sharpen, Quick Study, Cleaned Out) are almost never taken or played, so
+the Thief's escape rate says nothing about them; the Deserter's Dig Deep change from 5 to 4 had no
+measurable effect for the same reason.
 
 Relics and enemy content are out of scope here (phase 5).
 
