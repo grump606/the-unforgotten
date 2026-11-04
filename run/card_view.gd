@@ -45,6 +45,12 @@ const PALETTES := {
 		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#5C526B"),
 		"banner_ink": Color("#F0EBDD"), "accent": Color("#9A89AD"), "glyph": Color("#171D28"),
 	},
+	# Status cards (Dread, Murmur: what enemies shuffle in): a sickly grey-green, so they read as junk.
+	&"status": {
+		"label": "STATUS", "stock": Color("#333D31"), "frame": Color("#6F8A5C"),
+		"ink": Color("#C4CFB6"), "window": Color("#161C15"), "banner": Color("#4A5845"),
+		"banner_ink": Color("#DCE5CF"), "accent": Color("#8FAA73"), "glyph": Color("#161C15"),
+	},
 }
 
 ## Primary icon = the first of these that the card has (scaled damage reads before plain damage).
@@ -56,6 +62,15 @@ const ICON_PRIORITY: Array[CardEffect.Kind] = [
 	CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD,
 	CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL,
 ]
+## Every kind that _draw_icon has a glyph for (a test walks CardEffect.Kind and fails if one is missing, so a
+## new kind cannot silently draw nothing).
+const ICON_KINDS: Array[CardEffect.Kind] = [
+	CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK, CardEffect.Kind.DRAW, CardEffect.Kind.EXPOSE, CardEffect.Kind.HOLD,
+	CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.THORNS, CardEffect.Kind.GAIN_ENERGY,
+	CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.HAUNT, CardEffect.Kind.LOSE_HP, CardEffect.Kind.HEAL_PER_HAUNTED,
+	CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD,
+	CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL, CardEffect.Kind.DAMAGE_PER_FORGOTTEN,
+]
 const KIND_COLORS := {
 	CardEffect.Kind.DAMAGE: Color("#d96b65"), CardEffect.Kind.BLOCK: Color("#83b4cf"),
 	CardEffect.Kind.DRAW: Color(0.88, 0.88, 0.92), CardEffect.Kind.EXPOSE: Color(0.96, 0.80, 0.35),
@@ -64,7 +79,8 @@ const KIND_COLORS := {
 	CardEffect.Kind.LOSE_HP: Color(0.92, 0.26, 0.32), CardEffect.Kind.HEAL_PER_HAUNTED: Color(0.96, 0.52, 0.62),
 	CardEffect.Kind.SHAKEN: Color(0.97, 0.62, 0.30), CardEffect.Kind.FRAYED: Color(0.78, 0.70, 0.55),
 	CardEffect.Kind.MALICE: Color(0.84, 0.45, 0.95), CardEffect.Kind.WARD: Color(0.46, 0.62, 1.0),
-	CardEffect.Kind.GLIMPSE: Color(0.55, 0.85, 0.95), CardEffect.Kind.ADD_CARD: Color(0.70, 0.70, 0.78), CardEffect.Kind.RECALL: Color(0.86, 0.78, 0.55),
+	CardEffect.Kind.GLIMPSE: Color(0.55, 0.85, 0.95), CardEffect.Kind.ADD_CARD: Color(0.72, 0.84, 0.60), CardEffect.Kind.RECALL: Color(0.90, 0.78, 0.50),
+	CardEffect.Kind.DAMAGE_PER_FORGOTTEN: Color("#d96b65"),
 }
 ## Tint of a debuff (a negative Malice or Ward) on a status pill.
 const STATUS_NEGATIVE := Color(0.95, 0.35, 0.35)
@@ -200,9 +216,16 @@ static func find_all(node: Node) -> Array[CardView]:
 
 ## The palette key for a card: its character when that class has a frame, else neutral.
 static func palette_id(c: CardData) -> StringName:
-	if c != null and PALETTES.has(c.character):
+	if is_status_card(c):
+		return &"status"
+	if c != null and PALETTES.has(c.character) and c.character != &"status":
 		return c.character
 	return &""
+
+
+## A status card (Dread, Murmur): Dormant with no effects, so it can only clog the hand.
+static func is_status_card(c: CardData) -> bool:
+	return c != null and c.dormant and c.effects.is_empty()
 
 
 ## The effect kind whose icon leads the card, or -1 for a card with no effects.
@@ -256,7 +279,7 @@ static func secondary_kinds(c: CardData) -> Array[int]:
 	for kind in ICON_PRIORITY:
 		if kind == primary or out.size() >= 3:
 			continue
-		if kind == CardEffect.Kind.DAMAGE and primary in [CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT]:
+		if kind == CardEffect.Kind.DAMAGE and primary in [CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN]:
 			continue
 		for effect in c.effects:
 			if effect.kind == kind:
@@ -565,6 +588,11 @@ func _draw_class_frame(p: Dictionary) -> void:
 		&"medium":
 			# A thin bone double line.
 			_box(Rect2(6, 6, BASE.x - 12, BASE.y - 12), Color(0, 0, 0, 0), 4, 1, Color(accent, 0.4))
+		&"status":
+			# Torn, mildewed edge: a ragged dashed border and a few creeping blotches in the corners.
+			_dashed_rect(Rect2(6, 6, BASE.x - 12, BASE.y - 12), Color(accent, 0.6))
+			for pt in [Vector2(9, 9), Vector2(BASE.x - 12, BASE.y - 14), Vector2(BASE.x - 14, 12)]:
+				draw_circle(pt + Vector2(2, 2), 2.4, Color(accent, 0.22))
 		_:
 			_box(Rect2(6, 6, BASE.x - 12, BASE.y - 12), Color(0, 0, 0, 0), 4, 1, Color(accent, 0.25))
 
@@ -598,6 +626,10 @@ func _draw_header_decor(header: Rect2, p: Dictionary) -> void:
 		&"medium":
 			for pt in [Vector2(42, 21), Vector2(94, 21), Vector2(60, 25), Vector2(78, 25)]:
 				draw_circle(pt + Vector2(0, 0), 0.9, Color(accent, 0.7))
+		&"status":
+			# A row of drips along the header's lower edge.
+			for x in range(42, 98, 9):
+				draw_line(Vector2(x, header.end.y - 4), Vector2(x, header.end.y - 1 + float(x % 3)), Color(accent, 0.7), 1.6)
 		_:
 			draw_line(Vector2(header.position.x + 4, header.end.y - 3), Vector2(header.end.x - 4, header.end.y - 3), Color(p.ink, 0.25), 1.0)
 
@@ -617,6 +649,11 @@ func _draw_emblem(c: Vector2, p: Dictionary) -> void:
 			# A keyhole.
 			draw_circle(c + Vector2(0, -2.5), 4.0, glyph)
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-1.8, 0), c + Vector2(1.8, 0), c + Vector2(3.8, 7.5), c + Vector2(-3.8, 7.5)]), glyph)
+		&"status":
+			# A sickly eye, half shut.
+			draw_arc(c + Vector2(0, 1), 6.5, PI * 1.12, PI * 1.88, 12, glyph, 1.6, true)
+			draw_arc(c + Vector2(0, -1), 6.5, PI * 0.12, PI * 0.88, 12, glyph, 1.6, true)
+			draw_circle(c, 2.2, glyph)
 		&"medium":
 			# Cloudy-glass orb, matching the Medium's current keepsake.
 			draw_circle(c, 7.0, glyph)
@@ -651,6 +688,9 @@ func _draw_window_motif(win: Rect2, p: Dictionary) -> void:
 		&"medium":
 			for r in [10.0, 18.0, 26.0]:
 				draw_arc(c, r, 0, TAU, 32, Color(accent, 0.12), 1.0, true)
+		&"status":
+			for r in [8.0, 15.0, 22.0]:
+				draw_arc(c, r, 0.4 * r, 0.4 * r + 4.2, 20, Color(accent, 0.18), 1.4, true)
 		_:
 			draw_arc(c, 18.0, 0, TAU, 32, Color(0.9, 0.86, 0.76, 0.1), 1.0, true)
 	if card.target_mode == CardData.TargetMode.ALL_ENEMIES:
@@ -684,6 +724,8 @@ func _draw_painted_window(art: Texture2D, win: Rect2, p: Dictionary, muted: bool
 func _draw_card_icons(win: Rect2, p: Dictionary) -> void:
 	var primary := primary_kind(card)
 	if primary < 0:
+		if is_status_card(card):
+			_draw_blot(win.get_center(), 15.0, p.accent)
 		return
 	var window_col: Color = p.window
 	var center := win.get_center() + Vector2(0, -1)
@@ -696,6 +738,19 @@ func _draw_card_icons(win: Rect2, p: Dictionary) -> void:
 		draw_arc(pt, 10.0, 0, TAU, 20, Color(1, 1, 1, 0.45), 1.0, true)
 		_draw_icon(kind, pt, 6.5, window_col)
 		x -= 23.0
+
+
+## A status card's art: a ragged inkblot with a few drips.
+func _draw_blot(c: Vector2, r: float, col: Color) -> void:
+	var pts := PackedVector2Array()
+	for i in 18:
+		var a := TAU * i / 18.0
+		pts.append(c + Vector2.from_angle(a) * r * (0.62 + 0.38 * absf(sin(a * 2.5 + 0.7))))
+	draw_colored_polygon(pts, Color(col, 0.55))
+	for dx in [-0.5, 0.1, 0.6]:
+		draw_line(c + Vector2(dx, 0.6) * r, c + Vector2(dx, 1.15 + dx * 0.3) * r, Color(col, 0.55), 2.0)
+	draw_circle(c + Vector2(-0.3, -0.1) * r, r * 0.12, Color(0, 0, 0, 0.6))
+	draw_circle(c + Vector2(0.25, -0.1) * r, r * 0.12, Color(0, 0, 0, 0.6))
 
 
 ## The text of the keyword line ("FORGOTTEN · SURGE"), empty for a card without keywords.
@@ -1043,6 +1098,39 @@ func _draw_icon(kind: int, c: Vector2, r: float, window_col: Color, variant := &
 		CardEffect.Kind.DAMAGE_PER_HAUNT:
 			_ghost(c + Vector2(-0.15, 0.1) * r, r * 0.85, KIND_COLORS[CardEffect.Kind.HAUNT], window_col)
 			_blade(c + Vector2(0.35, -0.25) * r, r * 0.8, KIND_COLORS[CardEffect.Kind.DAMAGE])
+		CardEffect.Kind.GLIMPSE:
+			# An eye: an almond with an iris and a pupil.
+			var almond := PackedVector2Array()
+			for i in 9:
+				var x := -1.0 + 0.25 * i
+				almond.append(c + Vector2(x, -0.62 * (1.0 - x * x)) * r)
+			for i in 9:
+				var x := 1.0 - 0.25 * i
+				almond.append(c + Vector2(x, 0.62 * (1.0 - x * x)) * r)
+			_fill(almond, col)
+			draw_circle(c, r * 0.4, window_col)
+			draw_circle(c, r * 0.2, col)
+			draw_circle(c + Vector2(0.08, -0.08) * r, r * 0.07, Color(1, 1, 1, 0.8))
+		CardEffect.Kind.ADD_CARD:
+			# A card with a plus: a darker card behind, the new one in front.
+			_fill(_pts([Vector2(-0.8, -0.85), Vector2(0.2, -0.85), Vector2(0.2, 0.55), Vector2(-0.8, 0.55)], c, r), col.darkened(0.4))
+			_fill(_pts([Vector2(-0.3, -0.55), Vector2(0.7, -0.55), Vector2(0.7, 0.85), Vector2(-0.3, 0.85)], c, r), col)
+			draw_line(c + Vector2(0.2, -0.1) * r, c + Vector2(0.2, 0.55) * r, window_col, w * 1.3)
+			draw_line(c + Vector2(-0.12, 0.22) * r, c + Vector2(0.52, 0.22) * r, window_col, w * 1.3)
+		CardEffect.Kind.RECALL:
+			# A returning arrow: an open circle whose head curls back in.
+			var end_angle := deg_to_rad(215)
+			draw_arc(c, r * 0.72, deg_to_rad(-60), end_angle, 20, col, w * 1.7, true)
+			var tip := c + Vector2.from_angle(end_angle) * r * 0.72
+			var along := Vector2.from_angle(end_angle + PI / 2.0)
+			var out := Vector2.from_angle(end_angle)
+			_fill(PackedVector2Array([tip + along * r * 0.5, tip + out * r * 0.38, tip - out * r * 0.38]), col)
+		CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
+			# A pile of cards under a blade: damage that grows with the Forgotten pile.
+			for i in 3:
+				var o := Vector2(-0.45 + 0.12 * i, 0.55 - 0.2 * i)
+				_fill(_pts([Vector2(-0.6, -0.3), Vector2(0.6, -0.3), Vector2(0.6, 0.3), Vector2(-0.6, 0.3)], c + o * r, r * 0.8, -0.12 + 0.12 * i), Color(0.55, 0.52, 0.62).lightened(0.12 * i))
+			_blade(c + Vector2(0.3, -0.25) * r, r * 0.9, KIND_COLORS[CardEffect.Kind.DAMAGE])
 
 
 static func kind_color(kind: int) -> Color:

@@ -137,7 +137,7 @@ any reward pool. To play a fight with them (two copies of each as the deck):
 `--proto` alone fights the Colossus; with `--fight=` it uses that enemy. `THE_UNFORGOTTEN_PROTO=1` does the
 same from the environment. The list lives in `DebugLaunch.PROTO_CARD_PATHS`. With the status cards added
 (a plain Strike and Guard, Shaken and Frayed on a foe, Malice permanent and for one turn, Ward, a Malice
-debuff, and a Block card that also Shakens you) the deck is one copy of each, 17 cards.
+debuff, and a Block card that also Shakens you) the deck was one copy of each, 17 cards. Phase 3b adds seven cycling cards (below), so the deck is 24 cards.
 
 The status prototypes have their own enemy, the Pest (`data/prototype/enemies/proto_pest.tres`, the hound's
 figure). It cycles Shaken on you, Frayed on you, Malice for itself, then an attack. It is not in the enemy
@@ -151,6 +151,23 @@ for Malice and Ward, red when negative), the tooltip on the figure explaining ea
 on the cards in hand turning green or red with your own Malice, Shaken, Ward and Frayed, and the Pest's Omen
 number including its own Malice and Shaken.
 
+The cycling prototypes (Glimpse, Recall, adding cards, damage from the Forgotten pile) add: Glimpse 3, Glimpse
+2 and Draw, Recall 1 (itself Forgotten, so it can recall itself), Recall 2, Gift (adds a Heavy Blow to your
+hand), Dreadful Draw (adds a Dread to your own draw pile, draws 2) and Pile Strike (damage equal to 2x the
+Forgotten pile; the Forgotten Strike already in the deck feeds the pile). They fight the Dreadkeeper
+(data/prototype/enemies/proto_dreadkeeper.tres, the whisperer's figure, 70 HP): it shuffles a Dread into
+your draw pile, puts a Murmur in your hand, then attacks for 6 and for 11, and repeats. It is in no registry
+or pool; --fight= accepts proto_dreadkeeper, Proto: Dreadkeeper or dreadkeeper:
+
+    godot --path . -- --proto --fight=proto_dreadkeeper
+    godot --path . -- --proto --fight=proto_dreadkeeper --character=medium --hp=30
+
+What to look for: Glimpse and Recall open an overlay over the stage (cards in draw order for Glimpse; tap to
+mark for discard, "Keep all" or "Discard N"; Recall needs exactly N picks and shows "Recall 1 of 2"), with
+number keys to mark and Enter to confirm, and nothing else playable behind it. Click Draw, Discard or
+Forgotten under the energy orb to look at a pile (Draw is sorted, so it shows no order). A floating "+Dread
+(draw pile)" appears when something is added, and a line in the Log. Dread and Murmur are grey-green status
+cards. Pile Strike's "Deals N" grows as the Forgotten pile does.
 ## Phase 2 detail
 
 Damage and Block pipeline plus Shaken, Frayed, Malice and Ward. No existing card changes, so no change to

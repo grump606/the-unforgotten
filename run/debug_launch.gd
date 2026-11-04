@@ -24,6 +24,11 @@ extends RefCounted
 ##   godot --path . -- --proto --fight=proto_pest
 ##   godot --path . -- --proto --fight=proto_pest --character=thief
 ##
+## The cycling prototypes (Glimpse, Recall, adding cards) have the Dreadkeeper: it shuffles a Dread into your draw
+## pile, slips a Murmur into your hand, then attacks twice, and repeats:
+##
+##   godot --path . -- --proto --fight=proto_dreadkeeper
+##
 ## The same values can come from THE_UNFORGOTTEN_FIGHT, THE_UNFORGOTTEN_SCREEN, THE_UNFORGOTTEN_CHARACTER,
 ## THE_UNFORGOTTEN_HP and THE_UNFORGOTTEN_GOLD.
 ## `--fight=list` prints the accepted names. Names match an enemy id, its in-game name, or a short
@@ -38,8 +43,10 @@ const ENV_PROTO := "THE_UNFORGOTTEN_PROTO"
 ## Enemy used by `--proto` when no `--fight` is given.
 const PROTO_DEFAULT_FIGHT := "colossus"
 ## The prototype cards: one per keyword plus multi-hit and Surge, a plain Strike and Guard (to see live
-## numbers), and one per status effect (Shaken, Frayed, Malice, Ward, including the debuff, temporary and
-## self-targeted cases). Listed, not scanned, so the folder can never leak into the reward pool.
+## numbers), one per status effect (Shaken, Frayed, Malice, Ward, including the debuff and self-targeted
+## cases) and one per cycling effect (Glimpse, Glimpse with Draw, Recall 1 and 2, Gift (adds a good card to
+## hand), Dreadful Draw (adds a Dread to your own draw pile), Pile Strike (damage from the Forgotten pile)).
+## Listed, not scanned, so the folder can never leak into the reward pool.
 const PROTO_CARD_PATHS: Array[String] = [
 	"res://data/prototype/forgotten_strike.tres", "res://data/prototype/fading_jab.tres",
 	"res://data/prototype/ready_guard.tres", "res://data/prototype/anchor_ward.tres",
@@ -50,13 +57,19 @@ const PROTO_CARD_PATHS: Array[String] = [
 	"res://data/prototype/malice.tres", "res://data/prototype/malice_turn.tres",
 	"res://data/prototype/ward.tres", "res://data/prototype/sap_foe.tres",
 	"res://data/prototype/shake_self.tres",
+	"res://data/prototype/glimpse_3.tres", "res://data/prototype/glimpse_draw.tres",
+	"res://data/prototype/recall_1.tres", "res://data/prototype/recall_2.tres",
+	"res://data/prototype/add_gift.tres", "res://data/prototype/self_dread.tres",
+	"res://data/prototype/pile_strike.tres",
 ]
-## Copies of each prototype card in the `--proto` deck (one each keeps the deck at 17 cards, so every
+## Copies of each prototype card in the `--proto` deck (one each keeps the deck at 24 cards, so every
 ## prototype shows up within a couple of turns).
 const PROTO_COPIES := 1
 ## Prototype enemies, by EnemyData id. Listed, not scanned, and never in the enemy registry or an encounter pool;
 ## `--fight=` accepts their ids and display names.
-const PROTO_ENEMY_PATHS: Array[String] = ["res://data/prototype/enemies/proto_pest.tres"]
+const PROTO_ENEMY_PATHS: Array[String] = [
+	"res://data/prototype/enemies/proto_pest.tres", "res://data/prototype/enemies/proto_dreadkeeper.tres",
+]
 
 ## Stop screens that can be opened directly, mapped to their stop type.
 const SCREENS := {"vendor": RunState.StopType.VENDOR, "rest": RunState.StopType.REST}
@@ -73,7 +86,7 @@ const ALIASES := {
 	"colossus": &"hollow_colossus", "giant": &"hollow_colossus", "whisperer": &"pale_whisperer",
 	"hound": &"cinder_hound", "crow": &"mourning_crow", "brakeman": &"the_brakeman",
 	"conductor": &"the_conductor", "eraser": &"the_conductor", "bellkeeper": &"the_brakeman",
-	"pest": &"proto_pest",
+	"pest": &"proto_pest", "dreadkeeper": &"proto_dreadkeeper",
 }
 
 ## The parsed request. `error` is non-empty when the request was malformed (nothing should start);
