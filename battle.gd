@@ -112,6 +112,10 @@ var _seen_player_block := 0
 var _preview: CardView
 var _confirm_ready := false
 var _confirm_tween: Tween
+## A drag in progress: the dragged hand card, the ghost that follows the pointer, the enemy index under it.
+var _drag_view: CardView
+var _drag_ghost: CardView
+var _drag_hover := -1
 ## Boss presentation: the entrance overlay, the wide HP bar on top of the stage, the phase banner and flash.
 var _intro: BossIntro
 var _boss_bar: BossBar
@@ -391,6 +395,7 @@ func _enemy_tooltip(enemy: EnemyUnit) -> String:
 
 
 func _rebuild_hand() -> void:
+	_end_drag()
 	_hide_preview()
 	for child in _hand_box.get_children():
 		_discard_node(child)
@@ -414,6 +419,12 @@ func _rebuild_hand() -> void:
 		else:
 			view.set_state(CardView.State.UNPLAYABLE, _unplayable_note(card))
 		view.pressed.connect(_play_hand_card.bind(i))
+		# Only cards that target enemies can be dragged (to an enemy, whether or not it is selected).
+		view.draggable = not discarding and card.target_mode != CardData.TargetMode.SELF
+		view.drag_started.connect(_on_drag_started.bind(view))
+		view.drag_moved.connect(_on_drag_moved)
+		view.drag_ended.connect(_on_drag_ended.bind(i))
+		view.drag_cancelled.connect(_end_drag)
 		view.hover_changed.connect(_on_card_hover.bind(view))
 		_hand_box.add_child(view)
 	# The new views start un-hovered; once laid out, light the one under the pointer.
@@ -469,6 +480,89 @@ func _play_hand_card(hand_index: int) -> void:
 	_end_batch()
 
 
+## --- dragging a card onto an enemy ------------------------------------------------------------
+## The card is lifted out of the hand as a ghost that follows the pointer; the enemy under it lights up
+## with what the card would do to THAT enemy (the same "Deals 15 (6 vs Exposed), 2 after Block" line the
+## card face shows for the selected one). Releasing over a living enemy plays the card on it, leaving the
+## selected target alone; releasing anywhere else, Esc or right-click cancels. Clicking still plays on
+## the selected enemy.
+
+func _on_drag_started(view: CardView) -> void:
+	_end_drag()
+	if _combat == null or _combat.phase != Combat.Phase.PLAYER_TURN:
+		view.cancel_drag()
+		return
+	_hide_preview()
+	_drag_view = view
+	view.modulate.a = 0.35
+	_drag_ghost = CardView.new()
+	_drag_ghost.view_scale = view.view_scale * 1.1
+	_drag_ghost.z_index = 20
+	_drag_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drag_ghost.set_card(view.card)
+	_drag_ghost.set_state(CardView.State.NORMAL)
+	_drag_ghost.preview = view.preview
+	_drag_ghost.hotkey = view.hotkey
+	add_child(_drag_ghost)
+	_on_drag_moved(view.get_global_rect().get_center())
+
+
+func _on_drag_moved(pos: Vector2) -> void:
+	if _drag_ghost == null or _drag_view == null:
+		return
+	_drag_ghost.global_position = pos - _drag_ghost.size / 2.0
+	var index := _enemy_at(pos)
+	if index != _drag_hover:
+		_clear_drag_hover()
+		_drag_hover = index
+	if index >= 0:
+		var info := _target_preview(_drag_view.card, _combat.enemies[index])
+		_enemy_views[index].set_drop_hover(true, info.get("text", ""), info.get("lost", -1))
+
+
+func _on_drag_ended(pos: Vector2, hand_index: int) -> void:
+	var index := _enemy_at(pos)
+	_end_drag()
+	if index < 0 or _combat == null:
+		return
+	_begin_batch()
+	if not _combat.play_card(hand_index, index):
+		RunScreen.sfx(&"unavailable")
+	_end_batch()
+
+
+## Index of the living enemy whose figure is under `pos` (viewport coordinates), or -1.
+func _enemy_at(pos: Vector2) -> int:
+	if _combat == null:
+		return -1
+	for i in _enemy_views.size():
+		if i < _combat.enemies.size() and not _combat.enemies[i].is_dead() and _enemy_views[i].get_global_rect().has_point(pos):
+			return i
+	return -1
+
+
+func _clear_drag_hover() -> void:
+	if _drag_hover >= 0 and _drag_hover < _enemy_views.size():
+		_enemy_views[_drag_hover].set_drop_hover(false)
+	_drag_hover = -1
+
+
+## Puts everything a drag changed back: the ghost, the enemy highlight and the dimmed hand card.
+func _end_drag() -> void:
+	_clear_drag_hover()
+	if _drag_ghost != null:
+		_drag_ghost.queue_free()
+		_drag_ghost = null
+	if _drag_view != null and is_instance_valid(_drag_view):
+		_drag_view.modulate.a = 1.0
+	_drag_view = null
+
+
+## True while a card is being dragged (read by tests).
+func is_dragging_card() -> bool:
+	return _drag_view != null
+
+
 func _status_tooltip(combatant: Combatant) -> String:
 	var lines: Array[String] = []
 	var exposed := combatant.status_turns(Combatant.Status.EXPOSED)
@@ -510,12 +604,27 @@ func _damage_preview(card: CardData) -> String:
 	var target := _combat.enemies[_target_index]
 	if card.target_mode != CardData.TargetMode.SINGLE_ENEMY or target.is_dead():
 		return ""
+	return _target_preview(card, target).get("text", "")
+
+
+## DISPLAY-ONLY: what `card` would do to this one enemy (works for single-target and all-enemies
+## cards alike, so a drag can compare enemies). Returns {} when the card deals no damage or the
+## enemy is dead, else {text, dealt, lost}: `dealt` is the damage after Exposed, `lost` what is
+## left after Block, and `text` is the card-face line ("\nDeals 15 (10 vs Exposed), 6 after Block").
+func _target_preview(card: CardData, target: EnemyUnit) -> Dictionary:
+	if target == null or target.is_dead():
+		return {}
+	var block: int = _combat.player.block
+	var plays: int = _combat.plays_this_turn + 1
 	var base := 0
 	var hits: Array[int] = []
-	for effect in damage_effects:
-		var raw := effect.raw_damage(block, target.status_turns(Combatant.Status.HAUNTED), plays)
-		base += raw
-		hits.append(raw)
+	for effect in card.effects:
+		if effect.is_damage():
+			var raw := effect.raw_damage(block, target.status_turns(Combatant.Status.HAUNTED), plays)
+			base += raw
+			hits.append(raw)
+	if hits.is_empty():
+		return {}
 	var exposed := target.status_turns(Combatant.Status.EXPOSED) > 0
 	var target_block := target.block
 	var dealt := 0
@@ -531,7 +640,7 @@ func _damage_preview(card: CardData) -> String:
 		text = "\nDeals %d (%d vs Exposed)" % [base, dealt]
 	if target.block > 0:
 		text += ", %d after Block" % lost
-	return text
+	return {"text": text, "dealt": dealt, "lost": mini(lost, target.hp)}
 
 
 func _select_target(index: int) -> void:
@@ -579,6 +688,10 @@ func _cycle_target(direction: int) -> void:
 func _unhandled_key_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
+		return
+	if key.keycode == KEY_ESCAPE and _drag_view != null and is_instance_valid(_drag_view):
+		get_viewport().set_input_as_handled()
+		_drag_view.cancel_drag()
 		return
 	if _intro != null and is_instance_valid(_intro) and not _intro.is_done():
 		get_viewport().set_input_as_handled()
