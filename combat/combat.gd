@@ -46,10 +46,10 @@ var discard_marks: Array[int] = []
 ## The run's relics for this fight (see RelicData); empty changes nothing.
 var relics: Array[RelicData] = []
 
-# EXPOSE turns that enemy intents applied to the player this enemy phase. They
-# are held back until the player's statuses have ticked, so they start counting
-# from the next enemy phase instead of ticking away unused.
-var _pending_player_expose: int = 0
+# Duration statuses (EXPOSED, SHAKEN, FRAYED: Status -> turns) that enemy intents applied to the
+# player this enemy phase. They are held back until the player's statuses have ticked, so they start
+# counting from the next enemy phase instead of ticking away unused.
+var _pending_player_statuses: Dictionary = {}
 
 # The player outlives this fight, so the connection that forwards its changes to
 # state_changed is removed when the fight ends; otherwise every finished fight
@@ -273,6 +273,8 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 		return true
 	for enemy in living_enemies():
 		enemy.clear_block()
+		# Temporary stacks last until the owner's next turn, which for an enemy is its next action.
+		enemy.clear_temp_stacks()
 		var intent := enemy.current_intent()
 		if intent != null:
 			_apply(intent, enemy, player)
@@ -285,12 +287,11 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 	# After the enemies act, so a 1-turn status on the player still covers the
 	# enemy phase that follows the turn it was applied in.
 	player.tick_statuses()
-	# Enemy-applied EXPOSE lands after the tick: amount N exposes the player for
-	# the next N enemy phases (not the one that applied it, so even later
-	# enemies in that phase hit normally).
-	if _pending_player_expose > 0:
-		player.apply_status(Combatant.Status.EXPOSED, _pending_player_expose)
-		_pending_player_expose = 0
+	# Enemy-applied EXPOSE, SHAKEN and FRAYED land after the tick: amount N covers the next N
+	# enemy phases (not the one that applied it, so even later enemies in that phase hit normally).
+	for status in _pending_player_statuses:
+		player.apply_status(status, _pending_player_statuses[status])
+	_pending_player_statuses.clear()
 	_begin_player_turn()
 	return true
 
@@ -318,6 +319,7 @@ func _begin_player_turn() -> void:
 	energy = ENERGY_PER_TURN
 	plays_this_turn = 0
 	player.start_turn_block()
+	player.clear_temp_stacks()
 	_apply_turn_start_relics()
 	# Ready cards join the opening hand first.
 	if turn == 1:
@@ -369,8 +371,8 @@ func _apply_turn_start_relics() -> void:
 
 
 ## `target` receives damage and statuses; `source` receives block and draws.
-## An enemy intent with EXPOSE exposes the player; see `_pending_player_expose`
-## for when it takes effect.
+## An enemy intent with EXPOSE, SHAKEN or FRAYED affects the player; see `_pending_player_statuses`
+## for when it takes effect. MALICE and WARD go to `source` when positive and `target` when negative.
 ## `energy_scale` is the energy a Surge card spent (1 otherwise); it multiplies per_energy effects.
 func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_scale: int = 1) -> void:
 	if effect.is_damage():
@@ -379,7 +381,9 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 			hit_count *= energy_scale
 		for _hit in hit_count:
 			# plays_this_turn already counts the card being played.
-			target.take_damage(effect.raw_damage(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_this_turn))
+			# Malice and Shaken of the source, Expose of the target, then Block.
+			var raw := effect.raw_damage(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_this_turn)
+			target.take_damage_final(Combatant.hit_damage(raw, source, target))
 			# Thorns: an enemy attack on the player also hurts the attacker, once per hit.
 			if effect.kind == CardEffect.Kind.DAMAGE and target == player and source != player and player.thorns > 0:
 				source.take_damage(player.thorns)
@@ -402,18 +406,35 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 		CardEffect.Kind.HEAL_PER_HAUNTED:
 			source.heal(amount * _haunted_count())
 		CardEffect.Kind.BLOCK:
-			source.gain_block(amount)
+			source.gain_block(source.block_from_card(amount))
 		CardEffect.Kind.DRAW:
 			# Only the player has a hand.
 			if source == player:
 				piles.draw(amount, HAND_MAX)
-		CardEffect.Kind.EXPOSE:
+		CardEffect.Kind.EXPOSE, CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
+			var status := _duration_status(effect.kind)
 			if source == player:
-				target.apply_status(Combatant.Status.EXPOSED, amount)
+				target.apply_status(status, amount)
 			elif target == player:
-				_pending_player_expose += maxi(amount, 0)
+				_pending_player_statuses[status] = _pending_player_statuses.get(status, 0) + maxi(amount, 0)
+		CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
+			var stack_status := Combatant.Status.MALICE if effect.kind == CardEffect.Kind.MALICE else Combatant.Status.WARD
+			var recipient := source if amount > 0 else target
+			if effect.temporary:
+				recipient.apply_temp_stack(stack_status, amount)
+			else:
+				recipient.apply_status(stack_status, amount)
 		_:
 			push_error("Combat._apply: no handler for CardEffect kind %d" % effect.kind)
+
+
+func _duration_status(kind: CardEffect.Kind) -> Combatant.Status:
+	match kind:
+		CardEffect.Kind.SHAKEN:
+			return Combatant.Status.SHAKEN
+		CardEffect.Kind.FRAYED:
+			return Combatant.Status.FRAYED
+	return Combatant.Status.EXPOSED
 
 
 func _check_end() -> bool:

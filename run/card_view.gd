@@ -53,6 +53,8 @@ const ICON_PRIORITY: Array[CardEffect.Kind] = [
 	CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE, CardEffect.Kind.HAUNT, CardEffect.Kind.BLOCK,
 	CardEffect.Kind.THORNS, CardEffect.Kind.EXPOSE, CardEffect.Kind.HOLD, CardEffect.Kind.GAIN_ENERGY,
 	CardEffect.Kind.DRAW, CardEffect.Kind.HEAL_PER_HAUNTED, CardEffect.Kind.LOSE_HP,
+	# Phase 2a placeholders so the every-kind test passes; the UI phase (2b) adds their colors and icons.
+	CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD,
 ]
 const KIND_COLORS := {
 	CardEffect.Kind.DAMAGE: Color("#d96b65"), CardEffect.Kind.BLOCK: Color("#83b4cf"),

@@ -50,6 +50,15 @@ const ANCHOR_ADJUST := 1
 const DORMANT_ADJUST := -20
 ## Surge: takes any energy left over, so it is flexible; a small bonus.
 const SURGE_ADJUST := 1
+## Shaken and Frayed are worth a little less per turn than Expose (which boosts all damage by half).
+const SHAKEN_VALUE_PER_TURN := 2
+const FRAYED_VALUE_PER_TURN := 1
+## A Malice or Ward stack lasts the fight, so one point is worth several; a temporary stack lasts
+## one turn and is worth about a third of that. A negative amount (a debuff on enemies) is valued
+## the same way as a positive one.
+const MALICE_VALUE_PER_STACK := 6
+const WARD_VALUE_PER_STACK := 5
+const TEMPORARY_STACK_VALUE_PER_STACK := 2
 
 
 ## Gold awarded for winning a fight against `enemy_count` enemies.
@@ -136,6 +145,14 @@ static func _base_effect_value(effect: CardEffect, amount: int) -> int:
 			return amount * 2
 		CardEffect.Kind.DAMAGE_PER_HAUNT:
 			return amount * 4
+		CardEffect.Kind.SHAKEN:
+			return amount * SHAKEN_VALUE_PER_TURN
+		CardEffect.Kind.FRAYED:
+			return amount * FRAYED_VALUE_PER_TURN
+		CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
+			if effect.temporary:
+				return absi(amount) * TEMPORARY_STACK_VALUE_PER_STACK
+			return absi(amount) * (MALICE_VALUE_PER_STACK if effect.kind == CardEffect.Kind.MALICE else WARD_VALUE_PER_STACK)
 	return UNVALUED
 
 
