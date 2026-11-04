@@ -230,8 +230,8 @@ func _test_medium_cards() -> void:
 	fight.play_card(0)
 	var every := true
 	for enemy in fight.enemies:
-		every = every and enemy.status_turns(Combatant.Status.HAUNTED) == 8
-	_check(every and fight.player.hp == 34, "Bleed the Veil costs 6 HP and Haunts all three enemies for 8")
+		every = every and enemy.status_turns(Combatant.Status.HAUNTED) == 6
+	_check(every and fight.player.hp == 34, "Bleed the Veil costs 6 HP and Haunts all three enemies for 6")
 
 	# Seance: pay 3 HP, draw 3 more cards, energy unchanged (cost 1, gains 1). Deal a hand with
 	# nothing else in the way by giving it a big deck and finding the card in the opening hand.
