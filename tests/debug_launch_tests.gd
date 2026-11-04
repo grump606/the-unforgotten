@@ -18,6 +18,7 @@ func run() -> int:
 	_test_screens()
 	_test_proto()
 	_test_proto_statuses()
+	_test_proto_cycling()
 	return _failures
 
 
@@ -201,3 +202,51 @@ func _test_proto() -> void:
 		for card in StarterContent.reward_pool(character_id):
 			in_pool = in_pool or String(card.id).begins_with("proto_")
 	_check(not in_pool, "prototype cards are not in the card registry or any reward pool")
+
+
+## The cycling prototypes (Glimpse, Recall, add card, damage per Forgotten) and the Dreadkeeper: launch
+## arguments, the deck, what the Dreadkeeper does, and that none of it leaks into a registry or pool.
+func _test_proto_cycling() -> void:
+	var launch := DebugLaunch.parse(PackedStringArray(["--proto", "--fight=proto_dreadkeeper"]), {})
+	_check(launch.requested and launch.proto and launch.error == "" and launch.enemy_ids == [&"proto_dreadkeeper"], "--proto --fight=proto_dreadkeeper parses")
+	_check(DebugLaunch.parse(PackedStringArray(["--fight=dreadkeeper"]), {}).enemy_ids == [&"proto_dreadkeeper"], "the Dreadkeeper resolves by alias")
+	_check(DebugLaunch.parse(PackedStringArray(["--fight=Proto: Dreadkeeper"]), {}).enemy_ids == [&"proto_dreadkeeper"], "the Dreadkeeper resolves by display name")
+	_check(DebugLaunch.help_text().contains("proto_dreadkeeper"), "the help lists the Dreadkeeper")
+	var enemy := DebugLaunch.prototype_enemy(&"proto_dreadkeeper")
+	_check(enemy != null and enemy.max_hp == 70 and enemy.intents.size() == 4, "the Dreadkeeper has 70 HP and four intents")
+	if enemy != null and enemy.intents.size() == 4:
+		var first := enemy.intents[0]
+		var second := enemy.intents[1]
+		_check(first.kind == CardEffect.Kind.ADD_CARD and first.pile == CardEffect.Pile.DRAW and first.card != null and first.card.id == &"dread", "intent 1 shuffles a Dread into the draw pile")
+		_check(second.kind == CardEffect.Kind.ADD_CARD and second.pile == CardEffect.Pile.HAND and second.card != null and second.card.id == &"murmur", "intent 2 puts a Murmur in the hand")
+		_check(enemy.intents[2].kind == CardEffect.Kind.DAMAGE and enemy.intents[3].kind == CardEffect.Kind.DAMAGE and enemy.intents[3].amount > enemy.intents[2].amount, "intents 3 and 4 are a plain and a heavier attack")
+	_check(Fighter.ART_KEYS.has(&"proto_dreadkeeper"), "the Dreadkeeper has a figure")
+	var pooled := false
+	for e in StarterContent.enemy_pool():
+		pooled = pooled or String(e.id).begins_with("proto_")
+	for boss in StarterContent.boss_encounter() + StarterContent.mid_boss_encounter():
+		pooled = pooled or String(boss.id).begins_with("proto_")
+	_check(not pooled and StarterContent.enemy_by_id(&"proto_dreadkeeper") == null, "the Dreadkeeper is in no registry or encounter pool")
+	# The deck: one of each, the new kinds present, every card a proto_ card, ids unique, deck of a sensible size.
+	var deck := DebugLaunch.prototype_deck()
+	var ids := {}
+	var kinds := {}
+	for card in deck:
+		ids[card.id] = true
+		_check(String(card.id).begins_with("proto_") and card.display_name.begins_with("Proto: "), "%s is named as a prototype" % card.id)
+		for effect in card.effects:
+			kinds[effect.kind] = true
+	_check(ids.size() == deck.size() and deck.size() <= 24, "the prototype deck has one of each card and stays small (%d)" % deck.size())
+	for kind in [CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL, CardEffect.Kind.DAMAGE_PER_FORGOTTEN]:
+		_check(kinds.has(kind), "the prototype deck tries kind %d" % kind)
+	_check(ids.has(&"proto_forgotten_strike"), "the deck still feeds the Forgotten pile")
+	# The run builds the fight with the deck and the Dreadkeeper.
+	var run_state := RunState.new(1, &"thief")
+	for index in run_state.stops.size():
+		if run_state.stops[index].type == RunState.StopType.COMBAT:
+			run_state.stop_index = index
+			break
+	run_state.debug_encounter.assign([&"proto_dreadkeeper"])
+	run_state.deck = deck
+	var combat := run_state.start_combat()
+	_check(combat != null and combat.enemies.size() == 1 and combat.enemies[0].data.id == &"proto_dreadkeeper", "the run fights the Dreadkeeper")
