@@ -65,11 +65,11 @@ func _test_data() -> void:
 	var last_stand := _load("last_stand")
 	_check(last_stand.cost == 3 and last_stand.anchor and not last_stand.forgotten and last_stand.character == &"deserter", "Last Stand: cost 3, Anchor, deserter")
 	var heavy := _load("heavy_blow")
-	_check(heavy.cost == 2 and heavy.forgotten and heavy.effects.size() == 1 and heavy.effects[0].amount == 20, "Heavy Blow: cost 2, Deal 20, Forgotten")
+	_check(heavy.cost == 2 and heavy.forgotten and heavy.effects.size() == 1 and heavy.effects[0].amount == 16, "Heavy Blow: cost 2, Deal 16, Forgotten")
 	var iron := _load("iron_resolve")
 	_check(iron.cost == 2 and iron.effects.size() == 2 and iron.effects[0].amount == 6, "Iron Resolve: cost 2, Block 6 first")
 	var ward_effect: CardEffect = iron.effects[1]
-	_check(ward_effect.kind == CardEffect.Kind.WARD and ward_effect.amount == 2 and not ward_effect.temporary, "Iron Resolve then a permanent Ward +2")
+	_check(ward_effect.kind == CardEffect.Kind.WARD and ward_effect.amount == 1 and not ward_effect.temporary, "Iron Resolve then a permanent Ward +1")
 	var deep := _load("dig_deep")
 	_check(deep != null and deep.id == &"dig_deep" and deep.display_name == "Dig Deep" and deep.cost == 0, "Dig Deep: id, name, cost 0")
 	_check(deep.surge and deep.target_mode == CardData.TargetMode.SELF and deep.character == &"deserter", "Dig Deep: Surge, self, deserter")
@@ -100,7 +100,7 @@ func _test_last_stand_anchor() -> void:
 	combat.energy = 3
 	var index := combat.piles.hand.find(last_stand)
 	var played := combat.play_card(index)
-	_check(played and combat.player.block == 14 and combat.player.hold == 10, "affordable later, it gives Block 14 and Hold 10")
+	_check(played and combat.player.block == 12 and combat.player.hold == 10, "affordable later, it gives Block 12 and Hold 10")
 
 
 func _test_heavy_blow_forgotten() -> void:
@@ -110,7 +110,7 @@ func _test_heavy_blow_forgotten() -> void:
 	var first := Combat.new(Combatant.new("p", 50), deck, enemies, 1)
 	first.start()
 	_check(first.play_card(0), "Heavy Blow plays")
-	_check(first.enemies[0].hp == 80, "Heavy Blow deals 20")
+	_check(first.enemies[0].hp == 84, "Heavy Blow deals 16")
 	_check(first.piles.forgotten == ([heavy] as Array[CardData]) and first.piles.discard_pile.is_empty(), "it goes to the Forgotten pile, not discard")
 	_check(deck == ([heavy] as Array[CardData]), "the deck array is unchanged")
 	var second := Combat.new(Combatant.new("p", 50), deck, enemies, 1)
@@ -123,9 +123,9 @@ func _test_iron_resolve_ward() -> void:
 	var next_block := _self_card("b", 0, [CardEffect.make(CardEffect.Kind.BLOCK, 5)] as Array[CardEffect])
 	var combat := _fight([iron, next_block])
 	_check(combat.play_card(0), "Iron Resolve plays")
-	_check(combat.player.block == 6 and combat.player.stacks(S.WARD) == 2, "Iron Resolve gives Block 6 and Ward +2")
+	_check(combat.player.block == 6 and combat.player.stacks(S.WARD) == 1, "Iron Resolve gives Block 6 and Ward +1")
 	combat.play_card(0)
-	_check(combat.player.block == 6 + 7, "the next Block card gets +2")
+	_check(combat.player.block == 6 + 6, "the next Block card gets +1")
 	# Ward only touches card Block.
 	var hold := _self_card("h", 0, [CardEffect.make(CardEffect.Kind.HOLD, 4), CardEffect.make(CardEffect.Kind.THORNS, 4)] as Array[CardEffect])
 	var relic := RelicData.make(&"r", "R", RelicData.Kind.TURN_START_BLOCK, 4, 0)
@@ -135,18 +135,18 @@ func _test_iron_resolve_ward() -> void:
 	fight2.play_card(0)
 	_check(fight2.player.block == relic_block + 6, "Ward leaves relic Block alone")
 	_check(fight2.player.hold == 4 and fight2.player.thorns == 4, "Ward leaves Hold and Barbs alone")
-	# Frayed reduces it afterwards: (5 + 2) x 3/4 = 5, and never to 0.
+	# Frayed reduces it afterwards: (5 + 1) x 3/4 = 4, and never to 0.
 	var fray := _self_card("f", 0, [CardEffect.make(CardEffect.Kind.FRAYED, 1)] as Array[CardEffect])
-	var tiny := _self_card("t", 0, [CardEffect.make(CardEffect.Kind.BLOCK, 1)] as Array[CardEffect])
+	var tiny := _self_card("t", 0, [CardEffect.make(CardEffect.Kind.BLOCK, 2)] as Array[CardEffect])
 	var fight3 := _fight([iron, fray, next_block, tiny])
 	fight3.play_card(0)
 	fight3.play_card(0)
 	var before := fight3.player.block
 	fight3.play_card(0)
-	_check(fight3.player.block - before == 5, "Frayed trims Ward-boosted Block after the Ward: 7 becomes 5")
+	_check(fight3.player.block - before == 4, "Frayed trims Ward-boosted Block after the Ward: 6 becomes 4")
 	var before_tiny := fight3.player.block
 	fight3.play_card(0)
-	_check(fight3.player.block - before_tiny == 2, "Block 1 plus Ward 2 under Frayed is 2 (3 x 3/4)")
+	_check(fight3.player.block - before_tiny == 2, "Block 2 plus Ward 1 under Frayed is 2 (3 x 3/4)")
 	var fight4 := _fight([_load("dig_deep")])
 	fight4.player.apply_status(S.FRAYED, 1)
 	fight4.energy = 1
@@ -179,7 +179,7 @@ func _test_synergy() -> void:
 	combat.play_card(0)
 	_check(combat.energy == 2, "Iron Resolve leaves 2 energy")
 	combat.play_card(0)
-	_check(combat.energy == 0 and combat.player.block == 6 + 5 * 2 + 2, "Dig Deep at 2 energy after Iron Resolve: 10 + 2 Ward, 18 total")
+	_check(combat.energy == 0 and combat.player.block == 6 + 5 * 2 + 1, "Dig Deep at 2 energy after Iron Resolve: 10 + 1 Ward, 17 total")
 
 
 func _test_reward_pool() -> void:
@@ -194,8 +194,8 @@ func _test_reward_pool() -> void:
 
 
 func _test_describe() -> void:
-	_check(_load("heavy_blow").describe() == "Deal 20", "Heavy Blow text: %s" % _load("heavy_blow").describe())
-	_check(_load("iron_resolve").describe() == "Block 6, Ward +2", "Iron Resolve text: %s" % _load("iron_resolve").describe())
+	_check(_load("heavy_blow").describe() == "Deal 16", "Heavy Blow text: %s" % _load("heavy_blow").describe())
+	_check(_load("iron_resolve").describe() == "Block 6, Ward +1", "Iron Resolve text: %s" % _load("iron_resolve").describe())
 	_check(_load("dig_deep").describe() == "Block 5 per energy spent", "Dig Deep text: %s" % _load("dig_deep").describe())
 	_check(_load("last_stand").keyword_lines() == PackedStringArray(["Anchor"]), "Last Stand shows Anchor")
 	_check(_load("heavy_blow").keyword_lines() == PackedStringArray(["Forgotten"]), "Heavy Blow shows Forgotten")

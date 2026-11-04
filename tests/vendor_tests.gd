@@ -225,10 +225,10 @@ func _test_payoff_pricing() -> void:
 
 ## Golden table of id -> [value, price] for every data/cards card, taken before the keyword and
 ## multi-hit valuation existed. Update it on purpose whenever a card is retuned (Flurry and Glimpse the
-## Exit changed in Phase 4a); a new card is added with its computed value and price.
+## Exit changed in Phase 4a; Bleed the Veil, Heavy Blow, Iron Resolve and Last Stand in the 4e balance pass); a new card is added with its computed value and price.
 const GOLDEN := {
 	"bash": [7, 16],
-	"bleed_the_veil": [31, 24],
+	"bleed_the_veil": [16, 24],
 	"brace": [2, 10],
 	"cold_steel": [9, 16],
 	"cold_whisper": [3, 10],
@@ -242,11 +242,11 @@ const GOLDEN := {
 	"grave_chill": [16, 24],
 	"guarded_strike": [8, 16],
 	"hamstring": [14, 24],
-	"heavy_blow": [21, 24],
+	"heavy_blow": [17, 24],
 	"hold_the_line": [9, 16],
-	"iron_resolve": [20, 24],
+	"iron_resolve": [15, 24],
 	"last_pocket": [12, 24],
-	"last_stand": [31, 24],
+	"last_stand": [29, 24],
 	"lift": [8, 16],
 	"lingering_dread": [12, 24],
 	"mark_the_weak": [8, 16],
