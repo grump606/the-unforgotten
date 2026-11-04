@@ -8,7 +8,7 @@ extends ScreenScene
 ## id, x as a fraction of the width, height as a fraction of the height, should face right
 const HEROES := [
 	[&"deserter", 0.13, 0.50, true],
-	[&"pickpocket", 0.27, 0.43, true],
+	[&"thief", 0.27, 0.43, true],
 	[&"medium", 0.87, 0.48, false],
 ]
 const GROUND := 0.94

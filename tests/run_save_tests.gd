@@ -16,6 +16,7 @@ func run() -> int:
 	_test_file_round_trip_and_delete()
 	_test_overwrite_existing_save()
 	_test_characters_in_saves()
+	_test_legacy_pickpocket_save()
 	_test_missing_file()
 	_test_corrupt_files()
 	_test_version_mismatch()
@@ -414,6 +415,19 @@ func _test_delete_cleans_everything() -> void:
 
 
 ## A save remembers its character, and a deck holding another class's card is rejected.
+func _test_legacy_pickpocket_save() -> void:
+	# Saves from releases up to 0.7.3 call the Thief "pickpocket"; they must load as the Thief.
+	var state := RunState.new(11, &"thief")
+	_walk(state, 2)
+	var data := RunSave.to_dict(state)
+	data["character"] = "pickpocket"
+	var loaded := RunSave.from_dict(data)
+	_check(loaded.run != null and loaded.run.character.id == &"thief", "a legacy pickpocket save loads as the Thief")
+	if loaded.run != null:
+		_check(loaded.run.player.display_name == "The Thief", "the legacy save gets the Thief's name")
+		_check(RunSave.to_dict(loaded.run) == RunSave.to_dict(state), "the legacy save keeps its deck and relics and saves back as thief")
+
+
 func _test_characters_in_saves() -> void:
 	for id in StarterContent.character_ids():
 		var state := RunState.new(11, id)
@@ -430,7 +444,7 @@ func _test_characters_in_saves() -> void:
 	_check(RunSave.from_dict(data).run == null, "a non-string character is rejected")
 	data.erase("character")
 	_check(RunSave.from_dict(data).run == null, "a missing character is rejected")
-	# A Pickpocket card in a Deserter's deck cannot come from that character's pool.
+	# A Thief card in a Deserter's deck cannot come from that character's pool.
 	var cross := RunSave.to_dict(RunState.new(3, &"deserter"))
 	(cross["deck"] as Array).append("hamstring")
 	_check(RunSave.from_dict(cross).run == null, "a deck holding another class's card is rejected")

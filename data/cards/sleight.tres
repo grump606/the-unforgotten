@@ -14,4 +14,4 @@ id = &"sleight"
 display_name = "Sleight"
 cost = 0
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1")])
-character = &"pickpocket"
+character = &"thief"

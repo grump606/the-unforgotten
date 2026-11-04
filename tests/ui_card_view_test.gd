@@ -35,7 +35,7 @@ func _check_damage_variants() -> void:
 	var flurry := CardView.icon_variant(_card("flurry"))
 	check(shove != heavy and heavy != flurry and shove != flurry, "Shove, Heavy Blow and Flurry have different icons")
 	check(CardView.icon_variant(_card("bash")) == &"hammer", "Bash (damage from Block) is a hammer")
-	check(CardView.icon_variant(_card("cutting_word")) == &"needle", "pickpocket damage is a needle")
+	check(CardView.icon_variant(_card("cutting_word")) == &"needle", "thief damage is a needle")
 	check(CardView.icon_variant(_card("sweep")) == &"sweep", "all-enemies damage is a sweep")
 	check(CardView.icon_variant(null) == &"", "no card has no variant")
 

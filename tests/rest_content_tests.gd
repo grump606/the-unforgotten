@@ -24,7 +24,7 @@ func run() -> int:
 		var shared := RestContent.beat(number)
 		_check(shared.title != "" and shared.text != "" and shared.button_text == RestContent.BUTTON, "rest %d has a title, text and the button" % number)
 		texts[shared.text] = true
-		for id in [&"deserter", &"pickpocket", &"medium"]:
+		for id in [&"deserter", &"thief", &"medium"]:
 			var own := RestContent.beat(number, id)
 			_check(own.text.begins_with(shared.text) and own.text.length() > shared.text.length(), "rest %d adds a line for %s" % [number, id])
 		_check(RestContent.beat(number, &"nobody").text == shared.text, "rest %d uses the shared passage for an unknown character" % number)

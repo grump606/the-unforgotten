@@ -32,7 +32,7 @@ All motion derives from one accumulator `time`; depth `s = p*p` so things quicke
 
 - Default: amber lamps, gentle flicker, sway 0.5 rad/s, rush 0.15.
 - Boss (the Conductor): red lamps, harder flicker, sway 0.9 rad/s and double angle, rush 0.20, embers, pale end glow about three times stronger.
-- Class tint, mixed 32% (TINT_AMOUNT, was 14%, too faint to read) into lines, glass, glow and dust: Deserter rust, Pickpocket teal, Medium violet. The window glass takes the class colour (GLASS_TINT 0.45), the lights outside the windows are class coloured, and a class-coloured wash (ACCENT_GLOW 0.07) surrounds the far door. In the boss fight the tint is halved (BOSS_TINT_SCALE 0.5) and the lights stay red, so the boss mood holds. Unknown or empty id is neutral. The scrim is unchanged, so cards and text stay as legible.
+- Class tint, mixed 32% (TINT_AMOUNT, was 14%, too faint to read) into lines, glass, glow and dust: Deserter rust, Thief teal, Medium violet. The window glass takes the class colour (GLASS_TINT 0.45), the lights outside the windows are class coloured, and a class-coloured wash (ACCENT_GLOW 0.07) surrounds the far door. In the boss fight the tint is halved (BOSS_TINT_SCALE 0.5) and the lights stay red, so the boss mood holds. Unknown or empty id is neutral. The scrim is unchanged, so cards and text stay as legible.
 - `run.gd` sets `boss_fight` and `character_id` on the battle before adding it; the standalone battle uses the default.
 
 ## Performance and tests

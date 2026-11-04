@@ -47,11 +47,11 @@ const PLAYER_HEIGHT := 205.0
 ## Class colours of the code-drawn player stand-in: cloak, accent.
 const CLASS_COLORS := {
 	&"deserter": [Color(0.40, 0.30, 0.24), Color(0.92, 0.55, 0.22)],
-	&"pickpocket": [Color(0.16, 0.30, 0.31), Color(0.30, 0.85, 0.80)],
+	&"thief": [Color(0.16, 0.30, 0.31), Color(0.30, 0.85, 0.80)],
 	&"medium": [Color(0.30, 0.22, 0.42), Color(0.72, 0.52, 1.0)],
 }
 ## Which way each painted class figure faces as drawn (+1 right, -1 left); the stage mirrors it to face right.
-const PLAYER_ART_FACING := {&"deserter": 1.0, &"pickpocket": 1.0, &"medium": 1.0}
+const PLAYER_ART_FACING := {&"deserter": 1.0, &"thief": 1.0, &"medium": 1.0}
 ## Painted enemy sprites that face right as drawn (everything else faces left); the stage mirrors them.
 const SPRITE_FACES_RIGHT: Array[StringName] = []
 const HP_BACK := Color(0.10, 0.04, 0.05)
@@ -377,7 +377,7 @@ func stance_motion() -> Vector3:
 			&"deserter":
 				speed = 1.8
 				strength = 0.8
-			&"pickpocket":
+			&"thief":
 				speed = 2.8
 				strength = 1.15
 			&"medium":
@@ -579,7 +579,7 @@ func _draw_stand_in(tint: Color) -> void:
 		&"deserter": # a sword held low in front
 			draw_line(Vector2(0.18, -0.30) * h, Vector2(0.42, -0.62) * h, prop.darkened(0.2), 4.0, true)
 			draw_line(Vector2(0.15, -0.34) * h, Vector2(0.24, -0.26) * h, prop, 3.0, true)
-		&"pickpocket": # a dagger and a coin
+		&"thief": # a dagger and a coin
 			draw_line(Vector2(0.18, -0.34) * h, Vector2(0.34, -0.50) * h, prop.darkened(0.2), 3.0, true)
 			draw_circle(Vector2(0.24, -0.20) * h, 0.03 * h, prop)
 		&"medium": # a lantern with a pale flame

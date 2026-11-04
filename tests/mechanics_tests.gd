@@ -16,7 +16,7 @@ func run() -> int:
 	_test_damage_per_play()
 	_test_describe()
 	_test_real_cards()
-	_test_pickpocket_cards()
+	_test_thief_cards()
 	_test_every_kind_is_covered()
 	_test_player_listener_lifecycle()
 	return _failures
@@ -256,7 +256,7 @@ func _test_real_cards() -> void:
 	_check(combo.enemies[0].hp == 95, "Hold the Line then Bash deals 5")
 
 
-# --- Pickpocket mechanics: gaining energy, damage per card played -------------
+# --- Thief mechanics: gaining energy, damage per card played -------------
 
 func _test_gain_energy() -> void:
 	var surge := _self_card(0, [_fx(CardEffect.Kind.GAIN_ENERGY, 2)])
@@ -345,13 +345,13 @@ func _test_damage_per_play() -> void:
 	_check(marked.enemies[0].hp == 90, "the scaled damage is increased by Expose: (4 + 3) x 1.5 = 10")
 
 
-func _test_pickpocket_cards() -> void:
+func _test_thief_cards() -> void:
 	var cards := {}
 	for path in StarterContent.ALL_CARD_PATHS:
 		var card := load(path) as CardData
 		cards[card.id] = card
 	for id in [&"lift", &"sleight", &"pocket_watch", &"last_pocket", &"spree"]:
-		_check(cards.has(id) and (cards[id] as CardData).character == &"pickpocket", "%s is a Pickpocket card" % id)
+		_check(cards.has(id) and (cards[id] as CardData).character == &"thief", "%s is a Thief card" % id)
 	_check(cards[&"lift"].describe() == "Deal 3, Draw 1", "Lift text")
 	_check(cards[&"pocket_watch"].describe() == "Gain 1 energy, Draw 1", "Pocket Watch text")
 	_check(cards[&"last_pocket"].describe() == "Deal 4, +3 for each card played earlier this turn", "Last Pocket text")
