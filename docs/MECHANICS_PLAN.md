@@ -203,6 +203,48 @@ next turn (the same moment Barbs reset).
 - 2c tools (after 2a, parallel with 2b): sim and smart policies use the pipeline, score the new effects,
   tests for each.
 
+## Phase 3 detail
+
+Deck cycling and the Forgotten-pile effects: Glimpse, adding cards mid-fight, Dormant cards that enemies
+shuffle in, Recall. No existing card changes, so no change to play until phase 4; prototype cards and a
+prototype enemy let it be tried.
+
+**Choice step.** A new `Combat.Phase.CHOOSING`, like the discard step. Glimpse and Recall queue a choice
+that opens after the card's other effects finish. The choice holds a list of cards and how many may be
+picked; `Combat.resolve_choice(indices)` finishes it, and the turn cannot end until it is resolved. One
+overlay serves both effects.
+
+**New effect kinds** (appended; `CardEffect` gains a `card: CardData` field and a destination pile):
+- GLIMPSE `n`: look at the top `n` cards of the draw pile and discard any of them. It looks only at what is
+  there and never reshuffles the discard pile.
+- ADD_CARD: add `amount` copies of `card` to a chosen pile (hand, draw or discard). If the hand is full the
+  card goes to discard. Added to the draw pile, a card is inserted at a random position using the seeded RNG.
+  An enemy intent adds the card to the player's piles. Default destination for enemies: the draw pile.
+- RECALL `n`: pick `n` cards from the Forgotten pile and return them to the hand (to discard if the hand is
+  full). A recalled card is Forgotten again if played.
+- DAMAGE_PER_FORGOTTEN `n`: damage equal to `n` times the size of the Forgotten pile.
+
+**Created cards are fight-only.** They vanish after the fight, so the deck and saves are unaffected.
+
+**EffectContext.** `raw_damage(source_block, target_haunt, plays)` is replaced by a small `EffectContext`
+object (block, haunt, plays, forgotten) so the Forgotten count has somewhere to go. This touches about six
+call sites (preview, bots, Combat).
+
+**Status cards.** Real card resources for what enemies add, kept out of rewards, vendors and starting decks
+(a content test enforces it): **Dread** (Dormant: clogs the cycle until discarded) and **Murmur** (Dormant
+and Fading: costs one draw slot, then vanishes).
+
+**Pile viewer.** Clicking the pile counters opens the Draw, Discard or Forgotten pile in an overlay. The
+draw pile is shown sorted so it does not reveal order.
+
+**Sub-PRs into `thief-rework`:**
+- 3a engine: `EffectContext` refactor, the four kinds, the `card` and destination fields, the CHOOSING phase,
+  pile helpers, Vendor values, the status cards and their registry exclusion, tests.
+- 3b UI (after 3a): the choice overlay, the pile viewer, card text for the new kinds, the DAMAGE_PER_FORGOTTEN
+  preview, prototype cards, a prototype enemy that shuffles status cards in.
+- 3c tools (after 3a, parallel with 3b): both bots resolve choices (Glimpse discards junk, Recall picks the
+  best card), score the new kinds, the run stub resolves choices.
+
 ## Cross-cutting work
 
 - `CardEffect` rule: new kinds are only appended, never reordered (`.tres` files store the integer).
