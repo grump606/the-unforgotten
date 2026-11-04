@@ -118,7 +118,7 @@ func _initialize() -> void:
 	for id in StarterContent.character_ids():
 		var character := StarterContent.character(id)
 		_check(select_text.contains(character.display_name) and select_text.contains("%d HP" % character.max_hp) and select_text.contains(character.pitch), "the select screen shows %s with HP and pitch" % id)
-	_check(select_text.contains("3 Shove") and select_text.contains("Starting deck"), "the select screen shows each starting deck")
+	_check(select_text.contains("5 Shove") and select_text.contains("Starting deck"), "the select screen shows each starting deck")
 	# One bordered panel per character, the group centred in the window, a focusable Play button each.
 	await process_frame
 	var panels: Array[CharacterPanel] = []
@@ -229,6 +229,9 @@ func _initialize() -> void:
 					battle._play_hand_card(mark)
 					mark += 1
 				battle._on_end_turn_pressed()
+			elif combat.phase == Combat.Phase.CHOOSING:
+				# Glimpse the Exit opens a pick: keep every card (discard none) through the overlay's handler.
+				battle._on_choice_confirmed([] as Array[int])
 			elif combat.phase == Combat.Phase.ENDED:
 				fights_ended += 1
 				combat.player.hp = mini(combat.player.hp, combat.player.max_hp)
