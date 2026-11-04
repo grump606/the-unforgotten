@@ -330,10 +330,18 @@ the starter decks are untouched. Escapes out of 150:
 | Medium | greedy | 34 (22.7%) | 34 (22.7%) |
 | Medium | smart | 97 (64.7%) | 75 (50.0%) |
 
-The Thief and Deserter smart rates stay within 5 points. The Medium's smart rate drops 14.7 points: every
-class starts with Glimpse the Exit, which now draws 1 instead of 2 (plus a Glimpse the smart bot may not use
-well), and the Medium's deck leans on seeing cards. Not isolated further; the retunes in 4b-4d and the 4e
-balance pass move these again, so the targets are the 4e numbers.
+The Thief and Deserter smart rates stay within 5 points. The Medium's smart rate drops 14.7 points. Isolated
+on the Medium smart sim (seed 7, 150 runs): the original Draw 2 gives 97; Draw 1 alone gives 89 (the lost draw
+costs about 8 points); Glimpse 3 plus Draw 1 gives 75 (the Glimpse costs another 14). A player can always
+decline a Glimpse, so the extra loss is the smart bot's Glimpse rule (it bins every card scoring below the
+average card), not the card. Tried instead: binning only Dormant cards gives Medium 91 but Thief 51 (down from
+73); binning below half the average gives Medium 89, Thief 51. The rule helps decks that cycle (Thief) and
+hurts decks whose good cards score low in `card_score` (Medium, whose Haunt and HP-cost cards it undervalues).
+Left as is: the bot's Glimpse and scoring are a known weakness for the 4e balance pass.
+
+**Reference for 4b-4d:** the "After" column is the baseline each class PR is measured against, so a class
+retune is judged on its own change (target: smart escape rate within about 5 points of it per class, or an
+explanation). Treat the sim as a sanity check, not a verdict.
 
 Relics and enemy content are out of scope here (phase 5).
 
