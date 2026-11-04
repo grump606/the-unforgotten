@@ -3,15 +3,20 @@
 [ext_resource type="Script" uid="uid://cvqeldq7ry1bu" path="res://combat/card_data.gd" id="1_card"]
 [ext_resource type="Script" uid="uid://v0wf0vn2ro0b" path="res://combat/card_effect.gd" id="2_effect"]
 
-[sub_resource type="Resource" id="Resource_effect"]
+[sub_resource type="Resource" id="Resource_e1"]
 script = ExtResource("2_effect")
 kind = 3
 amount = 2
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("2_effect")
+kind = 14
+amount = 1
 
 [resource]
 script = ExtResource("1_card")
 id = &"mark_the_weak"
 display_name = "Find the Seam"
 cost = 1
-effects = Array[ExtResource("2_effect")]([SubResource("Resource_effect")])
+effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
 character = &"thief"
