@@ -132,7 +132,7 @@ func _run_fight(combat: Combat) -> int:
 	var outcome := [0]
 	combat.combat_ended.connect(func(victory: bool) -> void: outcome[0] = 1 if victory else -1)
 	combat.start()
-	while combat.phase == Combat.Phase.PLAYER_TURN:
+	while SimPolicy.is_acting(combat):
 		if combat.turn > TURN_CAP:
 			return 0
 		if not SimPolicy.play_turn(combat):
