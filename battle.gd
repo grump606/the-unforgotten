@@ -27,6 +27,13 @@ const DRAG_GHOST_ALPHA := 0.7
 const DRAG_GHOST_Z := 20
 ## Seconds per beat of the amber pulse (two beats) when the discard-step confirm button becomes available.
 const CONFIRM_PULSE_TIME := 0.35
+## The floating "+Dread" cue when cards are added to the player's piles: how long it takes, how far it
+## rises, and the tint of the pile counters while the pointer is over them.
+const CUE_TIME := 1.4
+const CUE_RISE := 46.0
+const PILE_HOVER_TINT := Color(1.0, 0.86, 0.55)
+## Layer of the choice overlay and the pile viewer (above the figures, below the phase banner).
+const OVERLAY_Z := 22
 
 # Derived from the rules constants so the text cannot drift from them.
 const EXPOSED_MULTIPLIER_TEXT := "%.1fx" % (float(Combatant.EXPOSED_NUM) / Combatant.EXPOSED_DEN)
@@ -134,6 +141,13 @@ var _banner: Label
 var _banner_tween: Tween
 var _flash: ColorRect
 var _flash_tween: Tween
+## The Glimpse / Recall pick while Combat is CHOOSING, and the read-only pile viewer (both created on demand).
+var _choice_overlay: ChoiceOverlay
+var _pile_viewer: PileViewer
+## Floating "+Dread" cues showing now, the text of the latest one (read by tests), and how many were shown.
+var _live_cues := 0
+var last_cue_text := ""
+var cue_count := 0
 
 
 func _ready() -> void:
@@ -144,6 +158,12 @@ func _ready() -> void:
 	_pile_label.add_theme_font_size_override("font_size", 13)
 	_pile_label.add_theme_constant_override("line_spacing", -2)
 	_left_box.add_theme_constant_override("separation", 2)
+	_pile_label.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pile_label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_pile_label.tooltip_text = "Click Draw, Discard or Forgotten to look at that pile"
+	_pile_label.gui_input.connect(_on_pile_label_input)
+	_pile_label.mouse_entered.connect(_set_pile_hover.bind(true))
+	_pile_label.mouse_exited.connect(_set_pile_hover.bind(false))
 	_end_turn_button.theme_type_variation = MenuStyle.PRIMARY
 	_log_button.theme_type_variation = MenuStyle.QUIET
 	_backdrop.set_variant(boss_fight, character_id, destination_key)
@@ -230,6 +250,8 @@ func _attach(combat: Combat) -> void:
 	_combat.enemy_acted.connect(_on_enemy_acted)
 	_combat.enemy_phase_changed.connect(_on_enemy_phase_changed)
 	_target_index = 0
+	_close_pile_viewer()
+	_close_choice_overlay()
 	_result_label.text = ""
 	_log_label.clear()
 	_backdrop.set_harsh(false)
@@ -278,6 +300,98 @@ func _refresh() -> void:
 	_sync_enemies()
 	_rebuild_hand()
 	_sync_turn_controls()
+	_sync_choice_overlay()
+	_sync_pile_viewer()
+
+
+## Shows the Glimpse / Recall overlay exactly while Combat is CHOOSING. A refresh with the same choice
+## keeps the overlay (and the player's marks); a new choice (a second queued pick) gets a fresh one.
+func _sync_choice_overlay() -> void:
+	var wanted := _combat.phase == Combat.Phase.CHOOSING and _combat.has_choice()
+	if _choice_overlay != null and (not wanted or not _choice_overlay.matches(_combat)):
+		_close_choice_overlay()
+	if wanted and _choice_overlay == null:
+		_close_pile_viewer()
+		_choice_overlay = ChoiceOverlay.create(_combat, _stage.size, _combat.player)
+		_choice_overlay.z_index = OVERLAY_Z
+		_choice_overlay.confirmed.connect(_on_choice_confirmed)
+		_stage.add_child(_choice_overlay)
+
+
+func _close_choice_overlay() -> void:
+	if _choice_overlay != null and is_instance_valid(_choice_overlay):
+		_discard_node(_choice_overlay)
+	_choice_overlay = null
+
+
+## True while the Glimpse / Recall overlay is up (read by tests).
+func choice_overlay_visible() -> bool:
+	return _choice_overlay != null and is_instance_valid(_choice_overlay)
+
+
+func _on_choice_confirmed(indices: Array[int]) -> void:
+	if _combat == null or _combat.phase != Combat.Phase.CHOOSING:
+		return
+	_close_choice_overlay()
+	RunScreen.sfx(&"card_select")
+	_begin_batch()
+	if not _combat.resolve_choice(indices):
+		_refresh_pending = true # the overlay was closed above: bring it back
+	_end_batch()
+
+
+## --- the pile viewer --------------------------------------------------------------------------
+
+func _on_pile_label_input(event: InputEvent) -> void:
+	var click := event as InputEventMouseButton
+	if click == null or not click.pressed or click.button_index != MOUSE_BUTTON_LEFT:
+		return
+	var lines := maxi(_pile_label.get_line_count(), 1)
+	var line := int(click.position.y / (_pile_label.size.y / lines))
+	if line >= 0 and line < PileViewer.PILE_NAMES.size():
+		_pile_label.accept_event()
+		open_pile_viewer(line as PileViewer.Pile)
+
+
+func _set_pile_hover(inside: bool) -> void:
+	_pile_label.modulate = PILE_HOVER_TINT if inside else Color.WHITE
+
+
+## Opens the read-only viewer on a pile. Only during the player's turn and the discard step: not while a
+## Glimpse / Recall pick is open, in the enemy phase or after the fight. True when it opened.
+func open_pile_viewer(which: PileViewer.Pile) -> bool:
+	if _combat == null or _combat.phase not in [Combat.Phase.PLAYER_TURN, Combat.Phase.DISCARDING]:
+		return false
+	if _pile_viewer != null:
+		_pile_viewer.show_pile(which)
+		return true
+	_hide_preview()
+	_pile_viewer = PileViewer.create(_combat, which, size, _combat.player)
+	_pile_viewer.z_index = OVERLAY_Z
+	_pile_viewer.closed.connect(_close_pile_viewer)
+	add_child(_pile_viewer)
+	return true
+
+
+func _close_pile_viewer() -> void:
+	if _pile_viewer != null and is_instance_valid(_pile_viewer):
+		_discard_node(_pile_viewer)
+	_pile_viewer = null
+
+
+## True while the pile viewer is open (read by tests).
+func pile_viewer_open() -> bool:
+	return _pile_viewer != null and is_instance_valid(_pile_viewer)
+
+
+## Keeps an open viewer in step with the piles, and closes it when the phase no longer allows one.
+func _sync_pile_viewer() -> void:
+	if _pile_viewer == null:
+		return
+	if _combat.phase not in [Combat.Phase.PLAYER_TURN, Combat.Phase.DISCARDING]:
+		_close_pile_viewer()
+	else:
+		_pile_viewer.refresh()
 
 
 ## End Turn / discard-step controls. In the discard step the main button confirms ("Keep all" when
@@ -504,8 +618,8 @@ func _discard_node(node: Node) -> void:
 
 
 func _play_hand_card(hand_index: int) -> void:
-	if _combat == null:
-		return
+	if _combat == null or _combat.phase == Combat.Phase.CHOOSING or pile_viewer_open():
+		return # a Glimpse / Recall pick must be finished first; the pile viewer sits over the hand
 	_begin_batch()
 	if _combat.phase == Combat.Phase.DISCARDING:
 		if _combat.toggle_discard(hand_index):
@@ -737,7 +851,7 @@ func _select_target(index: int) -> void:
 
 
 func _on_end_turn_pressed() -> void:
-	if _combat == null:
+	if _combat == null or _combat.phase == Combat.Phase.CHOOSING or pile_viewer_open():
 		return
 	RunScreen.sfx(&"click")
 	_begin_batch()
@@ -754,7 +868,7 @@ func _on_end_turn_pressed() -> void:
 
 
 func _on_cancel_discard_pressed() -> void:
-	if _combat == null:
+	if _combat == null or _combat.phase == Combat.Phase.CHOOSING or pile_viewer_open():
 		return
 	_begin_batch()
 	_combat.cancel_discard()
@@ -787,6 +901,18 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		if key.keycode == KEY_N:
 			get_viewport().set_input_as_handled()
 			_on_continue_pressed()
+		return
+	# The pile viewer is read-only and modal: Esc closes it, other keys do nothing behind it.
+	if pile_viewer_open():
+		get_viewport().set_input_as_handled()
+		if key.keycode == KEY_ESCAPE:
+			_close_pile_viewer()
+		return
+	# A Glimpse / Recall pick: number keys mark cards, Enter confirms, everything else (Esc included)
+	# does nothing, and the player's turn controls stay locked until it is resolved.
+	if _combat != null and _combat.phase == Combat.Phase.CHOOSING:
+		if _choice_overlay != null and _choice_overlay.handle_key(key.keycode):
+			get_viewport().set_input_as_handled()
 		return
 	# Same gate as the buttons: nothing happens outside the player's turn.
 	if _combat == null or (_combat.phase != Combat.Phase.PLAYER_TURN and _combat.phase != Combat.Phase.DISCARDING):
@@ -842,15 +968,63 @@ func _on_card_played(card: CardData, targets: Array[EnemyUnit]) -> void:
 				_enemy_views[at].react_delay = Fighter.LUNGE_TIME * 0.5
 	if targets.is_empty():
 		_log_label.append_text("Played %s\n" % card.display_name)
+	else:
+		var names: PackedStringArray = []
+		for target in targets:
+			names.append(target.display_name)
+		_log_label.append_text("Played %s on %s\n" % [card.display_name, ", ".join(names)])
+	for effect in card.effects:
+		_announce_added_card(effect, true)
+
+
+## Tells the player a card was added to their piles: a log line (cards) and a short floating cue by the
+## pile counters ("+Dread draw pile"), so it is clear why a pile grew. Enemy intents already have their
+## description in the log, so only the cue is added for them.
+func _announce_added_card(effect: CardEffect, log_line: bool) -> void:
+	if effect.kind != CardEffect.Kind.ADD_CARD or effect.card == null or effect.amount <= 0:
 		return
-	var names: PackedStringArray = []
-	for target in targets:
-		names.append(target.display_name)
-	_log_label.append_text("Played %s on %s\n" % [card.display_name, ", ".join(names)])
+	var where: String = ["your hand", "your draw pile", "your discard pile"][effect.pile]
+	var text: String = "+%s%s" % ["%d " % effect.amount if effect.amount > 1 else "", effect.card.display_name]
+	if log_line:
+		_log_label.append_text("Added %s to %s\n" % [text.trim_prefix("+"), where])
+	_show_pile_cue("%s (%s)" % [text, where.trim_prefix("your ")])
+
+
+## A small label that rises from the pile counters and fades. Several at once are stacked a little apart.
+func _show_pile_cue(text: String) -> void:
+	last_cue_text = text
+	cue_count += 1
+	if not is_inside_tree():
+		return
+	var cue := Label.new()
+	cue.text = text
+	cue.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cue.z_index = OVERLAY_Z + 2
+	cue.add_theme_font_size_override("font_size", 17)
+	cue.add_theme_color_override("font_color", CardView.kind_color(CardEffect.Kind.ADD_CARD).lightened(0.2))
+	cue.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	cue.add_theme_constant_override("outline_size", 5)
+	add_child(cue)
+	# Above the energy orb, over the stage, so it never sits on top of the counters it is about.
+	var origin := _energy_orb.get_global_rect().position - get_global_rect().position
+	cue.position = Vector2(_pile_label.get_global_rect().position.x - get_global_rect().position.x, origin.y - 30.0 - 22.0 * _live_cues)
+	_live_cues += 1
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(cue, "position:y", cue.position.y - CUE_RISE, CUE_TIME)
+	tween.tween_property(cue, "modulate:a", 0.0, CUE_TIME).set_delay(CUE_TIME * 0.5)
+	tween.chain().tween_callback(_end_pile_cue.bind(cue))
+
+
+func _end_pile_cue(cue: Label) -> void:
+	_live_cues = maxi(_live_cues - 1, 0)
+	if is_instance_valid(cue):
+		cue.queue_free()
 
 
 func _on_enemy_acted(enemy: EnemyUnit, intent: CardEffect) -> void:
 	_log_label.append_text("%s: %s\n" % [enemy.display_name, intent.describe()])
+	_announce_added_card(intent, false)
 	var index := _combat.enemies.find(enemy)
 	if intent.is_damage() and index >= 0 and index < _enemy_views.size():
 		var delay := _attacks_this_batch * ENEMY_STAGGER
