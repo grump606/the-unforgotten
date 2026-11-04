@@ -25,4 +25,5 @@ display_name = "Seance"
 cost = 1
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2"), SubResource("Resource_e3")])
 target_mode = 2
+forgotten = true
 character = &"medium"
