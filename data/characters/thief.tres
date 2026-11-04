@@ -5,10 +5,7 @@
 [ext_resource type="Resource" path="res://data/cards/shove.tres" id="3_shove"]
 [ext_resource type="Resource" path="res://data/cards/slip_past.tres" id="4_slip_past"]
 [ext_resource type="Resource" path="res://data/cards/glimpse_exit.tres" id="5_glimpse_exit"]
-[ext_resource type="Resource" path="res://data/cards/mark_the_weak.tres" id="6_mark_the_weak"]
-[ext_resource type="Resource" path="res://data/cards/lift.tres" id="7_lift"]
-[ext_resource type="Resource" path="res://data/cards/sleight.tres" id="8_sleight"]
-[ext_resource type="Resource" path="res://data/cards/last_pocket.tres" id="9_last_pocket"]
+[ext_resource type="Resource" path="res://data/cards/sleight.tres" id="6_sleight"]
 
 [resource]
 script = ExtResource("1_char")
@@ -16,4 +13,4 @@ id = &"thief"
 display_name = "The Thief"
 pitch = "Carries a house key and a memory of home. Cycles cards and punishes marked targets."
 max_hp = 36
-starting_deck = Array[ExtResource("2_card")]([ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("4_slip_past"), ExtResource("4_slip_past"), ExtResource("5_glimpse_exit"), ExtResource("6_mark_the_weak"), ExtResource("7_lift"), ExtResource("8_sleight"), ExtResource("9_last_pocket")])
+starting_deck = Array[ExtResource("2_card")]([ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("4_slip_past"), ExtResource("4_slip_past"), ExtResource("4_slip_past"), ExtResource("5_glimpse_exit"), ExtResource("6_sleight")])
