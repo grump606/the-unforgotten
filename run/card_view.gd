@@ -53,7 +53,6 @@ const ICON_PRIORITY: Array[CardEffect.Kind] = [
 	CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE, CardEffect.Kind.HAUNT, CardEffect.Kind.BLOCK,
 	CardEffect.Kind.THORNS, CardEffect.Kind.EXPOSE, CardEffect.Kind.HOLD, CardEffect.Kind.GAIN_ENERGY,
 	CardEffect.Kind.DRAW, CardEffect.Kind.HEAL_PER_HAUNTED, CardEffect.Kind.LOSE_HP,
-	# Phase 2a placeholders so the every-kind test passes; the UI phase (2b) adds their colors and icons.
 	CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD,
 ]
 const KIND_COLORS := {
@@ -62,10 +61,21 @@ const KIND_COLORS := {
 	CardEffect.Kind.HOLD: Color(0.40, 0.82, 0.80), CardEffect.Kind.THORNS: Color(0.58, 0.86, 0.42),
 	CardEffect.Kind.GAIN_ENERGY: Color(1.0, 0.88, 0.30), CardEffect.Kind.HAUNT: Color(0.76, 0.70, 1.0),
 	CardEffect.Kind.LOSE_HP: Color(0.92, 0.26, 0.32), CardEffect.Kind.HEAL_PER_HAUNTED: Color(0.96, 0.52, 0.62),
+	CardEffect.Kind.SHAKEN: Color(0.97, 0.62, 0.30), CardEffect.Kind.FRAYED: Color(0.78, 0.70, 0.55),
+	CardEffect.Kind.MALICE: Color(0.84, 0.45, 0.95), CardEffect.Kind.WARD: Color(0.46, 0.62, 1.0),
 }
+## Tint of a debuff (a negative Malice or Ward) on a status pill.
+const STATUS_NEGATIVE := Color(0.95, 0.35, 0.35)
+## Live card numbers: green when a status raises the printed number, red when it lowers it.
+const NUMBER_RAISED := Color("#5fd16b")
+const NUMBER_LOWERED := Color("#ff6a5e")
+const NUMBER_RAISED_PAPER := Color("#1f7a2c")
+const NUMBER_LOWERED_PAPER := Color("#b3261e")
 const KEYWORDS := {
 	CardEffect.Kind.EXPOSE: "EXPOSE", CardEffect.Kind.HOLD: "HOLD",
 	CardEffect.Kind.THORNS: "THORNS", CardEffect.Kind.HAUNT: "HAUNT",
+	CardEffect.Kind.SHAKEN: "SHAKEN", CardEffect.Kind.FRAYED: "FRAYED",
+	CardEffect.Kind.MALICE: "MALICE", CardEffect.Kind.WARD: "WARD",
 }
 
 ## Emitted when a clickable card is clicked (never for an Unplayable one).
@@ -101,6 +111,13 @@ var discard_marked := false:
 	set(value):
 		discard_marked = value
 		queue_redraw()
+## The player in a fight: when set, Deal and Block numbers on the face show their effective value (see
+## body_lines). Null outside a fight, so printed numbers show. The owner rebuilds or redraws the card when
+## the player's statuses change.
+var live: Combatant = null:
+	set(value):
+		live = value
+		queue_redraw()
 var view_scale := 1.0:
 	set(value):
 		view_scale = value
@@ -119,6 +136,7 @@ var clickable := false:
 ## When true (and the card is not Unplayable) the card can be dragged out of the hand. Off by default.
 var draggable := false
 
+static var _neutral: Combatant = null
 var _pressing := false
 var _dragging := false
 var _press_global := Vector2.ZERO
@@ -713,17 +731,72 @@ func _draw_body(body: Rect2, ink: Color) -> void:
 		_draw_keywords(band, ink)
 		body.position.y += KEYWORD_H + 1
 		body.size.y -= KEYWORD_H + 1
-	var lines := PackedStringArray()
-	for effect in card.effects:
-		lines.append(effect.describe())
-	var txt := "\n".join(lines)
+	var lines := body_lines()
+	var txt := _joined(lines)
 	var size := 13
 	var h := _font.get_multiline_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size).y
 	while size > 10 and h > body.size.y:
 		size -= 1
 		h = _font.get_multiline_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size).y
 	var y := body.position.y + (body.size.y - h) / 2.0 + _font.get_ascent(size)
-	draw_multiline_string(_font, Vector2(body.position.x, y), txt, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size, -1, ink)
+	for line in lines:
+		var col := ink
+		if line.delta != 0:
+			col = _number_color(line.delta)
+		draw_multiline_string(_font, Vector2(body.position.x, y), line.text, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size, -1, col)
+		y += _font.get_multiline_string_size(line.text, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size).y
+
+
+func _joined(lines: Array[Dictionary]) -> String:
+	var texts := PackedStringArray()
+	for line in lines:
+		texts.append(line.text)
+	return "\n".join(texts)
+
+
+func _number_color(delta: int) -> Color:
+	var paper := class_id == &""
+	if delta > 0:
+		return NUMBER_RAISED_PAPER if paper else NUMBER_RAISED
+	return NUMBER_LOWERED_PAPER if paper else NUMBER_LOWERED
+
+
+## The effect lines of the card face as {text, delta}: delta is +1 when the player's statuses raise the
+## printed Deal or Block number, -1 when they lower it and 0 otherwise (text is then the printed text).
+## Only plain Deal and Block lines change: the number shown is the effective one, from the same engine
+## functions Combat uses (Malice and Shaken for Deal, Ward and Frayed for Block). The target's Expose is
+## per target, so it stays in the preview line.
+func body_lines() -> Array[Dictionary]:
+	var lines: Array[Dictionary] = []
+	for effect in card.effects:
+		var effective := live_amount(effect)
+		if effective < 0 or effective == effect.amount:
+			lines.append({"text": effect.describe(), "delta": 0})
+			continue
+		var shown := effect.duplicate() as CardEffect
+		shown.amount = effective
+		lines.append({"text": shown.describe(), "delta": 1 if effective > effect.amount else -1})
+	return lines
+
+
+## The effective number of a plain Deal or Block effect for `live` (one hit, or the Block gained), or -1
+## when there is no live number: no fight, another kind, or Block that scales with energy spent.
+func live_amount(effect: CardEffect) -> int:
+	if live == null or effect.amount <= 0 or card.dormant:
+		return -1
+	match effect.kind:
+		CardEffect.Kind.DAMAGE:
+			return Combatant.hit_damage(effect.amount, live, _neutral_defender())
+		CardEffect.Kind.BLOCK:
+			return -1 if effect.per_energy else live.block_from_card(effect.amount)
+	return -1
+
+
+## A defender with no statuses, so only the attacker's side shows on a card face.
+static func _neutral_defender() -> Combatant:
+	if _neutral == null:
+		_neutral = Combatant.new("Neutral", 1)
+	return _neutral
 
 
 func _draw_strip(strip: Rect2, p: Dictionary) -> void:
@@ -938,6 +1011,22 @@ func _draw_icon(kind: int, c: Vector2, r: float, window_col: Color, variant := &
 			_fill(_heart(c, r), col)
 			draw_line(c + Vector2(0, -0.35) * r, c + Vector2(0, 0.45) * r, window_col, w)
 			draw_line(c + Vector2(-0.4, 0.05) * r, c + Vector2(0.4, 0.05) * r, window_col, w)
+		CardEffect.Kind.SHAKEN:
+			var zig := PackedVector2Array()
+			for i in 7:
+				zig.append(c + Vector2(-0.9 + 0.3 * i, (0.55 if i % 2 == 0 else -0.55)) * r)
+			draw_polyline(zig, col, w * 1.5, true)
+			draw_arc(c, r * 1.0, deg_to_rad(200), deg_to_rad(340), 10, Color(col, 0.6), w, true)
+		CardEffect.Kind.FRAYED:
+			_fill(_pts([Vector2(-0.8, -0.8), Vector2(0.8, -0.8), Vector2(0.8, -0.1), Vector2(-0.8, -0.1)], c, r), col)
+			for i in 5:
+				var x := -0.64 + 0.32 * i
+				draw_line(c + Vector2(x, -0.1) * r, c + Vector2(x * 1.35 + 0.1 * (i - 2), 0.9 - 0.12 * (i % 2)) * r, col, w)
+		CardEffect.Kind.MALICE:
+			_fill(_pts([Vector2(0, -1.0), Vector2(0.85, 0.15), Vector2(0.32, 0.15), Vector2(0.32, 0.95), Vector2(-0.32, 0.95), Vector2(-0.32, 0.15), Vector2(-0.85, 0.15)], c, r), col)
+		CardEffect.Kind.WARD:
+			_shield(c, r, col, window_col)
+			draw_arc(c, r * 1.15, 0, TAU, 24, Color(col, 0.55), w, true)
 		CardEffect.Kind.DAMAGE_PER_BLOCK:
 			_shield(c + Vector2(-0.15, 0.1) * r, r * 0.85, KIND_COLORS[CardEffect.Kind.BLOCK], window_col)
 			_hammer(c + Vector2(0.3, -0.2) * r, r * 0.95, KIND_COLORS[CardEffect.Kind.DAMAGE])

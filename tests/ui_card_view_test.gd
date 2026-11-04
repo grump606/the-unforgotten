@@ -68,6 +68,24 @@ func _initialize() -> void:
 	check(CardView.palette_id(unknown) == &"" and CardView.primary_kind(unknown) == -1, "unknown class falls back to neutral")
 	for kind in CardEffect.Kind.values():
 		check(CardView.ICON_PRIORITY.has(kind), "kind %d has an icon" % kind)
+	for kind in CardEffect.Kind.values():
+		# The scaled damage kinds share the damage colour through kind_color's fallback; every other kind has its own.
+		var damage_family := CardEffect.make(kind, 1).is_damage()
+		check(CardView.KIND_COLORS.has(kind) or damage_family, "kind %d has a KIND_COLORS entry (or is a damage kind)" % kind)
+		check(CardView.kind_color(kind) is Color, "kind %d has a colour" % kind)
+	# A card whose primary kind is a status kind builds, draws in every state and has a glyph.
+	for kind in [CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD]:
+		var status_card := CardData.make(&"status_card", "Status", 1, [CardEffect.make(kind, 2)] as Array[CardEffect])
+		var status_view := CardView.new()
+		holder.add_child(status_view)
+		status_view.set_card(status_card)
+		for state in [CardView.State.NORMAL, CardView.State.HOVER, CardView.State.SELECTED, CardView.State.UNPLAYABLE]:
+			status_view.set_state(state)
+		check(CardView.primary_kind(status_card) == kind and status_view.body_lines()[0].delta == 0, "a card led by kind %d draws" % kind)
+	var strip_text := ""
+	for kind in [CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD]:
+		strip_text += str(CardView.KEYWORDS.get(kind, "")) + " "
+	check(strip_text == "SHAKEN FRAYED MALICE WARD ", "the strip legend names the four status kinds")
 	# Prototype keyword cards build and draw in every state.
 	for file in DirAccess.get_files_at("res://data/prototype"):
 		if not file.ends_with(".tres"):

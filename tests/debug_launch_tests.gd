@@ -17,6 +17,7 @@ func run() -> int:
 	_test_run_state_uses_debug_encounter()
 	_test_screens()
 	_test_proto()
+	_test_proto_statuses()
 	return _failures
 
 
@@ -98,6 +99,69 @@ func _test_run_state_uses_debug_encounter() -> void:
 	_check(run_state.boss_label() == "", "a debug pack has no boss label")
 	run_state.debug_encounter.clear()
 	_check(run_state.boss_label() == "", "cleared, the run is normal again")
+
+
+## The status prototypes: cards for Shaken, Frayed, Malice and Ward, and the Pest that applies them.
+func _test_proto_statuses() -> void:
+	# Every card file in the folder is in the explicit list, with a proto_ id, and none is a registry card.
+	var listed := {}
+	for path in DebugLaunch.PROTO_CARD_PATHS:
+		listed[path] = true
+		var card := load(path) as CardData
+		_check(card != null and String(card.id).begins_with("proto_") and card.display_name.begins_with("Proto: "), "%s loads as a Proto card" % path)
+	for file in DirAccess.get_files_at("res://data/prototype"):
+		if file.ends_with(".tres"):
+			_check(listed.has("res://data/prototype/" + file), "%s is in PROTO_CARD_PATHS" % file)
+	# Every status effect has a prototype, including the debuff, temporary and self-targeted cases.
+	var kinds := {}
+	var has_temporary := false
+	var has_debuff := false
+	var has_self_cost := false
+	for card in DebugLaunch.prototype_deck():
+		for effect in card.effects:
+			kinds[effect.kind] = true
+			has_temporary = has_temporary or (effect.temporary and effect.kind == CardEffect.Kind.MALICE)
+			has_debuff = has_debuff or (effect.kind == CardEffect.Kind.MALICE and effect.amount < 0 and card.target_mode == CardData.TargetMode.SINGLE_ENEMY)
+			has_self_cost = has_self_cost or (effect.kind == CardEffect.Kind.SHAKEN and card.target_mode == CardData.TargetMode.SELF)
+	for kind in [CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD]:
+		_check(kinds.has(kind), "the prototype deck has a card of kind %d" % kind)
+	_check(has_temporary and has_debuff and has_self_cost, "prototypes cover a temporary Malice, a Malice debuff and a self-targeted Shaken")
+	# The Pest: shakes, frays, gains Malice, attacks; not in the enemy registry or any pool.
+	var pest := DebugLaunch.prototype_enemy(&"proto_pest")
+	_check(pest != null and pest.id == &"proto_pest" and pest.display_name.begins_with("Proto: "), "the Pest loads")
+	if pest != null:
+		var order: Array = []
+		for intent in pest.intents:
+			order.append(intent.kind)
+		_check(order == [CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.DAMAGE], "the Pest cycles Shaken, Frayed, Malice, attack: " + str(order))
+		_check(pest.intents[2].amount > 0, "the Pest's Malice intent is a buff for itself")
+	_check(StarterContent.enemy_by_id(&"proto_pest") == null and not StarterContent.enemy_ids().has(&"proto_pest"), "the Pest is not in the enemy registry")
+	var pooled := false
+	for enemy in StarterContent.enemy_pool():
+		pooled = pooled or String(enemy.id).begins_with("proto_")
+	for boss in StarterContent.boss_encounter() + StarterContent.mid_boss_encounter():
+		pooled = pooled or String(boss.id).begins_with("proto_")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	for tier in 3:
+		for enemy in StarterContent.varied_encounter(3, rng, tier, 0):
+			pooled = pooled or String(enemy.id).begins_with("proto_")
+	_check(not pooled, "the Pest is in no encounter pool")
+	# --fight= takes it by id, display name and alias, and --proto works with it.
+	var launch := DebugLaunch.parse(PackedStringArray(["--proto", "--fight=proto_pest"]), {})
+	_check(launch.requested and launch.proto and launch.error == "" and launch.enemy_ids == [&"proto_pest"], "--proto --fight=proto_pest parses")
+	_check(DebugLaunch.parse(PackedStringArray(["--fight=Proto: Pest"]), {}).enemy_ids == [&"proto_pest"], "the Pest resolves by display name")
+	_check(DebugLaunch.parse(PackedStringArray(["--fight=pest,crow"]), {}).enemy_ids == [&"proto_pest", &"mourning_crow"], "the Pest resolves by alias and mixes with others")
+	_check(DebugLaunch.help_text().contains("proto_pest"), "the help lists the Pest")
+	# The run builds the fight from it.
+	var run_state := RunState.new(1, &"thief")
+	for index in run_state.stops.size():
+		if run_state.stops[index].type == RunState.StopType.COMBAT:
+			run_state.stop_index = index
+			break
+	run_state.debug_encounter.assign([&"proto_pest"])
+	var combat := run_state.start_combat()
+	_check(combat != null and combat.enemies.size() == 1 and combat.enemies[0].data.id == &"proto_pest", "the run fights the Pest")
 
 
 func _test_screens() -> void:
