@@ -18,7 +18,7 @@ const RING_COUNT := 7
 
 ## Seconds of animation so far; only advance() moves it.
 var time := 0.0
-## One of &"deserter", &"pickpocket", &"medium"; anything else draws the neutral scene.
+## One of &"deserter", &"thief", &"medium"; anything else draws the neutral scene.
 var variant: StringName = &""
 
 var _noise: Array[float] = []
@@ -102,7 +102,7 @@ func _draw() -> void:
 		match variant:
 			&"deserter":
 				_draw_coat(w, h, c, lamp)
-			&"pickpocket":
+			&"thief":
 				_draw_watch(w, h, c, lamp)
 			&"medium":
 				_draw_figures(w, h, c)

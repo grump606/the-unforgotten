@@ -22,7 +22,7 @@ SCREENS = {
     "select": "a long dark station platform at night seen at an angle, three train carriage doors standing open with warm light spilling out, drifting fog, gas lamps, iron pillars, quiet and expectant, no people",
     "battle_neutral": CORRIDOR + ", cold steel blue and amber tones",
     "battle_deserter": CORRIDOR + ", rust orange and steel grey tones",
-    "battle_pickpocket": CORRIDOR + ", deep teal and brass tones",
+    "battle_thief": CORRIDOR + ", deep teal and brass tones",
     "battle_medium": CORRIDOR + ", bruised violet and bone white tones",
     "battle_boss": CORRIDOR + ", blood red lamps, a pale cold glow at the far end, ominous",
     "rest": "empty dim train carriage interior at night, bare wooden floor, small dark windows, a single hanging lamp, warm quiet mood, no furniture",

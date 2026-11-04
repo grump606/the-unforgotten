@@ -14,4 +14,4 @@ id = &"mark_the_weak"
 display_name = "Mark the Weak"
 cost = 1
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_effect")])
-character = &"pickpocket"
+character = &"thief"

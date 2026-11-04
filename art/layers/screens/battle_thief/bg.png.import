@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://41bxwquuc1n2"
-path="res://.godot/imported/bg.png-1de7bddf9197bfa200ca0f36562760ef.ctex"
+uid="uid://dvkryimpbxauw"
+path="res://.godot/imported/bg.png-7711ce981a67ee350c0dc2155b58e1a1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/layers/screens/rest_pickpocket/bg.png"
-dest_files=["res://.godot/imported/bg.png-1de7bddf9197bfa200ca0f36562760ef.ctex"]
+source_file="res://art/layers/screens/battle_thief/bg.png"
+dest_files=["res://.godot/imported/bg.png-7711ce981a67ee350c0dc2155b58e1a1.ctex"]
 
 [params]
 

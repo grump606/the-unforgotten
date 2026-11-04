@@ -19,10 +19,10 @@ Every screen can be opened directly with the debug launcher (`README.md`, "Debug
 
 ```powershell
 .\scripts\debug_fight.ps1 -Screen select                        # character select
-.\scripts\debug_fight.ps1 -Screen rest -Character pickpocket    # rest
+.\scripts\debug_fight.ps1 -Screen rest -Character thief    # rest
 .\scripts\debug_fight.ps1 -Screen vendor -Character medium      # vendor
 .\scripts\debug_fight.ps1 eraser -Character deserter            # boss fight (entrance in the first 2 seconds)
-.\scripts\debug_fight.ps1 shade,hound,crow -Character pickpocket # regular fight
+.\scripts\debug_fight.ps1 shade,hound,crow -Character thief # regular fight
 .\scripts\debug_fight.ps1 -Screen end -Character medium -Hp 31  # end card (-Screen defeat for the defeat card)
 ```
 

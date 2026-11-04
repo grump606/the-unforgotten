@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dvkryimpbxauw"
-path="res://.godot/imported/bg.png-ebd751343636ac57ded8e5bee9d5497c.ctex"
+uid="uid://bck3021gq2f34"
+path="res://.godot/imported/figure.png-4884d688b77a74083c62660da68c9cb1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/layers/screens/battle_pickpocket/bg.png"
-dest_files=["res://.godot/imported/bg.png-ebd751343636ac57ded8e5bee9d5497c.ctex"]
+source_file="res://art/layers/players/thief/figure.png"
+dest_files=["res://.godot/imported/figure.png-4884d688b77a74083c62660da68c9cb1.ctex"]
 
 [params]
 

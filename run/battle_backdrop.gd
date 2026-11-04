@@ -21,7 +21,7 @@ const NOISE_SIZE := 64
 ## Per-class tint, mixed into the lines, glass, glow and dust only (neutral for anything else).
 const TINTS := {
 	&"deserter": Color(0.70, 0.34, 0.14),
-	&"pickpocket": Color(0.12, 0.60, 0.58),
+	&"thief": Color(0.12, 0.60, 0.58),
 	&"medium": Color(0.52, 0.30, 0.78),
 }
 const TINT_AMOUNT := 0.32
