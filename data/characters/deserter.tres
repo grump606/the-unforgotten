@@ -5,7 +5,10 @@
 [ext_resource type="Resource" path="res://data/cards/shove.tres" id="3_shove"]
 [ext_resource type="Resource" path="res://data/cards/slip_past.tres" id="4_slip_past"]
 [ext_resource type="Resource" path="res://data/cards/glimpse_exit.tres" id="5_glimpse_exit"]
-[ext_resource type="Resource" path="res://data/cards/dig_in.tres" id="6_dig_in"]
+[ext_resource type="Resource" path="res://data/cards/shoulder_charge.tres" id="6_shoulder_charge"]
+[ext_resource type="Resource" path="res://data/cards/iron_resolve.tres" id="7_iron_resolve"]
+[ext_resource type="Resource" path="res://data/cards/hold_the_line.tres" id="8_hold_the_line"]
+[ext_resource type="Resource" path="res://data/cards/bash.tres" id="9_bash"]
 
 [resource]
 script = ExtResource("1_char")
@@ -13,4 +16,4 @@ id = &"deserter"
 display_name = "The Deserter"
 pitch = "Once left others behind; now follows a familiar voice. Holds firm behind a wall of Block."
 max_hp = 52
-starting_deck = Array[ExtResource("2_card")]([ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("4_slip_past"), ExtResource("4_slip_past"), ExtResource("4_slip_past"), ExtResource("5_glimpse_exit"), ExtResource("6_dig_in")])
+starting_deck = Array[ExtResource("2_card")]([ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("4_slip_past"), ExtResource("4_slip_past"), ExtResource("5_glimpse_exit"), ExtResource("6_shoulder_charge"), ExtResource("7_iron_resolve"), ExtResource("8_hold_the_line"), ExtResource("9_bash")])

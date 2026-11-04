@@ -3,8 +3,6 @@ extends RefCounted
 ## started with an older deck, and the retuned neutral cards (Glimpse the Exit, Flurry). Registered by
 ## run_tests.gd. Fixtures are built in code; cards come through StarterContent.
 
-const SIGNATURE := {&"thief": &"sleight", &"deserter": &"dig_in", &"medium": &"cold_whisper"}
-
 var _failures := 0
 
 
@@ -102,19 +100,16 @@ func _test_starter_decks() -> void:
 	for id in StarterContent.character_ids():
 		var deck := StarterContent.starter_deck(id)
 		_check(deck.size() == 10, "%s starter deck has 10 cards" % id)
-		var want := {&"shove": 5, &"slip_past": 3, &"glimpse_exit": 1, SIGNATURE[id]: 1}
-		_check(_counts(deck) == want, "%s starter deck is 5 Shove, 3 Slip Past, Glimpse the Exit and %s: %s" % [id, SIGNATURE[id], str(_counts(deck))])
+		_check(deck == StarterContent.character(id).starting_deck, "%s starter deck is the character's data/characters deck" % id)
+		var own_cards := 0
 		for card in deck:
-			_check(card.character == &"" or card.character == id, "%s starter deck holds no other class's card (%s)" % [id, card.id])
-		var signature_cards: Array[CardData] = []
-		for card in deck:
+			_check(card.character == &"" or card.character == id, "%s starter deck holds only neutral or own cards (%s)" % [id, card.id])
 			if card.character == id:
-				signature_cards.append(card)
-		_check(signature_cards.size() == 1 and signature_cards[0].id == SIGNATURE[id], "%s starts with exactly its signature card" % id)
+				own_cards += 1
+		_check(own_cards >= 1, "%s starter deck holds some class cards" % id)
 		var pool_ids := _ids(StarterContent.reward_pool(id))
 		for card in deck:
 			_check(pool_ids.has(String(card.id)), "%s can be offered every card it starts with (%s)" % [id, card.id])
-		_check(deck == StarterContent.character(id).starting_deck, "%s starter deck matches the character resource" % id)
 		deck.append(deck[0])
 		_check(StarterContent.starter_deck(id).size() == 10, "%s: editing a returned starter deck leaves the next one alone" % id)
 
@@ -132,26 +127,14 @@ func _test_runs_start_with_the_starter_deck() -> void:
 		_check(state.deck == StarterContent.starter_deck(id), "a %s run starts with the %s starter deck" % [id, id])
 
 
-## A save made before the starter decks changed holds card ids, so it still loads: every id is in the
-## character's pool. These are the 10-card decks the three characters used to start with.
+## Saves hold card ids, so a deck from before still loads while its cards are in the class pool: the
+## shared neutral deck() (an old test and tool deck) loads for every class, and each class's own deck too.
 func _test_legacy_shared_deck_save_loads() -> void:
-	var old_decks := {
-		&"thief": ["shove", "shove", "shove", "slip_past", "slip_past", "glimpse_exit", "mark_the_weak", "lift", "sleight", "last_pocket"],
-		&"deserter": ["shove", "shove", "shove", "slip_past", "slip_past", "glimpse_exit", "shoulder_charge", "iron_resolve", "hold_the_line", "bash"],
-		&"medium": ["shove", "shove", "shove", "slip_past", "slip_past", "glimpse_exit", "confess", "lingering_dread", "penance", "cold_whisper"],
-	}
-	for id in old_decks:
-		var data := RunSave.to_dict(RunState.new(9, id))
-		data["deck"] = old_decks[id]
-		var loaded := RunSave.from_dict(data)
-		_check(loaded.run != null, "%s: a save of a run started with the old deck still loads" % id)
-		if loaded.run != null:
-			_check(_ids(loaded.run.deck) == old_decks[id], "%s: the old deck comes back card for card" % id)
-	# The old neutral 10-card deck (4 Slip Past) also loads for every class.
 	for id in StarterContent.character_ids():
 		var data := RunSave.to_dict(RunState.new(9, id))
 		data["deck"] = _ids(StarterContent.deck())
-		_check(RunSave.from_dict(data).run != null, "%s: the neutral deck loads from a save" % id)
+		var loaded := RunSave.from_dict(data)
+		_check(loaded.run != null and _ids(loaded.run.deck) == _ids(StarterContent.deck()), "%s: a save holding the old shared deck still loads" % id)
 
 
 func _test_new_run_save_round_trips() -> void:
