@@ -12,6 +12,12 @@ extends RefCounted
 ##   godot --path . -- --screen=rest --gold=0 --hp=10
 ##   godot --path . -- --screen=vendor:2        (the second shop on the line)
 ##
+## Try the keyword prototype cards (data/prototype, never in the normal card pool): `--proto` swaps the
+## player's deck for two copies of each, in a fight (default enemy: the Colossus) or with `--fight=`:
+##
+##   godot --path . -- --proto
+##   godot --path . -- --proto --fight=crow --character=thief
+##
 ## The same values can come from THE_UNFORGOTTEN_FIGHT, THE_UNFORGOTTEN_SCREEN, THE_UNFORGOTTEN_CHARACTER,
 ## THE_UNFORGOTTEN_HP and THE_UNFORGOTTEN_GOLD.
 ## `--fight=list` prints the accepted names. Names match an enemy id, its in-game name, or a short
@@ -22,6 +28,19 @@ const ENV_CHARACTER := "THE_UNFORGOTTEN_CHARACTER"
 const ENV_HP := "THE_UNFORGOTTEN_HP"
 const ENV_SCREEN := "THE_UNFORGOTTEN_SCREEN"
 const ENV_GOLD := "THE_UNFORGOTTEN_GOLD"
+const ENV_PROTO := "THE_UNFORGOTTEN_PROTO"
+## Enemy used by `--proto` when no `--fight` is given.
+const PROTO_DEFAULT_FIGHT := "colossus"
+## The prototype cards, one per keyword plus multi-hit and Surge. Listed, not scanned, so the folder
+## can never leak into the reward pool.
+const PROTO_CARD_PATHS: Array[String] = [
+	"res://data/prototype/forgotten_strike.tres", "res://data/prototype/fading_jab.tres",
+	"res://data/prototype/ready_guard.tres", "res://data/prototype/anchor_ward.tres",
+	"res://data/prototype/dormant_burden.tres", "res://data/prototype/double_strike.tres",
+	"res://data/prototype/surge_slash.tres", "res://data/prototype/surge_guard.tres",
+]
+## Copies of each prototype card in the `--proto` deck.
+const PROTO_COPIES := 2
 
 ## Stop screens that can be opened directly, mapped to their stop type.
 const SCREENS := {"vendor": RunState.StopType.VENDOR, "rest": RunState.StopType.REST}
@@ -51,6 +70,8 @@ var screen := ""
 var screen_index := 1
 var gold := -1
 var list_only := false
+## `--proto`: the fight uses the prototype card deck (see prototype_deck).
+var proto := false
 var error := ""
 
 
@@ -62,6 +83,7 @@ static func from_environment() -> DebugLaunch:
 		ENV_HP: OS.get_environment(ENV_HP),
 		ENV_SCREEN: OS.get_environment(ENV_SCREEN),
 		ENV_GOLD: OS.get_environment(ENV_GOLD),
+		ENV_PROTO: OS.get_environment(ENV_PROTO),
 	})
 
 
@@ -72,6 +94,7 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 	var hp_text := String(env.get(ENV_HP, ""))
 	var screen_text := String(env.get(ENV_SCREEN, ""))
 	var gold_text := String(env.get(ENV_GOLD, ""))
+	var proto_text := String(env.get(ENV_PROTO, ""))
 	for arg in args:
 		if arg.begins_with("--fight="):
 			fight_text = arg.trim_prefix("--fight=")
@@ -83,6 +106,11 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 			gold_text = arg.trim_prefix("--gold=")
 		elif arg.begins_with("--hp="):
 			hp_text = arg.trim_prefix("--hp=")
+		elif arg == "--proto":
+			proto_text = "1"
+	launch.proto = proto_text.strip_edges() not in ["", "0", "false"]
+	if launch.proto and fight_text.strip_edges() == "" and screen_text.strip_edges() == "":
+		fight_text = PROTO_DEFAULT_FIGHT
 	var wants_fight := fight_text.strip_edges() != ""
 	var wants_screen := screen_text.strip_edges() != ""
 	if not wants_fight and not wants_screen:
@@ -141,6 +169,15 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 			return launch
 		launch.hp = int(hp_text)
 	return launch
+
+
+## The `--proto` deck: PROTO_COPIES of every prototype card.
+static func prototype_deck() -> Array[CardData]:
+	var deck: Array[CardData] = []
+	for _copy in PROTO_COPIES:
+		for path in PROTO_CARD_PATHS:
+			deck.append(load(path) as CardData)
+	return deck
 
 
 ## The enemy id a name refers to (id, display name or alias), or &"" if none matches.

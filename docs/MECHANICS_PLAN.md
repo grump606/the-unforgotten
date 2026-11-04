@@ -125,6 +125,18 @@ follow the new discard rules, play Fading cards first, never try Dormant, and sc
 1a). 1c vendor, sim, content tests (after 1a, parallel with 1b). A debug-only list of prototype cards (one
 per keyword) is added so the keywords can be tried in the game before phase 4.
 
+## Trying the keywords
+
+`data/prototype/` holds one sample card per keyword (Forgotten, Fading, Ready, Anchor, Dormant), a multi-hit
+card and a Surge attack and Surge block, all with ids starting `proto_`. They are not in the card registry or
+any reward pool. To play a fight with them (two copies of each as the deck):
+
+    godot --path . -- --proto
+    godot --path . -- --proto --fight=crow --character=thief
+
+`--proto` alone fights the Colossus; with `--fight=` it uses that enemy. `THE_UNFORGOTTEN_PROTO=1` does the
+same from the environment. The list lives in `DebugLaunch.PROTO_CARD_PATHS`.
+
 ## Cross-cutting work
 
 - `CardEffect` rule: new kinds are only appended, never reordered (`.tres` files store the integer).
