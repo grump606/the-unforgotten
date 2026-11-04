@@ -31,6 +31,7 @@ const ART_KEYS := {
 	&"pale_whisperer": &"whisperer", &"cinder_hound": &"hound", &"mourning_crow": &"crow",
 	&"the_conductor": &"conductor", &"the_brakeman": &"brakeman",
 	&"proto_pest": &"hound", # the debug-only prototype enemy borrows the hound's figure
+	&"proto_dreadkeeper": &"whisperer", # likewise the Dreadkeeper borrows the whisperer's
 }
 ## Figure height in pixels per enemy (the player and unknown ids use DEFAULT_HEIGHT).
 const HEIGHTS := {

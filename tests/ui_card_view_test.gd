@@ -82,6 +82,33 @@ func _initialize() -> void:
 		for state in [CardView.State.NORMAL, CardView.State.HOVER, CardView.State.SELECTED, CardView.State.UNPLAYABLE]:
 			status_view.set_state(state)
 		check(CardView.primary_kind(status_card) == kind and status_view.body_lines()[0].delta == 0, "a card led by kind %d draws" % kind)
+	# Every kind has a glyph, and a card led by each kind (the new cycling kinds included) builds and draws.
+	for kind in CardEffect.Kind.values():
+		check(CardView.ICON_KINDS.has(kind), "kind %d has a drawn glyph" % kind)
+		var effect := CardEffect.make(kind, 2, 1, 1, 1, false, false, StarterContent.status_card(&"dread") if kind == CardEffect.Kind.ADD_CARD else null)
+		var kind_card := CardData.make(&"kind_card", "Kind Card", 1, [effect] as Array[CardEffect])
+		var kind_view := CardView.new()
+		holder.add_child(kind_view)
+		kind_view.set_card(kind_card)
+		kind_view.live = Combatant.new("Player", 10)
+		for state in [CardView.State.NORMAL, CardView.State.HOVER, CardView.State.SELECTED, CardView.State.UNPLAYABLE]:
+			kind_view.set_state(state)
+		kind_view.discard_marked = true
+		check(CardView.primary_kind(kind_card) == kind, "a card with only kind %d is led by that icon" % kind)
+		check(kind_view.body_lines().size() == 1 and kind_view.body_lines()[0].text != "", "kind %d has effect text on its face" % kind)
+	# Status cards (Dread, Murmur) get the junk frame, no effect text, and draw in every state at hand size.
+	for status_id in [&"dread", &"murmur"]:
+		var junk := StarterContent.status_card(status_id)
+		var junk_view := CardView.new()
+		holder.add_child(junk_view)
+		junk_view.view_scale = 0.7
+		junk_view.set_card(junk)
+		for state in [CardView.State.NORMAL, CardView.State.HOVER, CardView.State.UNPLAYABLE]:
+			junk_view.set_state(state)
+		check(CardView.is_status_card(junk) and junk_view.class_id == &"status", "%s uses the status frame" % status_id)
+		check(junk_view.body_lines().is_empty(), "%s has no effect text" % status_id)
+		check(junk_view.keyword_text().contains("DORMANT"), "%s shows DORMANT" % status_id)
+	check(not CardView.is_status_card(_card("bash")) and not CardView.is_status_card(load("res://data/prototype/dormant_burden.tres") as CardData), "ordinary and Dormant-with-effects cards are not status cards")
 	var strip_text := ""
 	for kind in [CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD]:
 		strip_text += str(CardView.KEYWORDS.get(kind, "")) + " "

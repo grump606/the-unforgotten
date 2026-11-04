@@ -647,6 +647,298 @@ func _check_statuses(node: Control) -> void:
 		fighter.queue_free()
 
 
+func _card(id: String) -> CardData:
+	return load("res://data/cards/%s.tres" % id) as CardData
+
+
+## A fresh fight with the screen in a known state: energy to spare, tough enemies, no statuses.
+func _fresh_fight(node: Control) -> Combat:
+	node._start_combat()
+	await process_frame
+	var c: Combat = node._combat
+	c.energy = 9
+	c.plays_this_turn = 0
+	c.player.clear_block()
+	c.player.clear_statuses()
+	for e in c.enemies:
+		e.clear_statuses()
+		e.clear_block()
+		e.max_hp = 500
+		e.hp = 500
+	node._select_target(0)
+	return c
+
+
+func _ids(cards: Array[CardData]) -> Array:
+	return cards.map(func(card: CardData) -> StringName: return card.id)
+
+
+## Glimpse and Recall on screen: the overlay opens, marks, Keep all vs Discard N, exact picks for Recall,
+## queued choices, and nothing playable behind it.
+func _check_choice_overlay(node: Control) -> void:
+	var c: Combat = await _fresh_fight(node)
+	# Draw pile top-to-bottom: shove, brace, bash, heavy_blow, sweep (the END of the array is the top).
+	var draw_order: Array[CardData] = [_card("sweep"), _card("heavy_blow"), _card("bash"), _card("brace"), _card("shove")]
+	c.piles.draw_pile.assign(draw_order)
+	c.piles.hand.assign([_proto("glimpse_3"), _card("cold_steel")])
+	node._refresh()
+	check(not node.choice_overlay_visible(), "no overlay before a Glimpse is played")
+	node._play_hand_card(0)
+	check(c.phase == Combat.Phase.CHOOSING and node.choice_overlay_visible(), "playing Glimpse 3 opens the overlay")
+	var overlay: ChoiceOverlay = node._choice_overlay
+	check(_ids(overlay.cards) == [&"shove", &"brace", &"bash"], "the overlay lists the top 3 cards in draw order")
+	check(overlay.heading_label.text.begins_with("Glimpse") and overlay.confirm_button.text == "Keep all" and not overlay.confirm_button.disabled, "Glimpse: heading, and zero picks allowed (Keep all)")
+	check(CardView.find_all(overlay).size() == 3, "one card view per offered card")
+	# Nothing behind it works.
+	var hand_views := CardView.find_all(node._hand_box)
+	check(hand_views.size() == 1 and not hand_views[0].is_clickable(), "hand cards are not clickable while the overlay is up")
+	var hand_before := c.piles.hand.size()
+	node._play_hand_card(0)
+	key(node, KEY_E)
+	node._on_end_turn_pressed()
+	check(c.phase == Combat.Phase.CHOOSING and c.piles.hand.size() == hand_before and node._end_turn_button.disabled, "hand cards and End Turn do nothing, and the button is disabled, behind the overlay")
+	check(node.open_pile_viewer(PileViewer.Pile.DRAW) == false and not node.pile_viewer_open(), "the pile viewer does not open during a pick")
+	key(node, KEY_ESCAPE)
+	check(c.phase == Combat.Phase.CHOOSING and node.choice_overlay_visible(), "Esc does not cancel the pick")
+	# Marking.
+	overlay.toggle(0)
+	overlay.toggle(2)
+	check(overlay.confirm_button.text == "Discard 2" and overlay.marks == ([0, 2] as Array[int]), "marking two cards: Discard 2")
+	var views := CardView.find_all(overlay)
+	check(views[0].discard_marked and not views[1].discard_marked and views[2].discard_marked, "marked cards are dimmed and stamped for discard")
+	overlay.toggle(0)
+	check(overlay.confirm_button.text == "Discard 1" and not CardView.find_all(overlay)[0].discard_marked, "unmarking a card takes the stamp off")
+	key(node, KEY_1)
+	check(overlay.marks == ([0, 2] as Array[int]), "number key 1 marks the first card")
+	overlay.confirm_button.pressed.emit()
+	check(c.phase == Combat.Phase.PLAYER_TURN and not node.choice_overlay_visible(), "confirming closes the overlay and returns to the turn")
+	check(_ids(c.piles.discard_pile) == [&"proto_glimpse_3", &"shove", &"bash"], "the picked cards (and the played card) are in the discard pile")
+	check(_ids(c.piles.draw_pile) == [&"sweep", &"heavy_blow", &"brace"], "the unpicked cards stay on top, in order")
+	check(not node._end_turn_button.disabled and CardView.find_all(node._hand_box)[0].is_clickable(), "the turn controls come back")
+
+	# Keep all: confirm with nothing marked leaves the pile alone.
+	c = await _fresh_fight(node)
+	c.piles.draw_pile.assign(draw_order)
+	c.piles.hand.assign([_proto("glimpse_3")])
+	node._refresh()
+	node._play_hand_card(0)
+	key(node, KEY_ENTER)
+	check(c.phase == Combat.Phase.PLAYER_TURN and c.piles.draw_pile == draw_order and c.piles.discard_pile.size() == 1, "Enter with nothing marked keeps everything (Keep all)")
+
+	# Recall: exactly the required number of picks.
+	c = await _fresh_fight(node)
+	c.piles.forgotten.assign([_card("shove"), _card("brace"), _card("bash")])
+	c.piles.hand.assign([_proto("recall_2")])
+	node._refresh()
+	node._play_hand_card(0)
+	check(c.phase == Combat.Phase.CHOOSING and node.choice_overlay_visible(), "playing Recall 2 opens the overlay")
+	overlay = node._choice_overlay
+	check(overlay.heading_label.text == "Recall: choose 2 to return to your hand" and _ids(overlay.cards) == [&"shove", &"brace", &"bash"], "Recall: heading and the whole Forgotten pile")
+	check(overlay.confirm_button.disabled and overlay.confirm_button.text == "Recall 0 of 2", "Recall: the button is disabled with no picks")
+	overlay.confirm_button.pressed.emit()
+	key(node, KEY_ENTER)
+	check(c.phase == Combat.Phase.CHOOSING, "confirming a Recall with too few picks does nothing")
+	overlay.toggle(0)
+	check(overlay.confirm_button.disabled and overlay.confirm_button.text == "Recall 1 of 2", "Recall: one of two picked is not enough")
+	check(CardView.find_all(overlay)[0].state == CardView.State.SELECTED, "a Recall pick is shown selected")
+	overlay.toggle(1)
+	overlay.toggle(2)
+	check(overlay.marks == ([0, 1] as Array[int]), "a third pick is ignored when two are allowed")
+	overlay.toggle(1)
+	overlay.toggle(2)
+	check(not overlay.confirm_button.disabled and overlay.confirm_button.text == "Recall 2 of 2", "Recall: two of two enables the button")
+	overlay.confirm_button.pressed.emit()
+	check(c.phase == Combat.Phase.PLAYER_TURN and _ids(c.piles.hand) == [&"shove", &"bash"] and _ids(c.piles.forgotten) == [&"brace"], "the picked Forgotten cards return to the hand")
+	check(CardView.find_all(node._hand_box).size() == 2, "the screen shows the recalled cards in hand")
+
+	# A Recall that takes one swaps its pick; a big Forgotten pile wraps and still fits the stage.
+	c = await _fresh_fight(node)
+	var big: Array[CardData] = []
+	for i in 12:
+		big.append(_card("shove") if i % 2 == 0 else _card("brace"))
+	c.piles.forgotten.assign(big)
+	c.piles.hand.assign([_proto("recall_1")]) # itself Forgotten, so it joins the pile it recalls from
+	node._refresh()
+	node._play_hand_card(0)
+	overlay = node._choice_overlay
+	check(overlay != null and overlay.cards.size() == 13, "Recall 1 can pick from 13 cards (the played card joined the Forgotten pile)")
+	overlay.toggle(0)
+	overlay.toggle(5)
+	check(overlay.marks == ([5] as Array[int]) and not overlay.confirm_button.disabled, "a one-pick Recall swaps the pick instead of ignoring it")
+	await process_frame
+	await process_frame
+	var panel_rect: Rect2 = (overlay.get_child(1) as Control).get_global_rect()
+	var stage_rect: Rect2 = node._stage.get_global_rect()
+	check(panel_rect.size.x > 0.0 and stage_rect.encloses(panel_rect.grow(-1.0)), "the overlay panel stays inside the stage with 13 cards (%s in %s)" % [panel_rect, stage_rect])
+	check(panel_rect.end.y <= stage_rect.end.y - 40.0, "the overlay leaves the enemy HP bars along the bottom of the stage uncovered")
+	check(overlay.card_scale <= 0.9 and overlay.card_scale >= ChoiceOverlay.SCALES[-1], "thirteen cards wrap onto rows that fit (scale %.2f)" % overlay.card_scale)
+	check(ChoiceOverlay.fit_scale(5, 1000.0, 300.0) == 0.9 and ChoiceOverlay.fit_scale(30, 1000.0, 300.0) < 0.9 and ChoiceOverlay.fit_scale(200, 1000.0, 300.0) == ChoiceOverlay.SCALES[-1], "cards shrink as the pile grows, down to a floor (then the list scrolls)")
+	overlay.confirm()
+	check(c.phase == Combat.Phase.PLAYER_TURN and c.piles.hand.size() == 1 and c.piles.forgotten.size() == 12, "the swapped pick returned")
+
+	# Two queued choices open one after the other, each with a fresh overlay.
+	c = await _fresh_fight(node)
+	c.piles.draw_pile.assign(draw_order)
+	c.piles.forgotten.assign([_card("shove"), _card("brace")])
+	var both := CardData.make(&"both", "Both", 0, [CardEffect.make(CardEffect.Kind.GLIMPSE, 2), CardEffect.make(CardEffect.Kind.RECALL, 1)] as Array[CardEffect], CardData.TargetMode.SELF)
+	c.piles.hand.assign([both])
+	node._refresh()
+	node._play_hand_card(0)
+	var first: ChoiceOverlay = node._choice_overlay
+	check(c.phase == Combat.Phase.CHOOSING and first.is_glimpse() and first.cards.size() == 2, "the first queued choice (Glimpse) opens first")
+	first.toggle(1)
+	first.confirm()
+	check(c.phase == Combat.Phase.CHOOSING and node.choice_overlay_visible() and node._choice_overlay != first and not node._choice_overlay.is_glimpse(), "resolving it opens the second (Recall) in a fresh overlay")
+	check(_ids(c.piles.discard_pile).has(&"brace") and node._choice_overlay.marks.is_empty(), "the first pick was applied and the new overlay starts unmarked")
+	node._choice_overlay.toggle(0)
+	node._choice_overlay.confirm()
+	check(c.phase == Combat.Phase.PLAYER_TURN and not node.choice_overlay_visible() and _ids(c.piles.hand).has(&"shove"), "after the second choice the turn resumes")
+
+	# A refresh while choosing keeps the marks.
+	c = await _fresh_fight(node)
+	c.piles.draw_pile.assign(draw_order)
+	c.piles.hand.assign([_proto("glimpse_3")])
+	node._refresh()
+	node._play_hand_card(0)
+	overlay = node._choice_overlay
+	overlay.toggle(1)
+	node._refresh()
+	check(node._choice_overlay == overlay and overlay.marks == ([1] as Array[int]), "an unrelated refresh keeps the overlay and its marks")
+
+
+## The pile viewer: opens for each pile from the counters, the Draw list is sorted rather than in draw
+## order, closes with Esc, the button and a click outside, and only opens in the player's turn or discard step.
+func _check_pile_viewer(node: Control) -> void:
+	var c: Combat = await _fresh_fight(node)
+	var names := ["shove", "bash", "sweep", "brace", "heavy_blow", "cold_steel"]
+	var draw: Array[CardData] = []
+	for n in names:
+		draw.append(_card(n))
+	c.piles.draw_pile.assign(draw)
+	c.piles.discard_pile.assign([_card("spree"), _card("flurry")])
+	c.piles.forgotten.assign([_proto("forgotten_strike")])
+	node._refresh()
+	await process_frame
+	check(node._pile_label.mouse_filter == Control.MOUSE_FILTER_STOP and node._pile_label.mouse_default_cursor_shape == Control.CURSOR_POINTING_HAND, "the pile counters take clicks and show a hand cursor")
+	node._set_pile_hover(true)
+	check(node._pile_label.modulate != Color.WHITE, "the pile counters tint on hover")
+	node._set_pile_hover(false)
+	check(node._pile_label.modulate == Color.WHITE, "and clear the tint")
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	var h: float = maxf(node._pile_label.size.y, 3.0)
+	press.position = Vector2(4, h * 0.2)
+	node._on_pile_label_input(press)
+	check(node.pile_viewer_open() and node._pile_viewer.pile == PileViewer.Pile.DRAW, "clicking the Draw line opens the Draw pile")
+	var viewer: PileViewer = node._pile_viewer
+	var shown: Array = viewer.card_views().map(func(v: CardView) -> StringName: return v.card.id)
+	var expected: Array = draw.duplicate()
+	expected.sort_custom(func(a: CardData, b: CardData) -> bool: return a.cost < b.cost or (a.cost == b.cost and a.display_name < b.display_name))
+	expected = expected.map(func(card: CardData) -> StringName: return card.id)
+	var in_draw_order: Array = c.piles.top_cards(6).map(func(card: CardData) -> StringName: return card.id)
+	check(shown == expected and shown != in_draw_order, "the Draw pile is listed sorted, not in draw order: %s" % str(shown))
+	check(viewer.note_label.text.contains("no particular order"), "the Draw pile says it is in no particular order")
+	check(viewer.tab_buttons[0].text == "Draw 6" and viewer.tab_buttons[1].text == "Discard 2" and viewer.tab_buttons[2].text == "Forgotten 1", "the tabs show the counts")
+	viewer.tab_buttons[1].pressed.emit()
+	check(viewer.pile == PileViewer.Pile.DISCARD and viewer.card_views().size() == 2 and viewer.card_views()[0].card.id == &"spree", "the Discard tab lists the discard pile")
+	viewer.tab_buttons[2].pressed.emit()
+	check(viewer.card_views().size() == 1 and viewer.card_views()[0].card.id == &"proto_forgotten_strike", "the Forgotten tab lists the Forgotten pile")
+	check(c.piles.draw_pile == draw and c.phase == Combat.Phase.PLAYER_TURN, "looking changes nothing")
+	# Modal: keys and clicks do nothing behind it; Esc closes.
+	var hand_n := c.piles.hand.size()
+	node._play_hand_card(0)
+	key(node, KEY_E)
+	key(node, KEY_1)
+	check(c.piles.hand.size() == hand_n and c.phase == Combat.Phase.PLAYER_TURN and node.pile_viewer_open(), "keys do nothing behind the pile viewer")
+	key(node, KEY_ESCAPE)
+	check(not node.pile_viewer_open(), "Esc closes the pile viewer")
+	# Each pile by name, the Close button, and a click outside the panel.
+	for which in [PileViewer.Pile.DISCARD, PileViewer.Pile.FORGOTTEN, PileViewer.Pile.DRAW]:
+		check(node.open_pile_viewer(which) and node._pile_viewer.pile == which, "the viewer opens on pile %d" % which)
+		node._close_pile_viewer()
+	node.open_pile_viewer(PileViewer.Pile.DRAW)
+	node._pile_viewer.close_button.pressed.emit()
+	check(not node.pile_viewer_open(), "the Close button closes the viewer")
+	node.open_pile_viewer(PileViewer.Pile.DRAW)
+	var outside := InputEventMouseButton.new()
+	outside.button_index = MOUSE_BUTTON_LEFT
+	outside.pressed = true
+	node._pile_viewer._gui_input(outside)
+	check(not node.pile_viewer_open(), "a click outside the panel closes the viewer")
+	# It works in the discard step, not in the enemy phase.
+	node._on_end_turn_pressed()
+	check(c.phase == Combat.Phase.DISCARDING and node.open_pile_viewer(PileViewer.Pile.DISCARD), "the viewer opens during the discard step")
+	node._close_pile_viewer()
+	c.phase = Combat.Phase.ENEMY_TURN
+	check(not node.open_pile_viewer(PileViewer.Pile.DRAW), "the viewer does not open in the enemy phase")
+	c.phase = Combat.Phase.PLAYER_TURN
+
+
+## Cards an enemy or a card adds to the player's piles are announced: a log line and a floating cue.
+func _check_add_cue(node: Control) -> void:
+	var enemy := DebugLaunch.prototype_enemy(&"proto_dreadkeeper")
+	var enemies: Array[EnemyData] = [enemy]
+	node._start_with(Combatant.new("Wanderer", 60), enemies, 5)
+	await process_frame
+	var c: Combat = node._combat
+	var before := c.piles.hand.size() + c.piles.draw_pile.size() + c.piles.discard_pile.size() + c.piles.forgotten.size()
+	var cues: int = node.cue_count
+	node._on_end_turn_pressed()
+	node._on_end_turn_pressed() # confirm the discard step: the enemy phase runs
+	var after := c.piles.hand.size() + c.piles.draw_pile.size() + c.piles.discard_pile.size() + c.piles.forgotten.size()
+	check(after == before + 1, "the Dreadkeeper's first move added one Dread to the player's cards (%d -> %d)" % [before, after])
+	check(node.cue_count == cues + 1 and node.last_cue_text.contains("Dread") and node.last_cue_text.contains("draw pile"), "a floating cue names the card and the pile: '%s'" % node.last_cue_text)
+	check(node._log_label.get_parsed_text().contains("Dread"), "the battle log mentions the Dread")
+	await process_frame
+	# A card that adds a card to hand logs it and shows the cue.
+	c.energy = 9
+	c.piles.hand.assign([load("res://data/prototype/add_gift.tres") as CardData])
+	node._refresh()
+	var cue_before: int = node.cue_count
+	node._play_hand_card(0)
+	check(node.cue_count == cue_before + 1 and node.last_cue_text.contains("Heavy Blow") and node.last_cue_text.contains("hand"), "playing a card that adds a card shows a cue: '%s'" % node.last_cue_text)
+	check(node._log_label.get_parsed_text().contains("Added Heavy Blow to your hand") and c.piles.hand.size() == 1, "and logs it, and the card is in hand")
+	await process_frame
+
+
+## Damage per Forgotten on screen: the preview grows with the Forgotten pile and equals the damage dealt.
+func _check_forgotten_damage(node: Control) -> void:
+	var c: Combat
+	var strike := _proto("pile_strike")
+	var seen := {}
+	for setup in [[0, 0], [2, 0], [5, 0], [5, 3]]:
+		var forgotten_count: int = setup[0]
+		var malice: int = setup[1]
+		c = await _fresh_fight(node)
+		var pile: Array[CardData] = []
+		for i in forgotten_count:
+			pile.append(_card("shove"))
+		c.piles.forgotten.assign(pile)
+		if malice != 0:
+			c.player.apply_status(Combatant.Status.MALICE, malice)
+		c.piles.hand.assign([strike])
+		node._refresh()
+		var text: String = (node._hand_box.get_child(0) as CardView).preview
+		c.play_card(0, 0)
+		var lost: int = 500 - c.enemies[0].hp
+		check(text.contains("Deals %d" % lost), "Forgotten damage preview matches the hit with %d Forgotten, Malice %d: '%s' vs %d" % [forgotten_count, malice, text.replace("\n", " "), lost])
+		seen[text] = true
+	check(seen.size() == 4, "the preview changes as the Forgotten pile and Malice change")
+	# The drag preview and the all-enemies line use the Forgotten count too.
+	c = await _fresh_fight(node)
+	var many: Array[CardData] = []
+	for i in 4:
+		many.append(_card("shove"))
+	c.piles.forgotten.assign(many)
+	var all_effects: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.DAMAGE_PER_FORGOTTEN, 2)]
+	var sweep_all := CardData.make(&"sweep_forgotten", "Sweep", 1, all_effects, CardData.TargetMode.ALL_ENEMIES)
+	check(node._target_preview(strike, c.enemies[0]).get("dealt", -1) == 8, "the drag preview of Pile Strike with 4 Forgotten is 8")
+	check(node._damage_preview(sweep_all).contains("Deals 8 (x%d enemies)" % c.living_enemies().size()), "the all-enemies preview uses the Forgotten count: " + node._damage_preview(sweep_all))
+	c.piles.forgotten.append(_card("brace"))
+	check(node._target_preview(strike, c.enemies[0]).get("dealt", -1) == 10, "the preview grows when the Forgotten pile does")
+
+
 func _initialize() -> void:
 	var node: Control = (load("res://battle.tscn") as PackedScene).instantiate()
 	root.add_child(node)
@@ -825,5 +1117,9 @@ func _initialize() -> void:
 	_check_drag(node)
 	await _check_keywords(node)
 	await _check_statuses(node)
+	await _check_choice_overlay(node)
+	await _check_pile_viewer(node)
+	await _check_add_cue(node)
+	await _check_forgotten_damage(node)
 	print("DONE fails=", fails)
 	quit(1 if fails > 0 else 0)
