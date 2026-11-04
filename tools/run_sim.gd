@@ -226,7 +226,7 @@ func _play_combat(run: RunState) -> int:
 		combat.card_played.connect(func(card: CardData, _targets: Array[EnemyUnit]) -> void: _plays[card.id] = _plays.get(card.id, 0) + 1)
 	combat.combat_ended.connect(func(victory: bool) -> void: outcome[0] = 1 if victory else -1)
 	combat.start()
-	while combat.phase == Combat.Phase.PLAYER_TURN:
+	while SimPolicy.is_acting(combat):
 		if combat.turn > TURN_CAP:
 			combat.abandon()
 			return 0
