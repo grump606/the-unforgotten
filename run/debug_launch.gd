@@ -18,6 +18,12 @@ extends RefCounted
 ##   godot --path . -- --proto
 ##   godot --path . -- --proto --fight=crow --character=thief
 ##
+## The status prototypes (Shaken, Frayed, Malice, Ward) have their own enemy, the Pest: it shakes and frays the
+## player, gains Malice, then attacks, and repeats. It lives in data/prototype/enemies, outside the enemy registry:
+##
+##   godot --path . -- --proto --fight=proto_pest
+##   godot --path . -- --proto --fight=proto_pest --character=thief
+##
 ## The same values can come from THE_UNFORGOTTEN_FIGHT, THE_UNFORGOTTEN_SCREEN, THE_UNFORGOTTEN_CHARACTER,
 ## THE_UNFORGOTTEN_HP and THE_UNFORGOTTEN_GOLD.
 ## `--fight=list` prints the accepted names. Names match an enemy id, its in-game name, or a short
@@ -31,16 +37,26 @@ const ENV_GOLD := "THE_UNFORGOTTEN_GOLD"
 const ENV_PROTO := "THE_UNFORGOTTEN_PROTO"
 ## Enemy used by `--proto` when no `--fight` is given.
 const PROTO_DEFAULT_FIGHT := "colossus"
-## The prototype cards, one per keyword plus multi-hit and Surge. Listed, not scanned, so the folder
-## can never leak into the reward pool.
+## The prototype cards: one per keyword plus multi-hit and Surge, a plain Strike and Guard (to see live
+## numbers), and one per status effect (Shaken, Frayed, Malice, Ward, including the debuff, temporary and
+## self-targeted cases). Listed, not scanned, so the folder can never leak into the reward pool.
 const PROTO_CARD_PATHS: Array[String] = [
 	"res://data/prototype/forgotten_strike.tres", "res://data/prototype/fading_jab.tres",
 	"res://data/prototype/ready_guard.tres", "res://data/prototype/anchor_ward.tres",
 	"res://data/prototype/dormant_burden.tres", "res://data/prototype/double_strike.tres",
 	"res://data/prototype/surge_slash.tres", "res://data/prototype/surge_guard.tres",
+	"res://data/prototype/strike.tres", "res://data/prototype/guard.tres",
+	"res://data/prototype/shake_foe.tres", "res://data/prototype/fray_foe.tres",
+	"res://data/prototype/malice.tres", "res://data/prototype/malice_turn.tres",
+	"res://data/prototype/ward.tres", "res://data/prototype/sap_foe.tres",
+	"res://data/prototype/shake_self.tres",
 ]
-## Copies of each prototype card in the `--proto` deck.
-const PROTO_COPIES := 2
+## Copies of each prototype card in the `--proto` deck (one each keeps the deck at 17 cards, so every
+## prototype shows up within a couple of turns).
+const PROTO_COPIES := 1
+## Prototype enemies, by EnemyData id. Listed, not scanned, and never in the enemy registry or an encounter pool;
+## `--fight=` accepts their ids and display names.
+const PROTO_ENEMY_PATHS: Array[String] = ["res://data/prototype/enemies/proto_pest.tres"]
 
 ## Stop screens that can be opened directly, mapped to their stop type.
 const SCREENS := {"vendor": RunState.StopType.VENDOR, "rest": RunState.StopType.REST}
@@ -57,6 +73,7 @@ const ALIASES := {
 	"colossus": &"hollow_colossus", "giant": &"hollow_colossus", "whisperer": &"pale_whisperer",
 	"hound": &"cinder_hound", "crow": &"mourning_crow", "brakeman": &"the_brakeman",
 	"conductor": &"the_conductor", "eraser": &"the_conductor", "bellkeeper": &"the_brakeman",
+	"pest": &"proto_pest",
 }
 
 ## The parsed request. `error` is non-empty when the request was malformed (nothing should start);
@@ -180,6 +197,15 @@ static func prototype_deck() -> Array[CardData]:
 	return deck
 
 
+## A fresh copy of the prototype enemy with this id, or null if there is none.
+static func prototype_enemy(enemy_id: StringName) -> EnemyData:
+	for path in PROTO_ENEMY_PATHS:
+		var template := load(path) as EnemyData
+		if template != null and template.id == enemy_id:
+			return template.duplicate(true) as EnemyData
+	return null
+
+
 ## The enemy id a name refers to (id, display name or alias), or &"" if none matches.
 static func resolve(name: String) -> StringName:
 	var wanted := _normalize(name)
@@ -191,6 +217,10 @@ static func resolve(name: String) -> StringName:
 		var data := StarterContent.enemy_by_id(id)
 		if _normalize(String(id)) == wanted or (data != null and _normalize(data.display_name) == wanted):
 			return id
+	for path in PROTO_ENEMY_PATHS:
+		var data := load(path) as EnemyData
+		if data != null and (_normalize(String(data.id)) == wanted or _normalize(data.display_name) == wanted):
+			return data.id
 	return &""
 
 
@@ -199,6 +229,10 @@ static func help_text() -> String:
 	for id in StarterContent.enemy_ids():
 		var data := StarterContent.enemy_by_id(id)
 		names.append("%s (%s)" % [id, data.display_name if data != null else "?"])
+	for path in PROTO_ENEMY_PATHS:
+		var data := load(path) as EnemyData
+		if data != null:
+			names.append("%s (%s, prototype)" % [data.id, data.display_name])
 	return "Accepted enemies: %s. Aliases: %s. Up to %d, comma separated." % [", ".join(names), ", ".join(ALIASES.keys()), Combat.MAX_ENEMIES]
 
 

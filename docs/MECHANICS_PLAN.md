@@ -135,7 +135,21 @@ any reward pool. To play a fight with them (two copies of each as the deck):
     godot --path . -- --proto --fight=crow --character=thief
 
 `--proto` alone fights the Colossus; with `--fight=` it uses that enemy. `THE_UNFORGOTTEN_PROTO=1` does the
-same from the environment. The list lives in `DebugLaunch.PROTO_CARD_PATHS`.
+same from the environment. The list lives in `DebugLaunch.PROTO_CARD_PATHS`. With the status cards added
+(a plain Strike and Guard, Shaken and Frayed on a foe, Malice permanent and for one turn, Ward, a Malice
+debuff, and a Block card that also Shakens you) the deck is one copy of each, 17 cards.
+
+The status prototypes have their own enemy, the Pest (`data/prototype/enemies/proto_pest.tres`, the hound's
+figure). It cycles Shaken on you, Frayed on you, Malice for itself, then an attack. It is not in the enemy
+registry or any encounter pool; `--fight=` accepts `proto_pest`, `Proto: Pest` or `pest`:
+
+    godot --path . -- --proto --fight=proto_pest
+    godot --path . -- --proto --fight=proto_pest --character=thief --hp=30
+
+What to look for: a badge under each fighter for every status (turns for Shaken and Frayed, a signed stack
+for Malice and Ward, red when negative), the tooltip on the figure explaining each, the Deal and Block numbers
+on the cards in hand turning green or red with your own Malice, Shaken, Ward and Frayed, and the Pest's Omen
+number including its own Malice and Shaken.
 
 ## Phase 2 detail
 
