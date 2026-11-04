@@ -89,6 +89,42 @@ Each phase is its own PR into `thief-rework`, reviewed and run through `scripts/
    add cards), the Omen display, and the sim/balance tools (`tools/sim_policy.gd`, `smart_policy.gd`).
 6. **Later, not now:** Oaths.
 
+## Phase 1 detail
+
+Engine and UI only: no existing card changes, so there is no change to play until phase 4.
+
+**Data model**
+- `CardData`: bool fields `forgotten`, `fading`, `ready`, `anchor`, `dormant`, `surge` (defaults leave the
+  existing `.tres` files and saves untouched), plus `keyword_lines()` for card text.
+- `CardEffect`: `hits: int = 1` (multi-hit) and `per_energy: bool` (Surge multiplies hits on damage, and the
+  amount on Block, Draw, Haunt, Expose). A flag, not new kinds.
+- `CardPiles`: a `forgotten` pile. A played Forgotten card goes there instead of discard. The deck is never
+  modified, so Forgotten cards return next fight with no extra code.
+
+**Rules (`Combat`)**
+- Multi-hit: `take_damage` runs per hit. Block absorbs across hits, Expose applies per hit, Barbs trigger per
+  hit. Enemy intents get this for free.
+- Surge: cost 0, spends all current energy, playable at 0 energy.
+- Dormant: `can_play` is false. It takes hand space and is discarded normally.
+- Ready: on turn 1, Ready cards move from the draw pile into the opening hand before the normal draw (up to
+  the hand cap of 10).
+- Anchor: cannot be marked for discard; does not count toward the 5 kept. The turn-start refill draws up to 5
+  non-Anchored cards.
+- Fading: does not count toward the 5 and cannot be saved by discarding. Fading cards in hand at the end of
+  the turn go to the Forgotten pile. Content tests forbid Fading together with Anchor.
+
+**UI:** keyword lines on the card face, "X" in the cost stamp for Surge, muted Dormant, `Draw / Discard /
+Forgotten` counts, multi-hit in the drag preview (Block and Expose applied hit by hit), "Deal 3 x2" text.
+
+**Tools:** `Vendor.card_value` multiplies by `hits` and adjusts for keywords. `sim_policy` and `smart_policy`
+follow the new discard rules, play Fading cards first, never try Dormant, and score Surge.
+
+**Deferred:** Recall and "damage per Forgotten card" effects (phase 3 and 4). A pile viewer.
+
+**Delivery:** three PRs into `thief-rework`. 1a engine and tests. 1b card UI, previews, pile label (after
+1a). 1c vendor, sim, content tests (after 1a, parallel with 1b). A debug-only list of prototype cards (one
+per keyword) is added so the keywords can be tried in the game before phase 4.
+
 ## Cross-cutting work
 
 - `CardEffect` rule: new kinds are only appended, never reordered (`.tres` files store the integer).
