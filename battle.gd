@@ -518,6 +518,9 @@ func _on_drag_moved(pos: Vector2) -> void:
 	if index >= 0:
 		var info := _target_preview(_drag_view.card, _combat.enemies[index])
 		_enemy_views[index].set_drop_hover(true, info.get("text", ""), info.get("lost", -1))
+		# A boss has no HP bar of its own, so its ghost goes on the wide bar at the top.
+		if _boss_bar != null and _boss_bar.unit == _combat.enemies[index]:
+			_boss_bar.set_drop_lost(info.get("lost", -1))
 
 
 func _on_drag_ended(pos: Vector2, hand_index: int) -> void:
@@ -544,6 +547,8 @@ func _enemy_at(pos: Vector2) -> int:
 func _clear_drag_hover() -> void:
 	if _drag_hover >= 0 and _drag_hover < _enemy_views.size():
 		_enemy_views[_drag_hover].set_drop_hover(false)
+	if _boss_bar != null:
+		_boss_bar.set_drop_lost(-1)
 	_drag_hover = -1
 
 

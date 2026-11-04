@@ -14,6 +14,8 @@ const FRAME := Color(0.45, 0.16, 0.12)
 
 var unit: EnemyUnit
 var label_text := "BOSS"
+## HP a dragged card would take (see set_drop_lost); -1 for none.
+var drop_lost := -1
 var _font: SystemFont
 
 
@@ -31,6 +33,12 @@ func setup(enemy: EnemyUnit, label: String) -> void:
 
 
 func refresh() -> void:
+	queue_redraw()
+
+
+## While a card is dragged over the boss: ghosts the `lost` HP it would take in gold (-1 clears it).
+func set_drop_lost(lost: int) -> void:
+	drop_lost = lost
 	queue_redraw()
 
 
@@ -63,6 +71,13 @@ func _draw() -> void:
 		var inner := Rect2(bar.position + Vector2(1, 1), Vector2(maxf((bar.size.x - 2.0) * ratio, 4.0), bar.size.y - 2.0))
 		HudIcons.box(self, inner, fill, 2)
 		draw_rect(Rect2(inner.position, Vector2(inner.size.x, inner.size.y * 0.35)), Color(EMBER, 0.18))
+	if drop_lost > 0:
+		# The HP the card would take, ghosted in gold between what would remain and what is there now.
+		var width := bar.size.x - 2.0
+		var left := clampf(float(unit.hp - drop_lost) / maxf(float(unit.max_hp), 1.0), 0.0, 1.0) * width
+		var right := ratio * width
+		if right > left:
+			HudIcons.box(self, Rect2(bar.position + Vector2(1.0 + left, 1.0), Vector2(right - left, bar.size.y - 2.0)), Color(CardView.SELECT_GOLD, 0.9), 2)
 	if has_marker():
 		var x := bar.position.x + bar.size.x * marker_ratio()
 		var crossed := enraged
