@@ -22,10 +22,17 @@ extends Resource
 ## MALICE / WARD (`amount`, signed): a stacking bonus to each hit dealt / each Block gained from cards,
 ## lasting the fight (or this turn only with `temporary`). A positive amount buffs the user; a negative
 ## amount debuffs the targets (an enemy intent: positive buffs the enemy, negative debuffs the player).
+## GLIMPSE: look at the top `amount` cards of the draw pile and discard any of them (a choice that opens
+## after the whole card has resolved; it never reshuffles the discard pile).
+## ADD_CARD: add `amount` copies of `card` to the player's `pile`. On a card that is the player's own
+## piles; as an enemy intent it still lands in the player's piles (intents conventionally use Pile.DRAW).
+## Created cards last for the fight only.
+## RECALL: pick `amount` cards from the Forgotten pile and return them to hand (a choice, like GLIMPSE).
+## DAMAGE_PER_FORGOTTEN: damage equal to the size of the Forgotten pile times `amount`.
 ## ADDING A KIND: append it to Kind (never reorder), then touch only: is_damage()/reach() and
 ## describe() here, the handler in Combat._apply, and Vendor.effect_value. tests/mechanics_tests.gd
 ## walks every Kind and fails if any of those is missing.
-enum Kind { DAMAGE, BLOCK, DRAW, EXPOSE, HOLD, DAMAGE_PER_BLOCK, DAMAGE_IF_BLOCK, THORNS, GAIN_ENERGY, DAMAGE_PER_PLAY, HAUNT, LOSE_HP, HEAL_PER_HAUNTED, DAMAGE_PER_HAUNT, SHAKEN, FRAYED, MALICE, WARD }
+enum Kind { DAMAGE, BLOCK, DRAW, EXPOSE, HOLD, DAMAGE_PER_BLOCK, DAMAGE_IF_BLOCK, THORNS, GAIN_ENERGY, DAMAGE_PER_PLAY, HAUNT, LOSE_HP, HEAL_PER_HAUNTED, DAMAGE_PER_HAUNT, SHAKEN, FRAYED, MALICE, WARD, GLIMPSE, ADD_CARD, RECALL, DAMAGE_PER_FORGOTTEN }
 
 @export var kind: Kind = Kind.DAMAGE
 @export var amount: int = 0
@@ -40,9 +47,15 @@ enum Kind { DAMAGE, BLOCK, DRAW, EXPOSE, HOLD, DAMAGE_PER_BLOCK, DAMAGE_IF_BLOCK
 @export var per_energy: bool = false
 ## MALICE and WARD only: the stacks are temporary and expire when the owner's next turn starts.
 @export var temporary: bool = false
+## ADD_CARD only: the card created.
+@export var card: CardData
+## Where ADD_CARD puts it. Hand falls back to discard when the hand is full; Draw inserts at a random
+## position. New effects default to HAND; enemy intents conventionally use DRAW.
+enum Pile { HAND, DRAW, DISCARD }
+@export var pile: Pile = Pile.HAND
 
 
-static func make(effect_kind: Kind, effect_amount: int, effect_bonus: int = 0, effect_threshold: int = 0, effect_hits: int = 1, effect_per_energy: bool = false, effect_temporary: bool = false) -> CardEffect:
+static func make(effect_kind: Kind, effect_amount: int, effect_bonus: int = 0, effect_threshold: int = 0, effect_hits: int = 1, effect_per_energy: bool = false, effect_temporary: bool = false, effect_card: CardData = null, effect_pile: Pile = Pile.HAND) -> CardEffect:
 	var effect := CardEffect.new()
 	effect.kind = effect_kind
 	effect.amount = effect_amount
@@ -51,6 +64,8 @@ static func make(effect_kind: Kind, effect_amount: int, effect_bonus: int = 0, e
 	effect.hits = effect_hits
 	effect.per_energy = effect_per_energy
 	effect.temporary = effect_temporary
+	effect.card = effect_card
+	effect.pile = effect_pile
 	return effect
 
 
@@ -60,7 +75,7 @@ enum Reach { SELF, ENEMIES, BOTH }
 
 ## True for the kinds that hit a target for `raw_damage`.
 func is_damage() -> bool:
-	return kind in [Kind.DAMAGE, Kind.DAMAGE_PER_BLOCK, Kind.DAMAGE_IF_BLOCK, Kind.DAMAGE_PER_PLAY, Kind.DAMAGE_PER_HAUNT]
+	return kind in [Kind.DAMAGE, Kind.DAMAGE_PER_BLOCK, Kind.DAMAGE_IF_BLOCK, Kind.DAMAGE_PER_PLAY, Kind.DAMAGE_PER_HAUNT, Kind.DAMAGE_PER_FORGOTTEN]
 
 
 ## Where a played card applies this effect: the card's chosen enemies (ENEMIES), the player
@@ -92,6 +107,8 @@ func raw_damage(ctx: EffectContext) -> int:
 			return amount + bonus * maxi(ctx.plays - 1, 0)
 		Kind.DAMAGE_PER_HAUNT:
 			return ctx.haunt * amount
+		Kind.DAMAGE_PER_FORGOTTEN:
+			return ctx.forgotten * amount
 	return 0
 
 
@@ -151,4 +168,13 @@ func _describe_base() -> String:
 			return "Malice %+d" % amount
 		Kind.WARD:
 			return "Ward %+d" % amount
+		Kind.GLIMPSE:
+			return "Glimpse %d" % amount
+		Kind.ADD_CARD:
+			var what := "%d %s" % [amount, card.display_name] if card != null else "%d cards" % amount
+			return "Add %s to your %s" % [what, ["hand", "draw pile", "discard pile"][pile]]
+		Kind.RECALL:
+			return "Recall %d" % amount
+		Kind.DAMAGE_PER_FORGOTTEN:
+			return "Deal damage equal to the Forgotten pile" if amount == 1 else "Deal %dx the Forgotten pile" % amount
 	return ""
