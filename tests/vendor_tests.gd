@@ -229,7 +229,7 @@ func _test_payoff_pricing() -> void:
 ## Exit changed in Phase 4a); a new card is added with its computed value and price.
 const GOLDEN := {
 	"bash": [7, 16],
-	"bleed_the_veil": [34, 24],
+	"bleed_the_veil": [31, 24],
 	"brace": [2, 10],
 	"cold_steel": [9, 16],
 	"cold_whisper": [3, 10],
@@ -254,7 +254,7 @@ const GOLDEN := {
 	"penance": [8, 16],
 	"pocket_watch": [10, 16],
 	"reckoning": [12, 24],
-	"seance": [15, 24],
+	"seance": [12, 24],
 	"second_wind": [6, 16],
 	"shoulder_charge": [17, 24],
 	"shove": [8, 16],
@@ -263,7 +263,11 @@ const GOLDEN := {
 	"spirit_tithe": [8, 16],
 	"spree": [10, 16],
 	"steady_breath": [9, 16],
-	"sweep": [9, 16]
+	"sweep": [9, 16],
+	# Phase 4d: Medium
+	"remember": [5, 10],
+	"chorus_of_the_lost": [6, 16],
+	"hollow_bargain": [-12, 10]
 }
 
 
