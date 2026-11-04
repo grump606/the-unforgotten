@@ -262,6 +262,63 @@ draw pile is shown sorted so it does not reveal order.
 - 3c tools (after 3a, parallel with 3b): both bots resolve choices (Glimpse discards junk, Recall picks the
   best card), score the new kinds, the run stub resolves choices.
 
+## Phase 4 detail
+
+Retune the existing cards onto the new keywords and statuses, add a few new cards, and give each class its
+identity. Numbers stay inside today's ratios (one energy is about 6 damage or 5 Block; Shove 6 for 1, Heavy
+Blow 14 for 2, Slip Past 5 for 1). Card ids never change (art and saves key on the id), only effects, keywords
+and display names where stated. New cards ship with the generic fallback art until the art pass.
+
+**Retunes**
+
+| Class | Card | Today | Becomes |
+|---|---|---|---|
+| Neutral | Glimpse the Exit (starter) | 0, Draw 2 | 0, Glimpse 3, Draw 1 |
+| Neutral | Flurry | 0, Deal 3 | 0, Deal 2 x2 |
+| Thief | Light Fingers | 0, Expose 1 | + Ready |
+| Thief | Find the Seam | 1, Expose 2 | 1, Expose 2, Shaken 1 |
+| Thief | Filch | 1, Deal 3, Draw 1 | 1, Deal 3, add 1 Trinket to hand |
+| Thief | Borrowed Time | 1, +1 energy, Draw 1 | 1, +2 energy, Forgotten |
+| Thief | Many Hands | 2, Deal 2 (+2 per card played) | 2, Deal 3 x3 |
+| Thief | Cutting Word, Hamstring | | unchanged |
+| Deserter | Last Stand | 3, Block 14, Hold 10 | + Anchor |
+| Deserter | Heavy Blow | 2, Deal 14 | 2, Deal 20, Forgotten |
+| Deserter | Iron Resolve | 2, Block 8 | 2, Block 6, Ward +2 |
+| Medium | Seance | 1, lose 3 HP, Draw 3, +1 energy | + Forgotten |
+| Medium | Bleed the Veil | 2, lose 6 HP, Haunt 8 all | + Forgotten |
+
+All other cards are unchanged.
+
+**New cards (9 with the created card)**
+- Thief: Sharpen (1, Malice +1 for the fight); Quick Study (0, Malice +2 this turn only); Cleaned Out (Surge,
+  Deal 3 per energy spent); Trinket (created by Filch: cost 0, Deal 4, Fading; fight-only).
+- Deserter: Dig Deep (Surge, Block 5 per energy spent).
+- Medium: Remember (1, Recall 1); Chorus of the Lost (1, damage equal to 2x the Forgotten pile); Hollow Bargain
+  (0, add a Dread to your own draw pile, Draw 2).
+- Fight-only created cards (Trinket) live in `data/created/`, loaded from an explicit list, never in rewards,
+  vendors or starting decks, like the status cards.
+
+**Starter decks.** Each class starts with its own signature card instead of one shared deck: 5 Shove, 3 Slip
+Past, 1 Glimpse the Exit and 1 signature (Thief: Light Fingers; Deserter: Dig In; Medium: Cold Whisper).
+Still 10 cards.
+
+**Content tests (identity checks).** No enemy intent uses a temporary stack; no card targets enemies with a
+temporary stack. Each class keeps its signature keywords (Thief: Ready, Shaken, Add card, multi-hit, Malice.
+Deserter: Hold, Barbs, Ward, Anchor. Medium: Haunt, HP cost, a Forgotten payoff). Every keyword is used by at
+least one shipped card. The golden price table is updated with every change.
+
+**Balance.** A per-class sim baseline is recorded before the changes. After them, the smart bot's escape
+rate should stay within about 5 points of the baseline for each class. The bots cannot judge every keyword
+yet, so this is a sanity check, not a verdict.
+
+**Sub-PRs into `thief-rework`:**
+- 4a groundwork: `data/created/` and its loader, per-class starter decks, per-class sim baselines, the neutral
+  retunes, golden table updates.
+- 4b Thief, 4c Deserter, 4d Medium (parallel after 4a): the retunes and new cards for that class.
+- 4e: identity and keyword-coverage tests, a final balance pass, README card list.
+
+Relics and enemy content are out of scope here (phase 5).
+
 ## Cross-cutting work
 
 - `CardEffect` rule: new kinds are only appended, never reordered (`.tres` files store the integer).
