@@ -31,6 +31,11 @@ const CONFIRM_PULSE_TIME := 0.35
 # Derived from the rules constants so the text cannot drift from them.
 const EXPOSED_MULTIPLIER_TEXT := "%.1fx" % (float(Combatant.EXPOSED_NUM) / Combatant.EXPOSED_DEN)
 const EXPOSED_TOOLTIP := "Takes " + EXPOSED_MULTIPLIER_TEXT + " damage, rounded down, for %d more turns."
+## Shaken and Frayed take 25% off (Combatant.REDUCED_NUM / REDUCED_DEN = 3/4); the tests pin the wording.
+const SHAKEN_TOOLTIP := "Shaken %d: deals 25%% less damage (rounded down) for %d more turns."
+const FRAYED_TOOLTIP := "Frayed %d: gains 25%% less Block from cards (rounded down) for %d more turns."
+const MALICE_TOOLTIP := "Malice %+d: %+d damage on every hit, for the rest of the fight."
+const WARD_TOOLTIP := "Ward %+d: %+d Block from every card, for the rest of the fight."
 
 ## Gap between enemies on the stage, and the share of the stage width the player stands in.
 const ENEMY_GAP := 16.0
@@ -358,6 +363,7 @@ func _sync_enemies() -> void:
 			var view := Fighter.new()
 			view.phase = i * 1.9
 			view.set_enemy(_combat.enemies[i], boss_fight)
+			view.intent_target = _combat.player
 			view.pressed.connect(_select_target.bind(i))
 			_stage.add_child(view)
 			_enemy_views.append(view)
@@ -405,7 +411,7 @@ func _toggle_log() -> void:
 ## Tooltip of an enemy: what it will do next, then its statuses.
 func _enemy_tooltip(enemy: EnemyUnit) -> String:
 	var lines: Array[String] = [enemy.display_name]
-	var intent := enemy.current_intent()
+	var intent := Fighter.effective_intent(enemy, _combat.player)
 	if intent != null:
 		lines.append("Next: " + intent.describe())
 	var status := _status_tooltip(enemy)
@@ -427,6 +433,7 @@ func _rebuild_hand() -> void:
 		view.view_scale = hand_scale
 		view.auto_hover = true
 		view.clickable = true
+		view.live = _combat.player
 		view.set_card(card)
 		view.hotkey = i + 1 if i < MAX_HAND_KEYS else 0
 		view.preview = _damage_preview(card).strip_edges() if not discarding else ""
@@ -528,6 +535,7 @@ func _on_drag_started(view: CardView) -> void:
 	_drag_ghost.modulate.a = DRAG_GHOST_ALPHA
 	_drag_ghost.z_index = DRAG_GHOST_Z
 	_drag_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drag_ghost.live = _combat.player
 	_drag_ghost.set_card(view.card)
 	_drag_ghost.set_state(CardView.State.NORMAL)
 	_drag_ghost.preview = view.preview
@@ -607,6 +615,18 @@ func _status_tooltip(combatant: Combatant) -> String:
 		lines.append("Haunt %d: takes %d damage at the start of the enemy phase (ignoring Block), then Haunt falls by 1." % [haunted, haunted])
 	if combatant.max_haunt > 0:
 		lines.append("Haunt capped at %d." % combatant.max_haunt)
+	var shaken := combatant.stacks(Combatant.Status.SHAKEN)
+	if shaken > 0:
+		lines.append(SHAKEN_TOOLTIP % [shaken, shaken])
+	var frayed := combatant.stacks(Combatant.Status.FRAYED)
+	if frayed > 0:
+		lines.append(FRAYED_TOOLTIP % [frayed, frayed])
+	var malice := combatant.stacks(Combatant.Status.MALICE)
+	if malice != 0:
+		lines.append(MALICE_TOOLTIP % [malice, malice])
+	var ward := combatant.stacks(Combatant.Status.WARD)
+	if ward != 0:
+		lines.append(WARD_TOOLTIP % [ward, ward])
 	if combatant.hold > 0:
 		lines.append("Hold %d: up to %d of the Block you have left is kept for your next turn." % [combatant.hold, combatant.hold])
 	if combatant.thorns > 0:
@@ -614,9 +634,9 @@ func _status_tooltip(combatant: Combatant) -> String:
 	return "\n".join(lines)
 
 
-## DISPLAY-ONLY preview of damage on the selected enemy: Exposed scaling comes
-## from Combatant.damage_after_status, then block is subtracted per hit as
-## take_damage does. The result of an actual play is authoritative.
+## DISPLAY-ONLY preview of damage on the selected enemy: every hit goes through Combatant.hit_damage (the
+## player's Malice and Shaken, then the target's Exposed), then block is subtracted per hit as take_damage_final
+## does. The result of an actual play is authoritative.
 func _damage_preview(card: CardData) -> String:
 	var damage_effects: Array[CardEffect] = []
 	for effect in card.effects:
@@ -633,12 +653,16 @@ func _damage_preview(card: CardData) -> String:
 		for effect in damage_effects:
 			if effect.kind == CardEffect.Kind.DAMAGE_PER_HAUNT:
 				return ""
-			all_base += effect.raw_damage(block, 0, plays) * _hit_count(card, effect)
+			all_base += Combatant.hit_damage(effect.raw_damage(block, 0, plays), _combat.player, _NEUTRAL) * _hit_count(card, effect)
 		return "\nDeals %d (x%d enemies)" % [all_base, _combat.living_enemies().size()]
 	var target := _combat.enemies[_target_index]
 	if card.target_mode != CardData.TargetMode.SINGLE_ENEMY or target.is_dead():
 		return ""
 	return _target_preview(card, target).get("text", "")
+
+
+## A defender with no statuses: hit_damage against it is the player's side of a hit only (Malice, Shaken).
+static var _NEUTRAL := Combatant.new("Neutral", 1)
 
 
 ## How many times `effect` of `card` would hit if played now. A Surge card's per_energy damage hits
@@ -672,8 +696,10 @@ func _target_preview(card: CardData, target: EnemyUnit) -> Dictionary:
 	var target_block := target.block
 	var dealt := 0
 	var lost := 0
+	base = 0
 	for hit in hits:
-		var amount := target.damage_after_status(hit)
+		base += Combatant.hit_damage(hit, _combat.player, _NEUTRAL)
+		var amount := Combatant.hit_damage(hit, _combat.player, target)
 		var absorbed := mini(target_block, amount)
 		target_block -= absorbed
 		dealt += amount
@@ -682,7 +708,7 @@ func _target_preview(card: CardData, target: EnemyUnit) -> Dictionary:
 	if exposed:
 		text = "\nDeals %d (%d vs Exposed)" % [base, dealt]
 	elif hits.size() > 1 and _uniform(hits):
-		text = "\nDeals %d (%d x%d)" % [dealt, hits[0], hits.size()]
+		text = "\nDeals %d (%d x%d)" % [dealt, Combatant.hit_damage(hits[0], _combat.player, _NEUTRAL), hits.size()]
 	if target.block > 0:
 		text += ", %d after Block" % lost
 	return {"text": text, "dealt": dealt, "lost": mini(lost, target.hp)}
@@ -981,6 +1007,7 @@ func _show_preview(view: CardView) -> void:
 		_preview.z_index = 10
 		_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(_preview)
+	_preview.live = view.live
 	_preview.set_card(view.card)
 	_preview.set_state(CardView.State.UNPLAYABLE if view.state == CardView.State.UNPLAYABLE else CardView.State.NORMAL, view.note)
 	_preview.hotkey = view.hotkey
