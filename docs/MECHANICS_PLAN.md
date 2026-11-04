@@ -137,6 +137,58 @@ any reward pool. To play a fight with them (two copies of each as the deck):
 `--proto` alone fights the Colossus; with `--fight=` it uses that enemy. `THE_UNFORGOTTEN_PROTO=1` does the
 same from the environment. The list lives in `DebugLaunch.PROTO_CARD_PATHS`.
 
+## Phase 2 detail
+
+Damage and Block pipeline plus Shaken, Frayed, Malice and Ward. No existing card changes, so no change to
+play until phase 4; prototype cards and a prototype enemy let the statuses be tried.
+
+**One pipeline function.** A pure `Combatant.hit_damage(raw, attacker, defender)` does the whole chain: raw
+plus the attacker's Malice (floored at 0), then x0.75 if the attacker is Shaken, then x1.5 if the defender
+is Exposed. Block comes after. Combat, the drag preview, the intent display and both bot policies all call
+it, so previews cannot drift from real damage. `damage_after_status` stays as a thin wrapper for the Expose
+step.
+
+**Rounding.** Shaken and Frayed round down but never take a real hit or Block to 0 (a hit of 1 stays 1).
+Only negative Malice or negative Ward can reduce a hit or Block to 0.
+
+**Status table.** Each status declares its kind in one place:
+
+| Status | Kind | Behaviour |
+|---|---|---|
+| Exposed, Shaken, Frayed | duration | counts down per turn |
+| Haunted | decaying | falls by 1 each phase (as now) |
+| Malice, Ward | stack | signed, lasts the fight, never ticks; removed at 0 |
+
+Statuses are not saved (they are cleared each fight), so there is no save change. Status enum values are
+only appended.
+
+**Block.** The Block branch of `Combat._apply` applies Ward, then x0.75 if Frayed, through
+`block_from_card(amount)`. Hold, Barbs and relic Block bypass it. Enemy Block intents use the same path, so
+an enemy with Ward gets it.
+
+**Barbs** damage stays flat: Malice and Shaken do not affect it (the target's Expose still does).
+
+**New effect kinds** (appended): SHAKEN, FRAYED, MALICE, WARD. Shaken and Frayed behave like Expose: they
+land on the card's targets, or on the player for a self-targeted card. For Malice and Ward the sign decides
+who receives them: positive buffs the user (an enemy intent buffs the enemy), negative debuffs the target
+(an enemy intent debuffs the player). `reach()` reads the sign: positive is SELF, negative is ENEMIES.
+
+**Enemy-applied statuses on the player.** The "pending until after the tick" handling of Expose is
+generalised to every duration status, so "Shaken 2" from an enemy lasts the next two player turns.
+
+**Temporary stacks.** Support for "+2 Malice this turn": temporary stacks expire at the start of the owner's
+next turn (the same moment Barbs reset).
+
+**Sub-PRs into `thief-rework`:**
+- 2a engine: status table, `hit_damage`, `block_from_card`, the four kinds (reach, describe, Vendor value),
+  pending-status generalisation, temporary stacks, tests (including the every-kind walk).
+- 2b UI (after 2a): status badges and tooltips (duration, or the signed stack) on enemies and the player,
+  drag preview and intent damage on the shared function, live numbers on card faces (green when a status
+  raises Deal/Block, red when it lowers them), prototype cards for each status and a debug-only prototype
+  enemy that applies Shaken and Frayed to the player and gains Malice.
+- 2c tools (after 2a, parallel with 2b): sim and smart policies use the pipeline, score the new effects,
+  tests for each.
+
 ## Cross-cutting work
 
 - `CardEffect` rule: new kinds are only appended, never reordered (`.tres` files store the integer).
