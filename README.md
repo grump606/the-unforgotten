@@ -89,6 +89,43 @@ Add a test in `tests/run_tests.gd` (a `_test_*` function plus a call in `_initia
 
 A card's `target_mode` (in its `.tres`) is `0` single enemy (default, the selected enemy), `1` all enemies, or `2` self. Block- and draw-only cards should use self so they never need or name a target. An `EXPOSE` effect (`kind = 3`, `amount` = turns) makes the target take 1.5x damage, rounded down, applied before block.
 
+## Card keywords
+
+Cards carry keywords that change how they cycle or what they do (the full rules and numbers are in `docs/MECHANICS_PLAN.md`):
+
+- **Forgotten:** a played Forgotten card goes to the Forgotten pile for the rest of the fight instead of the discard pile, and returns to the deck after the fight.
+- **Fading:** if the card is still in hand when the turn ends, it becomes Forgotten.
+- **Ready:** the card starts the fight in the opening hand.
+- **Anchor:** the card stays in hand and does not count toward the 5 you keep (it still counts toward the hand cap of 10).
+- **Dormant:** cannot be played. Enemies shuffle these into your piles (Dread, Murmur).
+- **Surge:** spends all remaining energy, and the effect scales with the energy spent.
+- **Glimpse X:** look at the top X cards of the draw pile and discard any of them.
+- **Malice:** a stacking flat bonus to each hit you deal (lasts the fight, or one turn when the card says "this turn").
+- **Ward:** a stacking flat bonus to each Block gained from cards (not Hold, Barbs or relic Block).
+- **Shaken:** the target deals 25% less damage for N turns.
+- **Frayed:** gains 25% less Block for N turns. No shipped card applies it yet; enemy content using it is planned.
+- **Remembered:** the planned rest-site upgrade for a card. Not in the game yet (it arrives in a later phase).
+- **Barbs:** damage dealt back to each enemy that hits you (the old Thorns name; ids and code still say thorns).
+- **Omen:** an enemy's shown next action (the old Intent name).
+
+Hold, Haunt, Expose, Recall (return cards from the Forgotten pile to your hand) and adding a card to a pile are unchanged or described on the cards themselves.
+
+## Cards
+
+Card text as shown in game, by class. Cost in brackets; keywords after a dash. New or retuned in the card mechanics rework (phase 4) are marked.
+
+**Neutral:** Shove (1, Deal 6), Slip Past (1, Block 5), Glimpse the Exit (0, Glimpse 3, Draw 1; retuned), Brace (0, Block 2), Flurry (0, Deal 2 x2; retuned), Sweep (2, Deal 5).
+
+**Deserter:** Heavy Blow (2, Deal 16 - Forgotten; retuned), Steady Breath (1, Draw 1, Block 3), Shoulder Charge (2, Deal 7, Block 6), Iron Resolve (2, Block 6, Ward +1; retuned), Guarded Strike (1, Deal 4, Block 2), Hold the Line (1, Block 5, Hold 2), Bash (1, Deal damage equal to your Block), Dig In (0, Block 2, Hold 2), Cold Steel (1, Deal 5, or 10 with 10+ Block), Counter-Stance (2, Block 8, Thorns 4, the Barbs mechanic), Last Stand (3, Block 12, Hold 10 - Anchor; retuned), Dig Deep (0, Block 5 per energy spent - Surge; new).
+
+**Thief:** Filch (1, Deal 3, add a Trinket to your hand; retuned), Light Fingers (0, Expose 1 - Ready; retuned), Borrowed Time (1, Gain 2 energy - Forgotten; retuned), Last Keepsake (1, Deal 4, +3 for each card played earlier this turn), Many Hands (2, Deal 3 x3; retuned), Find the Seam (1, Expose 2, Shaken 1; retuned), Cutting Word (1, Deal 3, Expose 1), Hamstring (2, Deal 8, Expose 1), Borrowed Breath (0, Block 2, Draw 1), Sharpen (1, Malice +1; new), Quick Study (0, Malice +2 this turn; new), Cleaned Out (0, Deal 3 x energy spent - Surge; new). Trinket (0, Deal 4 - Fading) exists only inside a fight, made by Filch.
+
+**Medium:** Confess (1, lose 4 HP, Deal 12), Lingering Dread (1, Haunt 4), Cold Whisper (0, Haunt 2), Penance (1, lose 2 HP, Block 8), Grave Chill (2, Deal 6, Haunt 3), Spirit Tithe (1, heal 3 per Haunted enemy), Seance (1, lose 3 HP, Draw 3, Gain 1 energy - Forgotten; retuned), Bleed the Veil (2, lose 6 HP, Haunt 6 to all enemies - Forgotten; retuned), Reckoning (2, Deal 2x the target's Haunt), Remember (1, Recall 1; new), Chorus of the Lost (1, Deal 2x the Forgotten pile; new), Hollow Bargain (0, add a Dread to your draw pile, Draw 2; new).
+
+**Status cards** (added by enemies, never in rewards): Dread (Dormant), Murmur (Dormant, Fading).
+
+Balance numbers for the retuned cards and the sim results behind them are in `docs/MECHANICS_PLAN.md` (Balance baseline).
+
 ## Balance simulation
 
 `godot --headless --path . -s res://tools/balance_sim.gd -- --fights 500 --seed 1 --character deserter` plays N seeded fights (default 500, seed 1; `--character deserter|thief|medium`, default deserter, picks whose max HP and starting deck the player uses) for each early encounter size (1 to 3 enemies) with a deterministic greedy policy (0-cost cards first, block when enemy intents out-damage current block, otherwise damage the lowest-HP enemy). It prints win rate, average turns, average player HP left on wins and stalls (fights over 50 turns) per size. Output is identical for identical arguments; invalid arguments print usage and exit with code 2. The player's HP and deck are the chosen character's real `max_hp` and `starting_deck` (not the 40-HP stand-alone battle's `extended_deck()`). Encounters come from `varied_encounter()` (the same content as the game): a lone enemy can be any type, a pair is the Gate Warden plus one small enemy (15% of pairs) or two small ones, and a trio is small enemies other than the Lost Shade (wisps, whisperers, cinder hounds, mourning crows). The Hollow Colossus only appears alone (it was unwinnable next to a second enemy in the sim). Early starting-deck fights are meant to be easy; difficulty comes from attrition across the 21-stop line (see the run sim below), so there is no per-fight target. Measured with `--fights 2000 --seed 7` after the keep-5 hand change (before it, v0.6.5, in brackets): Deserter 99.8% / 98.9% / 96.3% wins with 1 / 2 / 3 enemies (96.9 / 96.8 / 88.0), Thief 99.8% / 95.0% / 98.0% (99.3 / 96.5 / 97.0), Medium 100% / 100% / 100% (unchanged), with no stalls. Before the change the hardest single fights were the Memorial Giant and the Threshold Keeper (about 77-80% for the Deserter and Thief); the Medium never loses an early fight (its Haunt and burst kill first).
