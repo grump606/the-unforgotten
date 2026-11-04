@@ -119,7 +119,7 @@ static func deck() -> Array[CardData]:
 
 ## Balance-testing deck of EXTENDED_DECK_SIZE (14) cards: 3 Shove, 2 Slip Past,
 ## 1 Glimpse the Exit, 1 Heavy Blow, 1 Brace, 1 Steady Breath, 1 Shoulder Charge,
-## 1 Mark the Weak, 1 Sweep, 1 Cutting Word, 1 Second Wind.
+## 1 Find the Seam, 1 Sweep, 1 Cutting Word, 1 Borrowed Breath.
 ## Returns an empty deck (and logs the cause) if any card resource fails to load.
 static func extended_deck() -> Array[CardData]:
 	var cards: Array[CardData] = []

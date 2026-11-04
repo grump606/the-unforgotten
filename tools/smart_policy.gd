@@ -164,7 +164,7 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 	return value
 
 
-## Energy a card gives back when played (Pocket Watch, Seance).
+## Energy a card gives back when played (Borrowed Time, Seance).
 static func _energy_gain(card: CardData) -> int:
 	var gained := 0
 	for effect in card.effects:

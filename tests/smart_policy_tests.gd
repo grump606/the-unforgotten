@@ -164,7 +164,7 @@ func _test_values_new_effects() -> void:
 	SmartPolicy.play_turn(healthy)
 	_check(healthy.enemies[0].hp == 88, "smart pays 4 HP for 12 damage when healthy")
 
-	# Energy gain is used: Pocket Watch's refund lets a three-cost card follow it.
+	# Energy gain is used: Borrowed Time's refund lets a three-cost card follow it.
 	var watch := _custom(1, [_fx(CardEffect.Kind.GAIN_ENERGY, 1), _fx(CardEffect.Kind.DRAW, 1)], CardData.TargetMode.SELF)
 	var big := _custom(3, [_fx(CardEffect.Kind.DAMAGE, 20)])
 	var chained := _combat([watch, big], [_enemy(100, 1)] as Array[EnemyData])
@@ -181,7 +181,7 @@ func _test_values_new_effects() -> void:
 
 
 ## The greedy policy classes the new damage, defence and HP-cost cards sensibly.
-## Seance, Pocket Watch, Spirit Tithe and Reckoning get played sensibly by both policies.
+## Seance, Borrowed Time, Spirit Tithe and Reckoning get played sensibly by both policies.
 func _test_class_cards_are_played() -> void:
 	var seance: CardData = load(StarterContent.SEANCE_PATH)
 	var watch: CardData = load(StarterContent.POCKET_WATCH_PATH)
