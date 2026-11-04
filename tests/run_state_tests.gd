@@ -368,7 +368,7 @@ func _test_story_content_loaders() -> void:
 		_check(beat != null and beat is StoryBeat and not beat.title.is_empty() and not beat.text.is_empty() and not beat.button_text.is_empty(), "story beat %d loads typed with title, text and button" % i)
 	_check(StoryContent.beat(-1) == null, "negative beat index returns null")
 	_check(StoryContent.beat(StoryContent.beat_count()) == null, "out-of-range beat index returns null")
-	for character_id in [&"deserter", &"pickpocket", &"medium"]:
+	for character_id in [&"deserter", &"thief", &"medium"]:
 		for i in StoryContent.beat_count():
 			var own := StoryContent.beat(i, character_id)
 			_check(own != null and not own.text.is_empty(), "%s beat %d loads" % [character_id, i])

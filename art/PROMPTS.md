@@ -29,7 +29,7 @@ Use with any image tool (or hand it to an illustrator). Generate each layer sepa
 | The Conductor | tall coat, peaked cap, skull face, baton, watch chain, ghost passengers behind |
 | The Brakeman | hulking railway worker, soot-stained, oxblood coat, heavy brake lever, amber lamp |
 
-Card art subjects follow each card's effect (see `CardView.icon_variant` and `docs/CARD_ART_DESIGN.md`); give each class its accent colour: Deserter rust and steel, Pickpocket teal and brass, Medium violet and bone, Neutral cream and grey.
+Card art subjects follow each card's effect (see `CardView.icon_variant` and `docs/CARD_ART_DESIGN.md`); give each class its accent colour: Deserter rust and steel, Thief teal and brass, Medium violet and bone, Neutral cream and grey.
 
 ## Consistency tips
 

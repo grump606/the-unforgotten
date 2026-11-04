@@ -20,4 +20,4 @@ display_name = "Second Wind"
 cost = 0
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_block"), SubResource("Resource_draw")])
 target_mode = 2
-character = &"pickpocket"
+character = &"thief"

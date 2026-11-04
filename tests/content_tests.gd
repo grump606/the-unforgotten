@@ -278,9 +278,9 @@ func _test_characters_and_pools() -> void:
 	neutral_ids.sort()
 	_check(neutral_ids == ["brace", "flurry", "glimpse_exit", "shove", "slip_past", "sweep"], "the neutral pool is Brace, Flurry, Glimpse the Exit, Shove, Slip Past and Sweep")
 
-	_check(StarterContent.character_ids() == [&"deserter", &"pickpocket", &"medium"], "three characters, in selection order")
+	_check(StarterContent.character_ids() == [&"deserter", &"thief", &"medium"], "three characters, in selection order")
 	_check(StarterContent.character(&"nobody") == null, "an unknown character is null")
-	var max_hp := {&"deserter": 52, &"pickpocket": 36, &"medium": 60}
+	var max_hp := {&"deserter": 52, &"thief": 36, &"medium": 60}
 	for id in StarterContent.character_ids():
 		var character := StarterContent.character(id)
 		_check(character != null and character.id == id and character.display_name != "" and character.pitch != "", "character %s loads with a name and pitch" % id)
@@ -302,7 +302,7 @@ func _test_characters_and_pools() -> void:
 	var deserter_ids := {}
 	for card in StarterContent.reward_pool(&"deserter"):
 		deserter_ids[card.id] = true
-	_check(deserter_ids.has(&"heavy_blow") and not deserter_ids.has(&"hamstring"), "the Deserter can take Heavy Blow but not the Pickpocket's Hamstring")
+	_check(deserter_ids.has(&"heavy_blow") and not deserter_ids.has(&"hamstring"), "the Deserter can take Heavy Blow but not the Thief's Hamstring")
 
 
 ## Registry guard: every .tres file in `dir` that is not in `registered` (or in `excluded`) fails,

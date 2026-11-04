@@ -58,9 +58,9 @@ func _test_character_and_hp() -> void:
 
 
 func _test_env_fallback_and_args_win() -> void:
-	var env := {DebugLaunch.ENV_FIGHT: "crow", DebugLaunch.ENV_CHARACTER: "pickpocket", DebugLaunch.ENV_HP: "9"}
+	var env := {DebugLaunch.ENV_FIGHT: "crow", DebugLaunch.ENV_CHARACTER: "thief", DebugLaunch.ENV_HP: "9"}
 	var from_env := DebugLaunch.parse(PackedStringArray(), env)
-	_check(from_env.enemy_ids == [&"mourning_crow"] and from_env.character_id == &"pickpocket" and from_env.hp == 9, "the environment works without arguments")
+	_check(from_env.enemy_ids == [&"mourning_crow"] and from_env.character_id == &"thief" and from_env.hp == 9, "the environment works without arguments")
 	var args_win := DebugLaunch.parse(PackedStringArray(["--fight=eraser"]), env)
 	_check(args_win.enemy_ids == [&"the_conductor"], "a command-line fight overrides the environment")
 

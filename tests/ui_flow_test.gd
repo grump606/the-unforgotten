@@ -330,9 +330,9 @@ func _initialize() -> void:
 	_check(header.text.contains("A voice beyond the quiet") and _find(body, "Exit") != null and _find(body, "Continue") == null and _find(body, "Outcome") == null, "Continue on the end card returns to the main menu (no saved run to continue)")
 	_find(body, "New Journey").pressed.emit()
 	await process_frame
-	_find(body, "Play as The Pickpocket").pressed.emit()
+	_find(body, "Play as The Thief").pressed.emit()
 	await process_frame
-	_check(scene._run.character.id == &"pickpocket" and scene._run.player.max_hp == StarterContent.character(&"pickpocket").max_hp and scene._run.player.display_name == StarterContent.character(&"pickpocket").display_name, "picking the Pickpocket starts a Pickpocket run")
+	_check(scene._run.character.id == &"thief" and scene._run.player.max_hp == StarterContent.character(&"thief").max_hp and scene._run.player.display_name == StarterContent.character(&"thief").display_name, "picking the Thief starts a Thief run")
 	_check(scene._run.stop_index == 0 and not scene._run.finished and scene._run.gold == 0, "a character pick starts a fresh run")
 	_check(_panel_count(body) == 1, "New Run leaves exactly one panel in the body")
 	_check(FileAccess.file_exists(test_save), "a new run is saved at its first stop")
@@ -601,7 +601,7 @@ func _initialize() -> void:
 	var before := backdrop.time
 	backdrop.advance(1.0)
 	_check(backdrop.time == before, "advance does nothing while the backdrop is hidden")
-	for id in [&"deserter", &"pickpocket", &"medium"]:
+	for id in [&"deserter", &"thief", &"medium"]:
 		pause_scene._run = RunState.new(5, id)
 		pause_scene._set_paused(true)
 		await process_frame

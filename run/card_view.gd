@@ -28,8 +28,8 @@ const PALETTES := {
 		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#49545D"),
 		"banner_ink": Color("#F0EBDD"), "accent": Color("#A66A50"), "glyph": Color("#171D28"),
 	},
-	&"pickpocket": {
-		"label": "PICKPOCKET", "stock": Color("#253D3D"), "frame": Color("#78A99B"),
+	&"thief": {
+		"label": "THIEF", "stock": Color("#253D3D"), "frame": Color("#78A99B"),
 		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#41615B"),
 		"banner_ink": Color("#F0EBDD"), "accent": Color("#78A99B"), "glyph": Color("#171D28"),
 	},
@@ -188,7 +188,7 @@ const FIST_IDS: Array[StringName] = [&"shove", &"shoulder_charge"]
 const HEAVY_DAMAGE := 12
 const LIGHT_DAMAGE := 4
 
-## Which weapon icon a card's plain damage shows, from its own data: class (pickpocket needle,
+## Which weapon icon a card's plain damage shows, from its own data: class (thief needle,
 ## medium bone), target (all enemies sweep), id (fist), magnitude (axe 12+, dagger up to 4)
 ## and cost (a free light hit is a flurry); otherwise a sword. Empty when the card has no DAMAGE
 ## effect, or for kinds that draw their own composite icon (see docs/CARD_ART_DESIGN.md).
@@ -203,7 +203,7 @@ static func icon_variant(c: CardData) -> StringName:
 			total += effect.amount
 	if total <= 0 or primary_kind(c) != CardEffect.Kind.DAMAGE:
 		return &""
-	if c.character == &"pickpocket":
+	if c.character == &"thief":
 		return &"needle"
 	if c.character == &"medium":
 		return &"bone"
@@ -521,7 +521,7 @@ func _draw_class_frame(p: Dictionary) -> void:
 			for pt in [Vector2(3, 3), Vector2(BASE.x - 3, 3), Vector2(3, BASE.y - 3), Vector2(BASE.x - 3, BASE.y - 3)]:
 				draw_line(pt + Vector2(-2, -1), pt + Vector2(2, 1), Color(p.ink, 0.65), 1.0)
 				draw_line(pt + Vector2(-2, 1), pt + Vector2(2, -1), Color(p.ink, 0.65), 1.0)
-		&"pickpocket":
+		&"thief":
 			# Sea-glass thread stitched round the stock.
 			var r := Rect2(7, 7, BASE.x - 14, BASE.y - 14)
 			_dashed_rect(r, Color(accent, 0.55))
@@ -554,7 +554,7 @@ func _draw_header_decor(header: Rect2, p: Dictionary) -> void:
 			draw_line(Vector2(38, header.end.y - 3), Vector2(98, header.end.y - 3), Color(accent, 0.55), 1.0)
 			for x in range(42, 98, 8):
 				draw_line(Vector2(x, header.end.y - 5), Vector2(x + 2, header.end.y - 1), Color(p.ink, 0.55), 1.0)
-		&"pickpocket":
+		&"thief":
 			draw_line(Vector2(header.position.x + 4, header.end.y - 3), Vector2(header.end.x - 4, header.end.y - 3), Color(accent, 0.7), 1.0)
 			for i in 6:
 				draw_line(Vector2(header.position.x + 40 + i * 9, header.end.y - 3), Vector2(header.position.x + 44 + i * 9, header.end.y - 1), Color(accent, 0.7), 1.0)
@@ -576,7 +576,7 @@ func _draw_emblem(c: Vector2, p: Dictionary) -> void:
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-6, -7), c + Vector2(6, -7), c + Vector2(5, 5), c + Vector2(0, 8), c + Vector2(-5, 5)]), glyph)
 			draw_line(c + Vector2(-3, -2), c + Vector2(3, -2), frame, 1.2)
 			draw_line(c + Vector2(-3, 2), c + Vector2(3, 2), frame, 1.2)
-		&"pickpocket":
+		&"thief":
 			# A keyhole.
 			draw_circle(c + Vector2(0, -2.5), 4.0, glyph)
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-1.8, 0), c + Vector2(1.8, 0), c + Vector2(3.8, 7.5), c + Vector2(-3.8, 7.5)]), glyph)
@@ -606,7 +606,7 @@ func _draw_window_motif(win: Rect2, p: Dictionary) -> void:
 					b = Vector2(win.end.x, win.position.y + (x + 50 - win.end.x))
 				draw_line(a, b, Color(accent, 0.12), 3.0)
 				x += 14
-		&"pickpocket":
+		&"thief":
 			var y := win.position.y + 6
 			while y < win.end.y - 3:
 				draw_line(Vector2(win.position.x + 4, y), Vector2(win.end.x - 4, y), Color(accent, 0.10), 1.0)

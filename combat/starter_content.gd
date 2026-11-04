@@ -75,7 +75,7 @@ const RELIC_PATHS: Array[String] = [
 ## Playable characters, in the order a selection screen lists them.
 const CHARACTER_PATHS := {
 	&"deserter": "res://data/characters/deserter.tres",
-	&"pickpocket": "res://data/characters/pickpocket.tres",
+	&"thief": "res://data/characters/thief.tres",
 	&"medium": "res://data/characters/medium.tres",
 }
 const DEFAULT_CHARACTER_ID := &"deserter"
