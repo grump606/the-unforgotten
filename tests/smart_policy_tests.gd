@@ -15,6 +15,12 @@ func run() -> int:
 	_test_plays_whole_runs_without_illegal_moves()
 	_test_card_scoring_order()
 	_test_reward_alternatives()
+	_test_keyword_discards()
+	_test_fading_played_before_end_of_turn()
+	_test_dormant_never_played()
+	_test_surge_spends_all_energy()
+	_test_multi_hit_scoring()
+	_test_keyword_hand_finishes_a_fight()
 	return _failures
 
 
@@ -252,3 +258,147 @@ func _test_greedy_card_kinds() -> void:
 	var fit := _combat_with_hp([confess], [_enemy(100, 1)] as Array[EnemyData], 30)
 	SimPolicy.play_turn(fit)
 	_check(fit.enemies[0].hp == 88, "greedy pays the HP cost when it can afford it")
+
+
+func _keyword_card(id: StringName, keyword: String, cost: int = 1, kind: CardEffect.Kind = CardEffect.Kind.DAMAGE, amount: int = 3) -> CardData:
+	var card := _card(id, cost, kind, amount)
+	if keyword != "":
+		card.set(keyword, true)
+	return card
+
+
+func _surge_card(amount: int, hits: int) -> CardData:
+	var effects: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.DAMAGE, amount, 0, 0, hits, true)]
+	var card := CardData.make(&"surge", "Surge", 0, effects)
+	card.surge = true
+	return card
+
+
+## A started combat holding `hand_cards` exactly (set directly, bypassing the draw rules).
+func _combat_with_hand(hand_cards: Array[CardData], enemy_hp: int = 40) -> Combat:
+	var starter: Array[CardData] = [_card(&"starter", 9, CardEffect.Kind.BLOCK, 1)]
+	var enemies: Array[EnemyData] = [_enemy(enemy_hp, 1)]
+	var combat := _combat(starter, enemies)
+	combat.piles.hand.clear()
+	combat.piles.hand.append_array(hand_cards)
+	return combat
+
+
+func _play(combat: Combat, use_smart: bool) -> bool:
+	return SmartPolicy.play_turn(combat) if use_smart else SimPolicy.play_turn(combat)
+
+
+func _test_keyword_discards() -> void:
+	# Weak anchor and fading cards would be the obvious discards, but they cannot be discarded.
+	var hand: Array[CardData] = []
+	for i in 6:
+		hand.append(_card(StringName("n%d" % i), 2, CardEffect.Kind.DAMAGE, 6))
+	var anchor := _keyword_card(&"anchor", "anchor", 3, CardEffect.Kind.BLOCK, 1)
+	var fading := _keyword_card(&"fading", "fading", 3, CardEffect.Kind.BLOCK, 1)
+	hand.append(anchor)
+	hand.append(fading)
+	var combat := _combat_with_hand(hand)
+	combat.energy = 0
+	for use_smart in [false, true]:
+		var indices: Array[int] = SmartPolicy.discards_for(combat) if use_smart else SimPolicy.discards_for(combat)
+		_check(indices.size() == 1, "one counted card over the limit means one discard (%d)" % indices.size())
+		_check(not indices.has(6) and not indices.has(7), "an anchor or fading card is never offered for discard")
+		_check(combat.is_valid_discard(indices), "the keyword-aware discard is valid")
+	_check(combat.end_player_turn(SmartPolicy.discards_for(combat)), "the turn ends with the discard the policy chose")
+	_check(combat.piles.hand.has(anchor), "the anchor card stays in hand")
+	# Only anchor and fading cards in hand: nothing to discard.
+	var only: Array[CardData] = [anchor, fading]
+	var combat2 := _combat_with_hand(only)
+	_check(SmartPolicy.discards_for(combat2).is_empty() and SimPolicy.discards_for(combat2).is_empty(), "no counted cards, no discards")
+
+
+func _test_fading_played_before_end_of_turn() -> void:
+	for use_smart in [false, true]:
+		var fading := _keyword_card(&"fade", "fading", 1, CardEffect.Kind.DAMAGE, 5)
+		var hand: Array[CardData] = [fading]
+		var combat := _combat_with_hand(hand)
+		_check(_play(combat, use_smart), "turn with a fading card is legal (smart %s)" % use_smart)
+		_check(combat.enemies[0].hp == 35, "the fading card is played before the turn ends (smart %s, hp %d)" % [use_smart, combat.enemies[0].hp])
+		_check(not combat.piles.forgotten.has(fading), "a played fading card is not forgotten")
+	# An unaffordable fading card is simply lost and the turn still ends.
+	var costly := _keyword_card(&"costly", "fading", 9, CardEffect.Kind.DAMAGE, 5)
+	var hand2: Array[CardData] = [costly]
+	var combat2 := _combat_with_hand(hand2)
+	_check(SmartPolicy.play_turn(combat2) and combat2.piles.forgotten.has(costly), "an unaffordable fading card is forgotten at turn end")
+
+
+func _test_dormant_never_played() -> void:
+	for use_smart in [false, true]:
+		var dormant := _keyword_card(&"dorm", "dormant", 0, CardEffect.Kind.DAMAGE, 9)
+		var hand: Array[CardData] = [dormant]
+		var combat := _combat_with_hand(hand)
+		_check(_play(combat, use_smart), "turn with only a dormant card is legal (smart %s)" % use_smart)
+		_check(combat.enemies[0].hp == 40, "a dormant card is never played (smart %s)" % use_smart)
+	var weights := {"damage": 1.0, "block": 1.0}
+	_check(SmartPolicy.card_score(_keyword_card(&"d", "dormant"), weights) < SmartPolicy.card_score(_card(&"c", 2, CardEffect.Kind.BLOCK, 1), weights), "a dormant card scores below any live card")
+
+
+func _test_surge_spends_all_energy() -> void:
+	for use_smart in [false, true]:
+		var hand: Array[CardData] = [_surge_card(3, 1)]
+		var combat := _combat_with_hand(hand)
+		var spent := combat.energy
+		_check(_play(combat, use_smart), "surge turn is legal (smart %s)" % use_smart)
+		_check(combat.enemies[0].hp == 40 - 3 * spent, "a surge card is played with all %d energy (smart %s, hp %d)" % [spent, use_smart, combat.enemies[0].hp])
+		# At 0 energy a scaling surge does nothing, so it is held back.
+		var hand0: Array[CardData] = [_surge_card(3, 1)]
+		var combat0 := _combat_with_hand(hand0)
+		combat0.energy = 0
+		_play(combat0, use_smart)
+		_check(combat0.enemies[0].hp == 40, "a surge card is not played at 0 energy (smart %s)" % use_smart)
+	# Surge is worth more with more energy.
+	var hand3: Array[CardData] = [_surge_card(3, 1)]
+	var combat3 := _combat_with_hand(hand3)
+	combat3.energy = 1
+	var low := SmartPolicy._play_value(combat3, 0, 0)
+	combat3.energy = 3
+	var high := SmartPolicy._play_value(combat3, 0, 0)
+	_check(high > low, "surge value scales with energy (%f vs %f)" % [low, high])
+
+
+func _test_multi_hit_scoring() -> void:
+	var single: Array[CardData] = [_card(&"x", 1, CardEffect.Kind.DAMAGE, 3)]
+	var combat := _combat_with_hand(single)
+	var enemy := combat.enemies[0]
+	_check(SmartPolicy._hits_hp_lost(enemy, 3, 3) == 9, "three hits of 3 remove 9 HP")
+	enemy.block = 4
+	_check(SmartPolicy._hits_hp_lost(enemy, 3, 3) == 5, "block absorbs across the hits (5 of 9 get through)")
+	enemy.block = 0
+	_check(SmartPolicy._hits_hp_lost(enemy, 3, 99) == enemy.hp, "overkill is not counted")
+	var effects: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.DAMAGE, 3, 0, 0, 3)]
+	var multi := CardData.make(&"multi", "Multi", 1, effects)
+	var hand: Array[CardData] = [multi]
+	var combat2 := _combat_with_hand(hand)
+	_check(SmartPolicy.play_turn(combat2) and combat2.enemies[0].hp == 31, "a multi-hit card is played for all its hits")
+	var weights := {"damage": 1.0, "block": 1.0}
+	_check(SmartPolicy.card_score(multi, weights) > SmartPolicy.card_score(_card(&"one", 1, CardEffect.Kind.DAMAGE, 3), weights), "multi-hit scores above a single hit")
+
+
+func _test_keyword_hand_finishes_a_fight() -> void:
+	for use_smart in [false, true]:
+		var deck: Array[CardData] = []
+		for i in 3:
+			deck.append(_card(StringName("hit%d" % i), 1, CardEffect.Kind.DAMAGE, 4))
+		deck.append(_card(&"guard", 1, CardEffect.Kind.BLOCK, 5))
+		deck.append(_keyword_card(&"anc", "anchor", 1, CardEffect.Kind.BLOCK, 3))
+		deck.append(_keyword_card(&"fad", "fading", 1, CardEffect.Kind.DAMAGE, 5))
+		deck.append(_keyword_card(&"frg", "forgotten", 1, CardEffect.Kind.DAMAGE, 8))
+		deck.append(_keyword_card(&"rdy", "ready", 1, CardEffect.Kind.DAMAGE, 4))
+		deck.append(_keyword_card(&"drm", "dormant", 0, CardEffect.Kind.DAMAGE, 20))
+		deck.append(_surge_card(2, 1))
+		var enemies: Array[EnemyData] = [_enemy(40, 2)]
+		var combat := Combat.new(Combatant.new("p", 60), deck, enemies, 3)
+		combat.start()
+		var guard := 0
+		while combat.phase == Combat.Phase.PLAYER_TURN and guard < 40:
+			var ok := _play(combat, use_smart)
+			_check(ok, "keyword hand turn is legal (smart %s)" % use_smart)
+			if not ok:
+				break
+			guard += 1
+		_check(combat.phase == Combat.Phase.ENDED and combat.enemies[0].is_dead(), "the bot wins a fight with keyword cards without stalling (smart %s, turns %d)" % [use_smart, guard])
