@@ -6,7 +6,7 @@
 [sub_resource type="Resource" id="Resource_effect"]
 script = ExtResource("2_effect")
 kind = 0
-amount = 14
+amount = 20
 
 [resource]
 script = ExtResource("1_card")
@@ -14,4 +14,5 @@ id = &"heavy_blow"
 display_name = "Heavy Blow"
 cost = 2
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_effect")])
+forgotten = true
 character = &"deserter"

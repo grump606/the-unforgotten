@@ -20,4 +20,5 @@ display_name = "Last Stand"
 cost = 3
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
 target_mode = 2
+anchor = true
 character = &"deserter"
