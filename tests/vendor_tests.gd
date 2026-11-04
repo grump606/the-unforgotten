@@ -10,6 +10,10 @@ func run() -> int:
 	_test_stock()
 	_test_prices()
 	_test_payoff_pricing()
+	_test_existing_card_prices_unchanged()
+	_test_hits_multiply_value()
+	_test_keyword_adjustments()
+	_test_per_energy_value()
 	_test_buy_card()
 	_test_remove_card()
 	_test_buy_heal()
@@ -218,3 +222,103 @@ func _test_payoff_pricing() -> void:
 	var costly := CardData.make(&"t_hpcost", "HP", 1, [CardEffect.make(CardEffect.Kind.DAMAGE, 8), CardEffect.make(CardEffect.Kind.LOSE_HP, 4)] as Array[CardEffect])
 	var free_hit := CardData.make(&"t_hit", "Hit", 1, [CardEffect.make(CardEffect.Kind.DAMAGE, 8)] as Array[CardEffect])
 	_check(Vendor.card_value(costly) < Vendor.card_value(free_hit), "paying HP lowers a card's value")
+
+
+## Golden table of id -> [value, price] for every data/cards card, taken before the keyword and
+## multi-hit valuation existed. None of these cards uses a keyword, so nothing may move.
+const GOLDEN := {
+	"bash": [7, 16],
+	"bleed_the_veil": [34, 24],
+	"brace": [2, 10],
+	"cold_steel": [9, 16],
+	"cold_whisper": [3, 10],
+	"confess": [10, 16],
+	"counter_stance": [20, 24],
+	"cutting_word": [7, 16],
+	"dig_in": [4, 10],
+	"flurry": [3, 10],
+	"glimpse_exit": [8, 16],
+	"grave_chill": [16, 24],
+	"guarded_strike": [8, 16],
+	"hamstring": [14, 24],
+	"heavy_blow": [18, 24],
+	"hold_the_line": [9, 16],
+	"iron_resolve": [12, 24],
+	"last_pocket": [12, 24],
+	"last_stand": [30, 24],
+	"lift": [9, 16],
+	"lingering_dread": [12, 24],
+	"mark_the_weak": [6, 16],
+	"penance": [8, 16],
+	"pocket_watch": [10, 16],
+	"reckoning": [12, 24],
+	"seance": [15, 24],
+	"second_wind": [6, 16],
+	"shoulder_charge": [17, 24],
+	"shove": [8, 16],
+	"sleight": [2, 10],
+	"slip_past": [7, 16],
+	"spirit_tithe": [8, 16],
+	"spree": [10, 16],
+	"steady_breath": [9, 16],
+	"sweep": [9, 16]
+}
+
+
+func _test_existing_card_prices_unchanged() -> void:
+	var dir := DirAccess.open("res://data/cards")
+	var seen := 0
+	for file in dir.get_files():
+		if not file.ends_with(".tres"):
+			continue
+		var card := load("res://data/cards/" + file) as CardData
+		seen += 1
+		if not GOLDEN.has(String(card.id)):
+			_check(false, "card %s is missing from the golden price table" % card.id)
+			continue
+		var want: Array = GOLDEN[String(card.id)]
+		_check(Vendor.card_value(card) == want[0], "value of %s is unchanged (%d)" % [card.id, Vendor.card_value(card)])
+		_check(Vendor.card_price(card) == want[1], "price of %s is unchanged (%d)" % [card.id, Vendor.card_price(card)])
+	_check(seen == GOLDEN.size(), "golden table covers every card (%d of %d)" % [seen, GOLDEN.size()])
+
+
+func _card(cost: int, effects: Array[CardEffect]) -> CardData:
+	return CardData.make(&"t_card", "T", cost, effects)
+
+
+func _test_hits_multiply_value() -> void:
+	var single := _card(1, [CardEffect.make(CardEffect.Kind.DAMAGE, 3)] as Array[CardEffect])
+	var triple := _card(1, [CardEffect.make(CardEffect.Kind.DAMAGE, 3, 0, 0, 3)] as Array[CardEffect])
+	var zero := _card(1, [CardEffect.make(CardEffect.Kind.DAMAGE, 3, 0, 0, 0)] as Array[CardEffect])
+	_check(Vendor.card_value(triple) == 2 + 9, "three hits of 3 are worth 9")
+	_check(Vendor.card_value(zero) == Vendor.card_value(single), "hits below 1 count as 1")
+	var block := _card(1, [CardEffect.make(CardEffect.Kind.BLOCK, 3, 0, 0, 3)] as Array[CardEffect])
+	_check(Vendor.card_value(block) == 2 + 3, "hits do not multiply a non-damage effect")
+
+
+func _test_keyword_adjustments() -> void:
+	var base := _card(1, [CardEffect.make(CardEffect.Kind.DAMAGE, 6)] as Array[CardEffect])
+	var base_value := Vendor.card_value(base)
+	var cases := {
+		"forgotten": -1, "fading": -1, "ready": 1, "anchor": 1, "dormant": -1, "surge": 1,
+	}
+	for key in cases:
+		var card := _card(1, [CardEffect.make(CardEffect.Kind.DAMAGE, 6)] as Array[CardEffect])
+		card.set(key, true)
+		var delta := Vendor.card_value(card) - base_value
+		_check(signi(delta) == cases[key], "%s moves value in its documented direction (%d)" % [key, delta])
+	var dormant := _card(1, [CardEffect.make(CardEffect.Kind.DAMAGE, 6)] as Array[CardEffect])
+	dormant.dormant = true
+	_check(Vendor.card_price(dormant) == Vendor.PRICE_CHEAP, "a dormant card is priced as junk")
+	var ready_card := _card(1, [CardEffect.make(CardEffect.Kind.DAMAGE, 6)] as Array[CardEffect])
+	ready_card.ready = true
+	_check(Vendor.card_value(ready_card) == base_value + Vendor.READY_ADJUST, "ready adds READY_ADJUST")
+
+
+func _test_per_energy_value() -> void:
+	var surge_hits := _card(0, [CardEffect.make(CardEffect.Kind.DAMAGE, 3, 0, 0, 1, true)] as Array[CardEffect])
+	surge_hits.surge = true
+	_check(Vendor.card_value(surge_hits) == 3 * Vendor.SURGE_TYPICAL_ENERGY + Vendor.SURGE_ADJUST, "per_energy damage is valued at the typical energy in hits")
+	var surge_block := _card(0, [CardEffect.make(CardEffect.Kind.BLOCK, 4, 0, 0, 1, true)] as Array[CardEffect])
+	surge_block.surge = true
+	_check(Vendor.card_value(surge_block) == 4 * Vendor.SURGE_TYPICAL_ENERGY + Vendor.SURGE_ADJUST, "per_energy block is valued at the typical energy in amount")

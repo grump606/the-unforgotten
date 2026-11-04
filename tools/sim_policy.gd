@@ -24,13 +24,21 @@ static func play_turn(combat: Combat) -> bool:
 	return combat.end_player_turn(discards_for(combat))
 
 
-## End-of-turn discard: keeps the Combat.HAND_SIZE best cards by keep_score and discards the rest.
-## With HAND_SIZE or fewer cards in hand it discards nothing (never pointlessly).
+## End-of-turn discard: keeps the Combat.HAND_SIZE best counted cards by keep_score and discards the rest.
+## Anchor and Fading cards do not count toward the five and can never be discarded, so they are never
+## offered. With HAND_SIZE or fewer counted cards in hand it discards nothing (never pointlessly).
 static func discards_for(combat: Combat) -> Array[int]:
+	var candidates: Array[int] = []
 	var scores: Array[float] = []
-	for card in combat.piles.hand:
-		scores.append(keep_score(combat, card))
-	return worst_indices(scores)
+	for i in combat.piles.hand.size():
+		if combat.can_discard_card(i):
+			candidates.append(i)
+			scores.append(keep_score(combat, combat.piles.hand[i]))
+	var out: Array[int] = []
+	for k in worst_indices(scores):
+		out.append(candidates[k])
+	out.sort()
+	return out
 
 
 ## Indices (sorted) of the cards to throw away so that Combat.HAND_SIZE of the highest `scores`
@@ -57,7 +65,7 @@ static func keep_score(combat: Combat, card: CardData) -> float:
 		tier = 3.0
 	elif is_block_card(card):
 		tier = 2.0
-	if _is_pointless(combat, card) or _too_costly_in_hp(combat, card):
+	if _is_pointless(combat, card) or _too_costly_in_hp(combat, card) or card.dormant:
 		tier = 0.0
 	return tier * 10.0 - card.cost
 
@@ -81,8 +89,17 @@ static func _pick_card(combat: Combat) -> int:
 		if _too_costly_in_hp(combat, card) or _is_pointless(combat, card):
 			continue
 		var rank := 3.0
-		if _expose_sets_up_damage(combat, i):
+		if card.surge:
+			# A Surge spends every point of energy left, so it goes last; at 0 energy a scaling
+			# one does nothing (and playing it would only burn a play).
+			if combat.energy == 0 and _scales_with_energy(card):
+				continue
+			rank = 4.0
+		elif _expose_sets_up_damage(combat, i):
 			rank = -1
+		elif card.fading:
+			# It is lost at the end of the turn, so play it before the ordinary cards.
+			rank = -0.5
 		elif card.cost == 0 or _refunds_cost(card):
 			rank = 0
 		elif need_block and is_block_card(card):
@@ -95,6 +112,14 @@ static func _pick_card(combat: Combat) -> int:
 			best_rank = rank
 			best = i
 	return best
+
+
+## True if any effect of the card scales with the energy a Surge spends.
+static func _scales_with_energy(card: CardData) -> bool:
+	for effect in card.effects:
+		if effect.per_energy:
+			return true
+	return false
 
 
 ## True if the card gives back at least the energy it costs (Borrowed Time, Seance).

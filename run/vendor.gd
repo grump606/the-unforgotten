@@ -34,6 +34,22 @@ const PRICEY_FROM := 12
 const DRAW_VALUE := 4
 ## How much one point of energy gained adds.
 const ENERGY_VALUE := 4
+## A per_energy (Surge) effect is valued as if this much energy were spent on it.
+const SURGE_TYPICAL_ENERGY := 2
+## Keyword adjustments added to a card's value (see card_value). Kept small so a keyword shifts a
+## price tier only at the margin; Dormant is large enough to make a card junk whatever its effects.
+## Forgotten: the card is gone for the rest of the fight after one play, so it is worth less.
+const FORGOTTEN_ADJUST := -3
+## Fading: it must be played the turn it is drawn or it is lost, a small drawback.
+const FADING_ADJUST := -1
+## Ready: it opens the first hand every fight, a small bonus.
+const READY_ADJUST := 1
+## Anchor: it stays in hand and never costs a kept slot, a small bonus.
+const ANCHOR_ADJUST := 1
+## Dormant: it cannot be played at all, so it is effectively junk.
+const DORMANT_ADJUST := -20
+## Surge: takes any energy left over, so it is flexible; a small bonus.
+const SURGE_ADJUST := 1
 
 
 ## Gold awarded for winning a fight against `enemy_count` enemies.
@@ -51,6 +67,18 @@ const UNVALUED := -999999
 ## Raw strength of a card: 2 per energy of cost plus the value of each effect (effect_value).
 static func card_value(card: CardData) -> int:
 	var value := card.cost * 2
+	if card.forgotten:
+		value += FORGOTTEN_ADJUST
+	if card.fading:
+		value += FADING_ADJUST
+	if card.ready:
+		value += READY_ADJUST
+	if card.anchor:
+		value += ANCHOR_ADJUST
+	if card.dormant:
+		value += DORMANT_ADJUST
+	if card.surge:
+		value += SURGE_ADJUST
 	for effect in card.effects:
 		var effect_points := effect_value(effect)
 		if effect_points == UNVALUED:
@@ -65,6 +93,23 @@ static func card_value(card: CardData) -> int:
 ## turn, a Haunt of about 4. Every CardEffect.Kind needs a branch here (a test enforces it).
 static func effect_value(effect: CardEffect) -> int:
 	var amount := effect.amount
+	# per_energy scales hits on a damage kind and the amount on any other kind, by a typical energy.
+	var multiplier := 1
+	if effect.per_energy:
+		if effect.is_damage():
+			multiplier = SURGE_TYPICAL_ENERGY
+		else:
+			amount *= SURGE_TYPICAL_ENERGY
+	var points := _base_effect_value(effect, amount)
+	if points == UNVALUED:
+		return UNVALUED
+	if effect.is_damage():
+		# Each hit lands separately (hits below 1 count as 1).
+		return points * maxi(effect.hits, 1) * multiplier
+	return points
+
+
+static func _base_effect_value(effect: CardEffect, amount: int) -> int:
 	match effect.kind:
 		CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK, CardEffect.Kind.HOLD:
 			return amount
