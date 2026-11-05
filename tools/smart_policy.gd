@@ -68,6 +68,9 @@ const TYPICAL_SURGE_ENERGY := 2
 const FADING_URGENCY := 2.0
 ## Player turns still to come in a fight when a Malice / Ward stack that lasts the fight is played now.
 const TYPICAL_REMAINING_TURNS := 3
+## A typical Scent stack when a spender is played, and what a point of applied Scent is worth in a deck score.
+const TYPICAL_SCENT := 3
+const SCENT_SCORE_PER_POINT := 1.5
 ## How often an Oath's trigger fires, as a share of the turns left: every turn for TURN_START and FIRST_PLAY,
 ## about every other turn for a Forgotten card, about one turn in three for a kept Anchor card.
 ## An Oath scores less in a deck than its effects add up to: it spends a turn's energy before it pays back, and
@@ -289,7 +292,7 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 		var amount := _scaled_amount(combat, card, effect)
 		match effect.kind:
 			CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, \
-			CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
+			CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN, CardEffect.Kind.DAMAGE_PER_SCENT:
 				for enemy in hit:
 					var lost := _hits_hp_lost(combat.player, enemy, _effect_damage(combat, effect, enemy), _hit_count(combat, card, effect))
 					var threat := _threat(combat, enemy)
@@ -560,6 +563,8 @@ static func _effect_damage(combat: Combat, effect: CardEffect, enemy: EnemyUnit)
 			return enemy.status_turns(Combatant.Status.HAUNTED) * effect.amount
 		CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
 			return combat.piles.forgotten.size() * effect.amount
+		CardEffect.Kind.DAMAGE_PER_SCENT:
+			return effect.amount + effect.bonus * enemy.stacks(Combatant.Status.SCENT)
 	return effect.amount
 
 
@@ -793,6 +798,8 @@ static func _effect_score(card: CardData, effect: CardEffect, weights: Dictionar
 			total += _debuff_score(card, effect)
 		CardEffect.Kind.GLIMPSE:
 			total += amount * GLIMPSE_SCORE_PER_CARD
+		CardEffect.Kind.SCENT:
+			total += amount * SCENT_SCORE_PER_POINT
 		CardEffect.Kind.RECALL:
 			total += amount * float(weights.get("recall", RECALL_SCORE_PER_CARD))
 		CardEffect.Kind.ADD_CARD:
@@ -868,6 +875,8 @@ static func _nominal_damage_once(effect: CardEffect, forgotten: int) -> float:
 			return float(TYPICAL_HAUNT * effect.amount)
 		CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
 			return float(forgotten * effect.amount)
+		CardEffect.Kind.DAMAGE_PER_SCENT:
+			return float(effect.amount + effect.bonus * TYPICAL_SCENT)
 		CardEffect.Kind.HAUNT:
 			return HAUNT_VALUE * _haunt_total(effect.amount)
 	return 0.0

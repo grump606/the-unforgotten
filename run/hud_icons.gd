@@ -37,7 +37,7 @@ static func shield(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void:
 static func intent(ci: CanvasItem, kind: int, c: Vector2, col: Color, size := 1.0) -> void:
 	var bright := col.lightened(0.3)
 	match kind:
-		CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
+		CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN, CardEffect.Kind.DAMAGE_PER_SCENT:
 			var rot := PI / 4.0
 			var blade := PackedVector2Array()
 			for u in [Vector2(0, -1.0), Vector2(0.2, -0.75), Vector2(0.2, 0.25), Vector2(-0.2, 0.25), Vector2(-0.2, -0.75)]:
@@ -62,6 +62,8 @@ static func intent(ci: CanvasItem, kind: int, c: Vector2, col: Color, size := 1.
 			status(ci, &"malice", c, bright, 2.0 * size)
 		CardEffect.Kind.WARD:
 			status(ci, &"ward", c, bright, 2.0 * size)
+		CardEffect.Kind.SCENT:
+			status(ci, &"scent", c, bright, 2.0 * size)
 		CardEffect.Kind.ADD_CARD: # a card with a plus: something is shuffled into your cards
 			var back := PackedVector2Array([c + Vector2(-7, -8) * size, c + Vector2(2, -8) * size, c + Vector2(2, 4) * size, c + Vector2(-7, 4) * size])
 			ci.draw_colored_polygon(back, col)
@@ -107,6 +109,11 @@ static func _status_glyph(ci: CanvasItem, kind: StringName, c: Vector2, col: Col
 				ci.draw_line(c + d * 2.0, c + d * 5.0, col, 1.2)
 		&"haunt":
 			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-3.5, 4), c + Vector2(-3.5, -1), c + Vector2(0, -4.5), c + Vector2(3.5, -1), c + Vector2(3.5, 4), c + Vector2(1.5, 2.5), c + Vector2(0, 4), c + Vector2(-1.5, 2.5)]), col)
+		&"scent": # a drifting trail of three growing drops: a mark the hunter follows
+			ci.draw_polyline(PackedVector2Array([c + Vector2(-4, 3.5), c + Vector2(-1, 0.5), c + Vector2(1, 2), c + Vector2(4, -2)]), Color(col, 0.6), 1.1, true)
+			ci.draw_circle(c + Vector2(-3.5, 3.5), 1.0, col)
+			ci.draw_circle(c + Vector2(0.5, 1.2), 1.4, col)
+			ci.draw_circle(c + Vector2(4, -2.2), 1.9, col)
 		&"hold":
 			ci.draw_rect(Rect2(c + Vector2(-3, -1), Vector2(6, 5)), col)
 			ci.draw_arc(c + Vector2(0, -1), 2.2, PI, TAU, 8, col, 1.2, true)

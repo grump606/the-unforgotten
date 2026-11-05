@@ -106,8 +106,7 @@ func _test_starter_decks() -> void:
 			_check(card.character == &"" or card.character == id, "%s starter deck holds only neutral or own cards (%s)" % [id, card.id])
 			if card.character == id:
 				own_cards += 1
-		# The Stray starts neutral-only until its cards exist (docs/CLASSES_PLAN.md, the Stray, phase 1).
-		_check(own_cards >= 1 or id == &"stray", "%s starter deck holds some class cards" % id)
+		_check(own_cards >= 1, "%s starter deck holds some class cards" % id)
 		var pool_ids := _ids(StarterContent.reward_pool(id))
 		for card in deck:
 			_check(pool_ids.has(String(card.id)), "%s can be offered every card it starts with (%s)" % [id, card.id])
