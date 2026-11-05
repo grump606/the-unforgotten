@@ -417,7 +417,7 @@ second phase); relic text still says "Thorns" (`barbed_greatcoat.tres`), a misse
   pile (Mourning Crow, the Brakeman). Remove the FRAYED allow-list from the identity test.
 - Enemies never get temporary stacks (existing rule). Bosses keep their phase structure.
 
-### 5c. Relics
+### 5c. Relics (done)
 
 - Fix the Barbed Greatcoat text to say Barbs.
 - Add six relics that use the keywords: one each for Glimpse, Malice, Ward, Forgotten, Anchor and Shaken.

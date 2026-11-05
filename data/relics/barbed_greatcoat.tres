@@ -6,7 +6,7 @@
 script = ExtResource("1_relic")
 id = &"barbed_greatcoat"
 display_name = "Barbed Greatcoat"
-description = "Gain 3 Thorns at the start of every turn."
+description = "Gain 3 Barbs at the start of every turn."
 character = &"deserter"
 kind = 3
 amount = 3

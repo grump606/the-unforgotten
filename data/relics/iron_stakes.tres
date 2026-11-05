@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"iron_stakes"
+display_name = "Iron Stakes"
+description = "Each Anchor card in your hand at end of turn gives 2 Block."
+character = &"deserter"
+kind = 16
+amount = 2
+price = 60
