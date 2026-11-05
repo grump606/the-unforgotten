@@ -20,6 +20,7 @@ func run() -> int:
 	_test_haunt_cap_relics()
 	_test_haunt_bonus()
 	_test_relics_stack()
+	_test_keyword_relics()
 	_test_vendor_relic_offer()
 	_test_vendor_buy_relic()
 	_test_run_state_relics()
@@ -77,14 +78,14 @@ func _fight(relics: Array, card: CardData = null, player_hp: int = 40, enemy_cou
 
 func _test_content() -> void:
 	var relics := StarterContent.all_relics()
-	_check(relics.size() == 12, "twelve relics load (got %d)" % relics.size())
+	_check(relics.size() == 18, "eighteen relics load (got %d)" % relics.size())
 	var ids := {}
 	var kinds := {}
 	for relic in relics:
 		ids[relic.id] = true
 		kinds[relic.kind] = true
 		_check(relic.amount > 0 and relic.price > 0 and relic.display_name != "" and relic.description != "", "%s has an amount, a price, a name and a description" % relic.id)
-	_check(ids.size() == 12, "relic ids are unique")
+	_check(ids.size() == 18, "relic ids are unique")
 	_check(kinds.size() == RelicData.Kind.size(), "every relic kind is used by exactly one relic")
 	for character_id in StarterContent.character_ids():
 		var pool := StarterContent.relic_pool(character_id)
@@ -95,9 +96,9 @@ func _test_content() -> void:
 				own += 1
 			elif relic.character == &"":
 				neutral += 1
-		_check(own == 3 and neutral == 3 and pool.size() == 6, "%s: relic pool is 3 class plus 3 neutral relics" % character_id)
+		_check(own >= 3 and neutral >= 3 and pool.size() == own + neutral, "%s: relic pool is 3+ class plus 3+ neutral relics" % character_id)
 	# Append-only enum: the saved numbers must keep their meaning.
-	_check(RelicData.Kind.MAX_HP == 0 and RelicData.Kind.HAUNT_BONUS == 11, "relic kind numbering is unchanged")
+	_check(RelicData.Kind.MAX_HP == 0 and RelicData.Kind.HAUNT_BONUS == 11 and RelicData.Kind.FIGHT_START_GLIMPSE == 12 and RelicData.Kind.FIRST_ATTACK_SHAKEN == 17, "relic kind numbering is unchanged")
 
 
 func _test_no_relics_changes_nothing() -> void:
@@ -268,6 +269,63 @@ func _card_ids(vendor: Vendor) -> Array:
 	for offer in vendor.offers():
 		ids.append((offer["card"] as CardData).id)
 	return ids
+
+
+## The six keyword relics, through the combat pipeline.
+func _test_keyword_relics() -> void:
+	# Glimpse: the fight opens with a Glimpse choice of the top N cards.
+	var glimpse := _fight([_relic(RelicData.Kind.FIGHT_START_GLIMPSE, 2)])
+	_check(glimpse.phase == Combat.Phase.CHOOSING and glimpse.choice_kind() == CardEffect.Kind.GLIMPSE and glimpse.choice_cards().size() == 2, "FIGHT_START_GLIMPSE opens a Glimpse 2 at fight start")
+	var picks: Array[int] = [0]
+	_check(glimpse.resolve_choice(picks) and glimpse.phase == Combat.Phase.PLAYER_TURN and glimpse.piles.discard_pile.size() == 1, "the Glimpse can discard a card and play goes on")
+	glimpse.end_player_turn()
+	_check(not glimpse.has_choice(), "FIGHT_START_GLIMPSE does not repeat on turn 2")
+	# Malice: +1 to each hit for the whole fight.
+	var malice := _fight([_relic(RelicData.Kind.FIGHT_START_MALICE, 1)], _card(0, _dmg(5)))
+	_check(malice.player.status_turns(Combatant.Status.MALICE) == 1, "FIGHT_START_MALICE gives Malice 1")
+	malice.play_card(0)
+	_check(malice.enemies[0].hp == 99 - 6, "Malice from the relic adds to each hit")
+	malice.end_player_turn()
+	_check(malice.player.status_turns(Combatant.Status.MALICE) == 1, "the relic's Malice stays on turn 2")
+	# Ward: +1 to Block from cards.
+	var ward := _fight([_relic(RelicData.Kind.FIGHT_START_WARD, 1)], _card(0, [CardEffect.make(CardEffect.Kind.BLOCK, 4)]))
+	ward.play_card(0)
+	_check(ward.player.block == 5, "FIGHT_START_WARD raises Block from cards by 1")
+	# Forgotten: the first Forgotten card played returns to hand, once per fight.
+	var heavy := _card(0, _dmg(1))
+	heavy.forgotten = true
+	var back := _fight([_relic(RelicData.Kind.FIRST_FORGOTTEN_RETURN, 1)], heavy)
+	var hand_before := back.piles.hand.size()
+	back.play_card(0)
+	_check(back.piles.hand.size() == hand_before and back.piles.forgotten.is_empty(), "the first Forgotten card returns to hand")
+	back.play_card(0)
+	_check(back.piles.hand.size() == hand_before - 1 and back.piles.forgotten.size() == 1, "the second Forgotten card stays Forgotten")
+	var plain := _fight([], heavy)
+	plain.play_card(0)
+	_check(plain.piles.forgotten.size() == 1, "without the relic a Forgotten card stays Forgotten")
+	# Anchor: each kept Anchor card gives Block at end of turn.
+	var anchor_card := _card(1, _dmg(1))
+	anchor_card.anchor = true
+	var intents: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.DAMAGE, 5)]
+	var anchored := Combat.new(Combatant.new("p", 40), _deck(10, anchor_card), _enemies(1, 99, intents), 3, _relics([_relic(RelicData.Kind.ANCHOR_END_BLOCK, 2)]))
+	anchored.start()
+	var held := anchored.piles.hand.size()
+	anchored.end_player_turn()
+	_check(held > 0 and anchored.player.hp == 40, "kept Anchor cards gave Block (%d held) that absorbed the hit" % held)
+	var no_anchor := Combat.new(Combatant.new("p", 40), _deck(10, anchor_card), _enemies(1, 99, intents), 3)
+	no_anchor.start()
+	no_anchor.end_player_turn()
+	_check(no_anchor.player.hp == 35, "without the relic the same hit lands")
+	# Shaken: the first attack only.
+	var attack := _fight([_relic(RelicData.Kind.FIRST_ATTACK_SHAKEN, 1)], _card(0, _dmg(4)))
+	attack.play_card(0)
+	_check(attack.enemies[0].status_turns(Combatant.Status.SHAKEN) == 1, "the first attack applies Shaken")
+	attack.enemies[0].clear_statuses()
+	attack.play_card(0)
+	_check(attack.enemies[0].status_turns(Combatant.Status.SHAKEN) == 0, "later attacks do not")
+	var skill := _fight([_relic(RelicData.Kind.FIRST_ATTACK_SHAKEN, 1)], _card(0, [CardEffect.make(CardEffect.Kind.BLOCK, 3)]))
+	skill.play_card(0)
+	_check(skill.enemies[0].status_turns(Combatant.Status.SHAKEN) == 0 and not skill._first_attack_used, "a non-attack does not spend the trigger")
 
 
 func _test_vendor_relic_offer() -> void:
