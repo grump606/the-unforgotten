@@ -125,6 +125,21 @@ func _initialize() -> void:
 			proto_view.set_state(state)
 		proto_view.discard_marked = true
 		check(proto_view.cost_text() == ("X" if proto.surge else str(proto.cost)) and (proto_view.keyword_text() != "") == (not proto.keyword_lines().is_empty()), "%s shows the right cost stamp and keyword line" % proto.id)
+	# A Remembered card: "+" name, gold title, upgraded text; the base card keeps the palette ink.
+	for plus_id in ["shove", "last_stand", "sleight"]:
+		var base := _card(plus_id)
+		var plus := base.remembered_card()
+		var plain_view := CardView.new()
+		var plus_view := CardView.new()
+		holder.add_child(plain_view)
+		holder.add_child(plus_view)
+		plain_view.set_card(base)
+		plus_view.set_card(plus)
+		for state in [CardView.State.NORMAL, CardView.State.HOVER, CardView.State.UNPLAYABLE]:
+			plus_view.set_state(state)
+		var palette: Dictionary = CardView.PALETTES[plus_view.class_id]
+		check(plus.display_name == base.display_name + "+" and plus_view.title_color(palette) != palette.banner_ink and plain_view.title_color(palette) == palette.banner_ink, "%s+ has a gold title and the base keeps its ink" % plus_id)
+		check(plus_view.body_lines()[0].text == plus.effects[0].describe(), "%s+ shows the upgraded effect text" % plus_id)
 	await process_frame
 	_check_damage_variants()
 	print("DONE fails=", fails)

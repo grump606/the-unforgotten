@@ -163,6 +163,7 @@ func _start_run(character_id: StringName) -> void:
 func _reset_screens() -> void:
 	_vendor.reset()
 	_reward.reset()
+	_rest.reset()
 
 
 func _show_stop() -> void:

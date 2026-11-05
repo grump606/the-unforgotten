@@ -58,6 +58,7 @@ func _initialize() -> void:
 	_failures += load("res://tests/mechanics_tests.gd").new().run()
 	_failures += load("res://tests/keyword_tests.gd").new().run()
 	_failures += load("res://tests/deserter_cards_tests.gd").new().run()
+	_failures += load("res://tests/remembered_tests.gd").new().run()
 	_failures += load("res://tests/pipeline_tests.gd").new().run()
 	_failures += load("res://tests/cycling_tests.gd").new().run()
 	_failures += load("res://tests/starter_tests.gd").new().run()
