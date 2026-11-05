@@ -33,3 +33,4 @@ character = &"thief"
 oath = true
 oath_trigger = 1
 oath_effects = Array[ExtResource("2_effect")]([SubResource("Resource_o1"), SubResource("Resource_o2")])
+rarity = 2

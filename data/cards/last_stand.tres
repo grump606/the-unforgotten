@@ -39,3 +39,4 @@ target_mode = 2
 anchor = true
 character = &"deserter"
 remembered = SubResource("Rem_block")
+rarity = 2

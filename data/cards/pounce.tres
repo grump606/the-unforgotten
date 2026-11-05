@@ -17,3 +17,4 @@ cost = 2
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1")])
 fading = true
 character = &"stray"
+rarity = 1
