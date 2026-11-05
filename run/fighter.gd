@@ -1,6 +1,6 @@
 class_name Fighter
 extends Control
-## One combatant on the battle stage, seen from the side (Slay the Spire style): the figure standing on
+## One combatant on the battle stage, seen from the side: the figure standing on
 ## the ground line, the enemy's intent floating above its head, an HP bar with Block beneath its feet and
 ## status pills under that. The player stands on the left facing right; enemies face left.
 ##

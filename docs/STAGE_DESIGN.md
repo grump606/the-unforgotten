@@ -2,7 +2,7 @@
 
 > **Naming note (v0.5.0):** the game was reskinned as "The Unforgotten". Enemy and relic display names changed (for example Brakeman = Bellkeeper, Conductor = Eraser, Gate Warden = Threshold Keeper). IDs, files and rules did not. This document still uses the original names; see [`docs/RESKIN.md`](RESKIN.md) for the full map.
 
-The battle screen is a Slay the Spire style stage: the player stands bottom-left facing right, up to three enemies stand on the right facing left, all on one ground line over the painted battle backdrop. The hand, hotkeys and cards are unchanged. It replaced the older HUD panels per enemy (`EnemyView`, now removed).
+The battle screen is a side-view stage: the player stands bottom-left facing right, up to three enemies stand on the right facing left, all on one ground line over the painted battle backdrop. The hand, hotkeys and cards are unchanged. It replaced the older HUD panels per enemy (`EnemyView`, now removed).
 
 ## Layout (`battle.tscn`, `battle.gd`)
 
