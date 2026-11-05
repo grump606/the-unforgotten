@@ -107,9 +107,9 @@ func _test_starter_decks() -> void:
 			if card.character == id:
 				own_cards += 1
 		_check(own_cards >= 1, "%s starter deck holds some class cards" % id)
-		var pool_ids := _ids(StarterContent.reward_pool(id))
+		var pool_ids := _ids(StarterContent.vendor_pool(id))
 		for card in deck:
-			_check(pool_ids.has(String(card.id)), "%s can be offered every card it starts with (%s)" % [id, card.id])
+			_check(pool_ids.has(String(card.id)), "%s can buy every card it starts with (%s)" % [id, card.id])
 		deck.append(deck[0])
 		_check(StarterContent.starter_deck(id).size() == 10, "%s: editing a returned starter deck leaves the next one alone" % id)
 
