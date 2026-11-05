@@ -62,11 +62,11 @@ const PALETTES := {
 ## Primary icon = the first of these that the card has (scaled damage reads before plain damage).
 const ICON_PRIORITY: Array[CardEffect.Kind] = [
 	CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY,
-	CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN, CardEffect.Kind.DAMAGE, CardEffect.Kind.HAUNT, CardEffect.Kind.BLOCK,
+	CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN, CardEffect.Kind.DAMAGE_PER_SCENT, CardEffect.Kind.DAMAGE, CardEffect.Kind.HAUNT, CardEffect.Kind.BLOCK,
 	CardEffect.Kind.THORNS, CardEffect.Kind.EXPOSE, CardEffect.Kind.HOLD, CardEffect.Kind.GAIN_ENERGY,
 	CardEffect.Kind.DRAW, CardEffect.Kind.HEAL_PER_HAUNTED, CardEffect.Kind.LOSE_HP,
 	CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD,
-	CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL,
+	CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL, CardEffect.Kind.SCENT,
 ]
 ## Every kind that _draw_icon has a glyph for (a test walks CardEffect.Kind and fails if one is missing, so a
 ## new kind cannot silently draw nothing).
@@ -76,6 +76,7 @@ const ICON_KINDS: Array[CardEffect.Kind] = [
 	CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.HAUNT, CardEffect.Kind.LOSE_HP, CardEffect.Kind.HEAL_PER_HAUNTED,
 	CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD,
 	CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL, CardEffect.Kind.DAMAGE_PER_FORGOTTEN,
+	CardEffect.Kind.SCENT, CardEffect.Kind.DAMAGE_PER_SCENT,
 ]
 const KIND_COLORS := {
 	CardEffect.Kind.DAMAGE: Color("#d96b65"), CardEffect.Kind.BLOCK: Color("#83b4cf"),
@@ -87,6 +88,7 @@ const KIND_COLORS := {
 	CardEffect.Kind.MALICE: Color(0.84, 0.45, 0.95), CardEffect.Kind.WARD: Color(0.46, 0.62, 1.0),
 	CardEffect.Kind.GLIMPSE: Color(0.55, 0.85, 0.95), CardEffect.Kind.ADD_CARD: Color(0.72, 0.84, 0.60), CardEffect.Kind.RECALL: Color(0.90, 0.78, 0.50),
 	CardEffect.Kind.DAMAGE_PER_FORGOTTEN: Color("#d96b65"),
+	CardEffect.Kind.SCENT: Color(0.62, 0.74, 0.92), CardEffect.Kind.DAMAGE_PER_SCENT: Color("#d96b65"),
 }
 ## Tint of a debuff (a negative Malice or Ward) on a status pill.
 const STATUS_NEGATIVE := Color(0.95, 0.35, 0.35)
@@ -295,7 +297,7 @@ static func secondary_kinds(c: CardData) -> Array[int]:
 	for kind in ICON_PRIORITY:
 		if kind == primary or out.size() >= 3:
 			continue
-		if kind == CardEffect.Kind.DAMAGE and primary in [CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN]:
+		if kind == CardEffect.Kind.DAMAGE and primary in [CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN, CardEffect.Kind.DAMAGE_PER_SCENT]:
 			continue
 		for effect in icon_effects(c):
 			if effect.kind == kind:
@@ -1163,6 +1165,20 @@ func _draw_icon(kind: int, c: Vector2, r: float, window_col: Color, variant := &
 				var o := Vector2(-0.45 + 0.12 * i, 0.55 - 0.2 * i)
 				_fill(_pts([Vector2(-0.6, -0.3), Vector2(0.6, -0.3), Vector2(0.6, 0.3), Vector2(-0.6, 0.3)], c + o * r, r * 0.8, -0.12 + 0.12 * i), Color(0.55, 0.52, 0.62).lightened(0.12 * i))
 			_blade(c + Vector2(0.3, -0.25) * r, r * 0.9, KIND_COLORS[CardEffect.Kind.DAMAGE])
+		CardEffect.Kind.SCENT:
+			_scent_trail(c, r, col)
+		CardEffect.Kind.DAMAGE_PER_SCENT:
+			_scent_trail(c + Vector2(-0.2, 0.2) * r, r * 0.75, KIND_COLORS[CardEffect.Kind.SCENT])
+			_blade(c + Vector2(0.35, -0.25) * r, r * 0.8, KIND_COLORS[CardEffect.Kind.DAMAGE])
+
+
+## A scent trail: three growing drops along a drifting line (placeholder glyph until the card art is designed).
+func _scent_trail(c: Vector2, r: float, col: Color) -> void:
+	var pts := PackedVector2Array([c + Vector2(-0.8, 0.5) * r, c + Vector2(-0.3, 0.1) * r, c + Vector2(0.1, 0.3) * r, c + Vector2(0.55, -0.2) * r])
+	draw_polyline(pts, Color(col, 0.55), 1.5, true)
+	draw_circle(c + Vector2(-0.6, 0.55) * r, r * 0.12, col)
+	draw_circle(c + Vector2(-0.05, 0.2) * r, r * 0.18, col)
+	draw_circle(c + Vector2(0.6, -0.25) * r, r * 0.26, col)
 
 
 static func kind_color(kind: int) -> Color:

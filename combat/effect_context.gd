@@ -12,12 +12,15 @@ var haunt := 0
 var plays := 0
 ## Size of the Forgotten pile.
 var forgotten := 0
+## The target's Scent.
+var scent := 0
 
 
-static func make(source_block: int, target_haunt: int, plays_including_this: int, forgotten_count: int = 0) -> EffectContext:
+static func make(source_block: int, target_haunt: int, plays_including_this: int, forgotten_count: int = 0, target_scent: int = 0) -> EffectContext:
 	var ctx := EffectContext.new()
 	ctx.block = source_block
 	ctx.haunt = target_haunt
 	ctx.plays = plays_including_this
 	ctx.forgotten = forgotten_count
+	ctx.scent = target_scent
 	return ctx

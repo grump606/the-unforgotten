@@ -64,6 +64,9 @@ const TEMPORARY_STACK_VALUE_PER_STACK := 2
 const GLIMPSE_VALUE_PER_CARD := 1
 const RECALL_VALUE_PER_CARD := 3
 const TYPICAL_FORGOTTEN := 2
+## Scent: a point of it is worth about two points of damage over the hits that follow; a spender assumes a stack of 3.
+const SCENT_VALUE_PER_POINT := 2
+const TYPICAL_SCENT := 3
 ## An Oath is worth its effect this many times: about how often a trigger fires in a fight.
 const OATH_FIRINGS := 3
 
@@ -174,6 +177,10 @@ static func _base_effect_value(effect: CardEffect, amount: int) -> int:
 			return amount * RECALL_VALUE_PER_CARD
 		CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
 			return amount * TYPICAL_FORGOTTEN
+		CardEffect.Kind.SCENT:
+			return amount * SCENT_VALUE_PER_POINT
+		CardEffect.Kind.DAMAGE_PER_SCENT:
+			return amount + effect.bonus * TYPICAL_SCENT
 		CardEffect.Kind.ADD_CARD:
 			return amount * _added_card_value(effect.card)
 	return UNVALUED
