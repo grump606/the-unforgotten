@@ -435,6 +435,9 @@ func status_chips() -> Array[Dictionary]:
 	var ward := unit.stacks(Combatant.Status.WARD)
 	if ward != 0:
 		chips.append(_chip(&"ward", ward, "Ward %+d" % ward, CardView.kind_color(CardEffect.Kind.WARD) if ward > 0 else CardView.STATUS_NEGATIVE, "%+d" % ward))
+	var scent := unit.stacks(Combatant.Status.SCENT)
+	if scent > 0:
+		chips.append(_chip(&"scent", scent, "Scent %d" % scent, CardView.kind_color(CardEffect.Kind.SCENT)))
 	if unit.hold > 0:
 		chips.append(_chip(&"hold", unit.hold, "Hold %d" % unit.hold, CardView.kind_color(CardEffect.Kind.HOLD)))
 	if unit.thorns > 0:
