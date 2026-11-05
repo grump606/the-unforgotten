@@ -1,6 +1,6 @@
 # Card mechanics rework: plan
 
-Status: phases 1 to 4 are built; phase 5a (Remembered upgrades), 5b (Omens), 5c (relics) and 5d (bots and balance) are built. Phase 6a (the Oath engine) and 6b (the six Oath cards and their display) are built. Lives on the `thief-rework` branch.
+Status: phases 1 to 4 are built; phase 5a (Remembered upgrades), 5b (Omens), 5c (relics) and 5d (bots and balance) are built. Phase 6a (the Oath engine) 6b (the six Oath cards and their display) and 6c (bots and balance) are built. Lives on the `thief-rework` branch.
 
 Reference: the Slay the Spire wiki (Mechanics, Keywords, Energy, Intent pages). Those pages are thin and
 marked "under construction", and give no numbers for Weak, Vulnerable or Strength. The numbers below are
@@ -533,7 +533,7 @@ those numbers remain barely tested by the smart sim. Greedy has no Forgotten-cos
 5a first (largest: engine, save migration, UI, tests), then 5b and 5c in parallel (different files), then 5d.
 Each is its own PR into `thief-rework`. No version bump or release.
 
-## Phase 6 plan: Oaths (6a and 6b built; 6c not started)
+## Phase 6 plan: Oaths (6a, 6b and 6c built)
 
 An Oath is a card you play once; it is then Sworn for the rest of the fight and keeps working (the Slay the
 Spire Power). Proposed rules, all open to change:
@@ -571,6 +571,30 @@ Spire Power). Proposed rules, all open to change:
   strip by the player). Icons read an Oath's lasting effects. Vendor value counts oath effects three times
   (`OATH_FIRINGS`); the smart bot's deck score counts them `TYPICAL_REMAINING_TURNS + 1` times. None of the
   six has a Remembered upgrade yet. In-fight bot play of Oaths (when to swear one) is 6c.
+- **As built in 6c (bots and balance):** the greedy bot swears an Oath on turns 1 and 2 only, before other
+  cards, never a second copy of one it has Sworn, and judges it by its lasting effect rather than its play cost
+  (`SimPolicy.oath_worth_swearing`). The smart bot adds an Oath's value to its play value: one firing of the
+  oath effects times the turns left (`SmartPolicy.oath_turns_left`: 3, 2, 1, then 0 from turn 4) times a
+  trigger share (every turn 1.0, a Forgotten card 0.5, a kept Anchor card 0.3). Deck scoring uses the same
+  shares and a 0.6 discount (`OATH_DECK_DISCOUNT`). Without this the smart bot took Oaths into 77% of Thief and
+  Deserter decks and never played them (Deserter smart 23%, Thief smart 41%). Card numbers changed after the
+  sim: Light Step lose 2 HP and Draw 1 plus Glimpse 2; Quick Hands Malice +2; Unbroken Vow adds Block 2;
+  Standing Guard lose 2 HP and Hold 5; Open Grave lose 2 HP and 4 damage per Forgotten card.
+  Escapes of 300, seed 1 (`run_sim.gd --runs 300 --seed 1`), tree before any Oath card, then now:
+
+  | Class | Policy | Before Oaths | With Oaths, first bots | With Oaths, final |
+  |---|---|---|---|---|
+  | Deserter | greedy | 133 (44.3%) | 109 (36.3%) | 127 (42.3%) |
+  | Thief | greedy | 100 (33.3%) | 72 (24.0%) | 86 (28.7%) |
+  | Medium | greedy | 13 (4.3%) | 14 (4.7%) | 17 (5.7%) |
+  | Deserter | smart | 126 (42.0%) | 69 (23.0%) | 163 (54.3%) |
+  | Thief | smart | 160 (53.3%) | 122 (40.7%) | 156 (52.0%) |
+  | Medium | smart | 171 (57.0%) | 187 (62.3%) | 187 (62.3%) |
+
+  Weak spots: the smart Deserter gained 12 points (the Oaths may be too strong for it; check another seed
+  before trimming), Thief greedy is 5 points down, and the smart bot never takes the Medium's two Oaths
+  (Open Grave needs Forgotten cards the Medium deck rarely has in numbers). Medium greedy stays far below the
+  floor, as before. No Oath has a Remembered upgrade yet.
 - **Display and text:** keyword line "Oath: stays for the fight"; the card frame gets a distinct border.
 - **Bots:** sim policies value an Oath as its per-turn effect times expected remaining turns.
 - **Sub-phases:** 6a engine, piles, save-safe (decks unchanged); 6b the six cards, UI strip and text; 6c bots

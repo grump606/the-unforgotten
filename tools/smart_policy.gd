@@ -68,6 +68,17 @@ const TYPICAL_SURGE_ENERGY := 2
 const FADING_URGENCY := 2.0
 ## Player turns still to come in a fight when a Malice / Ward stack that lasts the fight is played now.
 const TYPICAL_REMAINING_TURNS := 3
+## How often an Oath's trigger fires, as a share of the turns left: every turn for TURN_START and FIRST_PLAY,
+## about every other turn for a Forgotten card, about one turn in three for a kept Anchor card.
+## An Oath scores less in a deck than its effects add up to: it spends a turn's energy before it pays back, and
+## its Dread or HP cost drags on every later draw.
+const OATH_DECK_DISCOUNT := 0.6
+const OATH_FIRING_SHARE := {
+	CardData.OathTrigger.TURN_START: 1.0,
+	CardData.OathTrigger.FIRST_PLAY: 1.0,
+	CardData.OathTrigger.ON_FORGOTTEN: 0.5,
+	CardData.OathTrigger.ANCHOR_KEPT: 0.3,
+}
 ## Damage hits (and Block effects) the player lands per turn, for the same estimate.
 const TYPICAL_HITS_PER_TURN := 2
 ## Value per extra damage point of Malice, per Block point of Ward (half a useful Block point: it can be wasted).
@@ -330,7 +341,26 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 				value += _recall_value(combat, effect, energy_left)
 			CardEffect.Kind.ADD_CARD:
 				value += _added_value(combat, effect, energy_left)
+	if card.oath:
+		value += _oath_value(combat, card)
 	return value
+
+
+## Turns an Oath sworn now will still act on: it first fires on the next turn, so the turns left in a typical
+## fight (TYPICAL_REMAINING_TURNS + 1 on turn 1, one fewer each turn) minus this one, never below 0.
+static func oath_turns_left(combat: Combat) -> int:
+	return maxi(TYPICAL_REMAINING_TURNS + 2 - combat.turn, 1) - 1
+
+
+## Value of swearing `card` now: one firing of its oath effects (scored like a deck card's effects, so Block,
+## Malice, Haunt, Glimpse and HP loss all count) times the firings left in the fight.
+static func _oath_value(combat: Combat, card: CardData) -> float:
+	var weights := _combat_weights(combat)
+	var forgotten: int = weights.get("forgotten", TYPICAL_FORGOTTEN)
+	var once := 0.0
+	for effect in card.oath_effects:
+		once += _effect_score(card, effect, weights, forgotten, 0)
+	return once * oath_turns_left(combat) * float(OATH_FIRING_SHARE[card.oath_trigger])
 
 
 ## Value of a Glimpse: GLIMPSE_JUNK_VALUE for each of the top cards of the draw pile (up to the effect's
@@ -725,7 +755,7 @@ static func card_score(card: CardData, weights: Dictionary, depth: int = 0) -> f
 	# An Oath's effects keep firing for the rest of the fight: a typical number of turns' worth.
 	if card.oath:
 		for effect in card.oath_effects:
-			total += _effect_score(card, effect, weights, forgotten, depth) * (TYPICAL_REMAINING_TURNS + 1)
+			total += _effect_score(card, effect, weights, forgotten, depth) * (TYPICAL_REMAINING_TURNS + 1) * float(OATH_FIRING_SHARE[card.oath_trigger]) * OATH_DECK_DISCOUNT
 	# A Surge spends all its energy, so it is divided by a typical amount rather than its cost of 0.
 	return total / ((TYPICAL_SURGE_ENERGY if card.surge else card.cost) + 1)
 
