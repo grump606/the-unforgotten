@@ -1,6 +1,6 @@
 # Card mechanics rework: plan
 
-Status: planning only. Nothing here is implemented. Lives on the `thief-rework` branch.
+Status: phases 1 to 4 are built; phase 5a (Remembered upgrades) is built, 5b to 5d are planned. Lives on the `thief-rework` branch.
 
 Reference: the Slay the Spire wiki (Mechanics, Keywords, Energy, Intent pages). Those pages are thin and
 marked "under construction", and give no numbers for Weak, Vulnerable or Strength. The numbers below are
@@ -84,7 +84,7 @@ Each phase is its own PR into `thief-rework`, reviewed and run through `scripts/
 3. **Deck cycling.** Glimpse, add-a-card effects, Dormant cards enemies shuffle in.
 4. **Retune the 35 cards** to the keywords, with Thief, Deserter and Medium hooks. Card ids stay the same,
    so saves are unaffected.
-5. **Remembered upgrades.** A run save version bump with migration, the rest-site UI, card art for upgraded
+5. **Remembered upgrades (5a done).** A run save version bump with migration, the rest-site UI, card art for upgraded
    cards if wanted. Also enemy Omens (intents that apply Shaken or Frayed, gain Malice, hit several times,
    add cards), the Omen display, and the sim/balance tools (`tools/sim_policy.gd`, `smart_policy.gd`).
 6. **Later, not now:** Oaths.
@@ -389,11 +389,11 @@ Relics and enemy content are out of scope here (phase 5).
 
 ## Phase 5 detail
 
-Where things stand: a rest stop heals to full and moves on (`RunState.rest()`); saves are version 3 and store
+Where things stand: a rest stop heals to full and moves on (`RunState.rest()`); saves are version 3 (version 4 after 5a) and store
 the deck as a list of card ids; enemies only use Deal, Block and Expose (the Conductor and Brakeman add a
 second phase); relic text still says "Thorns" (`barbed_greatcoat.tres`), a missed display rename.
 
-### 5a. Remembered upgrades (engine, save, rest site)
+### 5a. Remembered upgrades (engine, save, rest site) - done
 
 - A card gets an optional `remembered` block on `CardData`: a replacement effect list and optionally a cost
   and keyword changes. One file per card, no second id, so rewards, vendor prices and pools stay as they are.
@@ -407,6 +407,51 @@ second phase); relic text still says "Thorns" (`barbed_greatcoat.tres`), a misse
 - Vendor: removing or buying is unchanged; the price table adds a fixed bonus for a Remembered copy.
 - Starts with the ten cards worth it most (two per class signature card, plus neutrals), not all 42; the rest
   follow once a playtest says which matter.
+
+**5a status: done.** What shipped:
+
+- `CardData.remembered` is a `RememberedData` block (`combat/remembered_data.gd`): replacement `effects`, an
+  optional `cost` (-1 keeps it) and `gain_keywords` / `lose_keywords`. All new fields are appended; no
+  CardEffect kind changed.
+- **Representation:** `RunState.deck` stays `Array[CardData]`. A Remembered card is a runtime variant built
+  once per base card by `CardData.remembered_card()`: same `id`, name plus `+`, the block's effects, cost and
+  keywords, flagged `is_remembered` with `base_card` pointing back. Because the id is shared, art, vendor
+  prices, reward copy counts and pools work unchanged, and Combat, the pile viewer, card view and the sim
+  tools needed no change (they only read `CardData` fields). Rewards and the vendor only ever hand out base
+  cards; the variant exists only in the deck. `can_remember()` and `base()` are the helpers.
+- **Save:** VERSION 4, MIN_VERSION 2. A Remembered deck entry is `"id+"`; `migrate()` takes v3 as is. A `+` on
+  a card with no block, on an unknown card or doubled is rejected.
+- **Rest stop:** `RunState.remember(deck_index)` (and `rememberable_indices()`) alongside `rest()`. The rest
+  screen has the existing "Follow the voice" button (Rest: heal to full) and a "Remember a card (no heal)"
+  button that opens the deck picker (`add_remove_picker`, now with an `only` filter) limited to rememberable
+  cards, with Cancel. The Remember button is disabled when nothing can be Remembered.
+- **Display:** name with `+`, gold title (bright gold on dark banners, deep gold on the paper banner), text
+  from the upgraded effects.
+- **Vendor:** unchanged. Removal is by deck position; a Remembered copy is removed like any other. The golden
+  price table is unchanged because vendor stock never contains a Remembered card.
+
+Cards with a Remembered form (eleven):
+
+| Class | Card | Today | Remembered |
+|---|---|---|---|
+| Neutral | Shove | 1, Deal 6 | Deal 8 |
+| Neutral | Glimpse the Exit | 0, Glimpse 3, Draw 1 | Glimpse 3, Draw 2 |
+| Thief | Light Fingers | 0, Expose 1, Ready | Expose 2 |
+| Thief | Find the Seam | 1, Expose 2, Shaken 1 | adds Ready |
+| Thief | Many Hands | 2, Deal 3 x3 | Deal 4 x3 |
+| Deserter | Heavy Blow | 2, Deal 16, Forgotten | Deal 19 |
+| Deserter | Iron Resolve | 2, Block 6, Ward +1 | Block 9, Ward +1 |
+| Deserter | Last Stand | 3, Block 12, Hold 10, Anchor | cost 2 |
+| Medium | Cold Whisper | 0, Haunt 2 | Haunt 3 |
+| Medium | Bleed the Veil | 2, lose 6 HP, Haunt 6 all, Forgotten | Haunt 7 all |
+| Medium | Seance | 1, lose 3 HP, Draw 3, +1 energy, Forgotten | lose 2 HP |
+
+Why these: they are the cards each class leans on most (the signature of each, plus the two neutrals that sit
+in every starter deck), so the choice at a rest stop is real. Each upgrade is one small step (a few damage,
+one more Expose or Haunt, one less cost, Ready for a seam-opener) and never changes what the card is; Bleed
+the Veil is held to Haunt 7 because 8 was the number the Medium balance pass already rejected. `tests/
+remembered_tests.gd` checks every shipped block (same id, changes something, modest value gain, no Fading with
+Anchor, at least two per class and two neutrals). The bots do not take Remember yet (5d).
 
 ### 5b. Enemy Omens
 
