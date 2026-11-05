@@ -642,6 +642,18 @@ func _draw_stand_in(tint: Color) -> void:
 			pass
 
 
+## The short text beside the Omen badge: the amount (signed for Malice and Ward, "3x3" for a multi-hit
+## attack) or, for a card an enemy adds, the card's name ("Dread"), so the exact effect is readable.
+static func omen_text(intent: CardEffect) -> String:
+	if intent.kind in [CardEffect.Kind.MALICE, CardEffect.Kind.WARD]:
+		return "%+d" % intent.amount
+	if intent.kind == CardEffect.Kind.ADD_CARD and intent.card != null:
+		return intent.card.display_name if intent.amount <= 1 else "%dx %s" % [intent.amount, intent.card.display_name]
+	if intent.is_damage() and intent.hits > 1:
+		return "%dx%d" % [intent.amount, intent.hits]
+	return str(intent.amount)
+
+
 ## The intent floating above the head: a round badge with the action's icon and its amount beside it.
 ## (The full description is in the figure's tooltip.)
 func _draw_intent(a: float) -> void:
@@ -653,11 +665,7 @@ func _draw_intent(a: float) -> void:
 	if intent.kind in [CardEffect.Kind.MALICE, CardEffect.Kind.WARD] and intent.amount < 0:
 		col = CardView.STATUS_NEGATIVE
 	var c := intent_center()
-	var number := str(intent.amount)
-	if intent.kind in [CardEffect.Kind.MALICE, CardEffect.Kind.WARD]:
-		number = "%+d" % intent.amount
-	elif intent.is_damage() and intent.hits > 1:
-		number = "%dx%d" % [intent.amount, intent.hits]
+	var number := omen_text(intent)
 	var nw := ThemeDB.fallback_font.get_string_size(number, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
 	var total := 30.0 + 5.0 + nw
 	var cx := c.x - total / 2.0 + 15.0

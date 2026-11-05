@@ -101,7 +101,7 @@ func _test_small_enemies_in_trios() -> void:
 	var hound := StarterContent._load_enemy(StarterContent.CINDER_HOUND_PATH)
 	var crow := StarterContent._load_enemy(StarterContent.MOURNING_CROW_PATH)
 	if hound != null and crow != null:
-		_check(hound.max_hp != crow.max_hp and hound.intents.size() != crow.intents.size(), "new enemies are distinct")
+		_check(hound.max_hp != crow.max_hp and hound.intents[2].kind != crow.intents[2].kind, "new enemies are distinct")
 		_check(hound.max_hp >= 16 and hound.max_hp <= 24 and crow.max_hp >= 16 and crow.max_hp <= 24, "new enemies are small")
 
 
@@ -226,7 +226,7 @@ func _test_mid_boss_encounter() -> void:
 	var kinds := {}
 	for intent in mid[0].intents:
 		kinds[intent.kind] = true
-	_check(kinds.has(CardEffect.Kind.DAMAGE) and kinds.has(CardEffect.Kind.BLOCK) and kinds.has(CardEffect.Kind.EXPOSE), "the Brakeman mixes attacks, block and a status")
+	_check(kinds.has(CardEffect.Kind.DAMAGE) and kinds.has(CardEffect.Kind.BLOCK) and kinds.has(CardEffect.Kind.ADD_CARD), "the Brakeman mixes attacks, block and a status")
 	var pool_names := []
 	for enemy in StarterContent.enemy_pool():
 		pool_names.append(enemy.id)

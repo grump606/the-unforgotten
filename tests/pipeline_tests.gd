@@ -27,6 +27,7 @@ func run() -> int:
 	_test_intent_malice()
 	_test_enemy_pipeline()
 	_test_temp_stack_expiry()
+	_test_shipped_enemy_omens()
 	return _failures
 
 
@@ -487,3 +488,65 @@ func _test_temp_stack_expiry() -> void:
 	_check(c2.enemies[0].stacks(S.MALICE) == 3, "an enemy's temporary Malice is on during the player's turn")
 	c2.end_player_turn()
 	_check(c2.player.hp == 100 - 5 and c2.enemies[0].stacks(S.MALICE) == 0, "and is gone before the enemy's next action (the hit is a plain 5)")
+
+
+func _shipped(id: StringName) -> EnemyData:
+	return StarterContent.enemy_by_id(id)
+
+
+func _kinds(intents: Array[CardEffect]) -> Array:
+	var kinds := []
+	for intent in intents:
+		kinds.append(intent.kind)
+	return kinds
+
+
+## Phase 5b: the shipped enemies use Shaken, Frayed, Malice, multi-hit and Dormant cards.
+func _test_shipped_enemy_omens() -> void:
+	for id in [&"pale_whisperer", &"lost_shade"]:
+		_check(K.SHAKEN in _kinds(_shipped(id).intents), "%s shakes the player" % id)
+	for id in [&"gate_warden", &"hollow_colossus"]:
+		_check(K.FRAYED in _kinds(_shipped(id).intents), "%s frays the player" % id)
+	_check(K.MALICE in _kinds(_shipped(&"cinder_hound").intents), "the Ash Hound gains Malice")
+	_check(K.MALICE in _kinds(_shipped(&"the_conductor").phase_two_intents), "the Eraser gains Malice in phase two")
+	_check(K.ADD_CARD in _kinds(_shipped(&"mourning_crow").intents) and K.ADD_CARD in _kinds(_shipped(&"the_brakeman").intents), "the Crow and the Bellkeeper shuffle cards in")
+	var multi := false
+	for intent in _shipped(&"the_conductor").intents:
+		multi = multi or (intent.kind == K.DAMAGE and intent.hits == 3)
+	_check(multi, "the Eraser has a 3-hit attack")
+	# Real enemies resolve through Combat: the Husher shakes the player on its first move.
+	var husher := Combat.new(Combatant.new("p", 100), [_card(0, [_fx(K.BLOCK, 1)], CardData.TargetMode.SELF)] as Array[CardData], [_shipped(&"pale_whisperer")] as Array[EnemyData], 0)
+	husher.start()
+	husher.end_player_turn()
+	_check(husher.player.status_turns(S.SHAKEN) == 2, "the Husher's Omen leaves the player Shaken 2")
+	# The Threshold Keeper's Frayed lands and cuts Block.
+	var warden := Combat.new(Combatant.new("p", 100), [_card(0, [_fx(K.BLOCK, 8)], CardData.TargetMode.SELF)] as Array[CardData], [_shipped(&"gate_warden")] as Array[EnemyData], 0)
+	warden.start()
+	warden.end_player_turn()
+	warden.end_player_turn()
+	_check(warden.player.status_turns(S.FRAYED) == 2, "the Keeper's Omen leaves the player Frayed 2")
+	_play(warden, warden.piles.hand[0])
+	_check(warden.player.block == 6, "Frayed cuts the player's 8 Block to 6")
+	# The Eraser's 3-hit attack: three separate hits, each reduced by Block and each paying Barbs.
+	var triple: Array[CardEffect] = [_fx(K.DAMAGE, 6, 0, 0, 3)]
+	var tri := _fight([_card(0, [_fx(K.BLOCK, 7), _fx(K.THORNS, 2)], CardData.TargetMode.SELF)], triple)
+	_play(tri, tri.piles.hand[0])
+	tri.end_player_turn()
+	_check(tri.player.hp == 100 - 11 and tri.enemies[0].hp == 100 - 6, "a 3 x 6 enemy attack into 7 Block loses 11 HP (hp %d), with 3 Barbs hits (enemy hp %d)" % [tri.player.hp, tri.enemies[0].hp])
+	# An enemy's Malice makes every hit of its multi-hit stronger.
+	var growth: Array[CardEffect] = [_fx(K.MALICE, 1), _fx(K.DAMAGE, 5, 0, 0, 3)]
+	var grow := _fight([_card(0, [_fx(K.BLOCK, 1)], CardData.TargetMode.SELF)], growth)
+	grow.end_player_turn()
+	grow.end_player_turn()
+	_check(grow.player.hp == 100 - 18, "an enemy with Malice +1 hits 3 x 6 (hp %d)" % grow.player.hp)
+	# A shipped Dread arrives in the draw pile, Dormant, and cannot be played.
+	var crow := Combat.new(Combatant.new("p", 100), [_card(0, [_fx(K.BLOCK, 1)], CardData.TargetMode.SELF)] as Array[CardData], [_shipped(&"mourning_crow")] as Array[EnemyData], 0)
+	crow.start()
+	for _t in 3:
+		crow.end_player_turn()
+	var murmur: CardData = null
+	for card in crow.piles.hand:
+		if card.id == &"murmur":
+			murmur = card
+	_check(murmur != null and murmur.dormant, "the Crow's Murmur was shuffled in and drawn, and is Dormant")
+	_check(murmur != null and not crow.play_card(crow.piles.hand.find(murmur), 0), "a Dormant Murmur cannot be played")
