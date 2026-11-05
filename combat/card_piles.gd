@@ -9,6 +9,9 @@ var discard_pile: Array[CardData] = []
 ## Cards removed for the rest of the fight (Forgotten). The deck is never modified, so they are
 ## back next fight.
 var forgotten: Array[CardData] = []
+## Oaths played this fight (Sworn), in the order they were sworn. They stay for the fight and, like the
+## Forgotten pile, are back in the deck next fight. Sworn twice, a card is listed twice and fires twice.
+var sworn: Array[CardData] = []
 
 var _rng: RandomNumberGenerator
 
@@ -52,12 +55,14 @@ func draw_ready(hand_limit: int) -> int:
 	return moved
 
 
-## Moves the card at `hand_index` to the discard pile (or the Forgotten pile for a Forgotten card)
-## and returns it.
+## Moves the card at `hand_index` to the discard pile (the Forgotten pile for a Forgotten card, the Sworn
+## list for an Oath) and returns it.
 func play(hand_index: int) -> CardData:
 	var card: CardData = hand[hand_index]
 	hand.remove_at(hand_index)
-	if card.forgotten:
+	if card.oath:
+		sworn.append(card)
+	elif card.forgotten:
 		forgotten.append(card)
 	else:
 		discard_pile.append(card)
