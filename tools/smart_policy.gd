@@ -721,43 +721,53 @@ static func card_score(card: CardData, weights: Dictionary, depth: int = 0) -> f
 	var total := 0.0
 	var forgotten: int = weights.get("forgotten", TYPICAL_FORGOTTEN)
 	for effect in card.effects:
-		var nominal := _nominal_damage(effect, forgotten)
-		if nominal > 0.0:
-			var spread := 1.3 if card.target_mode == CardData.TargetMode.ALL_ENEMIES else 1.0
-			total += nominal * weights["damage"] * spread
-			continue
-		var amount := effect.amount
-		if effect.per_energy:
-			amount *= TYPICAL_SURGE_ENERGY
-		match effect.kind:
-			CardEffect.Kind.BLOCK:
-				total += amount * weights["block"]
-			CardEffect.Kind.DRAW:
-				total += amount * DRAW_VALUE
-			CardEffect.Kind.EXPOSE:
-				total += amount * EXPOSE_VALUE
-			CardEffect.Kind.HOLD:
-				total += amount * 0.8
-			CardEffect.Kind.THORNS:
-				total += amount * 1.5
-			CardEffect.Kind.GAIN_ENERGY:
-				total += amount * 3.0
-			CardEffect.Kind.LOSE_HP:
-				total -= amount * 1.3
-			CardEffect.Kind.HEAL_PER_HAUNTED:
-				total += amount * HEAL_VALUE
-			CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
-				total += _stack_score(card, effect, weights)
-			CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
-				total += _debuff_score(card, effect)
-			CardEffect.Kind.GLIMPSE:
-				total += amount * GLIMPSE_SCORE_PER_CARD
-			CardEffect.Kind.RECALL:
-				total += amount * float(weights.get("recall", RECALL_SCORE_PER_CARD))
-			CardEffect.Kind.ADD_CARD:
-				total += _added_score(effect, weights, depth)
+		total += _effect_score(card, effect, weights, forgotten, depth)
+	# An Oath's effects keep firing for the rest of the fight: a typical number of turns' worth.
+	if card.oath:
+		for effect in card.oath_effects:
+			total += _effect_score(card, effect, weights, forgotten, depth) * (TYPICAL_REMAINING_TURNS + 1)
 	# A Surge spends all its energy, so it is divided by a typical amount rather than its cost of 0.
 	return total / ((TYPICAL_SURGE_ENERGY if card.surge else card.cost) + 1)
+
+
+## Deck-scoring value of one effect of `card` (before the card's cost divides the total).
+static func _effect_score(card: CardData, effect: CardEffect, weights: Dictionary, forgotten: int, depth: int) -> float:
+	var total := 0.0
+	var nominal := _nominal_damage(effect, forgotten)
+	if nominal > 0.0:
+		var spread := 1.3 if card.target_mode == CardData.TargetMode.ALL_ENEMIES else 1.0
+		return nominal * weights["damage"] * spread
+	var amount := effect.amount
+	if effect.per_energy:
+		amount *= TYPICAL_SURGE_ENERGY
+	match effect.kind:
+		CardEffect.Kind.BLOCK:
+			total += amount * weights["block"]
+		CardEffect.Kind.DRAW:
+			total += amount * DRAW_VALUE
+		CardEffect.Kind.EXPOSE:
+			total += amount * EXPOSE_VALUE
+		CardEffect.Kind.HOLD:
+			total += amount * 0.8
+		CardEffect.Kind.THORNS:
+			total += amount * 1.5
+		CardEffect.Kind.GAIN_ENERGY:
+			total += amount * 3.0
+		CardEffect.Kind.LOSE_HP:
+			total -= amount * 1.3
+		CardEffect.Kind.HEAL_PER_HAUNTED:
+			total += amount * HEAL_VALUE
+		CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
+			total += _stack_score(card, effect, weights)
+		CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
+			total += _debuff_score(card, effect)
+		CardEffect.Kind.GLIMPSE:
+			total += amount * GLIMPSE_SCORE_PER_CARD
+		CardEffect.Kind.RECALL:
+			total += amount * float(weights.get("recall", RECALL_SCORE_PER_CARD))
+		CardEffect.Kind.ADD_CARD:
+			total += _added_score(effect, weights, depth)
+	return total
 
 
 ## Deck-scoring value of an Add card effect: a Dormant card is a cost, any other card a share of its

@@ -160,7 +160,7 @@ func _ready() -> void:
 	_left_box.add_theme_constant_override("separation", 2)
 	_pile_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	_pile_label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	_pile_label.tooltip_text = "Click Draw, Discard or Forgotten to look at that pile"
+	_pile_label.tooltip_text = "Click Draw, Discard, Forgotten or Sworn to look at that pile"
 	_pile_label.gui_input.connect(_on_pile_label_input)
 	_pile_label.mouse_entered.connect(_set_pile_hover.bind(true))
 	_pile_label.mouse_exited.connect(_set_pile_hover.bind(false))
@@ -1285,5 +1285,5 @@ func set_journey(stop_title: String, journey: String, character_title: String, d
 
 
 func _pile_text() -> String:
-	var text := "Draw %d\nDiscard %d\nForgotten %d" % [_combat.piles.draw_pile.size(), _combat.piles.discard_pile.size(), _combat.piles.forgotten.size()]
+	var text := "Draw %d\nDiscard %d\nForgotten %d\nSworn %d" % [_combat.piles.draw_pile.size(), _combat.piles.discard_pile.size(), _combat.piles.forgotten.size(), _combat.piles.sworn.size()]
 	return text + "\nDeck %d" % _deck_size if _deck_size >= 0 else text
