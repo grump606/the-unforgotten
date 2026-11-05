@@ -627,7 +627,7 @@ func _check_statuses(node: Control) -> void:
 	enemy.clear_statuses()
 	var enemy_intent := enemy.current_intent()
 	if enemy_intent != null and enemy_intent.kind == CardEffect.Kind.DAMAGE:
-		enemy.apply_status(Combatant.Status.MALICE, 4)
+		enemy.apply_status(Combatant.Status.MALICE, 6)
 		enemy.apply_status(Combatant.Status.SHAKEN, 2)
 		node._refresh()
 		var want := Combatant.hit_damage(enemy_intent.amount, enemy, c.player)
