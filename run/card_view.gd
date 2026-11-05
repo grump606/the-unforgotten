@@ -228,10 +228,20 @@ static func is_status_card(c: CardData) -> bool:
 	return c != null and c.dormant and c.effects.is_empty()
 
 
+## The effects whose kinds the icons show: the card's own, plus an Oath's lasting effects.
+static func icon_effects(c: CardData) -> Array[CardEffect]:
+	if not c.oath or c.oath_effects.is_empty():
+		return c.effects
+	var all: Array[CardEffect] = []
+	all.append_array(c.oath_effects)
+	all.append_array(c.effects)
+	return all
+
+
 ## The effect kind whose icon leads the card, or -1 for a card with no effects.
 static func primary_kind(c: CardData) -> int:
 	for kind in ICON_PRIORITY:
-		for effect in c.effects:
+		for effect in icon_effects(c):
 			if effect.kind == kind:
 				return kind
 	return -1
@@ -252,7 +262,7 @@ static func icon_variant(c: CardData) -> StringName:
 	if primary_kind(c) == CardEffect.Kind.DAMAGE_PER_BLOCK:
 		return &"hammer"
 	var total := 0
-	for effect in c.effects:
+	for effect in icon_effects(c):
 		if effect.kind == CardEffect.Kind.DAMAGE:
 			total += effect.amount
 	if total <= 0 or primary_kind(c) != CardEffect.Kind.DAMAGE:
@@ -281,7 +291,7 @@ static func secondary_kinds(c: CardData) -> Array[int]:
 			continue
 		if kind == CardEffect.Kind.DAMAGE and primary in [CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN]:
 			continue
-		for effect in c.effects:
+		for effect in icon_effects(c):
 			if effect.kind == kind:
 				out.append(kind)
 				break
@@ -423,6 +433,10 @@ func _draw() -> void:
 	_draw_class_frame(p)
 	if card.fading:
 		_dashed_rect(Rect2(1.5, 1.5, BASE.x - 3, BASE.y - 3), Color(1, 1, 1, 0.75))
+	if card.oath:
+		# An Oath wears a gold double rule round the stock, so it reads as a vow that stays.
+		_box(Rect2(2, 2, BASE.x - 4, BASE.y - 4), Color(0, 0, 0, 0), 7, 2, SELECT_GOLD)
+		_box(Rect2(5.5, 5.5, BASE.x - 11, BASE.y - 11), Color(0, 0, 0, 0), 4, 1, Color(SELECT_GOLD, 0.6))
 
 	# Header: price stamp, class label, emblem.
 	var header := Rect2(8, 6, BASE.x - 16, 24)

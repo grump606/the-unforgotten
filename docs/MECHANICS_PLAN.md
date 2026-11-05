@@ -1,6 +1,6 @@
 # Card mechanics rework: plan
 
-Status: phases 1 to 4 are built; phase 5a (Remembered upgrades), 5b (Omens), 5c (relics) and 5d (bots and balance) are built. Phase 6a (the Oath engine) is built. Lives on the `thief-rework` branch.
+Status: phases 1 to 4 are built; phase 5a (Remembered upgrades), 5b (Omens), 5c (relics) and 5d (bots and balance) are built. Phase 6a (the Oath engine) and 6b (the six Oath cards and their display) are built. Lives on the `thief-rework` branch.
 
 Reference: the Slay the Spire wiki (Mechanics, Keywords, Energy, Intent pages). Those pages are thin and
 marked "under construction", and give no numbers for Weak, Vulnerable or Strength. The numbers below are
@@ -533,7 +533,7 @@ those numbers remain barely tested by the smart sim. Greedy has no Forgotten-cos
 5a first (largest: engine, save migration, UI, tests), then 5b and 5c in parallel (different files), then 5d.
 Each is its own PR into `thief-rework`. No version bump or release.
 
-## Phase 6 plan: Oaths (6a built; 6b and 6c not started)
+## Phase 6 plan: Oaths (6a and 6b built; 6c not started)
 
 An Oath is a card you play once; it is then Sworn for the rest of the fight and keeps working (the Slay the
 Spire Power). Proposed rules, all open to change:
@@ -561,6 +561,16 @@ Spire Power). Proposed rules, all open to change:
   or Recall fired at end of turn opens at the next turn start. `RememberedData.oath_effects` can replace the
   oath effects on a Remembered Oath. `is_valid_oath()` rejects Dormant, Fading and empty Oaths.
   Tests: `tests/oath_tests.gd`. No card uses it yet, so play is unchanged.
+- **As built in 6b:** six Oaths, provisional numbers. Thief: *Quick Hands* (1, adds a Dread to the draw pile;
+  first card each turn: Draw 1, Malice +1 this turn), *Light Step* (1, lose 3 HP; turn start: Glimpse 2).
+  Deserter: *Unbroken Vow* (2, adds a Dread; turn start: Ward +1), *Standing Guard* (1, lose 3 HP; turn start:
+  Hold 4; the Deserter has too few Anchor cards for the planned Anchor trigger). Medium: *Open Grave* (2, lose
+  4 HP; a card Forgotten: 2 to all enemies), *Quiet Debt* (1; turn start: Haunt 2 to all, lose 1 HP). The
+  Stray's two come with the Stray. Display: a gold double border and an "Oath" keyword line on the card, a
+  "Sworn" line in the pile label and a Sworn tab in the pile viewer (a card-list view rather than a separate
+  strip by the player). Icons read an Oath's lasting effects. Vendor value counts oath effects three times
+  (`OATH_FIRINGS`); the smart bot's deck score counts them `TYPICAL_REMAINING_TURNS + 1` times. None of the
+  six has a Remembered upgrade yet. In-fight bot play of Oaths (when to swear one) is 6c.
 - **Display and text:** keyword line "Oath: stays for the fight"; the card frame gets a distinct border.
 - **Bots:** sim policies value an Oath as its per-turn effect times expected remaining turns.
 - **Sub-phases:** 6a engine, piles, save-safe (decks unchanged); 6b the six cards, UI strip and text; 6c bots

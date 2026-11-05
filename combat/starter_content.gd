@@ -51,6 +51,13 @@ const RECKONING_PATH := "res://data/cards/reckoning.tres"
 const REMEMBER_PATH := "res://data/cards/remember.tres"
 const CHORUS_OF_THE_LOST_PATH := "res://data/cards/chorus_of_the_lost.tres"
 const HOLLOW_BARGAIN_PATH := "res://data/cards/hollow_bargain.tres"
+# Phase 6b: Oaths (two per class; the Stray's come with the Stray).
+const QUICK_HANDS_PATH := "res://data/cards/quick_hands.tres"
+const LIGHT_STEP_PATH := "res://data/cards/light_step.tres"
+const UNBROKEN_VOW_PATH := "res://data/cards/unbroken_vow.tres"
+const STANDING_GUARD_PATH := "res://data/cards/standing_guard.tres"
+const OPEN_GRAVE_PATH := "res://data/cards/open_grave.tres"
+const QUIET_DEBT_PATH := "res://data/cards/quiet_debt.tres"
 const CINDER_HOUND_PATH := "res://data/enemies/cinder_hound.tres"
 const MOURNING_CROW_PATH := "res://data/enemies/mourning_crow.tres"
 const WISP_PATH := "res://data/enemies/skittering_wisp.tres"
@@ -80,6 +87,8 @@ const ALL_CARD_PATHS: Array[String] = [
 	DIG_DEEP_PATH,
 	# Phase 4d: Medium
 	REMEMBER_PATH, CHORUS_OF_THE_LOST_PATH, HOLLOW_BARGAIN_PATH,
+	# Phase 6b: Oaths
+	QUICK_HANDS_PATH, LIGHT_STEP_PATH, UNBROKEN_VOW_PATH, STANDING_GUARD_PATH, OPEN_GRAVE_PATH, QUIET_DEBT_PATH,
 ]
 ## Status cards: Dormant cards that enemies add to the player's piles mid-fight (Dread: Dormant; Murmur:
 ## Dormant and Fading). An explicit id -> path table, kept OUT of ALL_CARD_PATHS, the reward pools,
