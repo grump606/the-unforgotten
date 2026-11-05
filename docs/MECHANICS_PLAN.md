@@ -462,7 +462,7 @@ Anchor, at least two per class and two neutrals). The bots do not take Remember 
   pile (Mourning Crow, the Brakeman). Remove the FRAYED allow-list from the identity test.
 - Enemies never get temporary stacks (existing rule). Bosses keep their phase structure.
 
-### 5c. Relics
+### 5c. Relics (done)
 
 - Fix the Barbed Greatcoat text to say Barbs.
 - Add six relics that use the keywords: one each for Glimpse, Malice, Ward, Forgotten, Anchor and Shaken.
