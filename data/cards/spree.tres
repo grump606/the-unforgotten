@@ -28,3 +28,4 @@ cost = 2
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1")])
 character = &"thief"
 remembered = SubResource("Rem_block")
+rarity = 1

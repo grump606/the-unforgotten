@@ -27,3 +27,4 @@ effects = Array[ExtResource("2_effect")]([SubResource("Resource_effect")])
 forgotten = true
 character = &"deserter"
 remembered = SubResource("Rem_block")
+rarity = 1

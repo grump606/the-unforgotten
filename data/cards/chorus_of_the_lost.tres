@@ -15,3 +15,4 @@ display_name = "Chorus of the Lost"
 cost = 1
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1")])
 character = &"medium"
+rarity = 1

@@ -4,7 +4,7 @@ extends SceneTree
 ##   godot --path . -s res://tools/card_sheet.gd -- <output dir> [scale]
 ## Default output is user://card_sheets; scale defaults to 1.
 
-const GROUPS := [[&"", "Neutral"], [&"deserter", "Deserter"], [&"thief", "Thief"], [&"medium", "Medium"]]
+const GROUPS := [[&"", "Neutral"], [&"deserter", "Deserter"], [&"thief", "Thief"], [&"medium", "Medium"], [&"stray", "Stray"]]
 const GAP := 10
 const COLUMNS := 8
 const STATE_ROWS := ["brace", "bash", "confess", "last_pocket"]

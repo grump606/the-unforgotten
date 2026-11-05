@@ -17,3 +17,4 @@ cost = 3
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1")])
 forgotten = true
 character = &"stray"
+rarity = 2

@@ -21,3 +21,4 @@ display_name = "Tear Loose"
 cost = 1
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
 character = &"stray"
+rarity = 1
