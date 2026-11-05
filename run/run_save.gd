@@ -7,11 +7,13 @@ extends RefCounted
 ## A save file is untrusted input: from_dict / load_file validate every field and
 ## return a Result with an error message instead of ever failing.
 
-const VERSION := 3
+const VERSION := 4
 ## The oldest format migrate() can upgrade. Anything older is rejected.
 const MIN_VERSION := 2
 ## The Thief's id before it was renamed (releases up to 0.7.3); accepted on load and mapped to "thief".
 const LEGACY_PICKPOCKET_ID := "pickpocket"
+## A deck entry for a Remembered card is its id plus this suffix ("sleight+"); v4 and later.
+const REMEMBERED_SUFFIX := "+"
 const DEFAULT_PATH := "user://run_save.json"
 const MAX_FILE_BYTES := 1048576
 const MAX_DECK := 200
@@ -47,7 +49,7 @@ static func line_signature(run: RunState) -> String:
 static func to_dict(run: RunState) -> Dictionary:
 	var ids: Array = []
 	for card in run.deck:
-		ids.append(String(card.id))
+		ids.append(String(card.id) + (REMEMBERED_SUFFIX if card.is_remembered else ""))
 	var offered: Array = []
 	for id in run.offered_ids:
 		offered.append(String(id))
@@ -178,9 +180,21 @@ static func _check_deck(d: Dictionary, run: RunState, got: Dictionary) -> String
 		return "card content failed to load"
 	var deck: Array[CardData] = []
 	for entry in raw_deck:
-		if typeof(entry) != TYPE_STRING or not known.has(entry):
+		if typeof(entry) != TYPE_STRING:
 			return "this save contains a card that no longer exists"
-		deck.append(known[entry])
+		var entry_id: String = entry
+		var upgraded := entry_id.ends_with(REMEMBERED_SUFFIX)
+		if upgraded:
+			entry_id = entry_id.trim_suffix(REMEMBERED_SUFFIX)
+		if not known.has(entry_id):
+			return "this save contains a card that no longer exists"
+		var card: CardData = known[entry_id]
+		if upgraded:
+			var variant := card.remembered_card()
+			if variant == null:
+				return "this save marks a card as Remembered that cannot be"
+			card = variant
+		deck.append(card)
 	got["known_cards"] = known
 	got["deck"] = deck
 	return ""
@@ -236,6 +250,9 @@ static func migrate(data: Dictionary, version: int) -> Dictionary:
 			if not d.has(key):
 				d[key] = false
 		d["version"] = 3
+	if version < 4:
+		# v4 only adds the "+" suffix on Remembered deck entries; a v3 deck has none and reads as is.
+		d["version"] = 4
 	return d
 
 
