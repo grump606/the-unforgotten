@@ -6,7 +6,7 @@ extends RefCounted
 signal changed
 
 ## New statuses are only ever appended (never reorder).
-enum Status { EXPOSED, HAUNTED, SHAKEN, FRAYED, MALICE, WARD }
+enum Status { EXPOSED, HAUNTED, SHAKEN, FRAYED, MALICE, WARD, SCENT }
 
 ## How a status behaves over time (see STATUS_KINDS).
 ##  DURATION: a count of turns that ticks down (Exposed, Shaken, Frayed).
@@ -22,7 +22,12 @@ const STATUS_KINDS := {
 	Status.FRAYED: StatusKind.DURATION,
 	Status.MALICE: StatusKind.STACK,
 	Status.WARD: StatusKind.STACK,
+	Status.SCENT: StatusKind.STACK,
 }
+
+## SCENT (the Stray's mark, only ever on an enemy): a stack of at most SCENT_CAP that adds its size to every
+## hit the player's cards land on the holder (see hit_damage). Only one enemy holds it at a time (Combat).
+const SCENT_CAP := 8
 
 ## SHAKEN: the attacker deals 3/4 of its damage, rounded down, never below 1 for a real hit.
 ## FRAYED: Block gained from cards is 3/4, rounded down, never below 1 for real Block.
@@ -125,6 +130,9 @@ func apply_status(status: Status, turns: int) -> void:
 		if turns == 0:
 			return
 		var stack: int = status_turns(status) + turns
+		if status == Status.SCENT:
+			# Scent is never negative and never above the cap.
+			stack = clampi(stack, 0, SCENT_CAP)
 		if stack == 0:
 			_statuses.erase(status)
 		else:
@@ -138,6 +146,12 @@ func apply_status(status: Status, turns: int) -> void:
 		total = mini(total, max_haunt)
 	_statuses[status] = total
 	changed.emit()
+
+
+## Removes `status` entirely (a duration, a decaying status or a stack).
+func remove_status(status: Status) -> void:
+	if _statuses.erase(status):
+		changed.emit()
 
 
 ## Adds a signed temporary stack (STACK statuses only; others and 0 are ignored). It counts in
@@ -196,12 +210,12 @@ func damage_after_status(amount: int) -> int:
 
 ## The full damage chain for one hit of `raw` from `attacker` on `defender`, before Block. Pure, so
 ## Combat and any preview share one rule. A raw of 0 or less stays 0. Otherwise: raw plus the
-## attacker's Malice (total, floored at 0), then x3/4 if the attacker is Shaken (rounded down, never
+## attacker's Malice plus the defender's Scent (total, floored at 0), then x3/4 if the attacker is Shaken (rounded down, never
 ## below 1), then the defender's Expose (damage_after_status).
 static func hit_damage(raw: int, attacker: Combatant, defender: Combatant) -> int:
 	if raw <= 0:
 		return 0
-	var amount := maxi(raw + attacker.stacks(Status.MALICE), 0)
+	var amount := maxi(raw + attacker.stacks(Status.MALICE) + defender.stacks(Status.SCENT), 0)
 	if amount > 0 and attacker.stacks(Status.SHAKEN) > 0:
 		amount = maxi(amount * REDUCED_NUM / REDUCED_DEN, 1)
 	return defender.damage_after_status(amount)

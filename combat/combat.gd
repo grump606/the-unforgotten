@@ -49,6 +49,8 @@ var relics: Array[RelicData] = []
 ## Once-per-fight relic triggers already spent (FIRST_FORGOTTEN_RETURN, FIRST_ATTACK_SHAKEN).
 var _forgotten_return_used := false
 var _first_attack_used := false
+## The fight's seeded RNG (the same one the piles shuffle with); Scent uses it to pick an heir.
+var _rng: RandomNumberGenerator
 
 ## The open pick step while phase == CHOOSING (see has_choice). Built when it opens, so a second
 ## GLIMPSE sees the draw pile as the first one left it.
@@ -104,6 +106,7 @@ func _init(player_combatant: Combatant, deck: Array[CardData], enemy_datas: Arra
 	# The player outlives fights; statuses must not.
 	player.clear_statuses()
 	piles = CardPiles.new(deck, rng)
+	_rng = rng
 	for enemy_data in enemy_datas:
 		var enemy := EnemyUnit.new(enemy_data)
 		enemy.changed.connect(state_changed.emit)
@@ -193,7 +196,12 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 		# SELF cards expose the player; other EXPOSE cards expose their targets.
 		if reach == CardEffect.Reach.SELF or (reach == CardEffect.Reach.BOTH and mode == CardData.TargetMode.SELF):
 			_apply(effect, player, player, scale)
-		if reach != CardEffect.Reach.SELF:
+		if effect.kind == CardEffect.Kind.SCENT:
+			# One quarry: a card aimed at several enemies marks only one of them.
+			var quarry := _scent_target(targets)
+			if quarry != null:
+				_apply(effect, player, quarry, scale)
+		elif reach != CardEffect.Reach.SELF:
 			for target in targets:
 				_apply(effect, player, target, scale)
 	if not relics.is_empty():
@@ -493,7 +501,12 @@ func _fire_oaths(trigger: CardData.OathTrigger, limit: int = -1) -> void:
 		if oath.oath_trigger != trigger:
 			continue
 		for effect in oath.oath_effects:
-			if effect.reach() == CardEffect.Reach.SELF:
+			if effect.kind == CardEffect.Kind.SCENT:
+				# One quarry: the current one, else the first living enemy.
+				var quarry := _scent_target(living_enemies())
+				if quarry != null:
+					_apply(effect, player, quarry)
+			elif effect.reach() == CardEffect.Reach.SELF:
 				_apply(effect, player, player)
 			else:
 				for enemy in living_enemies():
@@ -572,11 +585,14 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 		for _hit in hit_count:
 			# plays_this_turn already counts the card being played.
 			# Malice and Shaken of the source, Expose of the target, then Block.
-			var raw := effect.raw_damage(EffectContext.make(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_this_turn, piles.forgotten.size()))
+			var raw := effect.raw_damage(EffectContext.make(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_this_turn, piles.forgotten.size(), target.stacks(Combatant.Status.SCENT)))
 			target.take_damage_final(Combatant.hit_damage(raw, source, target))
 			# Thorns: an enemy attack on the player also hurts the attacker, once per hit.
 			if effect.kind == CardEffect.Kind.DAMAGE and target == player and source != player and player.thorns > 0:
 				source.take_damage(player.thorns)
+		# A spender uses up the Scent it hit with, after every hit of the effect.
+		if effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
+			target.remove_status(Combatant.Status.SCENT)
 		return
 	var amount := effect.amount * energy_scale if effect.per_energy else effect.amount
 	match effect.kind:
@@ -587,6 +603,10 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 		CardEffect.Kind.GAIN_ENERGY:
 			if source == player:
 				energy += maxi(amount, 0)
+		CardEffect.Kind.SCENT:
+			# Only the player's cards mark a quarry; an enemy intent with SCENT does nothing.
+			if source == player and target != player:
+				_give_scent(target, amount)
 		CardEffect.Kind.HAUNT:
 			if source == player:
 				# The Haunt bonus only boosts a Haunt that was going to be applied at all.
@@ -660,8 +680,50 @@ func _check_end() -> bool:
 	return true
 
 
-## Moves any enemy that has just crossed its phase threshold into phase two and announces it.
+## The enemy among `candidates` (living ones only) that a Scent effect marks: the one already holding Scent
+## if it is there, else the first. Null when none is alive.
+func _scent_target(candidates: Array[EnemyUnit]) -> EnemyUnit:
+	var first: EnemyUnit = null
+	for enemy in candidates:
+		if enemy.is_dead():
+			continue
+		if enemy.stacks(Combatant.Status.SCENT) > 0:
+			return enemy
+		if first == null:
+			first = enemy
+	return first
+
+
+## Makes `quarry` the one enemy holding Scent: any Scent held elsewhere moves to it, `amount` is added, and
+## the total is capped (Combatant.SCENT_CAP). A non-positive amount with nothing to move changes nothing.
+func _give_scent(quarry: EnemyUnit, amount: int) -> void:
+	var total := quarry.stacks(Combatant.Status.SCENT) + maxi(amount, 0)
+	for enemy in enemies:
+		if enemy != quarry and enemy.stacks(Combatant.Status.SCENT) > 0:
+			total += enemy.stacks(Combatant.Status.SCENT)
+			enemy.remove_status(Combatant.Status.SCENT)
+	quarry.remove_status(Combatant.Status.SCENT)
+	quarry.apply_status(Combatant.Status.SCENT, total)
+
+
+## When the quarry has died, half its Scent (rounded down) passes to a random living enemy (the fight's
+## seeded RNG; no draw is made when only one is left). With nobody left, or a stack of 1, it is lost.
+func _pass_on_scent() -> void:
+	for enemy in enemies:
+		if not enemy.is_dead() or enemy.stacks(Combatant.Status.SCENT) <= 0:
+			continue
+		var carried := enemy.stacks(Combatant.Status.SCENT) / 2
+		enemy.remove_status(Combatant.Status.SCENT)
+		var living := living_enemies()
+		if carried > 0 and not living.is_empty():
+			var heir := living[0] if living.size() == 1 else living[_rng.randi_range(0, living.size() - 1)]
+			_give_scent(heir, carried)
+
+
+## Moves any enemy that has just crossed its phase threshold into phase two and announces it. Also passes
+## a dead quarry's Scent on: every way an enemy can die is followed by this check.
 func _check_phases() -> void:
+	_pass_on_scent()
 	for enemy in living_enemies():
 		if enemy.check_phase():
 			enemy_phase_changed.emit(enemy, enemy.phase)
