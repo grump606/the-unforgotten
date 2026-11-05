@@ -58,6 +58,22 @@ const UNBROKEN_VOW_PATH := "res://data/cards/unbroken_vow.tres"
 const STANDING_GUARD_PATH := "res://data/cards/standing_guard.tres"
 const OPEN_GRAVE_PATH := "res://data/cards/open_grave.tres"
 const QUIET_DEBT_PATH := "res://data/cards/quiet_debt.tres"
+# The Stray (docs/CLASSES_PLAN.md).
+const CATCH_THE_SCENT_PATH := "res://data/cards/catch_the_scent.tres"
+const SNAP_PATH := "res://data/cards/snap.tres"
+const BRISTLE_PATH := "res://data/cards/bristle.tres"
+const RUN_DOWN_PATH := "res://data/cards/run_down.tres"
+const WORRY_PATH := "res://data/cards/worry.tres"
+const CIRCLE_PATH := "res://data/cards/circle.tres"
+const NOSE_TO_THE_WIND_PATH := "res://data/cards/nose_to_the_wind.tres"
+const OLD_WOUND_PATH := "res://data/cards/old_wound.tres"
+const HOWL_PATH := "res://data/cards/howl.tres"
+const POUNCE_PATH := "res://data/cards/pounce.tres"
+const SAVAGE_PATH := "res://data/cards/savage.tres"
+const BRING_DOWN_PATH := "res://data/cards/bring_down.tres"
+const HACKLES_PATH := "res://data/cards/hackles.tres"
+const TEAR_LOOSE_PATH := "res://data/cards/tear_loose.tres"
+const GO_FERAL_PATH := "res://data/cards/go_feral.tres"
 const CINDER_HOUND_PATH := "res://data/enemies/cinder_hound.tres"
 const MOURNING_CROW_PATH := "res://data/enemies/mourning_crow.tres"
 const WISP_PATH := "res://data/enemies/skittering_wisp.tres"
@@ -89,6 +105,8 @@ const ALL_CARD_PATHS: Array[String] = [
 	REMEMBER_PATH, CHORUS_OF_THE_LOST_PATH, HOLLOW_BARGAIN_PATH,
 	# Phase 6b: Oaths
 	QUICK_HANDS_PATH, LIGHT_STEP_PATH, UNBROKEN_VOW_PATH, STANDING_GUARD_PATH, OPEN_GRAVE_PATH, QUIET_DEBT_PATH,
+	# The Stray
+	CATCH_THE_SCENT_PATH, SNAP_PATH, BRISTLE_PATH, RUN_DOWN_PATH, WORRY_PATH, CIRCLE_PATH, NOSE_TO_THE_WIND_PATH, OLD_WOUND_PATH, HOWL_PATH, POUNCE_PATH, SAVAGE_PATH, BRING_DOWN_PATH, HACKLES_PATH, TEAR_LOOSE_PATH, GO_FERAL_PATH,
 ]
 ## Status cards: Dormant cards that enemies add to the player's piles mid-fight (Dread: Dormant; Murmur:
 ## Dormant and Fading). An explicit id -> path table, kept OUT of ALL_CARD_PATHS, the reward pools,

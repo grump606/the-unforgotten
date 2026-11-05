@@ -61,7 +61,7 @@ func _initialize() -> void:
 	await process_frame
 	await process_frame
 	check(count >= 35, "built a view for all %d cards" % count)
-	check(classes.size() == 4, "neutral and three class frames are all in use")
+	check(classes.size() == 5, "neutral and four class frames are all in use")
 	check(CardView.palette_id(null) == &"" and CardView.PALETTES.has(&"medium"), "palette lookup")
 	var unknown := CardData.make(&"x", "X", 1, [] as Array[CardEffect])
 	unknown.character = &"nobody"
