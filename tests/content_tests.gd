@@ -265,7 +265,7 @@ func _test_mid_boss_encounter() -> void:
 ## Characters own their starting decks and class cards; neutral cards are shared.
 func _test_characters_and_pools() -> void:
 	var all := StarterContent.all_cards()
-	_check(all.size() == StarterContent.ALL_CARD_PATHS.size() and all.size() == 63, "all_cards loads all 63 cards")
+	_check(all.size() == StarterContent.ALL_CARD_PATHS.size() and all.size() == 71, "all_cards loads all 71 cards")
 	var ids := {}
 	for card in all:
 		_check(not ids.has(card.id), "card id is unique: %s" % card.id)
@@ -276,7 +276,7 @@ func _test_characters_and_pools() -> void:
 		if card.character == &"":
 			neutral_ids.append(String(card.id))
 	neutral_ids.sort()
-	_check(neutral_ids == ["brace", "flurry", "glimpse_exit", "shove", "slip_past", "sweep"], "the neutral pool is Brace, Flurry, Glimpse the Exit, Shove, Slip Past and Sweep")
+	_check(neutral_ids == ["brace", "counter_step", "downpour", "flurry", "glimpse_exit", "hold_fast", "lucky_break", "pull_together", "second_look", "shake_them", "shove", "slip_past", "steady_hands", "sweep"], "the neutral pool is the six originals and eight shared cards")
 
 	_check(StarterContent.character_ids() == [&"deserter", &"thief", &"medium", &"stray"], "four characters, in selection order")
 	_check(StarterContent.character(&"nobody") == null, "an unknown character is null")
@@ -290,7 +290,7 @@ func _test_characters_and_pools() -> void:
 		_check(character.starting_deck.size() == 10, "character %s starts with 10 cards" % id)
 		for card in character.starting_deck:
 			_check(card.character == &"" or card.character == id, "%s starting deck holds only neutral or own cards (%s)" % [id, card.id])
-		var pool := StarterContent.reward_pool(id)
+		var pool := StarterContent.vendor_pool(id)
 		var pool_ids := {}
 		for card in pool:
 			_check(not pool_ids.has(card.id), "%s pool card is distinct: %s" % [id, card.id])

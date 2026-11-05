@@ -74,6 +74,15 @@ const BRING_DOWN_PATH := "res://data/cards/bring_down.tres"
 const HACKLES_PATH := "res://data/cards/hackles.tres"
 const TEAR_LOOSE_PATH := "res://data/cards/tear_loose.tres"
 const GO_FERAL_PATH := "res://data/cards/go_feral.tres"
+# Neutral pool (cards-1): shared cards for rewards and vendors.
+const STEADY_HANDS_PATH := "res://data/cards/steady_hands.tres"
+const COUNTER_STEP_PATH := "res://data/cards/counter_step.tres"
+const SECOND_LOOK_PATH := "res://data/cards/second_look.tres"
+const DOWNPOUR_PATH := "res://data/cards/downpour.tres"
+const HOLD_FAST_PATH := "res://data/cards/hold_fast.tres"
+const PULL_TOGETHER_PATH := "res://data/cards/pull_together.tres"
+const LUCKY_BREAK_PATH := "res://data/cards/lucky_break.tres"
+const SHAKE_THEM_PATH := "res://data/cards/shake_them.tres"
 const CINDER_HOUND_PATH := "res://data/enemies/cinder_hound.tres"
 const MOURNING_CROW_PATH := "res://data/enemies/mourning_crow.tres"
 const WISP_PATH := "res://data/enemies/skittering_wisp.tres"
@@ -105,6 +114,8 @@ const ALL_CARD_PATHS: Array[String] = [
 	REMEMBER_PATH, CHORUS_OF_THE_LOST_PATH, HOLLOW_BARGAIN_PATH,
 	# Phase 6b: Oaths
 	QUICK_HANDS_PATH, LIGHT_STEP_PATH, UNBROKEN_VOW_PATH, STANDING_GUARD_PATH, OPEN_GRAVE_PATH, QUIET_DEBT_PATH,
+	# Neutral pool
+	STEADY_HANDS_PATH, COUNTER_STEP_PATH, SECOND_LOOK_PATH, DOWNPOUR_PATH, HOLD_FAST_PATH, PULL_TOGETHER_PATH, LUCKY_BREAK_PATH, SHAKE_THEM_PATH,
 	# The Stray
 	CATCH_THE_SCENT_PATH, SNAP_PATH, BRISTLE_PATH, RUN_DOWN_PATH, WORRY_PATH, CIRCLE_PATH, NOSE_TO_THE_WIND_PATH, OLD_WOUND_PATH, HOWL_PATH, POUNCE_PATH, SAVAGE_PATH, BRING_DOWN_PATH, HACKLES_PATH, TEAR_LOOSE_PATH, GO_FERAL_PATH,
 ]
@@ -227,9 +238,19 @@ static func all_cards() -> Array[CardData]:
 	return cards
 
 
-## The distinct cards a character can be offered as rewards or sell at a vendor: every neutral
-## card plus the cards tagged for `character_id`. Empty (cause logged) if any card fails to load.
+## The distinct cards a character can be offered as rewards: every neutral card plus the cards tagged for
+## `character_id`, except the basic cards (Shove, Slip Past), which they start with and can buy but are never
+## offered. Empty (cause logged) if any card fails to load.
 static func reward_pool(character_id: StringName) -> Array[CardData]:
+	var pool: Array[CardData] = []
+	for card in all_cards():
+		if (card.character == &"" or card.character == character_id) and not card.basic:
+			pool.append(card)
+	return pool
+
+
+## The cards a vendor may stock for `character_id`: the reward pool plus the basic cards.
+static func vendor_pool(character_id: StringName) -> Array[CardData]:
 	var pool: Array[CardData] = []
 	for card in all_cards():
 		if card.character == &"" or card.character == character_id:

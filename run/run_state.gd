@@ -362,7 +362,7 @@ func vendor() -> Vendor:
 	if stop == null or stop.type != StopType.VENDOR:
 		return null
 	if _vendor == null:
-		_vendor = Vendor.new(deck, _rng, 0, StarterContent.reward_pool(character.id), _unowned_relics(), _wallet)
+		_vendor = Vendor.new(deck, _rng, 0, StarterContent.vendor_pool(character.id), _unowned_relics(), _wallet)
 	return _vendor
 
 

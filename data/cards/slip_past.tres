@@ -15,3 +15,4 @@ display_name = "Slip Past"
 cost = 1
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_effect")])
 target_mode = 2
+basic = true

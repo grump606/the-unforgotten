@@ -12,6 +12,6 @@ amount = 5
 script = ExtResource("1_card")
 id = &"sweep"
 display_name = "Sweep"
-cost = 2
+cost = 1
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_effect")])
 target_mode = 1
