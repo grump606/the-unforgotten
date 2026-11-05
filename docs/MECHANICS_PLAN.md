@@ -387,6 +387,53 @@ measurable effect for the same reason.
 
 Relics and enemy content are out of scope here (phase 5).
 
+## Phase 5 detail
+
+Where things stand: a rest stop heals to full and moves on (`RunState.rest()`); saves are version 3 and store
+the deck as a list of card ids; enemies only use Deal, Block and Expose (the Conductor and Brakeman add a
+second phase); relic text still says "Thorns" (`barbed_greatcoat.tres`), a missed display rename.
+
+### 5a. Remembered upgrades (engine, save, rest site)
+
+- A card gets an optional `remembered` block on `CardData`: a replacement effect list and optionally a cost
+  and keyword changes. One file per card, no second id, so rewards, vendor prices and pools stay as they are.
+  Cards without a block cannot be remembered.
+- A deck entry is a card plus a Remembered flag. In the save it is the id with a `+` suffix (`"sleight+"`).
+  Run save VERSION 4; `migrate()` takes version 3 as is (no `+` entries), MIN_VERSION stays 2. A card with a
+  `+` but no block is rejected as a bad save.
+- Rest stop offers two choices: **Rest** (heal to full, as now) or **Remember** (pick one card in the deck
+  that is not yet Remembered and has a block; no heal). One per stop, so it costs the heal. Remembered cards
+  show a `+` name, gold title and the changed text.
+- Vendor: removing or buying is unchanged; the price table adds a fixed bonus for a Remembered copy.
+- Starts with the ten cards worth it most (two per class signature card, plus neutrals), not all 42; the rest
+  follow once a playtest says which matter.
+
+### 5b. Enemy Omens
+
+- Omen display: the intent badge shows the exact status or stack it will apply, and hit count for multi-hit.
+- Use the new engine in enemy intents: Shaken on the player (Pale Whisperer, Lost Shade), Frayed (Gate
+  Warden, Hollow Colossus), Malice gain (Cinder Hound, boss phase two), multi-hit (Skittering Wisp already
+  hits in a sequence; give the Conductor a real 3-hit), and Dormant Dread or Murmur shuffled into the draw
+  pile (Mourning Crow, the Brakeman). Remove the FRAYED allow-list from the identity test.
+- Enemies never get temporary stacks (existing rule). Bosses keep their phase structure.
+
+### 5c. Relics
+
+- Fix the Barbed Greatcoat text to say Barbs.
+- Add six relics that use the keywords: one each for Glimpse, Malice, Ward, Forgotten, Anchor and Shaken.
+  Existing relics are not retuned unless the sim shows one dominating.
+
+### 5d. Bot and balance
+
+- Smart bot: Glimpse binning that counts a card's value for the class, a Recall/Forgotten judgement, and
+  taking and playing the six cards the sim currently ignores.
+- Then re-run the sim and fix the two band misses (Thief smart seed 11, Medium greedy seed 7).
+
+### Order and size
+
+5a first (largest: engine, save migration, UI, tests), then 5b and 5c in parallel (different files), then 5d.
+Each is its own PR into `thief-rework`. No version bump or release.
+
 ## Cross-cutting work
 
 - `CardEffect` rule: new kinds are only appended, never reordered (`.tres` files store the integer).
