@@ -236,12 +236,11 @@ func _update_header() -> void:
 			stop_text = destination + " — " + stop_text
 	if _run.reward_pending():
 		stop_text = "Reward"
-	# A rest stop shows the HP it will leave you with and how much that heals (see RestScreen).
+	# A rest stop shows your HP and how much resting would heal; Remember skips the heal (see RestScreen).
 	var hp_text := "HP %d/%d" % [player.hp, player.max_hp]
 	if not _run.finished and not _run.reward_pending() and _run.current_stop().type == RunState.StopType.REST:
-		hp_text = "HP %d/%d" % [player.max_hp, player.max_hp]
 		if _run.rest_heal_amount() > 0:
-			hp_text += "  Healed (+%d)" % _run.rest_heal_amount()
+			hp_text += "  Rest heals +%d" % _run.rest_heal_amount()
 	_header.text = prefix + "%s\nJourney %d/%d  ·  %s  ·  %s  ·  Gold %d  ·  Deck %d" % [
 		stop_text, position, _run.stops.size(), player.display_name, hp_text, _run.gold, _run.deck.size(),
 	]

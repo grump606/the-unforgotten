@@ -151,13 +151,13 @@ func _initialize() -> void:
 	scene._show_stop()
 	body = scene.get_node("%Body")
 	check(body.find_child("RestCard", true, false) != null and _find_button(body, RestContent.BUTTON) != null, "the rest stop shows a story card with one button")
-	check(scene._header.text.contains("HP %d/%d  Healed (+30)" % [run_state.player.max_hp, run_state.player.max_hp]), "the header shows full HP and the amount healed")
+	check(scene._header.text.contains("HP %d/%d  Rest heals +30" % [run_state.player.max_hp - 30, run_state.player.max_hp]), "the header shows current HP and what resting heals")
 	var hp_before := run_state.player.hp
 	var index_before := run_state.stop_index
 	_find_button(body, RestContent.BUTTON).pressed.emit()
 	await process_frame
 	check(run_state.player.hp == run_state.player.max_hp and run_state.stop_index == index_before + 1, "the card's button heals to full and moves on")
-	check(not scene._header.text.contains("Healed"), "the Healed note is only shown at the rest stop")
+	check(not scene._header.text.contains("Rest heals"), "the rest note is only shown at the rest stop")
 
 	# The rest stop's second choice: Remember one card instead of the heal.
 	_go_to(scene, RunState.StopType.REST)
