@@ -103,10 +103,12 @@ Cards carry keywords that change how they cycle or what they do (the full rules 
 - **Malice:** a stacking flat bonus to each hit you deal (lasts the fight, or one turn when the card says "this turn").
 - **Ward:** a stacking flat bonus to each Block gained from cards (not Hold, Barbs or relic Block).
 - **Shaken:** the target deals 25% less damage for N turns.
-- **Frayed:** gains 25% less Block for N turns. No shipped card applies it yet; enemy content using it is planned.
+- **Frayed:** gains 25% less Block for N turns. Only enemies apply it (Threshold Keeper, Memorial Giant).
 - **Remembered:** the planned rest-site upgrade for a card. Not in the game yet (it arrives in a later phase).
 - **Barbs:** damage dealt back to each enemy that hits you (the old Thorns name; ids and code still say thorns).
-- **Omen:** an enemy's shown next action (the old Intent name).
+- **Omen:** an enemy's shown next action (the old Intent name). The badge above its head shows the exact effect: the amount, hit count for a multi-hit ("6x3"), a signed Malice ("+1") or the card it adds ("Dread"); the tooltip spells it out ("Omen: Shaken 2").
+
+Enemy Omens (phase 5b): The Husher and The Unnamed apply Shaken to you, the Threshold Keeper and Memorial Giant apply Frayed, the Ash Hound and, in its second phase, the Eraser gain Malice, the Eraser has a 3-hit attack (6x3), and the Keepsake Crow (Murmur) and Bellkeeper (Dread) shuffle Dormant cards into your draw pile. Enemies never get temporary stacks.
 
 Hold, Haunt, Expose, Recall (return cards from the Forgotten pile to your hand) and adding a card to a pile are unchanged or described on the cards themselves.
 

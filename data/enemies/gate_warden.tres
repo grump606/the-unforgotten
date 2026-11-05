@@ -16,7 +16,7 @@ amount = 2
 [sub_resource type="Resource" id="Resource_i3"]
 script = ExtResource("2_effect")
 kind = 0
-amount = 16
+amount = 18
 
 [resource]
 script = ExtResource("1_enemy")

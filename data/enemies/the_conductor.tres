@@ -32,7 +32,7 @@ amount = 13
 [sub_resource type="Resource" id="Resource_p1"]
 script = ExtResource("2_effect")
 kind = 0
-amount = 12
+amount = 13
 
 [sub_resource type="Resource" id="Resource_p2"]
 script = ExtResource("2_effect")
@@ -42,12 +42,12 @@ amount = 1
 [sub_resource type="Resource" id="Resource_p3"]
 script = ExtResource("2_effect")
 kind = 0
-amount = 12
+amount = 13
 
 [sub_resource type="Resource" id="Resource_p4"]
 script = ExtResource("2_effect")
 kind = 0
-amount = 15
+amount = 16
 
 [resource]
 script = ExtResource("1_enemy")
