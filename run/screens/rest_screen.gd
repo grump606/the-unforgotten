@@ -1,7 +1,7 @@
 class_name RestScreen
 extends RunScreen
-## A rest stop: arriving heals you to full (shown in the header as "HP 36/36  Healed (+12)"; the
-## heal itself is applied when you move on, so a save taken here replays the same screen). A
+## A rest stop: resting heals you to full (the header reads "HP 24/36  Rest heals +12"; the heal
+## is applied when you choose it, so a save taken here replays the same screen). A
 ## small story card continues the voice from the opening beat (run/rest_content.gd) and its one
 ## button, "Follow the voice", leaves the stop.
 
