@@ -190,6 +190,8 @@ New effect kinds and statuses are only appended, never reordered. `tests/mechani
 
 Each phase ends with `scripts/check.ps1` passing and a commit, as before.
 
+**Status:** phase 1 (infrastructure) is built: `data/characters/stray.tres` (40 HP, neutral-only starting deck of 5 Shove, 4 Slip Past, 1 Glimpse the Exit), the `stray` entry in `StarterContent.CHARACTER_PATHS`, placeholder palette and colours for the card frame, battle stage and backdrop. The select screen shows four panels (the Stray has no painted or code-drawn figure yet). Tests exempt the Stray from the class-card, class-relic and distinct-rewards checks until phases 2 to 4 and its relics land.
+
 1. **Infrastructure.** The `stray` character with a neutral-only starting deck, so the select screen, saves and
    rewards work before any new mechanic. Small.
 2. **Scent engine.** Status, one-quarry rule, hit bonus, the two effect kinds, unit tests (move on retarget,

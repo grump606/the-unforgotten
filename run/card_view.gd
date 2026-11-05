@@ -45,6 +45,12 @@ const PALETTES := {
 		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#5C526B"),
 		"banner_ink": Color("#F0EBDD"), "accent": Color("#9A89AD"), "glyph": Color("#171D28"),
 	},
+	# The Stray: dark cobalt blue. Placeholder colours until the class art is designed (docs/CLASSES_PLAN.md).
+	&"stray": {
+		"label": "STRAY", "stock": Color("#1F2A3E"), "frame": Color("#6D87B3"),
+		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#3B4F78"),
+		"banner_ink": Color("#F0EBDD"), "accent": Color("#6D87B3"), "glyph": Color("#171D28"),
+	},
 	# Status cards (Dread, Murmur: what enemies shuffle in): a sickly grey-green, so they read as junk.
 	&"status": {
 		"label": "STATUS", "stock": Color("#333D31"), "frame": Color("#6F8A5C"),
