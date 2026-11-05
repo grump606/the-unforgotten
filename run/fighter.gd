@@ -53,6 +53,7 @@ const CLASS_COLORS := {
 	&"deserter": [Color(0.40, 0.30, 0.24), Color(0.92, 0.55, 0.22)],
 	&"thief": [Color(0.16, 0.30, 0.31), Color(0.30, 0.85, 0.80)],
 	&"medium": [Color(0.30, 0.22, 0.42), Color(0.72, 0.52, 1.0)],
+	&"stray": [Color(0.32, 0.24, 0.18), Color(0.86, 0.56, 0.30)],
 }
 ## Which way each painted class figure faces as drawn (+1 right, -1 left); the stage mirrors it to face right.
 const PLAYER_ART_FACING := {&"deserter": 1.0, &"thief": 1.0, &"medium": 1.0}

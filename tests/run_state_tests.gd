@@ -195,7 +195,8 @@ func _test_reward_memory_and_skip_gold() -> void:
 				if seen.has(card_id):
 					repeats += 1
 				seen[card_id] = true
-		_check(repeats == 0, "%s: three successive rewards share no card" % id)
+		# The Stray offers only the six neutral cards until it has class cards, so it must repeat by the third roll.
+		_check(repeats == 0 or id == &"stray", "%s: three successive rewards share no card" % id)
 		_check(state.offered_ids.size() == seen.size(), "%s: every shown card is remembered" % id)
 		var again := RunState.new(77, id)
 		var again_sequence: Array = []
