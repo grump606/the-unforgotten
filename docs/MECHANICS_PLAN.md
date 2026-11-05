@@ -533,6 +533,29 @@ those numbers remain barely tested by the smart sim. Greedy has no Forgotten-cos
 5a first (largest: engine, save migration, UI, tests), then 5b and 5c in parallel (different files), then 5d.
 Each is its own PR into `thief-rework`. No version bump or release.
 
+## Phase 6 plan: Oaths (proposal, not started)
+
+An Oath is a card you play once; it is then Sworn for the rest of the fight and keeps working (the Slay the
+Spire Power). Proposed rules, all open to change:
+
+- **Card type:** `CardData.oath: bool`. Playing it moves it to a new Sworn list in `CardPiles` (not discard,
+  not Forgotten), shown as a small strip by the player. Sworn cards return to the deck after the fight, like
+  the Forgotten pile. Dormant and Fading cards cannot be Oaths.
+- **Effects:** an Oath carries `CardEffect`s that fire on a trigger instead of at once. New appended effect
+  kinds, reusing the relic hooks already in `combat.gd`: at turn start (gain Block, Malice, Ward, Barbs, draw),
+  on the first card played each turn (Shaken, Glimpse), when a card is Forgotten (Block or damage), when
+  Anchor cards are kept. Stacks add if sworn twice.
+- **Cost:** 1 to 2 energy, with a trade-off in the text (lose HP, add a Dread to the draw pile) so an Oath is
+  a commitment, not free value.
+- **Cards:** two per class, six in all, one neutral. Thief: *Quick Hands* (first card each turn draws and
+  gains Malice 1), *Light Step* (turn start: Glimpse 2). Deserter: *Unbroken Vow* (turn start: Ward +1 up to
+  3, adds a Dread now), *Standing Guard* (kept Anchor cards give Block). Medium: *Open Grave* (a Forgotten card
+  deals 2 to all enemies, lose 4 HP now), *Quiet Debt* (turn start: Haunt 1 to all, lose 1 HP).
+- **Display and text:** keyword line "Oath: stays for the fight"; the card frame gets a distinct border.
+- **Bots:** sim policies value an Oath as its per-turn effect times expected remaining turns.
+- **Sub-phases:** 6a engine, piles, save-safe (decks unchanged); 6b the six cards, UI strip and text; 6c bots
+  and balance. No version bump.
+
 ## Cross-cutting work
 
 - `CardEffect` rule: new kinds are only appended, never reordered (`.tres` files store the integer).
