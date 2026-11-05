@@ -627,12 +627,28 @@ func _check_statuses(node: Control) -> void:
 	enemy.clear_statuses()
 	var enemy_intent := enemy.current_intent()
 	if enemy_intent != null and enemy_intent.kind == CardEffect.Kind.DAMAGE:
-		enemy.apply_status(Combatant.Status.MALICE, 4)
+		enemy.apply_status(Combatant.Status.MALICE, 6)
 		enemy.apply_status(Combatant.Status.SHAKEN, 2)
 		node._refresh()
 		var want := Combatant.hit_damage(enemy_intent.amount, enemy, c.player)
-		check(Fighter.effective_intent(enemy, c.player).amount == want and want != enemy_intent.amount and node._enemy_tooltip(enemy).contains("Next: Deal %d" % want), "the enemy tooltip shows the damage after its Malice and Shaken: " + node._enemy_tooltip(enemy).replace("\n", " | "))
+		check(Fighter.effective_intent(enemy, c.player).amount == want and want != enemy_intent.amount and node._enemy_tooltip(enemy).contains("Omen: Deal %d" % want), "the enemy tooltip shows the damage after its Malice and Shaken: " + node._enemy_tooltip(enemy).replace("\n", " | "))
 	check(enemy_view.intent_target == c.player, "the enemy figure aims its Omen at the player")
+	# The badge text names the exact effect: stacks, hit count, and the card an enemy adds.
+	var dread := load("res://data/status/dread.tres") as CardData
+	check(Fighter.omen_text(CardEffect.make(CardEffect.Kind.DAMAGE, 6, 0, 0, 3)) == "6x3", "a multi-hit Omen reads 6x3")
+	check(Fighter.omen_text(CardEffect.make(CardEffect.Kind.DAMAGE, 6)) == "6", "a single hit reads its damage")
+	check(Fighter.omen_text(CardEffect.make(CardEffect.Kind.SHAKEN, 2)) == "2" and Fighter.omen_text(CardEffect.make(CardEffect.Kind.FRAYED, 1)) == "1", "Shaken and Frayed Omens read their turns")
+	check(Fighter.omen_text(CardEffect.make(CardEffect.Kind.MALICE, 2)) == "+2", "a Malice Omen reads +2")
+	check(Fighter.omen_text(CardEffect.make(CardEffect.Kind.ADD_CARD, 1, 0, 0, 1, false, false, dread, CardEffect.Pile.DRAW)) == "Dread", "an add-card Omen names the card")
+	var tip_unit := EnemyUnit.new(EnemyData.make("Adder", 10, [CardEffect.make(CardEffect.Kind.ADD_CARD, 1, 0, 0, 1, false, false, dread, CardEffect.Pile.DRAW)] as Array[CardEffect], &"adder"))
+	var tip_view := Fighter.new()
+	node.add_child(tip_view)
+	tip_view.set_enemy(tip_unit)
+	tip_view.intent_target = c.player
+	await process_frame
+	check(node._enemy_tooltip(tip_unit).contains("Omen: Add 1 Dread to your draw pile"), "the tooltip spells out the added card: " + node._enemy_tooltip(tip_unit).replace("
+", " | "))
+	tip_view.queue_free()
 	enemy.clear_statuses()
 	# Intents that apply the new statuses are shown as printed, and every intent kind draws.
 	for kind in [CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD]:

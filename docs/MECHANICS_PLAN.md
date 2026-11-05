@@ -453,7 +453,7 @@ the Veil is held to Haunt 7 because 8 was the number the Medium balance pass alr
 remembered_tests.gd` checks every shipped block (same id, changes something, modest value gain, no Fading with
 Anchor, at least two per class and two neutrals). The bots do not take Remember yet (5d).
 
-### 5b. Enemy Omens
+### 5b. Enemy Omens (done)
 
 - Omen display: the intent badge shows the exact status or stack it will apply, and hit count for multi-hit.
 - Use the new engine in enemy intents: Shaken on the player (Pale Whisperer, Lost Shade), Frayed (Gate
@@ -461,6 +461,14 @@ Anchor, at least two per class and two neutrals). The bots do not take Remember 
   hits in a sequence; give the Conductor a real 3-hit), and Dormant Dread or Murmur shuffled into the draw
   pile (Mourning Crow, the Brakeman). Remove the FRAYED allow-list from the identity test.
 - Enemies never get temporary stacks (existing rule). Bosses keep their phase structure.
+- Built: the badge text is `Fighter.omen_text` (amount, "6x3", "+1", the added card's name); the tooltip line
+  reads "Omen:". Changes (a status replaces a Block or Expose turn, damage kept near the old total):
+  Husher [Shaken 2, 6, 9]; Unnamed [9, Shaken 1, 11]; Threshold Keeper [10, Frayed 2, 18]; Memorial Giant
+  [Frayed 2, 19]; Ash Hound [5, Malice +1, 9]; Keepsake Crow [3, 3, +Murmur, 10]; Bellkeeper phase one
+  [Block 14, 13, +Dread, 18]; Eraser [Expose 2, 13, Block 10, 6x3, 13], phase two [13, Malice +1, 13, 16].
+  `StarterContent.scaled` now keeps the hit count. Engine needed no change: enemy-source Shaken, Frayed,
+  Malice and ADD_CARD already resolved (tests added). Sim, seed 7 (150 runs; before in brackets): smart
+  Thief 70 (71), Deserter 77 (75), Medium 94 (86); greedy 58 (50), 68 (65), 15 (14).
 
 ### 5c. Relics (done)
 
