@@ -435,7 +435,7 @@ func _draw() -> void:
 	# Name banner; a long name shrinks (down to 8 px) to fit.
 	var banner := Rect2(6, 33, BASE.x - 12, 20)
 	_box(banner, p.banner, 3)
-	_text(card.display_name, banner, _fit_size(card.display_name, banner.size.x - 8, 13, 8), p.banner_ink, true)
+	_text(card.display_name, banner, _fit_size(card.display_name, banner.size.x - 8, 13, 8), title_color(p), true)
 	_draw_hotkey(Vector2(9, 30))
 
 	# Art window with the procedural icon.
@@ -751,6 +751,18 @@ func _draw_blot(c: Vector2, r: float, col: Color) -> void:
 		draw_line(c + Vector2(dx, 0.6) * r, c + Vector2(dx, 1.15 + dx * 0.3) * r, Color(col, 0.55), 2.0)
 	draw_circle(c + Vector2(-0.3, -0.1) * r, r * 0.12, Color(0, 0, 0, 0.6))
 	draw_circle(c + Vector2(0.25, -0.1) * r, r * 0.12, Color(0, 0, 0, 0.6))
+
+
+## Gold of a Remembered card's title: bright on a dark banner, a deep gold on a light one.
+const REMEMBERED_TITLE := Color("#F2CC5B")
+const REMEMBERED_TITLE_ON_PAPER := Color("#7A5500")
+
+
+## The card name's colour: the palette's banner ink, or gold for a Remembered card.
+func title_color(p: Dictionary) -> Color:
+	if card == null or not card.is_remembered:
+		return p.banner_ink
+	return REMEMBERED_TITLE if (p.banner as Color).get_luminance() < 0.5 else REMEMBERED_TITLE_ON_PAPER
 
 
 ## The text of the keyword line ("FORGOTTEN · SURGE"), empty for a card without keywords.

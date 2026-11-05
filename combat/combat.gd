@@ -46,6 +46,9 @@ var plays_this_turn: int = 0
 var discard_marks: Array[int] = []
 ## The run's relics for this fight (see RelicData); empty changes nothing.
 var relics: Array[RelicData] = []
+## Once-per-fight relic triggers already spent (FIRST_FORGOTTEN_RETURN, FIRST_ATTACK_SHAKEN).
+var _forgotten_return_used := false
+var _first_attack_used := false
 
 ## The open pick step while phase == CHOOSING (see has_choice). Built when it opens, so a second
 ## GLIMPSE sees the draw pile as the first one left it.
@@ -192,7 +195,7 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 			for target in targets:
 				_apply(effect, player, target, scale)
 	if not relics.is_empty():
-		_apply_play_relics()
+		_apply_play_relics(card, targets)
 	card_played.emit(card, targets)
 	_check_phases()
 	if not _check_end():
@@ -385,6 +388,15 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 	piles.discard_cards(discard_indices)
 	# Fading cards that were not played are lost before the enemies act.
 	piles.forget_fading_in_hand()
+	# Kept Anchor cards shield the player through the enemy phase.
+	var anchor_block := _relic_total(RelicData.Kind.ANCHOR_END_BLOCK)
+	if anchor_block > 0:
+		var anchored := 0
+		for held in piles.hand:
+			if held.anchor:
+				anchored += 1
+		if anchored > 0:
+			player.gain_block(anchor_block * anchored)
 	# Haunt hurts first, so an enemy it kills never acts.
 	for enemy in living_enemies():
 		enemy.lose_hp(enemy.status_turns(Combatant.Status.HAUNTED))
@@ -447,6 +459,10 @@ func _begin_player_turn() -> void:
 	# Kept cards count toward the starting hand: draw back up to HAND_SIZE (nothing if 5 were kept).
 	# Anchor and Fading cards in hand do not count, so they do not shrink the refill.
 	piles.draw(maxi(HAND_SIZE - piles.counted_in_hand(), 0), HAND_MAX)
+	# The fight-start Glimpse looks at the draw pile after the opening hand is dealt.
+	if turn == 1 and _relic_total(RelicData.Kind.FIGHT_START_GLIMPSE) > 0:
+		_choice_queue.append({"kind": CardEffect.Kind.GLIMPSE, "amount": _relic_total(RelicData.Kind.FIGHT_START_GLIMPSE)})
+		_open_next_choice()
 	state_changed.emit()
 
 
@@ -461,11 +477,24 @@ func _relic_total(kind: RelicData.Kind) -> int:
 
 ## Relic effects that fire after a card's own effects: the first play of a turn draws, every
 ## PLAYS_BLOCK_EVERY-th play gains Block. plays_this_turn already counts the card just played.
-func _apply_play_relics() -> void:
+func _apply_play_relics(card: CardData, targets: Array[EnemyUnit]) -> void:
 	if plays_this_turn == 1 and _relic_total(RelicData.Kind.FIRST_PLAY_DRAW) > 0:
 		piles.draw(_relic_total(RelicData.Kind.FIRST_PLAY_DRAW), HAND_MAX)
 	if plays_this_turn % RelicData.PLAYS_BLOCK_EVERY == 0 and _relic_total(RelicData.Kind.PLAYS_BLOCK) > 0:
 		player.gain_block(_relic_total(RelicData.Kind.PLAYS_BLOCK))
+	# The first Forgotten card played this fight comes straight back from the Forgotten pile.
+	if card.forgotten and not _forgotten_return_used and _relic_total(RelicData.Kind.FIRST_FORGOTTEN_RETURN) > 0:
+		_forgotten_return_used = true
+		var last: Array[int] = [piles.forgotten.size() - 1]
+		piles.recall_from_forgotten(last, HAND_MAX)
+	# The first attack (a card that deals damage) this fight Shakes the enemies it was played on.
+	if not _first_attack_used and _relic_total(RelicData.Kind.FIRST_ATTACK_SHAKEN) > 0:
+		for effect in card.effects:
+			if effect.is_damage():
+				_first_attack_used = true
+				for target in targets:
+					target.apply_status(Combatant.Status.SHAKEN, _relic_total(RelicData.Kind.FIRST_ATTACK_SHAKEN))
+				break
 
 
 ## Relic effects that fire as a turn begins. Runs after start_turn_block(), which resets Block
@@ -480,6 +509,13 @@ func _apply_turn_start_relics() -> void:
 			enemy.apply_status(Combatant.Status.HAUNTED, _relic_total(RelicData.Kind.FIGHT_START_HAUNT))
 		block += _relic_total(RelicData.Kind.FIGHT_START_BLOCK)
 		energy += _relic_total(RelicData.Kind.FIRST_TURN_ENERGY)
+		# Malice and Ward from relics last the whole fight (cleared with the statuses at fight end).
+		var malice := _relic_total(RelicData.Kind.FIGHT_START_MALICE)
+		if malice > 0:
+			player.apply_status(Combatant.Status.MALICE, malice)
+		var ward := _relic_total(RelicData.Kind.FIGHT_START_WARD)
+		if ward > 0:
+			player.apply_status(Combatant.Status.WARD, ward)
 	if block > 0:
 		player.gain_block(block)
 	var thorns := _relic_total(RelicData.Kind.TURN_START_THORNS)

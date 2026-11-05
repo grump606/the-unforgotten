@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"cracked_lorgnette"
+display_name = "Cracked Lorgnette"
+description = "Start each fight with Glimpse 2."
+character = &"thief"
+kind = 12
+amount = 2
+price = 60
