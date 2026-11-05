@@ -64,6 +64,8 @@ const TEMPORARY_STACK_VALUE_PER_STACK := 2
 const GLIMPSE_VALUE_PER_CARD := 1
 const RECALL_VALUE_PER_CARD := 3
 const TYPICAL_FORGOTTEN := 2
+## An Oath is worth its effect this many times: about how often a trigger fires in a fight.
+const OATH_FIRINGS := 3
 
 
 ## Gold awarded for winning a fight against `enemy_count` enemies.
@@ -99,6 +101,14 @@ static func card_value(card: CardData) -> int:
 			push_error("Vendor.card_value: no valuation for CardEffect kind %d" % effect.kind)
 			continue
 		value += effect_points
+	# An Oath's effects fire on a trigger for the rest of the fight, so they count several times.
+	if card.oath:
+		for effect in card.oath_effects:
+			var oath_points := effect_value(effect)
+			if oath_points == UNVALUED:
+				push_error("Vendor.card_value: no valuation for oath CardEffect kind %d" % effect.kind)
+				continue
+			value += oath_points * OATH_FIRINGS
 	return value
 
 
