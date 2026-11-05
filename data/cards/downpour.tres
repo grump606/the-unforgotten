@@ -20,3 +20,4 @@ display_name = "Downpour"
 cost = 2
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
 target_mode = 1
+rarity = 1

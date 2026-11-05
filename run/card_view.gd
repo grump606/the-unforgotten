@@ -457,7 +457,10 @@ func _draw() -> void:
 	# Name banner; a long name shrinks (down to 8 px) to fit.
 	var banner := Rect2(6, 33, BASE.x - 12, 20)
 	_box(banner, p.banner, 3)
-	_text(card.display_name, banner, _fit_size(card.display_name, banner.size.x - 8, 13, 8), title_color(p), true)
+	# A rarity gem sits at the right end of the banner, so the name leaves room for it.
+	var name_rect := Rect2(banner.position, Vector2(banner.size.x - (16.0 if RARITY_GEM_COLORS.has(card.rarity) else 0.0), banner.size.y))
+	_text(card.display_name, name_rect, _fit_size(card.display_name, name_rect.size.x - 8, 13, 8), title_color(p), true)
+	_draw_rarity_gem(Vector2(BASE.x - 14, 43))
 	_draw_hotkey(Vector2(9, 30))
 
 	# Art window with the procedural icon.
@@ -826,7 +829,9 @@ func _draw_body(body: Rect2, ink: Color) -> void:
 	var txt := _joined(lines)
 	var size := 13
 	var h := _font.get_multiline_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size).y
-	while size > 10 and h > body.size.y:
+	# An Oath carries two effects (its price and its lasting effect), so its text may shrink further.
+	var smallest := 8 if card.oath else 10
+	while size > smallest and h > body.size.y:
 		size -= 1
 		h = _font.get_multiline_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size).y
 	var y := body.position.y + (body.size.y - h) / 2.0 + _font.get_ascent(size)
@@ -867,6 +872,12 @@ func body_lines() -> Array[Dictionary]:
 		var shown := effect.duplicate() as CardEffect
 		shown.amount = effective
 		lines.append({"text": shown.describe(), "delta": 1 if effective > effect.amount else -1})
+	# An Oath's lasting effect: its trigger on one line, what it does on the next.
+	if card.oath and not card.oath_effects.is_empty():
+		var sworn: PackedStringArray = []
+		for effect in card.oath_effects:
+			sworn.append(effect.describe())
+		lines.append({"text": "%s: %s" % [card.oath_trigger_text(), ", ".join(sworn)], "delta": 0})
 	return lines
 
 
@@ -1170,6 +1181,25 @@ func _draw_icon(kind: int, c: Vector2, r: float, window_col: Color, variant := &
 		CardEffect.Kind.DAMAGE_PER_SCENT:
 			_scent_trail(c + Vector2(-0.2, 0.2) * r, r * 0.75, KIND_COLORS[CardEffect.Kind.SCENT])
 			_blade(c + Vector2(0.35, -0.25) * r, r * 0.8, KIND_COLORS[CardEffect.Kind.DAMAGE])
+
+
+## Colour of a rarity gem on the name banner: none for Common, steel blue for Uncommon, gold for Rare.
+const RARITY_GEM_COLORS := {CardData.Rarity.UNCOMMON: Color("#7FA8D8"), CardData.Rarity.RARE: Color("#E8B773")}
+
+
+static func rarity_gem_color(rarity: int) -> Color:
+	return RARITY_GEM_COLORS.get(rarity, Color(0, 0, 0, 0))
+
+
+## A small diamond at the right end of the name banner for an Uncommon or Rare card (a Rare is a little larger).
+func _draw_rarity_gem(c: Vector2) -> void:
+	if card == null or not RARITY_GEM_COLORS.has(card.rarity):
+		return
+	var col: Color = RARITY_GEM_COLORS[card.rarity]
+	var r := 4.5 if card.rarity == CardData.Rarity.RARE else 3.5
+	var diamond := PackedVector2Array([c + Vector2(0, -r), c + Vector2(r, 0), c + Vector2(0, r), c + Vector2(-r, 0)])
+	draw_colored_polygon(diamond, col)
+	draw_polyline(PackedVector2Array([diamond[0], diamond[1], diamond[2], diamond[3], diamond[0]]), Color(0, 0, 0, 0.55), 1.0, true)
 
 
 ## A scent trail: three growing drops along a drifting line (placeholder glyph until the card art is designed).

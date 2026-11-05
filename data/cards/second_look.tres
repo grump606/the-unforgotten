@@ -16,3 +16,4 @@ cost = 0
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1")])
 target_mode = 2
 forgotten = true
+rarity = 1
