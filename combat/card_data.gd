@@ -40,6 +40,10 @@ enum OathTrigger { TURN_START, FIRST_PLAY, ON_FORGOTTEN, ANCHOR_KEPT }
 ## A basic card (Shove, Slip Past): part of every starting deck, left out of reward offers, but still sold at
 ## the vendor (see StarterContent.reward_pool and vendor_pool).
 @export var basic: bool = false
+## How often the card turns up in rewards and vendor stock: Common most, Rare least, with the odds shifting
+## towards the rarer ones deeper into the run (StarterContent.rarity_weights). Cards without the field are Common.
+enum Rarity { COMMON, UNCOMMON, RARE }
+@export var rarity: Rarity = Rarity.COMMON
 
 ## Runtime only (never in a .tres): true on a Remembered variant built by remembered_card(), which keeps the
 ## base card's id so art, prices and pools key on it unchanged.
@@ -102,6 +106,8 @@ func remembered_card() -> CardData:
 		variant.effects = remembered.effects
 		variant.target_mode = target_mode
 		variant.oath = oath
+		variant.rarity = rarity
+		variant.basic = basic
 		variant.oath_trigger = oath_trigger
 		variant.oath_effects = remembered.oath_effects if not remembered.oath_effects.is_empty() else oath_effects
 		variant.character = character

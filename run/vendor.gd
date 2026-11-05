@@ -254,7 +254,7 @@ var _healed := false
 ## `card_pool` is what the stock is drawn from (a character's pool); empty means every card.
 ## `relic_pool` is the relics that may be offered (the caller leaves out the ones already
 ## owned); one is picked after the card stock, and none is offered when it is empty.
-func _init(deck: Array[CardData], rng: RandomNumberGenerator, starting_gold: int, card_pool: Array[CardData] = [], relic_pool: Array[RelicData] = [], wallet: Wallet = null) -> void:
+func _init(deck: Array[CardData], rng: RandomNumberGenerator, starting_gold: int, card_pool: Array[CardData] = [], relic_pool: Array[RelicData] = [], wallet: Wallet = null, rarity_weights: Array[int] = [60, 32, 8]) -> void:
 	_deck = deck
 	if wallet != null:
 		_wallet = wallet  # shared: `starting_gold` is ignored
@@ -272,13 +272,9 @@ func _init(deck: Array[CardData], rng: RandomNumberGenerator, starting_gold: int
 		if not seen.has(card.id):
 			seen[card.id] = true
 			pool.append(card)
-	for i in range(pool.size() - 1, 0, -1):
-		var j := rng.randi_range(0, i)
-		var tmp := pool[i]
-		pool[i] = pool[j]
-		pool[j] = tmp
-	for i in mini(STOCK_CARDS, pool.size()):
-		_offers.append({"card": pool[i], "price": card_price(pool[i]), "sold": false})
+	# Each stock slot rolls a rarity, then a card of it (the same odds as a reward at this depth).
+	for card in StarterContent.pick_by_rarity(pool, STOCK_CARDS, rarity_weights, rng):
+		_offers.append({"card": card, "price": card_price(card), "sold": false})
 	if _offers.size() < STOCK_CARDS:
 		push_error("Vendor: could only stock %d of %d cards" % [_offers.size(), STOCK_CARDS])
 	# After the card shuffle, so the card stock never depends on whether a relic is offered.

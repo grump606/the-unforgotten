@@ -16,3 +16,4 @@ cost = 1
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1")])
 target_mode = 2
 character = &"thief"
+rarity = 1

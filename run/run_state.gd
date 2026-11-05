@@ -362,7 +362,7 @@ func vendor() -> Vendor:
 	if stop == null or stop.type != StopType.VENDOR:
 		return null
 	if _vendor == null:
-		_vendor = Vendor.new(deck, _rng, 0, StarterContent.vendor_pool(character.id), _unowned_relics(), _wallet)
+		_vendor = Vendor.new(deck, _rng, 0, StarterContent.vendor_pool(character.id), _unowned_relics(), _wallet, StarterContent.rarity_weights(rarity_tier()))
 	return _vendor
 
 
@@ -466,6 +466,14 @@ func _default_line() -> Array[Stop]:
 	return line
 
 
+## How far into the run the player is, 0 to 3 (a quarter of the stop line each): picks the rarity odds
+## (StarterContent.rarity_weights) for rewards and vendor stock.
+func rarity_tier() -> int:
+	if stops.is_empty():
+		return 0
+	return clampi(stop_index * StarterContent.RARITY_WEIGHTS.size() / stops.size(), 0, StarterContent.RARITY_WEIGHTS.size() - 1)
+
+
 func _roll_rewards() -> void:
 	# Mostly the character's own cards, with a neutral one mixed in: up to REWARD_CLASS_CHOICES
 	# class cards, then neutral cards to fill, then any class cards left over.
@@ -476,12 +484,18 @@ func _roll_rewards() -> void:
 			neutral_cards.append(card)
 		else:
 			class_cards.append(card)
-	_shuffle(class_cards)
-	_shuffle(neutral_cards)
+	# Each slot rolls a rarity first (rarer cards come up more often deeper into the run), then a card of it.
+	var weights := StarterContent.rarity_weights(rarity_tier())
 	var picks: Array[CardData] = []
-	picks.append_array(class_cards.slice(0, REWARD_CLASS_CHOICES))
-	picks.append_array(neutral_cards.slice(0, REWARD_CHOICES - picks.size()))
-	picks.append_array(class_cards.slice(REWARD_CLASS_CHOICES, REWARD_CLASS_CHOICES + REWARD_CHOICES - picks.size()))
+	var class_picks := StarterContent.pick_by_rarity(class_cards, REWARD_CLASS_CHOICES, weights, _rng)
+	picks.append_array(class_picks)
+	picks.append_array(StarterContent.pick_by_rarity(neutral_cards, REWARD_CHOICES - picks.size(), weights, _rng))
+	if picks.size() < REWARD_CHOICES:
+		var rest: Array[CardData] = []
+		for card in class_cards:
+			if not class_picks.has(card):
+				rest.append(card)
+		picks.append_array(StarterContent.pick_by_rarity(rest, REWARD_CHOICES - picks.size(), weights, _rng))
 	_reward_choices.assign(picks)
 	for card in picks:
 		if not offered_ids.has(card.id):

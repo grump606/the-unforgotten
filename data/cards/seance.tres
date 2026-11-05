@@ -48,3 +48,4 @@ target_mode = 2
 forgotten = true
 character = &"medium"
 remembered = SubResource("Rem_block")
+rarity = 1
