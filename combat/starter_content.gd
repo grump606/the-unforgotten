@@ -333,7 +333,7 @@ static func scaled(enemy: EnemyData, factor: float) -> EnemyData:
 	var intents: Array[CardEffect] = []
 	for intent in enemy.intents:
 		if intent.kind == CardEffect.Kind.DAMAGE:
-			intents.append(CardEffect.make(intent.kind, maxi(roundi(intent.amount * factor), 1), intent.bonus, intent.threshold))
+			intents.append(CardEffect.make(intent.kind, maxi(roundi(intent.amount * factor), 1), intent.bonus, intent.threshold, intent.hits))
 		else:
 			intents.append(intent)
 	return EnemyData.make(enemy.display_name, maxi(roundi(enemy.max_hp * factor), 1), intents, enemy.id, enemy.max_haunt)
