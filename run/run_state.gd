@@ -294,6 +294,29 @@ func rest() -> int:
 	return restored
 
 
+## Deck positions of the cards the Remember choice can bring back stronger: those with a remembered
+## block that are not yet Remembered. Empty off a rest stop.
+func rememberable_indices() -> Array[int]:
+	var indices: Array[int] = []
+	var stop := current_stop()
+	if stop == null or stop.type != StopType.REST:
+		return indices
+	for i in deck.size():
+		if deck[i].can_remember():
+			indices.append(i)
+	return indices
+
+
+## The rest stop's second choice: the card at `deck_index` becomes its Remembered form, no heal, and the
+## line moves on. False (changing nothing) off a rest stop or for a card that cannot be Remembered.
+func remember(deck_index: int) -> bool:
+	if not rememberable_indices().has(deck_index):
+		return false
+	deck[deck_index] = deck[deck_index].remembered_card()
+	_advance()
+	return true
+
+
 ## HP the rest at this stop will restore (0 off a rest stop).
 func rest_heal_amount() -> int:
 	var stop := current_stop()

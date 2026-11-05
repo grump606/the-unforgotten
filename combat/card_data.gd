@@ -26,6 +26,16 @@ enum TargetMode { SINGLE_ENEMY, ALL_ENEMIES, SELF }
 @export var anchor: bool = false
 @export var dormant: bool = false
 @export var surge: bool = false
+## The Remembered (upgraded) form, or null when the card cannot be Remembered (docs/MECHANICS_PLAN.md,
+## phase 5a). Appended last: older .tres files simply lack it.
+@export var remembered: RememberedData
+
+## Runtime only (never in a .tres): true on a Remembered variant built by remembered_card(), which keeps the
+## base card's id so art, prices and pools key on it unchanged.
+var is_remembered: bool = false
+## On a Remembered variant, the card it was built from (null otherwise).
+var base_card: CardData = null
+var _remembered_variant: CardData = null
 
 
 static func make(card_id: StringName, card_name: String, card_cost: int, card_effects: Array[CardEffect], card_target_mode: TargetMode = TargetMode.SINGLE_ENEMY) -> CardData:
@@ -63,6 +73,62 @@ func keyword_lines() -> PackedStringArray:
 	if surge:
 		lines.append("Surge")
 	return lines
+
+
+## The Remembered variant of this card: same id, name plus "+", the block's effects, cost and keywords.
+## Built once per base card, so deck entries of the same card share one instance (as base cards do).
+## Null when the card has no remembered block or is already Remembered.
+func remembered_card() -> CardData:
+	if remembered == null or is_remembered:
+		return null
+	if _remembered_variant == null:
+		var variant := CardData.new()
+		variant.id = id
+		variant.display_name = display_name + "+"
+		variant.cost = cost if remembered.cost < 0 else remembered.cost
+		variant.effects = remembered.effects
+		variant.target_mode = target_mode
+		variant.character = character
+		variant.forgotten = forgotten
+		variant.fading = fading
+		variant.ready = ready
+		variant.anchor = anchor
+		variant.dormant = dormant
+		variant.surge = surge
+		for keyword in remembered.gain_keywords:
+			variant.set_keyword(keyword, true)
+		for keyword in remembered.lose_keywords:
+			variant.set_keyword(keyword, false)
+		variant.is_remembered = true
+		variant.base_card = self
+		_remembered_variant = variant
+	return _remembered_variant
+
+
+## True if this card can be Remembered (has a block and is not already Remembered).
+func can_remember() -> bool:
+	return remembered != null and not is_remembered
+
+
+## The unupgraded card: this card itself, or a Remembered variant's base.
+func base() -> CardData:
+	return base_card if is_remembered and base_card != null else self
+
+
+func set_keyword(keyword: String, value: bool) -> void:
+	match keyword:
+		"forgotten":
+			forgotten = value
+		"fading":
+			fading = value
+		"ready":
+			ready = value
+		"anchor":
+			anchor = value
+		"dormant":
+			dormant = value
+		"surge":
+			surge = value
 
 
 func describe() -> String:
