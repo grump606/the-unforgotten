@@ -118,6 +118,7 @@ const CHARACTER_PATHS := {
 	&"deserter": "res://data/characters/deserter.tres",
 	&"thief": "res://data/characters/thief.tres",
 	&"medium": "res://data/characters/medium.tres",
+	&"stray": "res://data/characters/stray.tres",
 }
 const DEFAULT_CHARACTER_ID := &"deserter"
 ## The regular enemy types in a fixed order (the boss is separate, see CONDUCTOR_PATH): warden,
