@@ -522,12 +522,12 @@ func _toggle_log() -> void:
 	_log_panel.visible = not _log_panel.visible
 
 
-## Tooltip of an enemy: what it will do next, then its statuses.
+## Tooltip of an enemy: its Omen (what it will do next), then its statuses.
 func _enemy_tooltip(enemy: EnemyUnit) -> String:
 	var lines: Array[String] = [enemy.display_name]
 	var intent := Fighter.effective_intent(enemy, _combat.player)
 	if intent != null:
-		lines.append("Next: " + intent.describe())
+		lines.append("Omen: " + intent.describe())
 	var status := _status_tooltip(enemy)
 	if status != "":
 		lines.append(status)
