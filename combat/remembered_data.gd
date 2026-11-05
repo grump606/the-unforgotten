@@ -11,6 +11,8 @@ extends Resource
 ## Keywords the Remembered card gains / loses, by lower-case name (see KEYWORDS).
 @export var gain_keywords: PackedStringArray = []
 @export var lose_keywords: PackedStringArray = []
+## On an Oath: replaces its oath_effects when not empty (otherwise the base card's carry over).
+@export var oath_effects: Array[CardEffect] = []
 
 const KEYWORDS := ["forgotten", "fading", "ready", "anchor", "dormant", "surge"]
 
