@@ -29,6 +29,14 @@ enum TargetMode { SINGLE_ENEMY, ALL_ENEMIES, SELF }
 ## The Remembered (upgraded) form, or null when the card cannot be Remembered (docs/MECHANICS_PLAN.md,
 ## phase 5a). Appended last: older .tres files simply lack it.
 @export var remembered: RememberedData
+## Oath (docs/MECHANICS_PLAN.md, phase 6): the card is played once, then stays Sworn for the rest of the
+## fight. `effects` still happen when it is played (its cost: lose HP, add a Dread); `oath_effects` happen
+## each time `oath_trigger` fires while it is Sworn. Oath effects land on the player when their reach is
+## SELF and on every living enemy otherwise. A Dormant or Fading card cannot be an Oath.
+enum OathTrigger { TURN_START, FIRST_PLAY, ON_FORGOTTEN, ANCHOR_KEPT }
+@export var oath: bool = false
+@export var oath_trigger: OathTrigger = OathTrigger.TURN_START
+@export var oath_effects: Array[CardEffect] = []
 
 ## Runtime only (never in a .tres): true on a Remembered variant built by remembered_card(), which keeps the
 ## base card's id so art, prices and pools key on it unchanged.
@@ -72,6 +80,8 @@ func keyword_lines() -> PackedStringArray:
 		lines.append("Dormant")
 	if surge:
 		lines.append("Surge")
+	if oath:
+		lines.append("Oath")
 	return lines
 
 
@@ -88,6 +98,9 @@ func remembered_card() -> CardData:
 		variant.cost = cost if remembered.cost < 0 else remembered.cost
 		variant.effects = remembered.effects
 		variant.target_mode = target_mode
+		variant.oath = oath
+		variant.oath_trigger = oath_trigger
+		variant.oath_effects = remembered.oath_effects if not remembered.oath_effects.is_empty() else oath_effects
 		variant.character = character
 		variant.forgotten = forgotten
 		variant.fading = fading
@@ -131,8 +144,25 @@ func set_keyword(keyword: String, value: bool) -> void:
 			surge = value
 
 
+## True if the Oath rules allow this card: only an Oath that is neither Dormant nor Fading, with something to do.
+func is_valid_oath() -> bool:
+	return oath and not dormant and not fading and not oath_effects.is_empty()
+
+
+## Lead-in text for an Oath's trigger ("At turn start", ...).
+func oath_trigger_text() -> String:
+	return ["At turn start", "First card each turn", "When a card is Forgotten", "For each Anchor card kept"][oath_trigger]
+
+
 func describe() -> String:
 	var parts: PackedStringArray = []
 	for effect in effects:
 		parts.append(effect.describe())
-	return ", ".join(parts)
+	var text := ", ".join(parts)
+	if oath and not oath_effects.is_empty():
+		var sworn: PackedStringArray = []
+		for effect in oath_effects:
+			sworn.append(effect.describe())
+		var oath_text := "%s: %s" % [oath_trigger_text(), ", ".join(sworn)]
+		text = oath_text if text.is_empty() else "%s. %s" % [text, oath_text]
+	return text

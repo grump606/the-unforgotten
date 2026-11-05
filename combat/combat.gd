@@ -179,6 +179,8 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 			targets.append(target)
 		CardData.TargetMode.ALL_ENEMIES:
 			targets = living_enemies()
+	# Only Oaths already Sworn react to this play, never the card being played.
+	var sworn_before := piles.sworn.size()
 	var card := piles.play(hand_index)
 	# Surge spends all the energy there is; other cards spend their cost.
 	var spent := energy if card.surge else card.cost
@@ -196,6 +198,10 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 				_apply(effect, player, target, scale)
 	if not relics.is_empty():
 		_apply_play_relics(card, targets)
+	if plays_this_turn == 1:
+		_fire_oaths(CardData.OathTrigger.FIRST_PLAY, sworn_before)
+	if card.forgotten and not card.oath:
+		_fire_oaths(CardData.OathTrigger.ON_FORGOTTEN, sworn_before)
 	card_played.emit(card, targets)
 	_check_phases()
 	if not _check_end():
@@ -386,8 +392,11 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 	phase = Phase.ENEMY_TURN
 	discard_marks.clear()
 	piles.discard_cards(discard_indices)
-	# Fading cards that were not played are lost before the enemies act.
-	piles.forget_fading_in_hand()
+	# Fading cards that were not played are lost before the enemies act; each one is a Forgotten card for
+	# the Oaths that care. A Glimpse or Recall from here opens at the start of the next turn.
+	var faded := piles.forget_fading_in_hand()
+	for _faded in faded:
+		_fire_oaths(CardData.OathTrigger.ON_FORGOTTEN)
 	# Kept Anchor cards shield the player through the enemy phase.
 	var anchor_block := _relic_total(RelicData.Kind.ANCHOR_END_BLOCK)
 	if anchor_block > 0:
@@ -397,6 +406,9 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 				anchored += 1
 		if anchored > 0:
 			player.gain_block(anchor_block * anchored)
+	for held in piles.hand:
+		if held.anchor:
+			_fire_oaths(CardData.OathTrigger.ANCHOR_KEPT)
 	# Haunt hurts first, so an enemy it kills never acts.
 	for enemy in living_enemies():
 		enemy.lose_hp(enemy.status_turns(Combatant.Status.HAUNTED))
@@ -462,8 +474,30 @@ func _begin_player_turn() -> void:
 	# The fight-start Glimpse looks at the draw pile after the opening hand is dealt.
 	if turn == 1 and _relic_total(RelicData.Kind.FIGHT_START_GLIMPSE) > 0:
 		_choice_queue.append({"kind": CardEffect.Kind.GLIMPSE, "amount": _relic_total(RelicData.Kind.FIGHT_START_GLIMPSE)})
-		_open_next_choice()
+	# Sworn Oaths act once the hand is dealt. An Oath that costs HP can end the fight here.
+	_fire_oaths(CardData.OathTrigger.TURN_START)
+	_check_phases()
+	if _check_end():
+		return
+	_open_next_choice()
 	state_changed.emit()
+
+
+## Fires every Sworn Oath whose trigger is `trigger`: each of its oath_effects once. Only the first `limit`
+## Sworn cards are considered when `limit` >= 0 (so a card being played does not trigger itself). An effect
+## whose reach is SELF lands on the player; any other lands on every enemy still alive when it resolves.
+func _fire_oaths(trigger: CardData.OathTrigger, limit: int = -1) -> void:
+	var count := piles.sworn.size() if limit < 0 else mini(limit, piles.sworn.size())
+	for i in count:
+		var oath: CardData = piles.sworn[i]
+		if oath.oath_trigger != trigger:
+			continue
+		for effect in oath.oath_effects:
+			if effect.reach() == CardEffect.Reach.SELF:
+				_apply(effect, player, player)
+			else:
+				for enemy in living_enemies():
+					_apply(effect, player, enemy)
 
 
 ## Sum of `amount` over the owned relics of `kind` (0 with none).
