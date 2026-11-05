@@ -28,6 +28,25 @@ static func play_turn(combat: Combat) -> bool:
 	return combat.end_player_turn(discards_for(combat))
 
 
+## Rest stop for both bots: Rest (heal to full) while HP is under REST_BELOW of max or nothing can be
+## Remembered, else Remember a card (no heal). `smart` picks the card by score gain (SmartPolicy.remember_pick),
+## greedy takes the first attack that can be Remembered, else the first card. False on a RunState failure.
+const REST_BELOW := 0.6
+
+
+static func rest_stop(run: RunState, smart: bool) -> bool:
+	var indices := run.rememberable_indices()
+	if indices.is_empty() or run.player.hp < REST_BELOW * run.player.max_hp:
+		return run.rest() >= 0
+	var pick := SmartPolicy.remember_pick(run) if smart else indices[0]
+	if not smart:
+		for i in indices:
+			if is_damage_card(run.deck[i]):
+				pick = i
+				break
+	return run.remember(pick)
+
+
 ## True while the player still has something to do in the fight: a turn to play or a choice to settle.
 ## The loops that drive a fight use it so a pick left open can never end them as if the fight had stalled.
 static func is_acting(combat: Combat) -> bool:
@@ -61,7 +80,7 @@ static func resolve_choice(combat: Combat) -> bool:
 	if combat.choice_kind() == CardEffect.Kind.GLIMPSE:
 		var average := _average_glimpse_score(combat)
 		for i in cards.size():
-			var junk: bool = cards[i].dormant or glimpse_score(cards[i]) < average
+			var junk: bool = cards[i].dormant or (cards[i].character == &"" and glimpse_score(cards[i]) < average)
 			if junk:
 				picks.append(i)
 	else:
@@ -255,7 +274,7 @@ static func _is_pointless(combat: Combat, card: CardData) -> bool:
 		return true
 	if _has_effect(card, CardEffect.Kind.GLIMPSE) and combat.piles.draw_pile.is_empty():
 		return not _has_other_value(card, CardEffect.Kind.GLIMPSE)
-	if _has_effect(card, CardEffect.Kind.RECALL) and combat.piles.forgotten.is_empty():
+	if _has_effect(card, CardEffect.Kind.RECALL) and not _forgotten_worth_recalling(combat):
 		return not _has_other_value(card, CardEffect.Kind.RECALL)
 	if _has_effect(card, CardEffect.Kind.DAMAGE_PER_FORGOTTEN) and combat.piles.forgotten.is_empty():
 		return not _has_other_value(card, CardEffect.Kind.DAMAGE_PER_FORGOTTEN)
@@ -266,6 +285,14 @@ static func _is_pointless(combat: Combat, card: CardData) -> bool:
 	if _has_effect(card, CardEffect.Kind.DAMAGE_PER_HAUNT):
 		return _haunted_target(combat) == -1
 	return _is_pointless_status(combat, card)
+
+
+## True if the Forgotten pile holds an attack or a defence card (the only ones the greedy bot would play).
+static func _forgotten_worth_recalling(combat: Combat) -> bool:
+	for card in combat.piles.forgotten:
+		if _base_tier(card) >= 2.0:
+			return true
+	return false
 
 
 ## True if a Forgotten card that is not Dormant costs no more than the energy left once `card` is paid.

@@ -85,7 +85,7 @@ func _initialize() -> void:
 							quit(1)
 							return
 				RunState.StopType.REST:
-					if run.rest() < 0:
+					if not SimPolicy.rest_stop(run, _smart):
 						printerr("run_sim: rest() failed at stop %d" % index)
 						quit(1)
 						return

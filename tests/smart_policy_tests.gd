@@ -33,6 +33,14 @@ func run() -> int:
 	_test_add_dread_never_played()
 	_test_damage_per_forgotten_estimates()
 	_test_cycling_deck_fight_finishes()
+	_test_glimpse_values_class_cards()
+	_test_recall_judgement()
+	_test_forgotten_not_wasted()
+	_test_surge_goes_last()
+	_test_new_cards_are_scored_and_taken()
+	_test_rest_stop_remembers_or_rests()
+	_test_run_stub_rest_or_remember()
+	_test_relics_are_bought_and_fights_finish()
 	return _failures
 
 
@@ -95,7 +103,7 @@ func _test_plays_whole_runs_without_illegal_moves() -> void:
 					if run.reward_pending():
 						_check(run.resolve_reward(SmartPolicy.pick_reward(run)), "smart reward pick is accepted")
 				RunState.StopType.REST:
-					run.rest()
+					_check(SimPolicy.rest_stop(run, true), "smart rest stop is accepted")
 				RunState.StopType.STORY:
 					run.read_story()
 				RunState.StopType.VENDOR:
@@ -762,3 +770,171 @@ func _test_cycling_deck_fight_finishes() -> void:
 		_check(ok, "the cycling fight has no illegal move (smart %s)" % use_smart)
 		_check(combat.phase == Combat.Phase.ENDED, "the cycling fight finishes without a stall (smart %s, turn %d)" % [use_smart, combat.turn])
 		_check(deck == before, "created cards never enter the deck (smart %s)" % use_smart)
+
+
+func _real(id: StringName) -> CardData:
+	for card in StarterContent.all_cards():
+		if card.id == id:
+			return card
+	return null
+
+
+## Glimpse bins a neutral card below the average and a Dormant card, but a class card only far below it:
+## a Medium Haunt / HP-cost card is not binned just because card_score undervalues it.
+func _test_glimpse_values_class_cards() -> void:
+	var deck := StarterContent.starter_deck(&"medium")
+	var weights := SmartPolicy._weights(deck)
+	var average := SmartPolicy._average_score(deck, weights)
+	var neutral_dud := _card(&"dud", 2, CardEffect.Kind.DAMAGE, 1)
+	_check(SmartPolicy.glimpse_junk(neutral_dud, weights, average), "a weak neutral card is binned")
+	_check(SmartPolicy.glimpse_junk(_dread(), weights, average), "Dormant is binned")
+	# The same card, as a class card and as a neutral one, against an average a little above its score.
+	var kept := _card(&"kept", 0, CardEffect.Kind.DAMAGE, 1)
+	kept.character = &"medium"
+	var neutral_same := _card(&"same", 0, CardEffect.Kind.DAMAGE, 1)
+	var score := SmartPolicy.card_score(kept, weights)
+	var mid_average := score / ((SmartPolicy.GLIMPSE_CLASS_SHARE + 1.0) / 2.0)
+	_check(not SmartPolicy.glimpse_junk(kept, weights, mid_average), "a class card between the class share and the average is kept")
+	_check(SmartPolicy.glimpse_junk(neutral_same, weights, mid_average), "the same neutral card at that average is binned")
+	_check(SmartPolicy.glimpse_junk(kept, weights, score / (SmartPolicy.GLIMPSE_CLASS_SHARE * 0.5)), "a class card far below the average is binned")
+
+
+## Recall is worth something only when the Forgotten pile holds a card worth returning; greedy skips it
+## when only Dormant or non-attack/defence cards are there.
+func _test_recall_judgement() -> void:
+	var recall := _custom(1, [_fx(CardEffect.Kind.RECALL, 1)], CardData.TargetMode.SELF)
+	var empty := _combat_with_hand([recall])
+	_check(SmartPolicy._play_value(empty, 0, -1) == 0.0, "smart: Recall with an empty Forgotten pile is worth nothing")
+	_check(SimPolicy._pick_card(empty) == -1, "greedy: Recall with an empty Forgotten pile is not played")
+	var junk_only := _combat_with_hand([recall])
+	junk_only.piles.forgotten.assign([_dread()])
+	_check(SimPolicy._pick_card(junk_only) == -1, "greedy: Recall is not played for a Dormant card")
+	var worthwhile := _combat_with_hand([recall])
+	worthwhile.piles.forgotten.assign([_strike(14)])
+	_check(SmartPolicy._play_value(worthwhile, 0, -1) > 0.0, "smart: Recall with a good Forgotten card is worth playing")
+	_check(SimPolicy._pick_card(worthwhile) == 0, "greedy: Recall is played for a good Forgotten card")
+
+
+## A Forgotten card is not burned for a trivial hit when it kills nothing, but is played for the kill.
+func _test_forgotten_not_wasted() -> void:
+	var tiny := _strike(1)
+	tiny.forgotten = true
+	var combat := _combat_with_hand([tiny], 40)
+	SmartPolicy.play_turn(combat)
+	_check(combat.piles.forgotten.is_empty() and combat.enemies[0].hp == 40, "smart does not burn a Forgotten card on a 1-damage hit")
+	var kill := _strike(9)
+	kill.forgotten = true
+	var finish := _combat_with_hand([kill], 5)
+	SmartPolicy.play_turn(finish)
+	_check(finish.enemies[0].is_dead(), "smart plays a Forgotten card for the killing blow")
+
+
+## A Surge goes after the cards that need fixed energy, so it spends only what is left.
+func _test_surge_goes_last() -> void:
+	var surge := _surge_card(4, 1)
+	var strike := _strike(6)
+	var combat := _combat_with_hand([surge, strike], 100)
+	SmartPolicy.play_turn(combat)
+	# 3 energy: Strike (1) first, then Surge with the 2 left: 6 + 4 x 2.
+	_check(combat.enemies[0].hp == 100 - 6 - 8, "smart plays the Surge after the fixed-cost card (hp %d)" % combat.enemies[0].hp)
+
+
+## The cards the sim used to ignore score above zero, and Forgotten payoffs grow with Forgotten cards in the deck.
+func _test_new_cards_are_scored_and_taken() -> void:
+	for id in [&"remember", &"chorus_of_the_lost", &"hollow_bargain", &"sharpen", &"quick_study", &"cleaned_out", &"dig_deep"]:
+		var card := _real(id)
+		_check(card != null, "%s exists" % id)
+		if card == null:
+			continue
+		var deck := StarterContent.starter_deck(card.character if card.character != &"" else &"medium")
+		var weights := SmartPolicy._weights(deck)
+		_check(SmartPolicy.card_score(card, weights) > 0.0, "%s scores above zero" % id)
+	var plain := StarterContent.starter_deck(&"medium")
+	var rich: Array[CardData] = plain.duplicate()
+	for i in 6:
+		rich.append(_real(&"bleed_the_veil"))
+	for id in [&"remember", &"chorus_of_the_lost"]:
+		var card := _real(id)
+		_check(SmartPolicy.card_score(card, SmartPolicy._weights(rich)) >= SmartPolicy.card_score(card, SmartPolicy._weights(plain)), "%s is not worth less in a deck full of Forgotten cards" % id)
+
+
+func _rest_run(character: StringName) -> RunState:
+	var run := RunState.new(5, character)
+	while run.current_stop().type != RunState.StopType.REST:
+		match run.current_stop().type:
+			RunState.StopType.COMBAT:
+				run.complete_combat(true)
+				if run.reward_pending():
+					run.resolve_reward(null)
+			RunState.StopType.STORY:
+				run.read_story()
+			RunState.StopType.VENDOR:
+				run.leave_vendor()
+	return run
+
+
+## At a rest stop the bots Rest under 60% HP and Remember a card above it; the Remembered card is a variant
+## with the same id.
+func _test_rest_stop_remembers_or_rests() -> void:
+	for use_smart in [false, true]:
+		var low := _rest_run(&"thief")
+		low.player.hp = int(low.player.max_hp * 0.4)
+		var deck_before := low.deck.duplicate()
+		_check(SimPolicy.rest_stop(low, use_smart) and low.player.hp == low.player.max_hp and low.deck == deck_before, "low HP: the bot rests (smart %s)" % use_smart)
+		var high := _rest_run(&"thief")
+		high.player.hp = int(high.player.max_hp * 0.8)
+		var hp := high.player.hp
+		var ids_before: Array[StringName] = []
+		for card in high.deck:
+			ids_before.append(card.id)
+		_check(SimPolicy.rest_stop(high, use_smart), "high HP: the rest stop is accepted (smart %s)" % use_smart)
+		var remembered := 0
+		for i in high.deck.size():
+			_check(high.deck[i].id == ids_before[i], "a Remembered card keeps its id (smart %s)" % use_smart)
+			if high.deck[i].is_remembered:
+				remembered += 1
+		_check(remembered == 1 and high.player.hp == hp, "high HP: one card is Remembered and nothing is healed (smart %s)" % use_smart)
+	var run := _rest_run(&"thief")
+	var pick := SmartPolicy.remember_pick(run)
+	_check(pick >= 0 and run.deck[pick].can_remember(), "smart names a card that can be Remembered")
+
+
+func _test_run_stub_rest_or_remember() -> void:
+	var stub: Script = load("res://tools/run_stub.gd")
+	var deck := StarterContent.starter_deck(&"thief")
+	var player := Combatant.new("p", 40)
+	_check(stub.rest_or_remember(player, deck).begins_with("remembered"), "the run stub Remembers at high HP")
+	var remembered := 0
+	for card in deck:
+		if card.is_remembered:
+			remembered += 1
+	_check(remembered == 1, "the run stub Remembered exactly one card")
+	player.hp = 10
+	_check(stub.rest_or_remember(player, deck).begins_with("rest") and player.hp > 10, "the run stub rests at low HP")
+
+
+## Every relic (the six keyword relics included) lets both bots finish a fight, and the vendor step buys the relic on offer.
+func _test_relics_are_bought_and_fights_finish() -> void:
+	for relic in StarterContent.all_relics():
+		for use_smart in [false, true]:
+			var deck := StarterContent.starter_deck(&"medium")
+			var enemies: Array[EnemyData] = [StarterContent.warden()]
+			var relics: Array[RelicData] = [relic]
+			var combat := Combat.create(Combatant.new("p", 60), deck, enemies, 3, relics)
+			combat.start()
+			var ok := _run_fight(combat, use_smart, 80)
+			_check(ok and combat.phase == Combat.Phase.ENDED, "a fight with relic %s finishes (smart %s)" % [relic.id, use_smart])
+	var run := RunState.new(3, &"thief")
+	while run.current_stop().type != RunState.StopType.VENDOR:
+		match run.current_stop().type:
+			RunState.StopType.COMBAT:
+				run.complete_combat(true)
+				if run.reward_pending():
+					run.resolve_reward(null)
+			RunState.StopType.STORY:
+				run.read_story()
+			RunState.StopType.REST:
+				run.rest()
+	run.gold = 500
+	var offered := run.vendor().relic_offer()
+	_check(not offered.is_empty() and SimPolicy.buy_relic(run) and run.relics.size() == 1, "the bot buys the vendor's relic")

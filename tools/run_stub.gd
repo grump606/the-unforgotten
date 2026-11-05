@@ -59,7 +59,7 @@ func _run(run_seed: int, character_id: StringName) -> int:
 	for card in deck:
 		if not seen.has(card.id):
 			seen[card.id] = true
-			reward_pool.append(card)
+			reward_pool.append(card.base() if card.is_remembered else card)
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run_seed
@@ -99,10 +99,23 @@ func _run(run_seed: int, character_id: StringName) -> int:
 			return 0
 		var reward := reward_pool[rng.randi_range(0, reward_pool.size() - 1)]
 		deck.append(reward)
-		var healed := player.heal(REST_HEAL)
-		print("%s | reward %s (deck %d), rest +%d -> HP %d" % [line, reward.display_name, deck.size(), healed, player.hp])
+		var rested := rest_or_remember(player, deck)
+		print("%s | reward %s (deck %d), %s -> HP %d" % [line, reward.display_name, deck.size(), rested, player.hp])
 	print("Run result: VICTORY, final HP %d/%d, deck %d" % [player.hp, player.max_hp, deck.size()])
 	return 0
+
+
+## The stub's rest stop, like the real one: Rest (REST_HEAL HP) while HP is under 60% of max or no card can
+## be Remembered, else Remember the first card that can be (its slot takes the Remembered variant: same id,
+## `is_remembered`). Returns a short description of what happened.
+static func rest_or_remember(player: Combatant, deck: Array[CardData]) -> String:
+	if player.hp >= 0.6 * player.max_hp:
+		for i in deck.size():
+			if deck[i].can_remember():
+				var name := deck[i].display_name
+				deck[i] = deck[i].remembered_card()
+				return "remembered %s" % name
+	return "rest +%d" % player.heal(REST_HEAL)
 
 
 ## Describes the per-fight state still on `player` (Block, any status or stack, temporary stacks
