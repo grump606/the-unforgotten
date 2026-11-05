@@ -23,7 +23,7 @@ const TINTS := {
 	&"deserter": Color(0.70, 0.34, 0.14),
 	&"thief": Color(0.12, 0.60, 0.58),
 	&"medium": Color(0.52, 0.30, 0.78),
-	&"stray": Color(0.60, 0.40, 0.22),
+	&"stray": Color(0.22, 0.32, 0.56),
 }
 const TINT_AMOUNT := 0.32
 ## The boss fight keeps its red mood: the class tint is scaled down there.
