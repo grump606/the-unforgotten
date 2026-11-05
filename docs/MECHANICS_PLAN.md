@@ -2,10 +2,8 @@
 
 Status: phases 1 to 4 are built; phase 5a (Remembered upgrades), 5b (Omens), 5c (relics) and 5d (bots and balance) are built. Phase 6a (the Oath engine) 6b (the six Oath cards and their display) and 6c (bots and balance) are built. Lives on the `thief-rework` branch.
 
-Reference: the Slay the Spire wiki (Mechanics, Keywords, Energy, Intent pages). Those pages are thin and
-marked "under construction", and give no numbers for Weak, Vulnerable or Strength. The numbers below are
-this game's own choices. The goal is to play in the same family as Slay the Spire without copying it, so
-keywords are renamed to fit the setting and a few rules are our own.
+The numbers below are this game's own choices. The goal is a deckbuilder with its own rules, so keywords are
+named to fit the setting.
 
 ## Where the game is today
 
@@ -55,7 +53,7 @@ keywords are renamed to fit the setting and a few rules are our own.
 5. **Forgotten pile:** visible during the fight. Recalling a card from it costs a card effect, not a free
    action. Cards return to the deck after the fight.
 
-## Where we play differently from Slay the Spire
+## Where this game's rules are its own
 
 1. Keep-5 hand: Fading and Anchor make "keep or play" a real decision, since a kept Fading card must be
    played or it is lost.
@@ -535,8 +533,8 @@ Each is its own PR into `thief-rework`. No version bump or release.
 
 ## Phase 6 plan: Oaths (6a, 6b and 6c built)
 
-An Oath is a card you play once; it is then Sworn for the rest of the fight and keeps working (the Slay the
-Spire Power). Proposed rules, all open to change:
+An Oath is a card you play once; it is then Sworn for the rest of the fight and keeps working for the rest of
+the fight. Proposed rules, all open to change:
 
 - **Card type:** `CardData.oath: bool`. Playing it moves it to a new Sworn list in `CardPiles` (not discard,
   not Forgotten), shown as a small strip by the player. Sworn cards return to the deck after the fight, like
