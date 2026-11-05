@@ -6,9 +6,9 @@ extends Control
 
 signal closed
 
-enum Pile { DRAW, DISCARD, FORGOTTEN }
+enum Pile { DRAW, DISCARD, FORGOTTEN, SWORN }
 
-const PILE_NAMES := ["Draw", "Discard", "Forgotten"]
+const PILE_NAMES := ["Draw", "Discard", "Forgotten", "Sworn"]
 const NOTES := [
 	"In no particular order.",
 	"Most recently discarded last.",
@@ -56,6 +56,8 @@ static func shown_cards(piles: CardPiles, which: Pile) -> Array[CardData]:
 			cards.assign(piles.discard_pile)
 		Pile.FORGOTTEN:
 			cards.assign(piles.forgotten)
+		Pile.SWORN:
+			cards.assign(piles.sworn)
 	return cards
 
 

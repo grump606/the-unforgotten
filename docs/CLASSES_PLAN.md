@@ -100,29 +100,34 @@ Every phase ends with `scripts/check.ps1` passing and a commit. Combat mechanics
 - UI flow test: the select screen, plus one full scripted run per character.
 - Sim: `run_sim.gd --character <id>` for both policies, escape rates recorded in the README.
 
-## Fourth class proposal: the Stray (proposal, not started)
+## Fourth class proposal: the Stray (design settled, not started)
 
-All numbers, names and rules below are open to change. Nothing here is built.
+Numbers and names are still open to tuning. Nothing here is built. Decided: half of the Scent moves on when the quarry dies, Scent is capped at 8, and the class has a second pillar, a Malice engine.
 
 **Pitch.** The Eraser strips names, but an animal never had one to lose. The Stray is a memorial hound that
 tracks by scent: it picks one quarry and does not let go.
 
 **Identity.** The Thief is fast, the Deserter patient, the Medium costly. The Stray *hunts one target*: it
 commits to a single enemy and pays off the longer it stays on it. Its resource is Scent, which no other class
-uses. It leans on systems already built (Malice, multi-hit, Shaken, Fading, Ready) so the engine cost is small.
+uses. It has two pillars. **Scent** is the focus: build it on one enemy, then spend it. **Malice** is the
+snowball: feral cards add permanent Malice, so every hit grows over the fight. Multi-hit cards feed both, since
+Malice and Scent each add to every hit. It leans on systems already built (Malice, multi-hit, Shaken, Fading,
+Ready) so the engine cost is small.
 
 ### The mechanic: Scent
 
 - **Scent** is a stack status on an enemy. It lasts the fight and never ticks down.
 - **One quarry.** Only one enemy can hold Scent at a time. Applying Scent to a different enemy moves the whole
   stack there. This is the commitment: switching targets costs you the build-up.
+- **Cap.** Scent stops at 8. Applying more than that is wasted.
 - **Passive bonus.** Every hit the player's cards deal to the quarry gets +1 per Scent. It is added with
   Malice, before Shaken and Expose, so multi-hit cards gain the bonus on every hit. Enemy attacks, Barbs and
   Haunt are not affected.
 - **Spending.** "Run Down" style cards deal extra damage per Scent and then remove all of it. Spending is the
   payoff and resets the build-up, so the decision is when to stop building.
-- **Quarry dies.** Open question: Scent is lost, or half of it (rounded down) moves to a random living enemy.
-  Half is kinder in multi-enemy fights; lost is simpler and stricter.
+- **Quarry dies.** Half of its Scent, rounded down, moves to a random living enemy (chosen with the seeded
+  fight RNG). With no living enemy left the fight is over anyway. Losing the target still costs you, but a
+  fight with several enemies does not reset the class every kill.
 - **Not Haunt, not Expose.** Haunt decays and ignores Block; Expose is a flat x1.5 for a few turns. Scent
   grows, targets one enemy, and rewards many small hits as well as one big one.
 
@@ -132,7 +137,7 @@ uses. It leans on systems already built (Malice, multi-hit, Shaken, Fading, Read
 - Starting deck (10): 3 Shove, 2 Slip Past, 1 Glimpse the Exit, plus 4 class cards (in bold below).
 - Reward and vendor pools follow the existing rule: the class pool plus the neutral pool.
 
-### Cards (provisional, 12)
+### Cards (provisional, 15)
 
 | Card | Cost | Effect |
 |---|---|---|
@@ -148,9 +153,13 @@ uses. It leans on systems already built (Malice, multi-hit, Shaken, Fading, Read
 | Pounce | 2 | Damage 5, 2 hits. Fading |
 | Savage | 2 | Damage 4, 3 hits |
 | Bring Down | 3 | Damage 6 plus 5 per Scent, spend all Scent. Forgotten |
+| Hackles | 1 | Malice 1, Draw 1 |
+| Tear Loose | 1 | Damage 3, 2 hits, Malice 1 |
+| Go Feral | 2 | Malice 2. Forgotten |
 
-Deliberately missing for now: a Malice-scaling card and a card that recalls from the Forgotten pile. Add them
-after the first sim if the class is short of a late-game plan.
+The last three are the Malice engine: Hackles is the cheap setup, Tear Loose grows as it hits, Go Feral is the
+big permanent buff (Forgotten, so it is a one-shot for the fight). There is deliberately no Forgotten-pile
+recall; that is the Medium's identity.
 
 ### What it needs in the code
 
@@ -197,8 +206,8 @@ hooks the Stray needs, then phases 2 to 4 above, then the Oaths for all four cla
 
 - **Single-target tunnel vision.** Fights with several weak enemies may feel bad if the quarry rule fights the
   player. The half-transfer rule on death and the Howl card are the mitigation; check in the sim.
-- **Multi-hit plus per-hit bonus** can scale fast (Savage with 5 Scent is 3 hits of 9). Cap Scent at 8 if the
-  sim shows runaway damage.
+- **Multi-hit plus per-hit bonus** can scale fast. Savage with 8 Scent and 3 Malice is 3 hits of 15. The
+  Scent cap bounds one factor; if the sim shows runaway damage, lower the cap or trim Malice from Tear Loose.
 - **Overlap with Exposed.** Old Wound stacks both. If the combination is too strong, drop Expose from it.
 - **Bots mis-valuing setup cards.** Zero-damage turns look wasteful to a greedy policy, which would understate
   the class. This is the same risk as the Medium's Haunt and needs the same play-count check.
@@ -211,8 +220,6 @@ Style decisions go in a separate art doc.
 
 ### Open questions
 
-- Does Scent move to a new enemy when the quarry dies, lose half, or vanish?
-- Is Scent capped, and at what value?
-- Is "hunts one target" enough to carry a whole class, or does it need a second pillar (a Malice engine is the
-  obvious candidate)?
-- Final name and starting HP.
+- Final name and starting HP (40 is a guess; tune in the sim).
+- The two Oaths (first ideas above) once the Oath cards are designed in 6b.
+- Whether the Malice engine and Scent together are too strong; the sim decides.
