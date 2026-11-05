@@ -208,6 +208,9 @@ static func _pick_card(combat: Combat) -> int:
 			if combat.energy == 0 and _scales_with_energy(card):
 				continue
 			rank = 4.0
+		elif card.oath:
+			# An Oath acts from the next turn on, so swear it before spending the turn's energy elsewhere.
+			rank = -1.5
 		elif _expose_sets_up_damage(combat, i) or _buff_sets_up(combat, card):
 			rank = -1
 		elif _has_effect(card, CardEffect.Kind.GLIMPSE):
@@ -267,11 +270,28 @@ static func recycles_itself(combat: Combat, card: CardData) -> bool:
 	return drawn > combat.piles.draw_pile.size()
 
 
+## Last player turn on which the greedy bot still swears an Oath: sworn later, it would fire too few times to
+## repay its cost. It also never swears a second copy of an Oath it already has Sworn.
+const OATH_LAST_TURN := 2
+
+
+static func oath_worth_swearing(combat: Combat, card: CardData) -> bool:
+	if combat.turn > OATH_LAST_TURN:
+		return false
+	for sworn in combat.piles.sworn:
+		if sworn.id == card.id:
+			return false
+	return true
+
+
 ## True if playing the card now would do nothing: Spirit Tithe with no Haunted enemy or no HP to
 ## heal, Reckoning with no Haunted enemy to hit.
 static func _is_pointless(combat: Combat, card: CardData) -> bool:
 	if recycles_itself(combat, card):
 		return true
+	# An Oath is judged on what it does for the rest of the fight, not on its play cost (a Dread, lost HP).
+	if card.oath:
+		return not oath_worth_swearing(combat, card)
 	if _has_effect(card, CardEffect.Kind.GLIMPSE) and combat.piles.draw_pile.is_empty():
 		return not _has_other_value(card, CardEffect.Kind.GLIMPSE)
 	if _has_effect(card, CardEffect.Kind.RECALL) and not _forgotten_worth_recalling(combat):
