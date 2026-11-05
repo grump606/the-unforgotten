@@ -765,7 +765,7 @@ func _damage_preview(card: CardData) -> String:
 		# Haunt differs per enemy, so a per-Haunt hit has no single number.
 		var all_base := 0
 		for effect in damage_effects:
-			if effect.kind == CardEffect.Kind.DAMAGE_PER_HAUNT:
+			if effect.kind == CardEffect.Kind.DAMAGE_PER_HAUNT or effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
 				return ""
 			all_base += Combatant.hit_damage(effect.raw_damage(EffectContext.make(block, 0, plays, _combat.piles.forgotten.size())), _combat.player, _NEUTRAL) * _hit_count(card, effect)
 		return "\nDeals %d (x%d enemies)" % [all_base, _combat.living_enemies().size()]
@@ -802,7 +802,7 @@ func _target_preview(card: CardData, target: EnemyUnit) -> Dictionary:
 	var hits: Array[int] = []
 	for effect in card.effects:
 		if effect.is_damage():
-			var raw := effect.raw_damage(EffectContext.make(block, target.status_turns(Combatant.Status.HAUNTED), plays, _combat.piles.forgotten.size()))
+			var raw := effect.raw_damage(EffectContext.make(block, target.status_turns(Combatant.Status.HAUNTED), plays, _combat.piles.forgotten.size(), target.stacks(Combatant.Status.SCENT)))
 			for _h in _hit_count(card, effect):
 				base += raw
 				hits.append(raw)
