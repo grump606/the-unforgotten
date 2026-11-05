@@ -160,7 +160,7 @@ func _initialize() -> void:
 		print("")
 		print("Card plays per run (a card never played shows 0.00), share of runs whose final deck held it, plays per run that held it")
 		var played: Array = []
-		for card in StarterContent.reward_pool(_character):
+		for card in StarterContent.vendor_pool(_character):
 			played.append([card.id, _plays.get(card.id, 0)])
 		played.sort_custom(func(a: Array, b: Array) -> bool: return a[1] > b[1])
 		for entry: Array in played:

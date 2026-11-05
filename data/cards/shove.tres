@@ -25,3 +25,4 @@ display_name = "Shove"
 cost = 1
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_effect")])
 remembered = SubResource("Rem_block")
+basic = true

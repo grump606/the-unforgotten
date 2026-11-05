@@ -37,6 +37,9 @@ enum OathTrigger { TURN_START, FIRST_PLAY, ON_FORGOTTEN, ANCHOR_KEPT }
 @export var oath: bool = false
 @export var oath_trigger: OathTrigger = OathTrigger.TURN_START
 @export var oath_effects: Array[CardEffect] = []
+## A basic card (Shove, Slip Past): part of every starting deck, left out of reward offers, but still sold at
+## the vendor (see StarterContent.reward_pool and vendor_pool).
+@export var basic: bool = false
 
 ## Runtime only (never in a .tres): true on a Remembered variant built by remembered_card(), which keeps the
 ## base card's id so art, prices and pools key on it unchanged.
