@@ -99,3 +99,120 @@ Every phase ends with `scripts/check.ps1` passing and a commit. Combat mechanics
 - Save tests: character round-trip, version 1 rejection, a deck with cards from another class rejected.
 - UI flow test: the select screen, plus one full scripted run per character.
 - Sim: `run_sim.gd --character <id>` for both policies, escape rates recorded in the README.
+
+## Fourth class proposal: the Stray (proposal, not started)
+
+All numbers, names and rules below are open to change. Nothing here is built.
+
+**Pitch.** The Eraser strips names, but an animal never had one to lose. The Stray is a memorial hound that
+tracks by scent: it picks one quarry and does not let go.
+
+**Identity.** The Thief is fast, the Deserter patient, the Medium costly. The Stray *hunts one target*: it
+commits to a single enemy and pays off the longer it stays on it. Its resource is Scent, which no other class
+uses. It leans on systems already built (Malice, multi-hit, Shaken, Fading, Ready) so the engine cost is small.
+
+### The mechanic: Scent
+
+- **Scent** is a stack status on an enemy. It lasts the fight and never ticks down.
+- **One quarry.** Only one enemy can hold Scent at a time. Applying Scent to a different enemy moves the whole
+  stack there. This is the commitment: switching targets costs you the build-up.
+- **Passive bonus.** Every hit the player's cards deal to the quarry gets +1 per Scent. It is added with
+  Malice, before Shaken and Expose, so multi-hit cards gain the bonus on every hit. Enemy attacks, Barbs and
+  Haunt are not affected.
+- **Spending.** "Run Down" style cards deal extra damage per Scent and then remove all of it. Spending is the
+  payoff and resets the build-up, so the decision is when to stop building.
+- **Quarry dies.** Open question: Scent is lost, or half of it (rounded down) moves to a random living enemy.
+  Half is kinder in multi-enemy fights; lost is simpler and stricter.
+- **Not Haunt, not Expose.** Haunt decays and ignores Block; Expose is a flat x1.5 for a few turns. Scent
+  grows, targets one enemy, and rewards many small hits as well as one big one.
+
+### Character
+
+- Id `stray`, display name The Stray. Starting HP 40 (to tune; between the Thief and Deserter).
+- Starting deck (10): 3 Shove, 2 Slip Past, 1 Glimpse the Exit, plus 4 class cards (in bold below).
+- Reward and vendor pools follow the existing rule: the class pool plus the neutral pool.
+
+### Cards (provisional, 12)
+
+| Card | Cost | Effect |
+|---|---|---|
+| **Catch the Scent** | 0 | Scent 2 |
+| **Snap** | 1 | Damage 4, 2 hits |
+| **Bristle** | 1 | Block 5, Malice 1 until next turn |
+| **Run Down** | 1 | Damage 4 plus 3 per Scent, spend all Scent |
+| Worry | 1 | Damage 3, Scent 1, Shaken 1 |
+| Circle | 1 | Block 6, Scent 1 |
+| Nose to the Wind | 0 | Glimpse 2, Scent 1. Ready |
+| Old Wound | 1 | Scent 2, Expose 2 |
+| Howl | 1 | Shaken 1 to all enemies, Scent 2 |
+| Pounce | 2 | Damage 5, 2 hits. Fading |
+| Savage | 2 | Damage 4, 3 hits |
+| Bring Down | 3 | Damage 6 plus 5 per Scent, spend all Scent. Forgotten |
+
+Deliberately missing for now: a Malice-scaling card and a card that recalls from the Forgotten pile. Add them
+after the first sim if the class is short of a late-game plan.
+
+### What it needs in the code
+
+| Change | Where | Notes |
+|---|---|---|
+| `Status.SCENT` (stack kind) | `Combatant`, status table | Appended to the status enum. Not saved. |
+| One-quarry rule | `Combat._apply`, SCENT branch | Clears Scent from any other enemy, then adds. |
+| Scent bonus per hit | `Combatant.hit_damage` | Applies only when the attacker is the player and the defender holds Scent. Previews, intent display and both bot policies already call this function. |
+| `CardEffect.Kind.SCENT` | `card_effect.gd`, appended | Apply Scent. `reach()` is ENEMIES (single target). |
+| `CardEffect.Kind.DAMAGE_PER_SCENT` | appended | `amount` plus `bonus` per Scent, then clears it. Uses `hits` where the card has them. |
+| Text and UI | `describe()`, status badge | Scent badge and tooltip on the enemy; live numbers on card faces like the other statuses. |
+| Character data | `StarterContent`, `Character` resource, `run_save.gd` | The save check that rejects another class's cards must know the Stray. |
+| Bots | `tools/sim_policy.gd`, `smart_policy.gd` | Focus fire on the quarry, build Scent before a spender, and do not spread targets. |
+
+New effect kinds and statuses are only appended, never reordered. `tests/mechanics_tests.gd` walks every kind.
+
+### Interaction with the rest of the rework
+
+- **Oaths (phase 6):** the Stray gets two, to be designed once Scent is settled. First ideas: *Keep the Trail*
+  (Scent is not lost when the quarry dies) and *Pack Instinct* (the first card each turn adds Scent 1).
+  Oath triggers should include Scent applied and Scent spent so these are possible.
+- **Remembered upgrades:** the usual rule (a stronger version of each card) with no class-specific work.
+- **Omens and enemies:** an enemy that changes target or clears statuses would punish or counter Scent. Review
+  the enemy pool once the cards exist; no enemy change is planned up front.
+- **Relics:** at least one class relic that touches Scent (for example, a first Scent each fight is doubled).
+
+### Phases
+
+Each phase ends with `scripts/check.ps1` passing and a commit, as before.
+
+1. **Infrastructure.** The `stray` character with a neutral-only starting deck, so the select screen, saves and
+   rewards work before any new mechanic. Small.
+2. **Scent engine.** Status, one-quarry rule, hit bonus, the two effect kinds, unit tests (move on retarget,
+   bonus on every hit of a multi-hit, spend clears, quarry death, preview matches real damage).
+3. **Cards and UI.** The twelve cards, Scent badge, card-face live numbers, content tests.
+4. **Bots and balance.** Teach both policies Scent, check the bot actually plays the cards (count plays per
+   card), tune to the same targets as the other classes (greedy within about 10 points of the rest).
+5. **Story.** The Stray's per-character boarding and boss beats (`StoryContent.beat`).
+
+Sequence relative to Oaths: design the Stray first, then build mechanics phase 6a (Oath engine) with any shared
+hooks the Stray needs, then phases 2 to 4 above, then the Oaths for all four classes in 6b and 6c.
+
+### Risks
+
+- **Single-target tunnel vision.** Fights with several weak enemies may feel bad if the quarry rule fights the
+  player. The half-transfer rule on death and the Howl card are the mitigation; check in the sim.
+- **Multi-hit plus per-hit bonus** can scale fast (Savage with 5 Scent is 3 hits of 9). Cap Scent at 8 if the
+  sim shows runaway damage.
+- **Overlap with Exposed.** Old Wound stacks both. If the combination is too strong, drop Expose from it.
+- **Bots mis-valuing setup cards.** Zero-damage turns look wasteful to a greedy policy, which would understate
+  the class. This is the same risk as the Medium's Haunt and needs the same play-count check.
+
+### Art dependencies (not decided here)
+
+Art is out of scope until the mechanics settle. When it is time, the class will need: a left-facing player
+sprite, a class battle backdrop, card art for the class pool, a Scent status icon, and character-select art.
+Style decisions go in a separate art doc.
+
+### Open questions
+
+- Does Scent move to a new enemy when the quarry dies, lose half, or vanish?
+- Is Scent capped, and at what value?
+- Is "hunts one target" enough to carry a whole class, or does it need a second pillar (a Malice engine is the
+  obvious candidate)?
+- Final name and starting HP.

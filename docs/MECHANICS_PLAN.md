@@ -1,6 +1,6 @@
 # Card mechanics rework: plan
 
-Status: phases 1 to 4 are built; phase 5a (Remembered upgrades), 5b (Omens), 5c (relics) and 5d (bots and balance) are built. Lives on the `thief-rework` branch.
+Status: phases 1 to 4 are built; phase 5a (Remembered upgrades), 5b (Omens), 5c (relics) and 5d (bots and balance) are built. Phase 6a (the Oath engine) is built. Lives on the `thief-rework` branch.
 
 Reference: the Slay the Spire wiki (Mechanics, Keywords, Energy, Intent pages). Those pages are thin and
 marked "under construction", and give no numbers for Weak, Vulnerable or Strength. The numbers below are
@@ -533,7 +533,7 @@ those numbers remain barely tested by the smart sim. Greedy has no Forgotten-cos
 5a first (largest: engine, save migration, UI, tests), then 5b and 5c in parallel (different files), then 5d.
 Each is its own PR into `thief-rework`. No version bump or release.
 
-## Phase 6 plan: Oaths (proposal, not started)
+## Phase 6 plan: Oaths (6a built; 6b and 6c not started)
 
 An Oath is a card you play once; it is then Sworn for the rest of the fight and keeps working (the Slay the
 Spire Power). Proposed rules, all open to change:
@@ -551,6 +551,16 @@ Spire Power). Proposed rules, all open to change:
   gains Malice 1), *Light Step* (turn start: Glimpse 2). Deserter: *Unbroken Vow* (turn start: Ward +1 up to
   3, adds a Dread now), *Standing Guard* (kept Anchor cards give Block). Medium: *Open Grave* (a Forgotten card
   deals 2 to all enemies, lose 4 HP now), *Quiet Debt* (turn start: Haunt 1 to all, lose 1 HP).
+- **As built in 6a (differs from the effects bullet above):** no new effect kinds. `CardData` gains `oath`,
+  `oath_trigger` (`TURN_START`, `FIRST_PLAY`, `ON_FORGOTTEN`, `ANCHOR_KEPT`) and `oath_effects`; the card's
+  ordinary `effects` still happen when it is played (its cost), and `oath_effects` fire on the trigger. Any
+  existing effect kind works as an oath effect: SELF reach lands on the player, anything else on every living
+  enemy. `CardPiles.sworn` holds Oaths; a copy sworn twice fires twice. A card played as the first of a turn
+  does not trigger its own FIRST_PLAY. Fading cards lost at end of turn each fire ON_FORGOTTEN; each kept
+  Anchor card fires ANCHOR_KEPT. An Oath that costs HP at turn start can kill the player (a defeat). A Glimpse
+  or Recall fired at end of turn opens at the next turn start. `RememberedData.oath_effects` can replace the
+  oath effects on a Remembered Oath. `is_valid_oath()` rejects Dormant, Fading and empty Oaths.
+  Tests: `tests/oath_tests.gd`. No card uses it yet, so play is unchanged.
 - **Display and text:** keyword line "Oath: stays for the fight"; the card frame gets a distinct border.
 - **Bots:** sim policies value an Oath as its per-turn effect times expected remaining turns.
 - **Sub-phases:** 6a engine, piles, save-safe (decks unchanged); 6b the six cards, UI strip and text; 6c bots
