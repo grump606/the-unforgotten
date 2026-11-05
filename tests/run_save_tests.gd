@@ -27,6 +27,7 @@ func run() -> int:
 	_test_act_two_round_trip()
 	_test_save_refused_mid_flight()
 	_test_migration_v2_to_v3()
+	_test_remembered_cards()
 	_test_newer_version_rejected()
 	_test_backup_recovery()
 	_test_delete_cleans_everything()
@@ -171,7 +172,7 @@ func _test_corrupt_files() -> void:
 
 func _test_version_mismatch() -> void:
 	var state := RunState.new(3)
-	for bad in [0, 1, 4, -1, "3", null, 2.5]:
+	for bad in [0, 1, 5, -1, "3", null, 2.5]:
 		var data := RunSave.to_dict(state)
 		data["version"] = bad
 		var result := RunSave.from_dict(data)
@@ -320,7 +321,7 @@ func _test_migration_v2_to_v3() -> void:
 	full["version"] = 2
 	var loaded := RunSave.from_dict(full)
 	_check(loaded.run != null and RunSave.to_dict(loaded.run) == RunSave.to_dict(state), "a full v2 save migrates to the same run")
-	_check(RunSave.to_dict(loaded.run)["version"] == 3 if loaded.run != null else false, "a migrated run is written back as v3")
+	_check(RunSave.to_dict(loaded.run)["version"] == RunSave.VERSION if loaded.run != null else false, "a migrated run is written back as v4")
 	# A v2 save with none of the optional fields migrates with defaults.
 	var bare := RunSave.to_dict(state)
 	bare["version"] = 2
@@ -335,6 +336,50 @@ func _test_migration_v2_to_v3() -> void:
 	var v3_bare := RunSave.to_dict(state)
 	v3_bare.erase("relics")
 	_check(RunSave.from_dict(v3_bare).run == null, "a v3 save without relics is rejected")
+
+
+func _test_remembered_cards() -> void:
+	_check(RunSave.VERSION == 4 and RunSave.MIN_VERSION == 2, "the save format is v4 and still reads v2")
+	var state := RunState.new(7, &"thief")
+	var picks: Array[int] = []
+	for i in state.deck.size():
+		if state.deck[i].can_remember() and picks.size() < 2:
+			picks.append(i)
+	_check(picks.size() == 2, "setup: the Thief's deck has two cards to Remember")
+	for i in picks:
+		state.deck[i] = state.deck[i].remembered_card()
+	var data := RunSave.to_dict(state)
+	var plus_ids := 0
+	for entry in data["deck"]:
+		if (entry as String).ends_with("+"):
+			plus_ids += 1
+	_check(data["version"] == 4 and plus_ids == 2, "a Remembered card is saved as id+")
+	var copy := _clone(state)
+	_check(copy != null and copy.deck.size() == state.deck.size(), "a Remembered deck restores")
+	for i in state.deck.size():
+		_check(copy.deck[i].id == state.deck[i].id and copy.deck[i].is_remembered == state.deck[i].is_remembered, "deck slot %d keeps its card and Remembered flag" % i)
+	_check(RunSave.to_dict(copy) == data, "the Remembered round trip is exact")
+	# A v3 save (no + entries) loads unchanged and is written back as v4.
+	var plain := RunState.new(7, &"thief")
+	var v3 := RunSave.to_dict(plain)
+	v3["version"] = 3
+	var loaded := RunSave.from_dict(v3)
+	_check(loaded.run != null and RunSave.to_dict(loaded.run)["deck"] == RunSave.to_dict(plain)["deck"], "a v3 save loads with the same deck")
+	_check(loaded.run != null and RunSave.to_dict(loaded.run)["version"] == 4 and not loaded.run.deck[0].is_remembered, "a v3 run is written back as v4, nothing Remembered")
+	# A + on a card with no block, an unknown card, or a doubled + is rejected.
+	var no_block := ""
+	for card in StarterContent.reward_pool(&"thief"):
+		if card.remembered == null:
+			no_block = String(card.id)
+			break
+	_check(no_block != "", "setup: some Thief-pool card has no remembered block")
+	for bad in [no_block + "+", "not_a_card+", "shove++", "+"]:
+		var broken := RunSave.to_dict(plain)
+		var ids: Array = (broken["deck"] as Array).duplicate()
+		ids[0] = bad
+		broken["deck"] = ids
+		var result := RunSave.from_dict(broken)
+		_check(result.run == null and result.error != "", "deck entry '%s' is rejected" % bad)
 
 
 func _test_newer_version_rejected() -> void:
