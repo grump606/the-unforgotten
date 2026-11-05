@@ -278,9 +278,9 @@ func _test_characters_and_pools() -> void:
 	neutral_ids.sort()
 	_check(neutral_ids == ["brace", "flurry", "glimpse_exit", "shove", "slip_past", "sweep"], "the neutral pool is Brace, Flurry, Glimpse the Exit, Shove, Slip Past and Sweep")
 
-	_check(StarterContent.character_ids() == [&"deserter", &"thief", &"medium"], "three characters, in selection order")
+	_check(StarterContent.character_ids() == [&"deserter", &"thief", &"medium", &"stray"], "four characters, in selection order")
 	_check(StarterContent.character(&"nobody") == null, "an unknown character is null")
-	var max_hp := {&"deserter": 52, &"thief": 36, &"medium": 60}
+	var max_hp := {&"deserter": 52, &"thief": 36, &"medium": 60, &"stray": 40}
 	for id in StarterContent.character_ids():
 		var character := StarterContent.character(id)
 		_check(character != null and character.id == id and character.display_name != "" and character.pitch != "", "character %s loads with a name and pitch" % id)
