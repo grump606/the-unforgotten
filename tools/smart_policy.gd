@@ -71,6 +71,13 @@ const TYPICAL_REMAINING_TURNS := 3
 ## A typical Scent stack when a spender is played, and what a point of applied Scent is worth in a deck score.
 const TYPICAL_SCENT := 3
 const SCENT_SCORE_PER_POINT := 1.5
+## In a fight: a point of Scent is worth a point of damage per later hit. Share of a typical fight's remaining
+## hits that count (the quarry may die first), the ordering bonus for marking before the attacks that use it, and a
+## small preference for marking the enemy that already holds Scent.
+const SCENT_HIT_VALUE := 1.0
+const SCENT_FUTURE_SHARE := 0.8
+const SCENT_FIRST := 6.0
+const SCENT_FOCUS := 1.0
 ## How often an Oath's trigger fires, as a share of the turns left: every turn for TURN_START and FIRST_PLAY,
 ## about every other turn for a Forgotten card, about one turn in three for a kept Anchor card.
 ## An Oath scores less in a deck than its effects add up to: it spends a turn's energy before it pays back, and
@@ -299,6 +306,8 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 					value += lost * (1.0 + float(threat) / maxi(enemy.hp, 1))
 					if lost >= enemy.hp:
 						value += 4.0 + 1.5 * threat
+					elif effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
+						value -= _spend_cost(combat, hand_index, enemy, energy_left)
 			CardEffect.Kind.HOLD:
 				# Block kept for next turn: worth about a third of useful Block.
 				value += 0.8 * amount
@@ -334,6 +343,8 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 							if boosted > 0:
 								# It only pays if played before the damage, so rank it first.
 								value += EXPOSE_FIRST
+			CardEffect.Kind.SCENT:
+				value += _scent_value(combat, hand_index, effect, hit, energy_left)
 			CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
 				value += _stack_value(combat, hand_index, effect, hit, energy_left, incoming)
 			CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
@@ -412,6 +423,48 @@ static func _added_value(combat: Combat, effect: CardEffect, energy_left: int) -
 ## `share` of a card's whole value (card_score is per energy + 1, so it is scaled back up), never below 0.
 static func _landed_value(card: CardData, weights: Dictionary, share: float) -> float:
 	return maxf(card_score(card, weights), 0.0) * (card.cost + 1) * share
+
+
+## Value of a Scent effect: each point added to the quarry is +1 on every later hit it takes. That is the other
+## affordable damage cards' hits this turn, plus a share of a typical fight's remaining hits (the stack lasts
+## until spent, but it can be lost with the quarry). A stack already at the cap adds nothing. A card aimed at
+## several enemies marks the current quarry if it is among them, else the first (as Combat does). Marking the
+## current quarry is slightly preferred, so the bot focuses one enemy.
+static func _scent_value(combat: Combat, hand_index: int, effect: CardEffect, hit: Array[EnemyUnit], energy_left: int) -> float:
+	var target: EnemyUnit = null
+	for enemy in hit:
+		if enemy.stacks(Combatant.Status.SCENT) > 0:
+			target = enemy
+			break
+	if target == null and not hit.is_empty():
+		target = hit[0]
+	if target == null:
+		return 0.0
+	var held := 0
+	for enemy in combat.enemies:
+		held += enemy.stacks(Combatant.Status.SCENT)
+	var applied := mini(effect.amount, Combatant.SCENT_CAP - held)
+	if applied <= 0:
+		return 0.0
+	var uses_now := _other_uses(combat, hand_index, energy_left, true)
+	var future := float(TYPICAL_REMAINING_TURNS * TYPICAL_HITS_PER_TURN) * SCENT_FUTURE_SHARE
+	var total := float(applied) * (uses_now + future) * SCENT_HIT_VALUE
+	if uses_now > 0:
+		total += SCENT_FIRST
+	if target.stacks(Combatant.Status.SCENT) > 0:
+		total += SCENT_FOCUS
+	return total - 0.01 * target.hp
+
+
+## What spending `enemy`'s Scent costs: the extra damage that stack would still have added, on the other cards
+## in hand this turn and on later hits. Zero when the spend kills (the caller skips this then).
+static func _spend_cost(combat: Combat, hand_index: int, enemy: EnemyUnit, energy_left: int) -> float:
+	var stack := enemy.stacks(Combatant.Status.SCENT)
+	if stack <= 0:
+		return 0.0
+	var uses_now := _other_uses(combat, hand_index, energy_left, true)
+	var future := float(TYPICAL_REMAINING_TURNS * TYPICAL_HITS_PER_TURN) * SCENT_FUTURE_SHARE
+	return float(stack) * (uses_now + future) * SCENT_HIT_VALUE
 
 
 ## Value of a Malice or Ward effect (see the header): a positive stack for the user, a negative one on `hit`.

@@ -176,7 +176,7 @@ static func keep_score(combat: Combat, card: CardData) -> float:
 static func _base_tier(card: CardData) -> float:
 	if card.dormant:
 		return 0.0
-	if is_damage_card(card) or _is_permanent_buff(card):
+	if is_damage_card(card) or _is_permanent_buff(card) or _has_effect(card, CardEffect.Kind.SCENT):
 		return 3.0
 	if is_block_card(card):
 		return 2.0
@@ -211,6 +211,12 @@ static func _pick_card(combat: Combat) -> int:
 		elif card.oath:
 			# An Oath acts from the next turn on, so swear it before spending the turn's energy elsewhere.
 			rank = -1.5
+		elif _has_effect(card, CardEffect.Kind.SCENT):
+			# Mark the quarry before the attacks that use it, so it is cheap and goes early.
+			rank = -0.9
+		elif _has_effect(card, CardEffect.Kind.DAMAGE_PER_SCENT):
+			# A spender goes after the ordinary attacks, which gain from the Scent it will use up.
+			rank = 2.5
 		elif _expose_sets_up_damage(combat, i) or _buff_sets_up(combat, card):
 			rank = -1
 		elif _has_effect(card, CardEffect.Kind.GLIMPSE):
@@ -292,6 +298,12 @@ static func _is_pointless(combat: Combat, card: CardData) -> bool:
 	# An Oath is judged on what it does for the rest of the fight, not on its play cost (a Dread, lost HP).
 	if card.oath:
 		return not oath_worth_swearing(combat, card)
+	# A card whose only job is Scent does nothing at the cap; a spender waits for a stack worth spending.
+	if _has_effect(card, CardEffect.Kind.SCENT) and _scent_total(combat) >= Combatant.SCENT_CAP and not _has_other_value(card, CardEffect.Kind.SCENT):
+		return true
+	if _has_effect(card, CardEffect.Kind.DAMAGE_PER_SCENT) and not _spender_ready(combat, card):
+		# Build the stack first when a card in hand can; otherwise spend what there is.
+		return _has_affordable_scent_card(combat)
 	if _has_effect(card, CardEffect.Kind.GLIMPSE) and combat.piles.draw_pile.is_empty():
 		return not _has_other_value(card, CardEffect.Kind.GLIMPSE)
 	if _has_effect(card, CardEffect.Kind.RECALL) and not _forgotten_worth_recalling(combat):
@@ -414,7 +426,43 @@ static func _target_for(combat: Combat, card: CardData) -> int:
 		var haunted := _haunted_target(combat)
 		if haunted != -1:
 			return haunted
+	# Hunt one target: every single-target card goes to the enemy that holds Scent, if there is one.
+	var quarry := _scent_target(combat)
+	if quarry != -1:
+		return quarry
 	return _lowest_hp_target(combat)
+
+
+## Index of the living enemy holding Scent, or -1 if none does.
+static func _scent_target(combat: Combat) -> int:
+	for i in combat.enemies.size():
+		if not combat.enemies[i].is_dead() and combat.enemies[i].stacks(Combatant.Status.SCENT) > 0:
+			return i
+	return -1
+
+
+## Scent on the board, whichever enemy holds it.
+static func _scent_total(combat: Combat) -> int:
+	var total := 0
+	for enemy in combat.enemies:
+		total += enemy.stacks(Combatant.Status.SCENT)
+	return total
+
+
+## True if a card in hand can add Scent now (affordable, and the stack is below the cap).
+static func _has_affordable_scent_card(combat: Combat) -> bool:
+	if _scent_total(combat) >= Combatant.SCENT_CAP:
+		return false
+	for card in combat.piles.hand:
+		if not card.dormant and card.cost <= combat.energy and _has_effect(card, CardEffect.Kind.SCENT):
+			return true
+	return false
+
+
+## A Scent spender (damage per Scent) is held until the stack is worth spending: 2 plus its cost, so a cheap one
+## goes at 3 and Bring Down at 5. Spending also ends the stack, so it goes when it would kill (not judged here).
+static func _spender_ready(combat: Combat, card: CardData) -> bool:
+	return _scent_total(combat) >= 2 + card.cost
 
 
 ## Index of the living enemy with the most Haunt (first on ties), or -1 if none is Haunted.
