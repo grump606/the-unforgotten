@@ -53,8 +53,8 @@ func _test_text() -> void:
 			var card := _load(id)
 			_check(card.keyword_lines() == PackedStringArray(["Oath"]), "%s shows the Oath keyword" % id)
 			_check(card.describe().contains(card.oath_trigger_text() + ":"), "%s text names its trigger: %s" % [id, card.describe()])
-	_check(_load(&"light_step").describe() == "Lose 3 HP. At turn start: Glimpse 2", "Light Step text: %s" % _load(&"light_step").describe())
-	_check(_load(&"open_grave").describe() == "Lose 4 HP. When a card is Forgotten: Deal 2", "Open Grave text: %s" % _load(&"open_grave").describe())
+	_check(_load(&"light_step").describe() == "Lose 2 HP. At turn start: Draw 1, Glimpse 2", "Light Step text: %s" % _load(&"light_step").describe())
+	_check(_load(&"open_grave").describe() == "Lose 2 HP. When a card is Forgotten: Deal 4", "Open Grave text: %s" % _load(&"open_grave").describe())
 
 
 ## Each Oath has a price to pay when sworn (HP, or a Dread in the draw pile), except Quiet Debt, which costs HP each turn.
@@ -120,7 +120,7 @@ func _test_each_oath_plays_and_fires() -> void:
 	grave.start()
 	grave.play_card(grave.piles.hand.find(grave_card), 0)
 	grave.play_card(grave.piles.hand.find(gone), 0)
-	_check(grave.enemies[0].hp == 98 and grave.enemies[1].hp == 98, "Open Grave deals 2 to every enemy when a card is Forgotten")
+	_check(grave.enemies[0].hp == 96 and grave.enemies[1].hp == 96, "Open Grave deals 4 to every enemy when a card is Forgotten")
 
 
 func _test_pile_viewer_lists_sworn() -> void:
