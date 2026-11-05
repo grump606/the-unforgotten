@@ -29,10 +29,14 @@ extends Resource
 ## Created cards last for the fight only.
 ## RECALL: pick `amount` cards from the Forgotten pile and return them to hand (a choice, like GLIMPSE).
 ## DAMAGE_PER_FORGOTTEN: damage equal to the size of the Forgotten pile times `amount`.
+## SCENT: the card's target becomes the quarry and gains `amount` Scent (max 8). Only one enemy holds Scent: a
+## new holder takes the old holder's whole stack too. A card that targets several enemies marks the current
+## quarry if it is among them, else the first. Enemy intents cannot apply it.
+## DAMAGE_PER_SCENT: `amount` plus `bonus` per Scent on the target, after which that Scent is spent (removed).
 ## ADDING A KIND: append it to Kind (never reorder), then touch only: is_damage()/reach() and
 ## describe() here, the handler in Combat._apply, and Vendor.effect_value. tests/mechanics_tests.gd
 ## walks every Kind and fails if any of those is missing.
-enum Kind { DAMAGE, BLOCK, DRAW, EXPOSE, HOLD, DAMAGE_PER_BLOCK, DAMAGE_IF_BLOCK, THORNS, GAIN_ENERGY, DAMAGE_PER_PLAY, HAUNT, LOSE_HP, HEAL_PER_HAUNTED, DAMAGE_PER_HAUNT, SHAKEN, FRAYED, MALICE, WARD, GLIMPSE, ADD_CARD, RECALL, DAMAGE_PER_FORGOTTEN }
+enum Kind { DAMAGE, BLOCK, DRAW, EXPOSE, HOLD, DAMAGE_PER_BLOCK, DAMAGE_IF_BLOCK, THORNS, GAIN_ENERGY, DAMAGE_PER_PLAY, HAUNT, LOSE_HP, HEAL_PER_HAUNTED, DAMAGE_PER_HAUNT, SHAKEN, FRAYED, MALICE, WARD, GLIMPSE, ADD_CARD, RECALL, DAMAGE_PER_FORGOTTEN, SCENT, DAMAGE_PER_SCENT }
 
 @export var kind: Kind = Kind.DAMAGE
 @export var amount: int = 0
@@ -75,7 +79,7 @@ enum Reach { SELF, ENEMIES, BOTH }
 
 ## True for the kinds that hit a target for `raw_damage`.
 func is_damage() -> bool:
-	return kind in [Kind.DAMAGE, Kind.DAMAGE_PER_BLOCK, Kind.DAMAGE_IF_BLOCK, Kind.DAMAGE_PER_PLAY, Kind.DAMAGE_PER_HAUNT, Kind.DAMAGE_PER_FORGOTTEN]
+	return kind in [Kind.DAMAGE, Kind.DAMAGE_PER_BLOCK, Kind.DAMAGE_IF_BLOCK, Kind.DAMAGE_PER_PLAY, Kind.DAMAGE_PER_HAUNT, Kind.DAMAGE_PER_FORGOTTEN, Kind.DAMAGE_PER_SCENT]
 
 
 ## Where a played card applies this effect: the card's chosen enemies (ENEMIES), the player
@@ -83,7 +87,7 @@ func is_damage() -> bool:
 ## any other card exposes its targets). MALICE and WARD are SELF when positive and ENEMIES when
 ## negative. Enemy intents ignore this and always act on the player.
 func reach() -> Reach:
-	if is_damage() or kind == Kind.HAUNT:
+	if is_damage() or kind in [Kind.HAUNT, Kind.SCENT]:
 		return Reach.ENEMIES
 	if kind in [Kind.EXPOSE, Kind.SHAKEN, Kind.FRAYED]:
 		return Reach.BOTH
@@ -109,6 +113,8 @@ func raw_damage(ctx: EffectContext) -> int:
 			return ctx.haunt * amount
 		Kind.DAMAGE_PER_FORGOTTEN:
 			return ctx.forgotten * amount
+		Kind.DAMAGE_PER_SCENT:
+			return amount + bonus * ctx.scent
 	return 0
 
 
@@ -177,4 +183,8 @@ func _describe_base() -> String:
 			return "Recall %d" % amount
 		Kind.DAMAGE_PER_FORGOTTEN:
 			return "Deal damage equal to the Forgotten pile" if amount == 1 else "Deal %dx the Forgotten pile" % amount
+		Kind.SCENT:
+			return "Scent %d" % amount
+		Kind.DAMAGE_PER_SCENT:
+			return "Deal %d, +%d per Scent (spends it)" % [amount, bonus]
 	return ""
