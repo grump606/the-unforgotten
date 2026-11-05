@@ -1,6 +1,6 @@
 # Card mechanics rework: plan
 
-Status: phases 1 to 4 are built; phase 5a (Remembered upgrades) is built, 5b to 5d are planned. Lives on the `thief-rework` branch.
+Status: phases 1 to 4 are built; phase 5a (Remembered upgrades), 5b (Omens), 5c (relics) and 5d (bots and balance) are built. Lives on the `thief-rework` branch.
 
 Reference: the Slay the Spire wiki (Mechanics, Keywords, Energy, Intent pages). Those pages are thin and
 marked "under construction", and give no numbers for Weak, Vulnerable or Strength. The numbers below are
@@ -476,11 +476,57 @@ Anchor, at least two per class and two neutrals). The bots do not take Remember 
 - Add six relics that use the keywords: one each for Glimpse, Malice, Ward, Forgotten, Anchor and Shaken.
   Existing relics are not retuned unless the sim shows one dominating.
 
-### 5d. Bot and balance
+### 5d. Bot and balance (done)
 
 - Smart bot: Glimpse binning that counts a card's value for the class, a Recall/Forgotten judgement, and
   taking and playing the six cards the sim currently ignores.
 - Then re-run the sim and fix the two band misses (Thief smart seed 11, Medium greedy seed 7).
+
+**5d status: done (bots only; no card, enemy or relic numbers changed).**
+
+Bot changes:
+
+- **Glimpse binning (both bots):** Dormant is always binned; a neutral card is binned below the cycle's average
+  card score; a class card only below `GLIMPSE_CLASS_SHARE` (0.85) of the average (greedy never bins a class
+  card). Binning more is what helps: with class cards never binned (smart, seed 7) Thief fell to 76, Deserter 69,
+  Medium 73; at 0.85 they are 82 / 72 / 87.
+- **Recall / Forgotten:** greedy plays Recall only if the Forgotten pile holds an attack or defence card. Smart
+  prices a Recall from the deck's Forgotten cards (`weights.recall`, floor 5) and Chorus of the Lost from the
+  deck's Forgotten count (3 to 5 cards); a Forgotten card that does not kill costs `FORGOTTEN_PLAY_COST` (2) of
+  play value, so a 1-damage hit does not burn it (no measurable effect on escapes).
+- **Play order:** a Surge goes after every fixed-cost card (smart). Malice before multi-hit already worked.
+- **Rest stop (`SimPolicy.rest_stop`, both bots):** Rest below 60% HP, otherwise Remember (smart: the biggest
+  `card_score` gain, plus a little for Ready; greedy: the first attack that can be Remembered). `run_sim` uses
+  it, and `run_stub` models the same choice with the Remembered variant (same id, `is_remembered`).
+- **Rewards:** the skip rule stays at "below the deck average" (0.85 of it, and 0.6, bloated the deck and cost
+  15 to 30 escapes). Remember, Chorus and Hollow Bargain now score high enough to be taken sometimes
+  (Hollow Bargain in about 20% of smart Medium runs); Remember and Chorus are still rarely taken by smart.
+- **Vendor/relics:** both bots already buy the visit's relic when affordable; a test now runs a fight with
+  every relic (the six 5c ones included) under both bots.
+
+**Baseline after 5d** (escapes of 150, same command as above; "before" is the 5c tree, the same sims before any
+5d change):
+
+| Class | Policy | Before s7 | Before s11 | After s7 | After s11 |
+|---|---|---|---|---|---|
+| Thief | smart | 65 (43.3%) | 78 (52.0%) | 82 (54.7%) | 85 (56.7%) |
+| Thief | greedy | 52 (34.7%) | 54 (36.0%) | 45 (30.0%) | 51 (34.0%) |
+| Deserter | smart | 68 (45.3%) | 68 (45.3%) | 72 (48.0%) | 73 (48.7%) |
+| Deserter | greedy | 69 (46.0%) | 63 (42.0%) | 71 (47.3%) | 53 (35.3%) |
+| Medium | smart | 88 (58.7%) | 81 (54.0%) | 87 (58.0%) | 83 (55.3%) |
+| Medium | greedy | 13 (8.7%) | 21 (14.0%) | 10 (6.7%) | 15 (10.0%) |
+
+All six smart results are inside the 60 to 90 band on both seeds, and no card moved the smart bot by 20 or more,
+so no card, enemy or relic number was changed. The Remember choice alone moved the Thief smart bot about
++19 (59 -> 78 on seed 7, rest-only versus rest-or-remember), the Medium about -7 to +23 depending on the skip
+rule (noise is about 5); the Remembered upgrades are modest per card, the sim gain comes from a whole run of
+them. Tried and reverted: Cold Whisper Haunt 2 -> 3 (Remembered 4) lifted Medium greedy only to 16 / 18 and
+Medium smart to 112 / 120.
+
+Remaining misses and weaknesses: Medium greedy is below the 18 floor on both seeds (10 / 15; its deck bloats to
+about 25 cards and 76% of its boss fights are lost; the same cause as in 4e). Smart still almost never takes
+Remember or Chorus of the Lost, and the Thief's Sharpen, Quick Study and Cleaned Out stay below 2% of runs, so
+those numbers remain barely tested by the smart sim. Greedy has no Forgotten-cost judgement beyond Recall.
 
 ### Order and size
 
