@@ -406,7 +406,7 @@ func _check_keywords(node: Control) -> void:
 	node._refresh()
 	c.play_card(0, 0)
 	check(node._pile_label.text.contains("Forgotten 1") and node._pile_label.text.contains("Discard %d
-" % discarded_before), "a played Forgotten card is counted under Forgotten, not Discard: " + node._pile_label.text.replace("
+" % discarded_before), "a played Forgotten card is counted under Forgotten, not Discard (discard was %d): " % discarded_before + node._pile_label.text.replace("
 ", " | "))
 
 	# Discard step: Anchor and Fading cards cannot be marked and do not count toward the 5.
@@ -481,6 +481,14 @@ func _check_statuses(node: Control) -> void:
 		node._refresh()
 		labels = _chip_labels(view)
 		check(labels.get(&"malice") == "+5" and not labels.has(&"ward"), "%s: temporary stacks show and a stack at 0 has no badge: %s" % [unit.display_name, str(labels)])
+		# Scent shows a badge with its stack, and goes again when removed.
+		unit.apply_status(Combatant.Status.SCENT, 3)
+		node._refresh()
+		check(_chip_labels(view).get(&"scent") == "3", "%s: a Scent badge shows its stack: %s" % [unit.display_name, str(_chip_labels(view))])
+		check(node._status_tooltip(unit).contains("Scent 3"), "%s: the status tooltip explains Scent" % unit.display_name)
+		unit.remove_status(Combatant.Status.SCENT)
+		node._refresh()
+		check(not _chip_labels(view).has(&"scent"), "%s: no Scent badge without Scent" % unit.display_name)
 		# Everything at once: pills wrap into rows that stay inside the figure and never overlap.
 		unit.apply_status(Combatant.Status.WARD, 4)
 		unit.apply_status(Combatant.Status.EXPOSED, 2)
@@ -960,6 +968,8 @@ func _initialize() -> void:
 	root.add_child(node)
 	await process_frame
 	node.seed_override = 7 # a reproducible encounter and hand; the checks below must hold for any draw
+	# Always replay from the seed (the fight made in _ready was random), so the whole test is deterministic.
+	node._start_combat()
 	var tries := 0
 	while node._combat.enemies.size() < 3 and tries < 100:
 		node._start_combat()

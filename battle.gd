@@ -43,6 +43,7 @@ const SHAKEN_TOOLTIP := "Shaken %d: deals 25%% less damage (rounded down) for %d
 const FRAYED_TOOLTIP := "Frayed %d: gains 25%% less Block from cards (rounded down) for %d more turns."
 const MALICE_TOOLTIP := "Malice %+d: %+d damage on every hit, for the rest of the fight."
 const WARD_TOOLTIP := "Ward %+d: %+d Block from every card, for the rest of the fight."
+const SCENT_TOOLTIP := "Scent %d: every hit your cards land here deals %d more. Only one enemy holds Scent (up to %d). Marking another enemy moves it."
 
 ## Gap between enemies on the stage, and the share of the stage width the player stands in.
 const ENEMY_GAP := 16.0
@@ -741,6 +742,9 @@ func _status_tooltip(combatant: Combatant) -> String:
 	var ward := combatant.stacks(Combatant.Status.WARD)
 	if ward != 0:
 		lines.append(WARD_TOOLTIP % [ward, ward])
+	var scent := combatant.stacks(Combatant.Status.SCENT)
+	if scent > 0:
+		lines.append(SCENT_TOOLTIP % [scent, scent, Combatant.SCENT_CAP])
 	if combatant.hold > 0:
 		lines.append("Hold %d: up to %d of the Block you have left is kept for your next turn." % [combatant.hold, combatant.hold])
 	if combatant.thorns > 0:
