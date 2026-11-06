@@ -36,7 +36,7 @@ enum TargetMode { SINGLE_ENEMY, ALL_ENEMIES, SELF }
 ## END_OF_TURN: as the player ends the turn, before the enemies act. ON_BLOCK_GAINED: after a card that gained Block.
 ## ON_HP_LOST: after a card that cost HP. EACH_PLAY: after every card played. ON_DISCARD: for each card thrown away at
 ## the end-of-turn discard. (Appended after the first four: the .tres files store the number.)
-enum OathTrigger { TURN_START, FIRST_PLAY, ON_FORGOTTEN, ANCHOR_KEPT, END_OF_TURN, ON_BLOCK_GAINED, ON_HP_LOST, EACH_PLAY, ON_DISCARD }
+enum OathTrigger { TURN_START, FIRST_PLAY, ON_FORGOTTEN, ANCHOR_KEPT, END_OF_TURN, ON_BLOCK_GAINED, ON_HP_LOST, EACH_PLAY, ON_DISCARD, QUARRY_DIES }
 @export var oath: bool = false
 @export var oath_trigger: OathTrigger = OathTrigger.TURN_START
 @export var oath_effects: Array[CardEffect] = []
@@ -169,7 +169,7 @@ func is_valid_oath() -> bool:
 
 ## Lead-in text for an Oath's trigger ("At turn start", ...).
 func oath_trigger_text() -> String:
-	return ["At turn start", "First card each turn", "When a card is Forgotten", "For each Anchor card kept", "At end of turn", "When you gain Block from a card", "When a card costs you HP", "Each card played", "When a card is discarded"][oath_trigger]
+	return ["At turn start", "First card each turn", "When a card is Forgotten", "For each Anchor card kept", "At end of turn", "When you gain Block from a card", "When a card costs you HP", "Each card played", "When a card is discarded", "When the quarry dies"][oath_trigger]
 
 
 func describe() -> String:
