@@ -29,6 +29,13 @@ extends RefCounted
 ##
 ##   godot --path . -- --proto --fight=proto_dreadkeeper
 ##
+## Try the selectable route map (docs/MAP_DESIGN.md), which normal play does not reach yet: `--map` (or
+## THE_UNFORGOTTEN_MAP=1) starts a run in map mode with the character from `--character` (default Deserter).
+## It is a debug run: nothing is saved. `--fight` and `--screen` take precedence over it.
+##
+##   godot --path . -- --map
+##   godot --path . -- --map --character=medium
+##
 ## The same values can come from THE_UNFORGOTTEN_FIGHT, THE_UNFORGOTTEN_SCREEN, THE_UNFORGOTTEN_CHARACTER,
 ## THE_UNFORGOTTEN_HP and THE_UNFORGOTTEN_GOLD.
 ## `--fight=list` prints the accepted names. Names match an enemy id, its in-game name, or a short
@@ -40,6 +47,7 @@ const ENV_HP := "THE_UNFORGOTTEN_HP"
 const ENV_SCREEN := "THE_UNFORGOTTEN_SCREEN"
 const ENV_GOLD := "THE_UNFORGOTTEN_GOLD"
 const ENV_PROTO := "THE_UNFORGOTTEN_PROTO"
+const ENV_MAP := "THE_UNFORGOTTEN_MAP"
 ## Enemy used by `--proto` when no `--fight` is given.
 const PROTO_DEFAULT_FIGHT := "colossus"
 ## The prototype cards: one per keyword plus multi-hit and Surge, a plain Strike and Guard (to see live
@@ -102,6 +110,8 @@ var gold := -1
 var list_only := false
 ## `--proto`: the fight uses the prototype card deck (see prototype_deck).
 var proto := false
+## `--map`: start a run in map mode (RunState use_map) instead of a fight or screen.
+var map := false
 var error := ""
 
 
@@ -114,6 +124,7 @@ static func from_environment() -> DebugLaunch:
 		ENV_SCREEN: OS.get_environment(ENV_SCREEN),
 		ENV_GOLD: OS.get_environment(ENV_GOLD),
 		ENV_PROTO: OS.get_environment(ENV_PROTO),
+		ENV_MAP: OS.get_environment(ENV_MAP),
 	})
 
 
@@ -125,6 +136,7 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 	var screen_text := String(env.get(ENV_SCREEN, ""))
 	var gold_text := String(env.get(ENV_GOLD, ""))
 	var proto_text := String(env.get(ENV_PROTO, ""))
+	var map_text := String(env.get(ENV_MAP, ""))
 	for arg in args:
 		if arg.begins_with("--fight="):
 			fight_text = arg.trim_prefix("--fight=")
@@ -138,12 +150,15 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 			hp_text = arg.trim_prefix("--hp=")
 		elif arg == "--proto":
 			proto_text = "1"
+		elif arg == "--map":
+			map_text = "1"
 	launch.proto = proto_text.strip_edges() not in ["", "0", "false"]
+	launch.map = map_text.strip_edges() not in ["", "0", "false"]
 	if launch.proto and fight_text.strip_edges() == "" and screen_text.strip_edges() == "":
 		fight_text = PROTO_DEFAULT_FIGHT
 	var wants_fight := fight_text.strip_edges() != ""
 	var wants_screen := screen_text.strip_edges() != ""
-	if not wants_fight and not wants_screen:
+	if not wants_fight and not wants_screen and not launch.map:
 		return launch
 	launch.requested = true
 	if wants_fight and wants_screen:
@@ -162,7 +177,7 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 		if launch.enemy_ids.is_empty() or launch.enemy_ids.size() > Combat.MAX_ENEMIES:
 			launch.error = "A fight needs 1 to %d enemies, got %d." % [Combat.MAX_ENEMIES, launch.enemy_ids.size()]
 			return launch
-	else:
+	elif wants_screen:
 		# "vendor", "rest", or "vendor:2" for the second one on the line.
 		var parts := screen_text.strip_edges().to_lower().split(":")
 		var special: bool = SPECIAL_SCREENS.has(parts[0])

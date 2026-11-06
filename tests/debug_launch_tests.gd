@@ -19,6 +19,7 @@ func run() -> int:
 	_test_proto()
 	_test_proto_statuses()
 	_test_proto_cycling()
+	_test_map()
 	return _failures
 
 
@@ -250,3 +251,20 @@ func _test_proto_cycling() -> void:
 	run_state.deck = deck
 	var combat := run_state.start_combat()
 	_check(combat != null and combat.enemies.size() == 1 and combat.enemies[0].data.id == &"proto_dreadkeeper", "the run fights the Dreadkeeper")
+
+
+func _test_map() -> void:
+	var off := DebugLaunch.parse(PackedStringArray(), {})
+	_check(not off.map and not off.requested, "map mode is off unless asked for")
+	var launch := DebugLaunch.parse(PackedStringArray(["--map"]), {})
+	_check(launch.map and launch.requested and launch.error == "" and launch.screen == "" and launch.enemy_ids.is_empty(), "--map alone is a map launch")
+	_check(launch.character_id == StarterContent.DEFAULT_CHARACTER_ID, "--map defaults to the Deserter")
+	var medium := DebugLaunch.parse(PackedStringArray(["--map", "--character=medium"]), {})
+	_check(medium.map and medium.character_id == &"medium" and medium.error == "", "--map takes --character")
+	var from_env := DebugLaunch.parse(PackedStringArray(), {DebugLaunch.ENV_MAP: "1"})
+	_check(from_env.map and from_env.requested, "THE_UNFORGOTTEN_MAP=1 asks for a map run")
+	_check(not DebugLaunch.parse(PackedStringArray(), {DebugLaunch.ENV_MAP: "0"}).map, "THE_UNFORGOTTEN_MAP=0 does not")
+	var fight := DebugLaunch.parse(PackedStringArray(["--map", "--fight=eraser"]), {})
+	_check(fight.requested and fight.error == "" and fight.enemy_ids == [&"the_conductor"], "--fight still works beside --map")
+	var bad := DebugLaunch.parse(PackedStringArray(["--map", "--character=wizard"]), {})
+	_check(bad.error != "", "--map with an unknown character is an error")

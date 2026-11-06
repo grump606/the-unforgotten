@@ -28,6 +28,12 @@ static func play_turn(combat: Combat) -> bool:
 	return combat.end_player_turn(discards_for(combat))
 
 
+## Map mode route choice for the greedy bot: the first reachable node. Returns -1 when none is reachable.
+static func choose_route(run: RunState) -> int:
+	var options := run.reachable_nodes()
+	return options[0] if not options.is_empty() else -1
+
+
 ## Rest stop for both bots: Rest (heal to full) while HP is under REST_BELOW of max or nothing can be
 ## Remembered, else Remember a card (no heal). `smart` picks the card by score gain (SmartPolicy.remember_pick),
 ## greedy takes the first attack that can be Remembered, else the first card. False on a RunState failure.

@@ -15,9 +15,11 @@ const TURN_CAP := 50 # a fight still running after this many turns is a stall
 const DEFAULT_RUNS := 300
 const DEFAULT_SEED := 1
 const POLICIES: Array[String] = ["greedy", "smart"]
-const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [--runs N] [--seed S] [--policy P] [--character C] [--help]\n  --runs N    number of whole runs, integer >= 1 (default 300)\n  --seed S    base random seed, integer (default 1)\n  --policy P  greedy (default) or smart (stronger lookahead player)\n  --character C  deserter (default), thief or medium\n  --help     print this usage and exit 0"
+const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [--runs N] [--seed S] [--policy P] [--character C] [--help]\n  --runs N    number of whole runs, integer >= 1 (default 300)\n  --seed S    base random seed, integer (default 1)\n  --policy P  greedy (default) or smart (stronger lookahead player)\n  --character C  deserter (default), thief or medium\n  --map      play runs in map mode (route choice: first node for greedy; smart rests under half HP, shops from 120 gold, else fights)
+  --help     print this usage and exit 0"
 
 var _smart := false
+var _map := false
 var _card_stats := false
 var _plays := {} # card id -> times played across all runs
 var _held := {} # card id -> runs whose deck held at least one copy when the run ended
@@ -37,6 +39,7 @@ func _initialize() -> void:
 	var runs: int = opts["runs"]
 	var base_seed: int = opts["seed"]
 	_smart = opts["policy"] == "smart"
+	_map = opts["map"]
 	_character = StringName(opts["character"])
 	_card_stats = opts["card_stats"]
 
@@ -54,16 +57,26 @@ func _initialize() -> void:
 	var entering := {} # stop index -> [runs that reached it, total HP on arrival]
 	var stop_desc := {} # stop index -> description
 	for i in runs:
-		var run := RunState.new(base_seed * 1000003 + i, _character)
+		var run := RunState.new(base_seed * 1000003 + i, _character, _map)
 		if run.stops.is_empty():
 			printerr("run_sim: run has no stops")
 			quit(1)
 			return
 		var stalled := false
+		var last_desc := ""
 		while not run.finished:
 			var index := run.stop_index
 			var stop := run.current_stop()
-			stop_desc[index] = stop.describe()
+			if stop == null:
+				# Map mode between stops: pick the next node.
+				var pick := SmartPolicy.choose_route(run) if _smart else SimPolicy.choose_route(run)
+				if not run.choose_node(pick):
+					printerr("run_sim: no reachable node to choose after row %d" % index)
+					quit(1)
+					return
+				continue
+			last_desc = stop.describe()
+			stop_desc[index] = "(by route)" if _map else last_desc
 			var tally: Array = entering.get(index, [0, 0])
 			tally[0] += 1
 			tally[1] += run.player.hp
@@ -122,11 +135,11 @@ func _initialize() -> void:
 			escape_deck += run.deck.size()
 		elif not stalled:
 			deaths_at[run.stop_index] = deaths_at.get(run.stop_index, 0) + 1
-			var desc: String = stop_desc[run.stop_index]
+			var desc: String = last_desc
 			deaths_by_desc[desc] = deaths_by_desc.get(desc, 0) + 1
 
 	var start_hp := StarterContent.character(_character).max_hp
-	print("Run sim: %d runs, seed %d, character %s, policy %s, player HP %d, turn cap %d" % [runs, base_seed, _character, "smart" if _smart else "greedy", start_hp, TURN_CAP])
+	print("Run sim: %d runs, seed %d, character %s, policy %s, player HP %d, turn cap %d%s" % [runs, base_seed, _character, "smart" if _smart else "greedy", start_hp, TURN_CAP, ", map mode" if _map else ""])
 	print("Escape rate: %d/%d (%.1f%%)" % [escapes, runs, 100.0 * escapes / runs])
 	print("Free reward alternatives used: Heal in %d/%d runs, Remove in %d/%d runs" % [heals_used, runs, removes_used, runs])
 	print("Runs that bought a relic: %d/%d (escape rate with a relic %s, without %s)" % [runs_with_relics, runs, _rate(escapes_with_relics, runs_with_relics), _rate(escapes - escapes_with_relics, runs - runs_with_relics)])
@@ -175,12 +188,16 @@ static func _rate(part: int, whole: int) -> String:
 
 ## Returns {runs, seed, policy} or an empty dictionary (after printing usage) on bad input.
 func _parse_args(args: PackedStringArray) -> Dictionary:
-	var opts := {"runs": DEFAULT_RUNS, "seed": DEFAULT_SEED, "policy": "greedy", "character": String(StarterContent.DEFAULT_CHARACTER_ID), "card_stats": false}
+	var opts := {"runs": DEFAULT_RUNS, "seed": DEFAULT_SEED, "policy": "greedy", "character": String(StarterContent.DEFAULT_CHARACTER_ID), "card_stats": false, "map": false}
 	var i := 0
 	while i < args.size():
 		var name := args[i]
 		if name == "--card-stats":
 			opts["card_stats"] = true
+			i += 1
+			continue
+		if name == "--map":
+			opts["map"] = true
 			i += 1
 			continue
 		if name != "--runs" and name != "--seed" and name != "--policy" and name != "--character" and name != "--card-stats":

@@ -694,6 +694,29 @@ static func _other_damage(combat: Combat, hand_index: int, energy_left: int) -> 
 	return total
 
 
+## Map mode route choice: a rest when HP is under half, a shop when gold is at least SHOP_GOLD, else the first
+## plain fight, else the first node. Returns -1 when none is reachable.
+const ROUTE_REST_BELOW := 0.5
+const ROUTE_SHOP_GOLD := 120
+
+
+static func choose_route(run: RunState) -> int:
+	var options := run.reachable_nodes()
+	if options.is_empty():
+		return -1
+	var wanted: Array[RouteMap.NodeType] = []
+	if run.player.hp < ROUTE_REST_BELOW * run.player.max_hp:
+		wanted.append(RouteMap.NodeType.REST)
+	if run.gold >= ROUTE_SHOP_GOLD:
+		wanted.append(RouteMap.NodeType.SHOP)
+	wanted.append(RouteMap.NodeType.FIGHT)
+	for type in wanted:
+		for id in options:
+			if run.route.node(id).type == type:
+				return id
+	return options[0]
+
+
 ## Reward pick: the best-scoring offered card, or null (skip) if even that is
 ## below the deck's average card score.
 static func pick_reward(run: RunState) -> CardData:
