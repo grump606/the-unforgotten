@@ -35,11 +35,18 @@ const MAX_ATTEMPTS := 20
 ## How many times the backdrop pass may re-roll before it accepts a repeat (see _assign_backdrops).
 const BACKDROP_ATTEMPTS := 60
 
+## Limits `from_dict` and `make_config` enforce on data they did not build themselves.
+const MAX_NODES := 1000
+const MAX_COLUMN := 15
+const MAX_EXITS := 8
+const MAX_WIDTH := 5
+const SEED_LIMIT := 9.0e18
+
 ## Tuning values in one place. Weights are relative (they need not add up to 100). `generate` merges the
 ## caller's config over this, key by key (and `type_weights` entry by entry).
 const CONFIG := {
 	# Per free node. Elite is 0 until the elite phase; it works whenever the weight is positive.
-	"type_weights": {"fight": 55.0, "rest": 20.0, "shop": 10.0, "elite": 0.0},
+	"type_weights": {"fight": 26.0, "rest": 42.0, "shop": 13.0, "elite": 0.0},
 	# Enemy count weights (for counts 1, 2, 3 ...) by the node's row in the run; the first band whose
 	# max_row is not below the row applies.
 	"enemy_bands": [
@@ -51,10 +58,10 @@ const CONFIG := {
 	"free_widths": [3, 4],
 	# The first free rows of each act are all fights (no rest, shop or elite).
 	"safe_rows": 3,
-	# Map-level availability: every run of this many consecutive free rows (within an act) holds one.
-	# A window must be longer than safe_rows, or its all-fight opening rows could never hold one.
+	# Map-level availability: every run of this many consecutive free rows (within an act, counting only
+	# rows at or after safe_rows) holds one. 0 turns a window off.
 	"rest_window": 4,
-	"shop_window": 6,
+	"shop_window": 8,
 	# Chance that a node with a single exit edge gets a second one.
 	"extra_edge_chance": 0.5,
 }
@@ -131,25 +138,102 @@ static func free_rows(act: int) -> Array[int]:
 	return result
 
 
-## `CONFIG` with the caller's overrides merged in (a deep copy; the constant is never changed).
+## `CONFIG` with the caller's overrides merged in (a deep copy; the constant is never changed). Unknown keys
+## and values of the wrong shape or range are ignored, so the result always has a usable value for every key;
+## `config_problems()` lists what would be ignored.
 static func make_config(overrides: Dictionary = {}) -> Dictionary:
 	var merged: Dictionary = CONFIG.duplicate(true)
 	for key in overrides:
-		if key == "type_weights" and overrides[key] is Dictionary:
-			for type_key in overrides[key]:
-				merged["type_weights"][type_key] = overrides[key][type_key]
-		else:
-			merged[key] = overrides[key].duplicate(true) if overrides[key] is Array or overrides[key] is Dictionary else overrides[key]
+		var name := str(key)
+		if not merged.has(name):
+			continue
+		var value: Variant = overrides[key]
+		if name == "type_weights":
+			if value is Dictionary:
+				for type_key in value:
+					if _TYPE_KEYS.has(str(type_key)) and _weight_ok(value[type_key]):
+						merged["type_weights"][str(type_key)] = float(value[type_key])
+		elif _config_problem(name, value) == "":
+			merged[name] = value.duplicate(true) if value is Array or value is Dictionary else value
 	# Whole numbers stay ints even when the config came back from JSON as floats.
 	for key in ["safe_rows", "rest_window", "shop_window"]:
 		merged[key] = int(merged[key])
+	merged["extra_edge_chance"] = float(merged["extra_edge_chance"])
 	var widths: Array = []
 	for width in merged["free_widths"]:
 		widths.append(int(width))
 	merged["free_widths"] = widths
 	for band in merged["enemy_bands"]:
 		band["max_row"] = int(band["max_row"])
+		var band_weights: Array = []
+		for weight in band["weights"]:
+			band_weights.append(float(weight))
+		band["weights"] = band_weights
 	return merged
+
+
+## What is wrong with the shape of a config dictionary (empty when `make_config` would use all of it).
+## Unknown keys are not a problem; they are ignored.
+static func config_problems(overrides: Dictionary) -> Array[String]:
+	var problems: Array[String] = []
+	for key in overrides:
+		var name := str(key)
+		if CONFIG.has(name):
+			var problem := _config_problem(name, overrides[key])
+			if problem != "":
+				problems.append(problem)
+	return problems
+
+
+static func _is_number(value: Variant) -> bool:
+	return value is int or (value is float and is_finite(value))
+
+
+## True for a finite number with no fractional part between `low` and `high` inclusive.
+static func _is_whole(value: Variant, low: float, high: float) -> bool:
+	return _is_number(value) and float(value) >= low and float(value) <= high and float(value) == floorf(float(value))
+
+
+static func _weight_ok(value: Variant) -> bool:
+	return _is_number(value) and float(value) >= 0.0 and float(value) <= 1.0e9
+
+
+static func _config_problem(key: String, value: Variant) -> String:
+	match key:
+		"type_weights":
+			if not value is Dictionary:
+				return "type_weights must be a dictionary"
+			for type_key in value:
+				if not _TYPE_KEYS.has(str(type_key)) or not _weight_ok(value[type_key]):
+					return "type_weights has a bad entry '%s'" % str(type_key)
+		"enemy_bands":
+			if not value is Array or value.is_empty():
+				return "enemy_bands must be a non-empty array"
+			for band in value:
+				if not band is Dictionary or not _is_whole(band.get("max_row"), 0, 1000) or not band.get("weights") is Array or band["weights"].is_empty():
+					return "enemy_bands holds a band without a whole max_row and a non-empty weights array"
+				for weight in band["weights"]:
+					if not _weight_ok(weight):
+						return "enemy_bands holds a bad weight"
+		"free_widths":
+			if not value is Array or value.is_empty():
+				return "free_widths must be a non-empty array"
+			var low := 1000000
+			var high := -1
+			for width in value:
+				if not _is_whole(width, 2, MAX_WIDTH):
+					return "free_widths entries must be whole numbers from 2 to %d" % MAX_WIDTH
+				low = mini(low, int(width))
+				high = maxi(high, int(width))
+			if high - low > 1:
+				return "free_widths must differ by at most 1 so neighbouring rows can connect"
+		"safe_rows", "rest_window", "shop_window":
+			if not _is_whole(value, 0, ACT_ROWS):
+				return "%s must be a whole number from 0 to %d" % [key, ACT_ROWS]
+		"extra_edge_chance":
+			if not _is_number(value) or float(value) < 0.0 or float(value) > 1.0:
+				return "extra_edge_chance must be a number from 0 to 1"
+	return ""
 
 
 # --- Queries --------------------------------------------------------------------------------------------
@@ -264,12 +348,14 @@ func rebuild_links() -> void:
 		n.prev.sort()
 
 
-## The battle backdrops a regular fight may use for this map's character.
-func backdrop_pool() -> Array[StringName]:
+## The battle backdrops a regular fight may use for a character: the three shared keys, the character's own
+## (only for a known character, i.e. a key of BattleBackdrop.TINTS) and the neutral key. An unknown or empty
+## id gives the four keys without one. The two boss keys are never in the pool.
+static func backdrop_pool(char_id: StringName) -> Array[StringName]:
 	var pool: Array[StringName] = []
 	pool.assign(SHARED_BACKDROPS)
-	if character_id != &"":
-		var own := StringName("battle_" + String(character_id))
+	if BattleBackdrop.TINTS.has(char_id):
+		var own := StringName("battle_" + String(char_id))
 		if not pool.has(own):
 			pool.append(own)
 	if not pool.has(NEUTRAL_BACKDROP):
@@ -279,16 +365,21 @@ func backdrop_pool() -> Array[StringName]:
 
 # --- Generation -----------------------------------------------------------------------------------------
 
-## Builds the map for `map_seed`. Same arguments, same map; uses its own RNG only.
+## Builds the map for `map_seed`. Same arguments, same map; uses its own RNG only. Config entries of the
+## wrong shape fall back to the defaults (see `make_config`). If no attempt validates, the last map is
+## returned with an error pushed, so a caller that checks `validate()` sees what is wrong.
 static func generate(map_seed: int, char_id: StringName, overrides: Dictionary = {}) -> RouteMap:
 	var cfg := make_config(overrides)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = map_seed
 	var map: RouteMap = null
+	var problems: Array[String] = []
 	for attempt in MAX_ATTEMPTS:
 		map = _build(rng, map_seed, char_id, cfg)
-		if map.validate().is_empty():
-			break
+		problems = map.validate()
+		if problems.is_empty():
+			return map
+	push_error("RouteMap.generate: seed %d (%s) still breaks %d rule(s) after %d attempts, first: %s" % [map_seed, char_id, problems.size(), MAX_ATTEMPTS, problems[0]])
 	return map
 
 
@@ -458,9 +549,11 @@ func _fights_in_row(row: int) -> int:
 	return count
 
 
-## Fills the free rows' types: the first `safe_rows` free rows of an act are fights; later nodes roll by
-## weight, never taking a rest, shop or elite type that an incoming neighbour already has; every free
-## row keeps at least one plain fight (a rest or shop takes a fight's place, it does not replace the row).
+## Fills the free rows' types: the first `safe_rows` free rows of an act are fights; later nodes roll once by
+## weight over the types still allowed for them (a rest, shop or elite is not allowed after a node of the same
+## type on an incoming edge, and the fight weight is always allowed, so the blocked weight is spread over the
+## rest in proportion); every free row keeps at least one plain fight (a rest or shop takes a fight's place, it
+## does not replace the row).
 func _assign_types(rng: RandomNumberGenerator) -> void:
 	var weights: Dictionary = config["type_weights"]
 	var safe := int(config["safe_rows"])
@@ -490,26 +583,42 @@ func _assign_types(rng: RandomNumberGenerator) -> void:
 			var ids: Array = _rows[row]
 			nodes[ids[rng.randi_range(0, ids.size() - 1)]].type = NodeType.FIGHT
 		var act_rows := free_rows(int(info["act"]))
-		_ensure_in_window(rng, act_rows, free_index, NodeType.REST, int(config["rest_window"]))
-		_ensure_in_window(rng, act_rows, free_index, NodeType.SHOP, int(config["shop_window"]))
+		_ensure_in_window(rng, act_rows, free_index, NodeType.REST, NodeType.SHOP)
+		_ensure_in_window(rng, act_rows, free_index, NodeType.SHOP, NodeType.REST)
 
 
-## Map-level availability, applied as each free row is finished: if the `window` free rows ending at
-## index `free_index` hold no node of `target`, one fight of this row becomes one. Only the row just
-## assigned can need it (the window's earlier rows are done), so its incoming neighbours are known to be
-## free of `target` and no later row has been rolled yet; later rows then avoid the adjacency themselves.
-## The converted node is never in a safe row and never the last plain fight of its row, so the choice
-## stays real: some other node of the row remains a fight. If the row has no spare fight an elite (or, as a
-## last resort, a node of the other special type) is converted instead; the generator re-rolls if that
-## leaves a window empty.
-func _ensure_in_window(rng: RandomNumberGenerator, act_rows: Array[int], free_index: int, target: NodeType, window: int) -> void:
-	if window <= 0 or free_index < window - 1 or free_index < int(config["safe_rows"]):
-		return
-	for i in range(free_index - window + 1, free_index + 1):
+func _window_of(type: NodeType) -> int:
+	return int(config["rest_window"]) if type == NodeType.REST else int(config["shop_window"])
+
+
+## True if the `window` free rows ending at `free_index` (never reaching back into the safe rows) hold a node
+## of `type`, ignoring the node `skip_id`.
+func _window_holds(act_rows: Array[int], free_index: int, window: int, type: NodeType, skip_id: int) -> bool:
+	for i in range(maxi(free_index - window + 1, 0), free_index + 1):
 		for id in _rows[act_rows[i]]:
-			if nodes[id].type == target:
-				return
-	# Prefer a plain fight (if the row has a spare one), then an elite, then the other special type.
+			if id != skip_id and nodes[id].type == type:
+				return true
+	return false
+
+
+## Map-level availability, applied as each free row is finished: if the window of free rows ending at
+## `free_index` holds no node of `target`, one node of this row becomes one. A window only spans free rows at
+## or after `safe_rows`, so nothing is forced inside the all-fight opening. Only the row just assigned can need
+## it (the window's earlier rows are done), so its incoming neighbours are known to be free of `target` and no
+## later row has been rolled yet; later rows then avoid the adjacency themselves. The converted node is never
+## in a safe row and never the last plain fight of its row. Preferred: a plain fight (if the row has a spare
+## one), then an elite, then a node of the `other` special type, but only one whose loss leaves the other
+## type's window ending here still satisfied (so a repair never breaks the other window). If nothing
+## qualifies the generator's validate-and-retry loop is the backstop.
+func _ensure_in_window(rng: RandomNumberGenerator, act_rows: Array[int], free_index: int, target: NodeType, other: NodeType) -> void:
+	var window := _window_of(target)
+	var safe := int(config["safe_rows"])
+	if window <= 0 or free_index < safe or free_index - window + 1 < safe:
+		return
+	if _window_holds(act_rows, free_index, window, target, -1):
+		return
+	var other_window := _window_of(other)
+	var other_applies := other_window > 0 and free_index - other_window + 1 >= safe
 	var fights := _fights_in_row(act_rows[free_index])
 	var tiers: Array = [[], [], []]
 	for id in _rows[act_rows[free_index]]:
@@ -520,7 +629,7 @@ func _ensure_in_window(rng: RandomNumberGenerator, act_rows: Array[int], free_in
 			tiers[0].append(id)
 		elif n.type == NodeType.ELITE:
 			tiers[1].append(id)
-		elif n.type == NodeType.REST or n.type == NodeType.SHOP:
+		elif n.type == other and (not other_applies or _window_holds(act_rows, free_index, other_window, other, id)):
 			tiers[2].append(id)
 	for tier in tiers:
 		if not tier.is_empty():
@@ -576,7 +685,7 @@ func _assign_backdrops(rng: RandomNumberGenerator) -> void:
 
 
 func _try_backdrops(rng: RandomNumberGenerator, allow_repeat: bool) -> bool:
-	var pool := backdrop_pool()
+	var pool := backdrop_pool(character_id)
 	var memo := {}
 	var last_used := {}
 	for key in pool:
@@ -613,6 +722,9 @@ func _try_backdrops(rng: RandomNumberGenerator, allow_repeat: bool) -> bool:
 ## graph shape and enemy counts (it is not meant to follow the generated layout).
 func validate() -> Array[String]:
 	var v: Array[String] = []
+	if kind != KIND_GENERATED and kind != KIND_LINE:
+		v.append("unknown map kind '%s'" % kind)
+		return v
 	if nodes.is_empty():
 		v.append("map has no nodes")
 		return v
@@ -652,6 +764,9 @@ func _rows_from_nodes(v: Array[String]) -> Array:
 			v.append("%s has a negative row" % _describe(n))
 			return rows
 		highest = maxi(highest, n.row)
+	if highest >= nodes.size():
+		v.append("a node sits in row %d, but there are only %d nodes" % [highest, nodes.size()])
+		return rows
 	for r in highest + 1:
 		rows.append([])
 	for n in nodes:
@@ -734,7 +849,10 @@ func _check_layout(v: Array[String], rows: Array) -> void:
 	if rows.size() != ROWS:
 		v.append("map has %d rows, expected %d" % [rows.size(), ROWS])
 		return
-	var widths: Array = config["free_widths"]
+	var widths: Array = config["free_widths"] if config.get("free_widths") is Array else []
+	if widths.is_empty():
+		v.append("config has no free_widths")
+		return
 	var min_width: int = widths.min()
 	var max_width: int = widths.max()
 	for r in ROWS:
@@ -812,13 +930,14 @@ func _check_types(v: Array[String], rows: Array, preds: Array) -> void:
 
 
 func _check_availability(v: Array[String], rows_by_number: Array) -> void:
+	var safe := int(config["safe_rows"])
 	for pair in [[NodeType.REST, int(config["rest_window"]), "rest"], [NodeType.SHOP, int(config["shop_window"]), "shop"]]:
 		var window: int = pair[1]
 		if window <= 0:
 			continue
 		for act in ACTS:
 			var rows := free_rows(act)
-			for start in range(0, rows.size() - window + 1):
+			for start in range(safe, rows.size() - window + 1):
 				var present := false
 				for i in range(start, start + window):
 					for id in rows_by_number[rows[i]]:
@@ -846,7 +965,7 @@ func _check_counts(v: Array[String]) -> void:
 
 
 func _check_backdrops(v: Array[String]) -> void:
-	var pool := backdrop_pool()
+	var pool := backdrop_pool(character_id)
 	var memo := {}
 	for n in nodes:
 		if n.type == NodeType.MID_BOSS:
@@ -882,35 +1001,61 @@ func to_dict() -> Dictionary:
 	}
 
 
-## Rebuilds a map from `to_dict()` output (also after a JSON round trip). Null if the data is malformed.
+## Rebuilds a map from `to_dict()` output (also after a JSON round trip). Null if the data is malformed:
+## wrong types, an unknown kind or node type, a row, column, edge or node count out of range, or a config of
+## the wrong shape. (Rule breaks inside well-formed data are for `validate()` to report.)
 static func from_dict(data: Dictionary) -> RouteMap:
-	if not data.has("nodes") or not data["nodes"] is Array:
+	if not data.get("nodes") is Array:
+		return null
+	var raw: Array = data["nodes"]
+	if raw.size() > MAX_NODES:
+		return null
+	var kind_value: Variant = data.get("kind", String(KIND_GENERATED))
+	if not (kind_value is String or kind_value is StringName):
+		return null
+	var map_kind := StringName(kind_value)
+	if map_kind != KIND_GENERATED and map_kind != KIND_LINE:
+		return null
+	if data.has("seed") and not _is_whole(data["seed"], -SEED_LIMIT, SEED_LIMIT):
+		return null
+	var char_value: Variant = data.get("character_id", "")
+	if not (char_value is String or char_value is StringName) or String(char_value).length() > 64:
+		return null
+	var raw_config: Variant = data.get("config", {})
+	if not raw_config is Dictionary or not config_problems(raw_config).is_empty():
 		return null
 	var map := RouteMap.new()
 	map.seed_value = int(data.get("seed", 0))
-	map.character_id = StringName(str(data.get("character_id", "")))
-	map.kind = StringName(str(data.get("kind", String(KIND_GENERATED))))
-	map.config = make_config(data["config"] if data.get("config") is Dictionary else {})
-	var raw: Array = data["nodes"]
+	map.character_id = StringName(char_value)
+	map.kind = map_kind
+	map.config = make_config(raw_config)
+	var last_row := (ROWS if map_kind == KIND_GENERATED else raw.size()) - 1
 	for i in raw.size():
 		if not raw[i] is Dictionary:
 			return null
 		var d: Dictionary = raw[i]
-		var type := int(d.get("type", -1))
-		if int(d.get("id", i)) != i or type < 0 or type > NodeType.BOSS or int(d.get("row", -1)) < 0:
+		if not _is_whole(d.get("id", i), i, i) or not _is_whole(d.get("type"), 0, NodeType.BOSS) or not _is_whole(d.get("row"), 0, last_row):
 			return null
-		var n := MapNode.new(i, int(d["row"]), int(d.get("col", 0)), type as NodeType)
+		if not _is_whole(d.get("col", 0), 0, MAX_COLUMN) or not _is_whole(d.get("enemy_count", 0), 0, 99):
+			return null
+		if not _is_whole(d.get("beat_index", 0), 0, 99) or not _is_whole(d.get("act", 0), 0, 9):
+			return null
+		var backdrop: Variant = d.get("backdrop", "")
+		if not (backdrop is String or backdrop is StringName) or String(backdrop).length() > 64:
+			return null
+		var exits: Variant = d.get("next", [])
+		if not exits is Array or exits.size() > MAX_EXITS:
+			return null
+		var n := MapNode.new(i, int(d["row"]), int(d.get("col", 0)), int(d["type"]) as NodeType)
 		n.enemy_count = int(d.get("enemy_count", 0))
-		n.backdrop = StringName(str(d.get("backdrop", "")))
+		n.backdrop = StringName(backdrop)
 		n.beat_index = int(d.get("beat_index", 0))
 		n.act = int(d.get("act", 0))
-		for nxt in d.get("next", []):
+		for nxt in exits:
+			if not _is_whole(nxt, 0, raw.size() - 1):
+				return null
 			n.next.append(int(nxt))
 		map.nodes.append(n)
-	for n in map.nodes:
-		for nxt in n.next:
-			if nxt < 0 or nxt >= map.nodes.size():
-				return null
 	map._rebuild_rows()
 	map.rebuild_links()
 	return map
@@ -921,6 +1066,8 @@ func _rebuild_rows() -> void:
 	var highest := -1
 	for n in nodes:
 		highest = maxi(highest, n.row)
+	if highest >= nodes.size():
+		return
 	for r in highest + 1:
 		_rows.append([])
 	for n in nodes:
