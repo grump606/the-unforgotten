@@ -321,7 +321,7 @@ func _test_migration_v2_to_v3() -> void:
 	full["version"] = 2
 	var loaded := RunSave.from_dict(full)
 	_check(loaded.run != null and RunSave.to_dict(loaded.run) == RunSave.to_dict(state), "a full v2 save migrates to the same run")
-	_check(RunSave.to_dict(loaded.run)["version"] == RunSave.VERSION if loaded.run != null else false, "a migrated run is written back as v4")
+	_check(RunSave.to_dict(loaded.run)["version"] == RunSave.LINE_VERSION if loaded.run != null else false, "a migrated run is written back as v4")
 	# A v2 save with none of the optional fields migrates with defaults.
 	var bare := RunSave.to_dict(state)
 	bare["version"] = 2
@@ -339,7 +339,7 @@ func _test_migration_v2_to_v3() -> void:
 
 
 func _test_remembered_cards() -> void:
-	_check(RunSave.VERSION == 4 and RunSave.MIN_VERSION == 2, "the save format is v4 and still reads v2")
+	_check(RunSave.LINE_VERSION == 4 and RunSave.VERSION == 5 and RunSave.MIN_VERSION == 2, "line saves are v4, the newest format is v5 and v2 is still read")
 	var state := RunState.new(7, &"thief")
 	var picks: Array[int] = []
 	for i in state.deck.size():

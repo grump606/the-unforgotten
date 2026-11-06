@@ -188,7 +188,9 @@ func _show_stop() -> void:
 		_open(_reward)
 		_reward.show()
 	elif _run.uses_map() and _run.current_stop() == null:
-		# Map mode between stops: the player picks the next node. Nothing is saved (map runs have no save yet).
+		# Map mode between stops: the player picks the next node. Saved too, so quitting here resumes at the
+		# map with the same choices (the choice itself is saved on arrival at its stop, see _autosave).
+		_autosave()
 		_update_header()
 		_show_map()
 	else:
@@ -215,10 +217,13 @@ func _show_stop() -> void:
 
 
 ## Music and ambience for the current stop: the fight music only during a fight, the quiet track
-## everywhere else, and the sea only at the first destination (Shore of Names).
+## everywhere else, and the sea only at the first destination (Shore of Names). In map mode that is
+## the map before the first choice and the first row's stop, not the map after it.
 func _set_stop_audio() -> void:
 	var fighting := _fighting()
 	var shore := not _run.finished and _run.stop_index == 0
+	if shore and _run.uses_map():
+		shore = _run.current_node == -1 or _run.current_stop() != null
 	_set_audio(&"combat" if fighting else &"menu", &"coastal" if shore else &"")
 
 
@@ -362,9 +367,14 @@ func start_debug_fight(launch: DebugLaunch) -> void:
 	_show_stop()
 
 
-## Starts a run in map mode (`--map`, see DebugLaunch). It is a debug session, so nothing is saved.
+## Starts a run in map mode (`--map`, see DebugLaunch). It is a debug session, so nothing is saved or
+## deleted: a launch for testing never touches the player's own save. `--hp` and `--gold` apply.
 func start_debug_map(launch: DebugLaunch) -> void:
 	_run = RunState.new(randi(), launch.character_id, true)
+	if launch.hp > 0:
+		_run.player.hp = mini(launch.hp, _run.player.max_hp)
+	if launch.gold >= 0:
+		_run.gold = launch.gold
 	_debug_session = true
 	_reset_screens()
 	_show_stop()
@@ -401,9 +411,11 @@ func _leave_vendor() -> void:
 
 # --- Saving ---------------------------------------------------------------------------------
 
-## Saves the run at the start of a stop (never mid-fight). A failure is shown, not fatal.
+## Saves the run at the start of a stop (never mid-fight) and, in map mode, whenever the map is shown.
+## Choosing a node saves on arrival at its stop, so quitting and continuing cannot re-choose the path.
+## A failure is shown, not fatal.
 func _autosave() -> void:
-	if _debug_session or _run.uses_map():
+	if _debug_session:
 		return
 	if not _run.at_stop_boundary():
 		return

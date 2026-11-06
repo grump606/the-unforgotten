@@ -85,7 +85,7 @@ arguments give an identical map. The map is plain data (`to_dict` / `from_dict`)
 1. Graph, generator, validator and tests. Nothing in the game uses it yet, so play is unchanged. A straight-line
    adapter turns today's 21-stop line into a one-node-per-row map so the old layout stays expressible.
 2. Map screen and navigation; the run follows the chosen path; row-keyed ramp and backdrop.
-3. Save format 5 and migration of old saves.
+3. Save format 5: map runs can be saved and resumed. Old saves stay line runs (no migration; the map is opt-in).
 4. Threat-budget packs for random counts, route-choosing bots, and a rebalance for the 30-stop length.
 5. Elites (new tougher packs, relic reward).
 6. Balance pass and docs.
@@ -221,7 +221,7 @@ API:
   `stops.size()` once the run is escaped. `stops` holds 30 placeholder entries so `stops.size()` is the journey length
   (30) and "Journey n/30" works; nothing should read their contents. `rarity_tier()` and `rest_number()` follow rows and
   visited nodes.
-- Map runs cannot be saved yet (`RunSave.save` returns an error; run.gd skips the autosave). The save format is unchanged.
+- Saving map runs is phase 3 (below).
 
 Encounters: a fight uses the node's rolled `enemy_count` with `StarterContent.varied_encounter`. The ramp is keyed by row:
 `StarterContent.ramp_fight_for_row(row)` = row * 8 / 28 (0 at the start, 8 on row 28; clamped), fed to the existing
@@ -233,6 +233,84 @@ others, has `show_map(run)` and emits `node_chosen(node_id)`. It is `MapScreen`;
 (run/screens/fallback_map_screen.gd, a plain list of buttons) has the same contract, so swapping is a one-line change.
 
 Debug switch (the only way in for now, no menu change): `--map` or `THE_UNFORGOTTEN_MAP=1` starts a map run for the
-`--character` (default Deserter) without saving; `--fight` and `--screen` take precedence. Bots: `tools/run_sim.gd --map`
+`--character` (default Deserter) as a debug session (nothing saved or deleted, see Phase 3); `--hp` and `--gold` apply
+(phase 3); `--fight` and `--screen` take precedence. Bots: `tools/run_sim.gd --map`
 uses `SimPolicy.choose_route` (first reachable node) or `SmartPolicy.choose_route` (rest under half HP, shop from 120
 gold, else the first fight).
+
+## Phase 3: saving map runs
+
+### Format
+
+`RunSave.VERSION` is 5 and `MIN_VERSION` stays 2. The rule for versions: a line run keeps writing **version 4**, byte for
+byte the same keys as before (`RunSave.LINE_VERSION`), so the previous release can still read a line save made now; only a
+map run writes **version 5** (`RunSave.MAP_VERSION`). The game reads 2 to 5: v2 and v3 are migrated and v2 to v4 saves
+load as line runs exactly as before (no migration to a map). A save above 5 is rejected with "made by a newer version of
+the game (save format N, this game reads up to 5)". A v5 save must have a map; a map block under version 4 or below is
+ignored (nothing ever wrote one).
+
+A v5 save has the v4 player fields (`character`, `hp`, `max_hp`, `gold`, `deck`, `offered`, `reward_remove_used`,
+`reward_heal_used`, `relics`, `rng_state`, `stop_index`) minus `line`, plus:
+
+- `map`: the whole route, `RouteMap.to_dict()` (kind, seed, character_id, config, every node with its edges). The full
+  dict is stored instead of the seed so retuning the generator never changes a run in progress. (Consequence: a saved
+  map is re-checked by `RouteMap.validate()` on load against its own stored config, so a future rule change in the
+  validator can reject old saves; bump the save version if that is ever intended. A seed past 2^53 loses its low bits
+  in JSON; the seed is informational once the nodes are stored.)
+- `current_node`: the node id the player is at, -1 before the first choice.
+- `visited`: the node ids taken so far, in order (the last is `current_node`).
+- `at_node`: true when the player is inside the current node's stop, false when at the map between stops.
+- `stop_index` is the row of the current node (0 before the first choice), as in RunState.
+
+Nothing else is needed to resume: `rest_number()`, `rarity_tier()` and the ramp are derived from `visited` and the row,
+and the vendor stock and encounters come from the saved RNG position (a save is only written at a stop boundary, so no
+fight, reward or vendor visit is ever in flight). `RunState.restore_map` puts a freshly built run at the saved place and
+rebuilds the stop of the current node.
+
+### Validation (untrusted input)
+
+`RunSave.from_dict` returns an error message and no run, never an exception, for each of these (all tested in
+`tests/run_save_map_tests.gd`, plus 400 randomised corruptions that must be judged without a crash):
+
+- `map` is missing, not an object, or `RouteMap.from_dict` returns null (wrong types, unknown kind or node type, a row,
+  column, edge or node count out of range, over 1000 nodes, a malformed config).
+- the map is not kind `generated` or does not have 30 rows, was made for another character, or `validate()` reports a
+  problem (removed edges, a missing final boss, a self edge...).
+- `current_node` is not an integer id of the map (or -1); `visited` is not an array of ids, is longer than 30, or is not
+  one node per row from row 0 to the current node, connected by edges of the map, starting on the first row and ending
+  at `current_node` (so a visited row beyond the current, a gap, a repeat or a wrong order is rejected).
+- `stop_index` is not the row of `current_node` (0 with no current node); `at_node` is not a boolean.
+- before the first choice: `visited` must be empty, `at_node` false and `stop_index` 0.
+- at the map (`at_node` false) the current node must have somewhere to go: a save past the last row is a finished run,
+  which is never saved.
+- a v5 line run (no map), or any v5 save missing `current_node`, `visited` or `at_node`.
+
+### When a map run is saved
+
+Same convention as the line, plus the map:
+
+- on arrival at a stop (`run.gd` `_show_stop` -> `_autosave`), so **choosing a node saves the choice**: Continue restores to
+  the start of that stop, inside it, with no other road offered.
+- when the map is shown (the start of the run and after every completed stop), so quitting at the map resumes at the map
+  with the same reachable choices.
+- Save & Exit writes the same boundary state; mid-fight or mid-reward it keeps the arrival save.
+
+**Save-scum rule:** the save made when a node is chosen is written before the stop is shown, so the player cannot choose a
+node, look at its fight, quit and choose another. (Only a damaged main save file falls back to the previous `.bak`, which
+may be the map from before the choice; that is crash recovery, not something the game offers.) The legacy line-run
+behaviour is the same: Continue after a lost-or-quit fight restarts the fight with the same RNG.
+
+Deleting: when a run ends (win or defeat) `run.gd` deletes the save (and its `.tmp` and `.bak`), unless the run is a debug
+session. `--map` is a debug session: it never saves or deletes, so a launch for testing cannot touch the player's own
+save file (a real map run, once phase 4/6 offer one, saves to the same file and replaces a line save, like New Journey).
+The main menu's Continue panel names a map run's place ("the crossroads" at the map, else the stop's place name) and the
+pause overlay says what Save & Exit does for the situation (`PauseMenu.save_note`): unchanged text for a line run; at the
+map "returns you to this map, with the same roads to choose from"; inside a stop "returns you to the start of this stop".
+
+### Phase 2 leftovers settled here
+
+- `--hp` and `--gold` are honoured by `--map`.
+- The coastal ambience (the Shore of Names) plays on the map before the first choice and in the first row's stop, and stops
+  once the player has left that stop (it was tied to `stop_index == 0`, which stays 0 at the map after row 0).
+- `rest_number()` is unbounded in map mode and `RestContent.beat` clamps, so rests after the fourth repeat "Before the
+  Door". Left as is on purpose (a map holds at most a handful of rests); revisit with the balance pass.
