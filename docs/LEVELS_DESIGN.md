@@ -69,33 +69,33 @@ Why such a small ramp: the combat numbers are on breakpoints (a Shove does 6, a 
 | `REST_HEAL` | 24 | 36 | The line has twice the fights between recoveries; a rest after the mid-boss must restore a real fraction. (Removed later: a rest now heals to full.) |
 | Deserter max HP | 47 | 52 | Same attrition argument; the Deserter was the class that wore down fastest in act 2. |
 | Medium max HP | 41 | 56 | The Medium is the most HP-sensitive class (see NEXT_STEPS); at 41 HP it escaped about 0 to 16 percent of runs. |
-| Pickpocket max HP | 34 | 34 | Unchanged in the first pass: it already sat at the top of the target band. |
+| Thief max HP | 34 | 34 | Unchanged in the first pass: it already sat at the top of the target band. |
 | Conductor HP | 108 | 96 | See above. |
 | `MID_BOSS_GOLD_BONUS` | n/a | 15 | The mid-boss is the biggest fight so far; it pays like a trio plus a bit. |
 
-Second balance pass (greedy-bot escape and the Brakeman), see "Second pass" below: Pickpocket max HP 34 to 36, Medium max HP 56 to 60, Brakeman HP 90 to 96 and heavy attack 20 to 18.
+Second balance pass (greedy-bot escape and the Brakeman), see "Second pass" below: Thief max HP 34 to 36, Medium max HP 56 to 60, Brakeman HP 90 to 96 and heavy attack 20 to 18.
 
-Gold and prices were not changed: fights pay 13, 21 or 29 gold, a run has eight of them plus the mid-boss bonus, and three vendors sell relics at 50 to 75. The bots buy a relic at the second or third vendor in almost every run that gets that far (smart: 464/600 Deserter, 388/600 Pickpocket, 495/600 Medium bought at least one), so the economy does not choke. Deck growth (a reward every fight) does not trivialise the end: the greedy bot, which never skips, ends escapes with 25 cards and still loses 20 to 60 percent of Conductor attempts, and the smart bot holds a thin 11 to 15 card deck.
+Gold and prices were not changed: fights pay 13, 21 or 29 gold, a run has eight of them plus the mid-boss bonus, and three vendors sell relics at 50 to 75. The bots buy a relic at the second or third vendor in almost every run that gets that far (smart: 464/600 Deserter, 388/600 Thief, 495/600 Medium bought at least one), so the economy does not choke. Deck growth (a reward every fight) does not trivialise the end: the greedy bot, which never skips, ends escapes with 25 cards and still loses 20 to 60 percent of Conductor attempts, and the smart bot holds a thin 11 to 15 card deck.
 
 ## Results
 
 600 runs per cell, seed 1. Before is the old 12-stop line (commit `0cf23fb`), after is this change.
 
-| Escape rate | Deserter | Pickpocket | Medium |
+| Escape rate | Deserter | Thief | Medium |
 |---|---|---|---|
 | Smart, before | 81.2% | 76.5% | 68.7% |
 | Smart, after | 58.3% | 59.5% | 56.8% |
 | Greedy, before | 52.0% | 46.5% | 46.7% |
 | Greedy, after | 32.7% | 19.8% | 21.2% |
 
-Targets were smart 55 to 70 percent and greedy 25 to 40 percent. All three smart rates are in range. Greedy is in range for the Deserter and a few points under for the Pickpocket and Medium; it has no lookahead, so it gains least from the longer line's extra cards and loses most to the Brakeman's Expose.
+Targets were smart 55 to 70 percent and greedy 25 to 40 percent. All three smart rates are in range. Greedy is in range for the Deserter and a few points under for the Thief and Medium; it has no lookahead, so it gains least from the longer line's extra cards and loses most to the Brakeman's Expose.
 
 Loss rate per fight (percent of runs that reached the stop), smart bot:
 
 | Stop | 1 | 2 | 4 | 6 | 9 Mid-boss | 12 | 13 | 16 | 17 | 20 Conductor |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Deserter | 0.2 | 3.0 | 1.2 | 1.7 | 10.1 | 2.8 | 10.1 | 1.4 | 5.5 | 15.3 |
-| Pickpocket | 2.7 | 10.1 | 6.1 | 4.5 | 9.6 | 3.3 | 10.0 | 0.5 | 2.4 | 0.8 |
+| Thief | 2.7 | 10.1 | 6.1 | 4.5 | 9.6 | 3.3 | 10.0 | 0.5 | 2.4 | 0.8 |
 | Medium | 0.0 | 0.7 | 0.0 | 1.7 | 2.7 | 1.9 | 12.5 | 0.8 | 9.1 | 22.7 |
 
 Greedy bot:
@@ -103,71 +103,71 @@ Greedy bot:
 | Stop | 1 | 2 | 4 | 6 | 9 Mid-boss | 12 | 13 | 16 | 17 | 20 Conductor |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Deserter | 1.8 | 6.6 | 2.4 | 2.2 | 37.1 | 3.9 | 12.6 | 2.5 | 8.5 | 20.6 |
-| Pickpocket | 1.8 | 9.0 | 3.4 | 6.9 | 36.5 | 5.2 | 15.5 | 6.9 | 14.0 | 39.3 |
+| Thief | 1.8 | 9.0 | 3.4 | 6.9 | 36.5 | 5.2 | 15.5 | 6.9 | 14.0 | 39.3 |
 | Medium | 0.0 | 2.3 | 0.7 | 2.4 | 2.8 | 2.7 | 29.6 | 1.1 | 20.3 | 57.4 |
 
 Reading the curve:
 
 - Within each act the loss rate climbs from the first fight to the trio, then resets after a rest; fights that follow a rest (12 and 16) start from full HP, so the trio that follows them (13 and 17) shows the true pressure. Act 2 trios lose 5 to 30 percent against 1 to 3 percent for act 1's strongest fight; there is no cliff at the mid-boss.
-- The Conductor is the hardest fight for the Deserter and Medium with both bots. The Pickpocket breezes through it with the smart bot (0.8 percent: a burst class with a relic in 92 percent of runs); that is class balance, not line balance, and is open for a later pass.
-- Mid-boss losses for the smart bot are 10 percent (Deserter), 10 percent (Pickpocket) and 3 percent (Medium, whose Haunt plan beats a slow, blocking boss). The greedy bot loses 37 percent to the Brakeman as the Deserter and Pickpocket because it never plays around Expose.
+- The Conductor is the hardest fight for the Deserter and Medium with both bots. The Thief breezes through it with the smart bot (0.8 percent: a burst class with a relic in 92 percent of runs); that is class balance, not line balance, and is open for a later pass.
+- Mid-boss losses for the smart bot are 10 percent (Deserter), 10 percent (Thief) and 3 percent (Medium, whose Haunt plan beats a slow, blocking boss). The greedy bot loses 37 percent to the Brakeman as the Deserter and Thief because it never plays around Expose.
 - The sim is very breakpoint-sensitive: moving the Brakeman by one HP point and one damage point moved the Deserter's mid-boss loss between 4 and 23 percent. Treat the numbers as tuned against these bots only; the next step is a human playtest.
 
 ## Second pass: greedy escape and the Brakeman
 
 Goal: greedy escape 28 to 40 percent and smart 55 to 70 for every class, Brakeman loss smart 8 to 15 percent and greedy at most about 25, no cliff. Judged over seeds 1 to 3, 600 runs per cell (averages below; movements under about 3 points are noise). Stop line, bots, combat rules and cards untouched.
 
-Note (later): the escape rates in this section are as measured at the time. After later changes (real-HP sims, the bot card-play fixes in `docs/NEXT_STEPS.md`) the 600-run, seeds 1-3 averages are greedy 37.7 / 32.3 / 29.6 and smart 60.8 / 70.8 / 65.8 (Deserter / Pickpocket / Medium).
+Note (later): the escape rates in this section are as measured at the time. After later changes (real-HP sims, the bot card-play fixes in `docs/NEXT_STEPS.md`) the 600-run, seeds 1-3 averages are greedy 37.7 / 32.3 / 29.6 and smart 60.8 / 70.8 / 65.8 (Deserter / Thief / Medium).
 
-Changes: Pickpocket max HP 34 to 36, Medium max HP 56 to 60, Brakeman HP 90 to 96 and heavy attack 20 to 18. Conductor, `REST_HEAL`, gold and prices unchanged.
+Changes: Thief max HP 34 to 36, Medium max HP 56 to 60, Brakeman HP 90 to 96 and heavy attack 20 to 18. Conductor, `REST_HEAL`, gold and prices unchanged.
 
-| Escape rate (seeds 1-3 avg) | Deserter | Pickpocket | Medium |
+| Escape rate (seeds 1-3 avg) | Deserter | Thief | Medium |
 |---|---|---|---|
 | Smart, before | 58.0% | 61.4% | 57.1% |
 | Smart, after | 61.0% | 70.8% | 67.3% |
 | Greedy, before | 32.8% | 20.3% | 21.1% |
 | Greedy, after | 36.8% | 28.9% | 27.7% |
 
-| Loss at the stop | Deserter | Pickpocket | Medium |
+| Loss at the stop | Deserter | Thief | Medium |
 |---|---|---|---|
 | Brakeman, smart, before / after | 9.2 / 3.6 | 9.2 / 1.9 | 1.9 / 0.4 |
 | Brakeman, greedy, before / after | 36.1 / 26.7 | 35.9 / 21.2 | 3.4 / 1.4 |
 | Conductor, smart, before / after | 13.4 / 13.7 | 1.1 / 0.6 | 24.0 / 19.9 |
 | Conductor, greedy, before / after | 20.7 / 23.1 | 40.6 / 37.4 | 57.9 / 52.1 |
 
-Experiment log (seed 1, escape smart/greedy for Deserter, Pickpocket, Medium; Brakeman loss smart/greedy):
+Experiment log (seed 1, escape smart/greedy for Deserter, Thief, Medium; Brakeman loss smart/greedy):
 
 | # | Lever | Result |
 |---|---|---|
 | 0 | baseline | esc 58/33, 60/20, 57/21; Brakeman 10/37, 10/37, 3/3 |
-| 1 | Brakeman 105 HP, heavy 16 | Deserter 65/44, Pickpocket 64/22, Medium 58/23; Brakeman 2/15, 4/28, 1/3 (smart almost never loses) |
+| 1 | Brakeman 105 HP, heavy 16 | Deserter 65/44, Thief 64/22, Medium 58/23; Brakeman 2/15, 4/28, 1/3 (smart almost never loses) |
 | 2 | Brakeman 130 HP, heavy 16 | Brakeman 15/54, 14/53, 3/-: smart in range, greedy far over. Medium unmoved by HP |
 | 3 | Brakeman block 14 to 28 | no change at all for the Medium (Haunt and burst ignore the block turn) |
 | 4 | Brakeman plain attack 13 to 20 | Brakeman Deserter smart 45 percent, Medium only 8: the Medium cannot be raised without wrecking the others |
 | 5 | Conductor HP 96 to 84 | esc 62/35, 60/24, 63/27; Conductor greedy 21/39/57 down to 15/27/46 |
-| 6 | Pickpocket HP 34 to 40 / 38 / 36 | smart 79 / 74 / 69, greedy 46 / 38 / 30: very HP sensitive, 36 chosen |
+| 6 | Thief HP 34 to 40 / 38 / 36 | smart 79 / 74 / 69, greedy 46 / 38 / 30: very HP sensitive, 36 chosen |
 | 7 | Brakeman 112 HP heavy 16 / 100 HP heavy 18 / 104 HP heavy 17 / 100 HP 16+16 | Deserter greedy Brakeman 23 / 33 / 19 / 35, smart 4 / 7 / 4 / 7; the greedy/smart loss ratio stays at 3.5 to 7 whatever the shape |
 | 8 | Conductor Expose 2 to 1 | no change (Expose on the Conductor only touches one hit anyway) |
 | 9 | Conductor attacks 19/13 to 17/12 (HP 96) | like lever 5 but Deserter greedy 42, over range |
 | 10 | Conductor back to 96, Brakeman 96 HP heavy 18, Medium HP 56 to 60 (final) | esc 62/37, 70/28, 67/29 |
-| 11 | variant: Pickpocket 35, Medium 62 | Pickpocket 65/24.5, Medium 70/34: Pickpocket greedy too low, Medium smart at the ceiling |
+| 11 | variant: Thief 35, Medium 62 | Thief 65/24.5, Medium 70/34: Thief greedy too low, Medium smart at the ceiling |
 
-Why the Conductor stayed at 96: a test requires the Brakeman not to out-HP the Conductor, and the Brakeman needs about 96 HP to keep the Deserter and Pickpocket greedy loss near 25. Class HP gives the greedy bot its margin instead.
+Why the Conductor stayed at 96: a test requires the Brakeman not to out-HP the Conductor, and the Brakeman needs about 96 HP to keep the Deserter and Thief greedy loss near 25. Class HP gives the greedy bot its margin instead.
 
 Result against the goals:
 
 - Greedy escape: 36.8 / 28.9 / 27.7. All in or at the edge of 28 to 40 (the Medium is 0.3 under, inside noise).
-- Smart escape: 61.0 / 70.8 / 67.3, in range, the Pickpocket marginally over 70. One HP point either way trades about 4 points of smart for 3 of greedy for that class, so it was left.
-- Brakeman, greedy: 27 / 21 / 1 percent, about 25 for the Deserter, under for the Pickpocket (was 36 for both).
+- Smart escape: 61.0 / 70.8 / 67.3, in range, the Thief marginally over 70. One HP point either way trades about 4 points of smart for 3 of greedy for that class, so it was left.
+- Brakeman, greedy: 27 / 21 / 1 percent, about 25 for the Deserter, under for the Thief (was 36 for both).
 - Brakeman, smart: 3.6 / 1.9 / 0.4 percent, BELOW the 8 to 15 target. Not reached on purpose: across every Brakeman shape tried the greedy loss was 3.5 to 7 times the smart loss, so smart at 8 percent meant greedy at 30 to 50. The Medium cannot be raised at all by Brakeman numbers (HP 130, block 28 changed nothing; raising damage to hit 8 percent put the Deserter at 45). The Medium's Haunt and burst kill the Brakeman before its damage matters, and the only Medium-specific lever (lower max HP) would hurt its greedy escape. Needs a class-aware answer (a Brakeman trait that counters Haunt) rather than numbers. Resolved for the Medium by the Haunt cap, see "Haunt cap on the Brakeman" below.
-- Curve: per-stop loss still rises within each act with no cliff; the Conductor is the hardest fight for the Deserter and Medium, and the Pickpocket (as before) breezes through it with the smart bot.
+- Curve: per-stop loss still rises within each act with no cliff; the Conductor is the hardest fight for the Deserter and Medium, and the Thief (as before) breezes through it with the smart bot.
 - Singles have no tier-1 pool (the reserved list was removed; add one when act 2 gets a single).
 
 ## Haunt cap on the Brakeman
 
 The second pass could not get the Medium's Brakeman loss up with numbers (the Medium's stacked Haunt kills the Brakeman before it acts). The fix is a combat rule instead: `EnemyData.max_haunt` (0 = no cap) limits the Haunt stacks an enemy can carry, and only the Brakeman (Bellkeeper) sets it. It is enforced in `Combatant.apply_status`, so every source is clamped the same way: Haunt cards, the Haunt bonus relic (Rosary) and the fight-start Haunt relic (Grave Dirt). Haunt that would go past the cap is lost; the Brakeman's HP and attacks are untouched, and enemies without a cap behave exactly as before. The enemy tooltip shows "Haunt capped at N". The cap is the single number `max_haunt` in `data/enemies/the_brakeman.tres`. Fights are never saved mid-fight (a save only happens between stops), so there is nothing extra to persist.
 
-Measured with `run_sim.gd`, 600 runs per cell, seeds 1 to 3 pooled (Brakeman loss = deaths at the mid-boss stop / runs that reached it). The Deserter and Pickpocket are identical for every cap (they never apply Haunt), so only the Medium varies:
+Measured with `run_sim.gd`, 600 runs per cell, seeds 1 to 3 pooled (Brakeman loss = deaths at the mid-boss stop / runs that reached it). The Deserter and Thief are identical for every cap (they never apply Haunt), so only the Medium varies:
 
 | Cap | Medium smart: Brakeman loss / escape | Medium greedy: Brakeman loss / escape |
 |---|---|---|
@@ -182,14 +182,14 @@ Caps 3 and 4 were not simulated: 5 already overshoots, and lower caps only push 
 
 Before / after for the chosen cap 9 (all classes, seeds 1 to 3 pooled):
 
-| | Deserter | Pickpocket | Medium |
+| | Deserter | Thief | Medium |
 |---|---|---|---|
 | Escape, smart, before / after | 60.8 / 60.8 | 70.8 / 70.8 | 65.8 / 56.9 |
 | Escape, greedy, before / after | 37.7 / 37.7 | 32.3 / 32.3 | 29.6 / 28.3 |
 | Brakeman loss, smart, before / after | 3.6 / 3.6 | 1.8 / 1.8 | 0.6 / 11.2 |
 | Brakeman loss, greedy, before / after | 26.1 / 26.1 | 19.8 / 19.8 | 1.1 / 2.8 |
 
-Result against the acceptance criteria: Medium smart Brakeman loss 11.2% (target 8 to 15, met), Medium greedy escape 28.3% (at least 25, met), Deserter and Pickpocket unchanged (met). The price is that the Medium's smart escape falls from 65.8% to 56.9%, still inside the 55 to 70 smart range but near its floor. The Medium greedy Brakeman loss stays low (2.8%) because the greedy bot rarely wins by Haunt alone. Cap 5 was the first guess and is far too harsh; do not go below 8 without rebalancing the Medium.
+Result against the acceptance criteria: Medium smart Brakeman loss 11.2% (target 8 to 15, met), Medium greedy escape 28.3% (at least 25, met), Deserter and Thief unchanged (met). The price is that the Medium's smart escape falls from 65.8% to 56.9%, still inside the 55 to 70 smart range but near its floor. The Medium greedy Brakeman loss stays low (2.8%) because the greedy bot rarely wins by Haunt alone. Cap 5 was the first guess and is far too harsh; do not go below 8 without rebalancing the Medium.
 ## Saves
 
 `RunSave.line_signature` now records `type:enemy_count:beat:boss:mid_boss:tier` per stop. A save from the old 12-stop line has a different signature and is rejected with "save is from a different stop line", which the game reports as "could not be loaded", rather than pointing `stop_index` at a different stop. The signature was the guard when the save version was 2 (the version is now 3; see `RunSave.migrate`).

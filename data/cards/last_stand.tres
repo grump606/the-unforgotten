@@ -2,16 +2,32 @@
 
 [ext_resource type="Script" uid="uid://cvqeldq7ry1bu" path="res://combat/card_data.gd" id="1_card"]
 [ext_resource type="Script" uid="uid://v0wf0vn2ro0b" path="res://combat/card_effect.gd" id="2_effect"]
+[ext_resource type="Script" path="res://combat/remembered_data.gd" id="9_rem"]
 
 [sub_resource type="Resource" id="Resource_e1"]
 script = ExtResource("2_effect")
 kind = 1
-amount = 14
+amount = 12
 
 [sub_resource type="Resource" id="Resource_e2"]
 script = ExtResource("2_effect")
 kind = 4
 amount = 10
+
+[sub_resource type="Resource" id="Rem_e1"]
+script = ExtResource("2_effect")
+kind = 1
+amount = 12
+
+[sub_resource type="Resource" id="Rem_e2"]
+script = ExtResource("2_effect")
+kind = 4
+amount = 10
+
+[sub_resource type="Resource" id="Rem_block"]
+script = ExtResource("9_rem")
+effects = Array[ExtResource("2_effect")]([SubResource("Rem_e1"), SubResource("Rem_e2")])
+cost = 2
 
 [resource]
 script = ExtResource("1_card")
@@ -20,4 +36,7 @@ display_name = "Last Stand"
 cost = 3
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
 target_mode = 2
+anchor = true
 character = &"deserter"
+remembered = SubResource("Rem_block")
+rarity = 2

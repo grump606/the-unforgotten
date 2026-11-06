@@ -6,7 +6,7 @@ extends SceneTree
 ##   godot --path . -s res://tools/relic_sheet.gd -- <output dir>
 ## Default output is user://relic_sheets. The run shots use the project's 1152x648 window.
 
-const PALETTE_GROUPS := [[&"", "Neutral"], [&"deserter", "Deserter"], [&"pickpocket", "Pickpocket"], [&"medium", "Medium"]]
+const PALETTE_GROUPS := [[&"", "Neutral"], [&"deserter", "Deserter"], [&"thief", "Thief"], [&"medium", "Medium"]]
 const VENDOR_STOP := 5
 const COMBAT_STOP := -1
 const GAP := 14
@@ -22,7 +22,7 @@ func _initialize() -> void:
 	await _save_sheet(_palette_sheet(), "relics_palettes.png", Vector2i(1200, 640))
 	await _save_sheet(_tooltip_sheet(), "relics_tooltips.png", Vector2i(1400, 700))
 	var relics := StarterContent.all_relics()
-	for id in [&"deserter", &"pickpocket", &"medium"]:
+	for id in [&"deserter", &"thief", &"medium"]:
 		var owned: Array[RelicData] = []
 		for relic in relics:
 			if relic.character == id:

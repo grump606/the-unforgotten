@@ -16,7 +16,7 @@ func run() -> int:
 	_test_damage_per_play()
 	_test_describe()
 	_test_real_cards()
-	_test_pickpocket_cards()
+	_test_thief_cards()
 	_test_every_kind_is_covered()
 	_test_player_listener_lifecycle()
 	return _failures
@@ -234,11 +234,11 @@ func _test_real_cards() -> void:
 	for id in [&"hold_the_line", &"bash", &"dig_in", &"cold_steel", &"counter_stance", &"last_stand"]:
 		_check(cards.has(id) and (cards[id] as CardData).character == &"deserter", "%s is a Deserter card" % id)
 	_check(cards[&"hold_the_line"].describe() == "Block 5, Hold 2", "Hold the Line text")
-	_check(cards[&"last_stand"].cost == 3 and cards[&"last_stand"].describe() == "Block 14, Hold 10", "Last Stand text")
+	_check(cards[&"last_stand"].cost == 3 and cards[&"last_stand"].describe() == "Block 12, Hold 10", "Last Stand text")
 	_check(cards[&"counter_stance"].describe() == "Block 8, Thorns 4", "Counter-Stance text")
 	_check(cards[&"cold_steel"].describe() == "Deal 5 (10 with 10+ Block)", "Cold Steel text")
 
-	# Last Stand: Block 14, of which 10 is held through an empty enemy phase.
+	# Last Stand: Block 12, of which 10 is held through an empty enemy phase.
 	var last_stand: CardData = cards[&"last_stand"]
 	var fight := Combat.new(Combatant.new("p", 40), [last_stand] as Array[CardData], _enemies(1, 100, []))
 	fight.start()
@@ -256,7 +256,7 @@ func _test_real_cards() -> void:
 	_check(combo.enemies[0].hp == 95, "Hold the Line then Bash deals 5")
 
 
-# --- Pickpocket mechanics: gaining energy, damage per card played -------------
+# --- Thief mechanics: gaining energy, damage per card played -------------
 
 func _test_gain_energy() -> void:
 	var surge := _self_card(0, [_fx(CardEffect.Kind.GAIN_ENERGY, 2)])
@@ -315,20 +315,20 @@ func _test_damage_per_play() -> void:
 	for i in 3:
 		_play(again, many[i])
 	again.end_player_turn()
-	# A deck of four cards is redrawn whole, so Last Pocket is in the new hand.
+	# A deck of four cards is redrawn whole, so Last Keepsake is in the new hand.
 	_play(again, last_pocket)
 	_check(again.enemies[0].hp == 96, "the count resets with the new turn (a first play deals the base 4)")
 
-	# Spree: 2 per card played, counting itself.
+	# Many Hands: 2 per card played, counting itself.
 	var spree := _attack_card(0, [_fx(CardEffect.Kind.DAMAGE_PER_PLAY, 2, 2)])
 	var alone := _fight([spree])
 	_play(alone, spree)
-	_check(alone.enemies[0].hp == 98, "Spree alone deals 2")
+	_check(alone.enemies[0].hp == 98, "Many Hands alone deals 2")
 	var after_two := _fight([filler_a, filler_b, spree])
 	_play(after_two, filler_a)
 	_play(after_two, filler_b)
 	_play(after_two, spree)
-	_check(after_two.enemies[0].hp == 94, "Spree as the third card deals 2 x 3 = 6")
+	_check(after_two.enemies[0].hp == 94, "Many Hands as the third card deals 2 x 3 = 6")
 
 	# Every target of an all-enemies card takes the same scaled damage.
 	var sweep := CardData.make(&"s", "S", 0, [_fx(CardEffect.Kind.DAMAGE_PER_PLAY, 1, 1)], CardData.TargetMode.ALL_ENEMIES)
@@ -345,19 +345,19 @@ func _test_damage_per_play() -> void:
 	_check(marked.enemies[0].hp == 90, "the scaled damage is increased by Expose: (4 + 3) x 1.5 = 10")
 
 
-func _test_pickpocket_cards() -> void:
+func _test_thief_cards() -> void:
 	var cards := {}
 	for path in StarterContent.ALL_CARD_PATHS:
 		var card := load(path) as CardData
 		cards[card.id] = card
 	for id in [&"lift", &"sleight", &"pocket_watch", &"last_pocket", &"spree"]:
-		_check(cards.has(id) and (cards[id] as CardData).character == &"pickpocket", "%s is a Pickpocket card" % id)
-	_check(cards[&"lift"].describe() == "Deal 3, Draw 1", "Lift text")
-	_check(cards[&"pocket_watch"].describe() == "Gain 1 energy, Draw 1", "Pocket Watch text")
-	_check(cards[&"last_pocket"].describe() == "Deal 4, +3 for each card played earlier this turn", "Last Pocket text")
-	_check(cards[&"sleight"].cost == 0 and cards[&"lift"].cost == 1 and cards[&"spree"].cost == 2, "costs: Sleight 0, Lift 1, Spree 2")
+		_check(cards.has(id) and (cards[id] as CardData).character == &"thief", "%s is a Thief card" % id)
+	_check(cards[&"lift"].describe() == "Deal 3, Add 1 Trinket to your hand", "Filch text")
+	_check(cards[&"pocket_watch"].describe() == "Gain 2 energy", "Borrowed Time text")
+	_check(cards[&"last_pocket"].describe() == "Deal 4, +3 for each card played earlier this turn", "Last Keepsake text")
+	_check(cards[&"sleight"].cost == 0 and cards[&"lift"].cost == 1 and cards[&"spree"].cost == 2, "costs: Light Fingers 0, Filch 1, Many Hands 2")
 
-	# A real chain: Sleight (0) exposes, Pocket Watch (net 0 energy), Last Pocket (third card).
+	# A real chain: Light Fingers (0) exposes, Borrowed Time (net +1 energy), Last Keepsake (third card).
 	var sleight: CardData = cards[&"sleight"]
 	var watch: CardData = cards[&"pocket_watch"]
 	var last_pocket: CardData = cards[&"last_pocket"]
@@ -365,9 +365,9 @@ func _test_pickpocket_cards() -> void:
 	chain.start()
 	chain.play_card(chain.piles.hand.find(sleight), 0)
 	chain.play_card(chain.piles.hand.find(watch))
-	_check(chain.energy == Combat.ENERGY_PER_TURN, "Sleight and Pocket Watch together cost no energy")
+	_check(chain.energy == Combat.ENERGY_PER_TURN + 1, "Light Fingers and Borrowed Time together gain 1 energy")
 	chain.play_card(chain.piles.hand.find(last_pocket), 0)
-	_check(chain.enemies[0].hp == 100 - (4 + 3 * 2) * 3 / 2, "Last Pocket as the third card on an Exposed target deals (4 + 6) x 1.5 = 15")
+	_check(chain.enemies[0].hp == 100 - (4 + 3 * 2) * 3 / 2, "Last Keepsake as the third card on an Exposed target deals (4 + 6) x 1.5 = 15")
 
 
 ## Every CardEffect.Kind must have a describe text, a vendor valuation and a Combat handler. Adding a
@@ -387,6 +387,10 @@ func _test_every_kind_is_covered() -> void:
 		combat.start()
 		combat.player.gain_block(5)
 		combat.enemies[0].apply_status(Combatant.Status.HAUNTED, 3)
+		# Forgotten-pile kinds need something in that pile; ADD_CARD needs a card to add.
+		combat.piles.forgotten.append(filler[0])
+		combat.piles.forgotten.append(filler[1])
+		effect.card = filler[2]
 		var card := _attack_card(0, [effect])
 		combat.piles.hand.append(card)
 		var before := _snapshot(combat)
@@ -399,9 +403,13 @@ func _snapshot(combat: Combat) -> Array:
 	var enemy := combat.enemies[0]
 	return [
 		combat.player.hp, combat.player.block, combat.player.hold, combat.player.thorns,
-		combat.energy, combat.piles.hand.size(),
+		combat.energy, combat.piles.hand.size(), combat.phase, combat.piles.forgotten.size(), combat.piles.draw_pile.size(),
 		combat.player.status_turns(Combatant.Status.EXPOSED),
+		combat.player.stacks(Combatant.Status.MALICE), combat.player.stacks(Combatant.Status.WARD),
+		combat.player.status_turns(Combatant.Status.SHAKEN), combat.player.status_turns(Combatant.Status.FRAYED),
 		enemy.hp, enemy.block, enemy.status_turns(Combatant.Status.HAUNTED), enemy.status_turns(Combatant.Status.EXPOSED),
+		enemy.status_turns(Combatant.Status.SHAKEN), enemy.status_turns(Combatant.Status.FRAYED),
+		enemy.stacks(Combatant.Status.MALICE), enemy.stacks(Combatant.Status.WARD), enemy.stacks(Combatant.Status.SCENT),
 	]
 
 

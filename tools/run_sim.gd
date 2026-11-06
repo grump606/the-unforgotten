@@ -15,7 +15,7 @@ const TURN_CAP := 50 # a fight still running after this many turns is a stall
 const DEFAULT_RUNS := 300
 const DEFAULT_SEED := 1
 const POLICIES: Array[String] = ["greedy", "smart"]
-const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [--runs N] [--seed S] [--policy P] [--help]\n  --runs N    number of whole runs, integer >= 1 (default 300)\n  --seed S    base random seed, integer (default 1)\n  --policy P  greedy (default) or smart (stronger lookahead player)\n  --help      print this usage and exit 0"
+const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [--runs N] [--seed S] [--policy P] [--character C] [--help]\n  --runs N    number of whole runs, integer >= 1 (default 300)\n  --seed S    base random seed, integer (default 1)\n  --policy P  greedy (default) or smart (stronger lookahead player)\n  --character C  deserter (default), thief or medium\n  --help     print this usage and exit 0"
 
 var _smart := false
 var _card_stats := false
@@ -85,7 +85,7 @@ func _initialize() -> void:
 							quit(1)
 							return
 				RunState.StopType.REST:
-					if run.rest() < 0:
+					if not SimPolicy.rest_stop(run, _smart):
 						printerr("run_sim: rest() failed at stop %d" % index)
 						quit(1)
 						return
@@ -160,7 +160,7 @@ func _initialize() -> void:
 		print("")
 		print("Card plays per run (a card never played shows 0.00), share of runs whose final deck held it, plays per run that held it")
 		var played: Array = []
-		for card in StarterContent.reward_pool(_character):
+		for card in StarterContent.vendor_pool(_character):
 			played.append([card.id, _plays.get(card.id, 0)])
 		played.sort_custom(func(a: Array, b: Array) -> bool: return a[1] > b[1])
 		for entry: Array in played:
@@ -226,7 +226,7 @@ func _play_combat(run: RunState) -> int:
 		combat.card_played.connect(func(card: CardData, _targets: Array[EnemyUnit]) -> void: _plays[card.id] = _plays.get(card.id, 0) + 1)
 	combat.combat_ended.connect(func(victory: bool) -> void: outcome[0] = 1 if victory else -1)
 	combat.start()
-	while combat.phase == Combat.Phase.PLAYER_TURN:
+	while SimPolicy.is_acting(combat):
 		if combat.turn > TURN_CAP:
 			combat.abandon()
 			return 0

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"pressed_flower"
+display_name = "Pressed Flower"
+description = "The first Forgotten card you play each fight returns to your hand."
+character = &"medium"
+kind = 15
+amount = 1
+price = 70

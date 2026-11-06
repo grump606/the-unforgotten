@@ -10,6 +10,13 @@ enum State { NORMAL, HOVER, SELECTED, UNPLAYABLE }
 const BASE := Vector2(136, 190)
 ## Extra height so a raised (hover/selected) card has room to lift without moving the layout.
 const LIFT := 6.0
+## Height of the keyword line at the top of the effect text.
+const KEYWORD_H := 11.0
+## Opacity of a Fading card.
+const FADING_ALPHA := 0.8
+## Keyword line colours: on dark class stock and on the pale neutral paper.
+const KEYWORD_INK := Color("#e8b773")
+const KEYWORD_INK_PAPER := Color("#8a4a14")
 const BACKDROP := Color(0.05, 0.05, 0.08)
 const BADGE := Color("#e8b773")
 const BADGE_BAD := Color(0.78, 0.18, 0.20)
@@ -28,8 +35,8 @@ const PALETTES := {
 		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#49545D"),
 		"banner_ink": Color("#F0EBDD"), "accent": Color("#A66A50"), "glyph": Color("#171D28"),
 	},
-	&"pickpocket": {
-		"label": "PICKPOCKET", "stock": Color("#253D3D"), "frame": Color("#78A99B"),
+	&"thief": {
+		"label": "THIEF", "stock": Color("#253D3D"), "frame": Color("#78A99B"),
 		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#41615B"),
 		"banner_ink": Color("#F0EBDD"), "accent": Color("#78A99B"), "glyph": Color("#171D28"),
 	},
@@ -38,14 +45,38 @@ const PALETTES := {
 		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#5C526B"),
 		"banner_ink": Color("#F0EBDD"), "accent": Color("#9A89AD"), "glyph": Color("#171D28"),
 	},
+	# The Stray: dark cobalt blue. Placeholder colours until the class art is designed (docs/CLASSES_PLAN.md).
+	&"stray": {
+		"label": "STRAY", "stock": Color("#1F2A3E"), "frame": Color("#6D87B3"),
+		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#3B4F78"),
+		"banner_ink": Color("#F0EBDD"), "accent": Color("#6D87B3"), "glyph": Color("#171D28"),
+	},
+	# Status cards (Dread, Murmur: what enemies shuffle in): a sickly grey-green, so they read as junk.
+	&"status": {
+		"label": "STATUS", "stock": Color("#333D31"), "frame": Color("#6F8A5C"),
+		"ink": Color("#C4CFB6"), "window": Color("#161C15"), "banner": Color("#4A5845"),
+		"banner_ink": Color("#DCE5CF"), "accent": Color("#8FAA73"), "glyph": Color("#161C15"),
+	},
 }
 
 ## Primary icon = the first of these that the card has (scaled damage reads before plain damage).
 const ICON_PRIORITY: Array[CardEffect.Kind] = [
 	CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY,
-	CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE, CardEffect.Kind.HAUNT, CardEffect.Kind.BLOCK,
+	CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN, CardEffect.Kind.DAMAGE_PER_SCENT, CardEffect.Kind.DAMAGE, CardEffect.Kind.HAUNT, CardEffect.Kind.BLOCK,
 	CardEffect.Kind.THORNS, CardEffect.Kind.EXPOSE, CardEffect.Kind.HOLD, CardEffect.Kind.GAIN_ENERGY,
 	CardEffect.Kind.DRAW, CardEffect.Kind.HEAL_PER_HAUNTED, CardEffect.Kind.LOSE_HP,
+	CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD,
+	CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL, CardEffect.Kind.SCENT,
+]
+## Every kind that _draw_icon has a glyph for (a test walks CardEffect.Kind and fails if one is missing, so a
+## new kind cannot silently draw nothing).
+const ICON_KINDS: Array[CardEffect.Kind] = [
+	CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK, CardEffect.Kind.DRAW, CardEffect.Kind.EXPOSE, CardEffect.Kind.HOLD,
+	CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.THORNS, CardEffect.Kind.GAIN_ENERGY,
+	CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.HAUNT, CardEffect.Kind.LOSE_HP, CardEffect.Kind.HEAL_PER_HAUNTED,
+	CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD,
+	CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL, CardEffect.Kind.DAMAGE_PER_FORGOTTEN,
+	CardEffect.Kind.SCENT, CardEffect.Kind.DAMAGE_PER_SCENT,
 ]
 const KIND_COLORS := {
 	CardEffect.Kind.DAMAGE: Color("#d96b65"), CardEffect.Kind.BLOCK: Color("#83b4cf"),
@@ -53,10 +84,24 @@ const KIND_COLORS := {
 	CardEffect.Kind.HOLD: Color(0.40, 0.82, 0.80), CardEffect.Kind.THORNS: Color(0.58, 0.86, 0.42),
 	CardEffect.Kind.GAIN_ENERGY: Color(1.0, 0.88, 0.30), CardEffect.Kind.HAUNT: Color(0.76, 0.70, 1.0),
 	CardEffect.Kind.LOSE_HP: Color(0.92, 0.26, 0.32), CardEffect.Kind.HEAL_PER_HAUNTED: Color(0.96, 0.52, 0.62),
+	CardEffect.Kind.SHAKEN: Color(0.97, 0.62, 0.30), CardEffect.Kind.FRAYED: Color(0.78, 0.70, 0.55),
+	CardEffect.Kind.MALICE: Color(0.84, 0.45, 0.95), CardEffect.Kind.WARD: Color(0.46, 0.62, 1.0),
+	CardEffect.Kind.GLIMPSE: Color(0.55, 0.85, 0.95), CardEffect.Kind.ADD_CARD: Color(0.72, 0.84, 0.60), CardEffect.Kind.RECALL: Color(0.90, 0.78, 0.50),
+	CardEffect.Kind.DAMAGE_PER_FORGOTTEN: Color("#d96b65"),
+	CardEffect.Kind.SCENT: Color(0.62, 0.74, 0.92), CardEffect.Kind.DAMAGE_PER_SCENT: Color("#d96b65"),
 }
+## Tint of a debuff (a negative Malice or Ward) on a status pill.
+const STATUS_NEGATIVE := Color(0.95, 0.35, 0.35)
+## Live card numbers: green when a status raises the printed number, red when it lowers it.
+const NUMBER_RAISED := Color("#5fd16b")
+const NUMBER_LOWERED := Color("#ff6a5e")
+const NUMBER_RAISED_PAPER := Color("#1f7a2c")
+const NUMBER_LOWERED_PAPER := Color("#b3261e")
 const KEYWORDS := {
 	CardEffect.Kind.EXPOSE: "EXPOSE", CardEffect.Kind.HOLD: "HOLD",
 	CardEffect.Kind.THORNS: "THORNS", CardEffect.Kind.HAUNT: "HAUNT",
+	CardEffect.Kind.SHAKEN: "SHAKEN", CardEffect.Kind.FRAYED: "FRAYED",
+	CardEffect.Kind.MALICE: "MALICE", CardEffect.Kind.WARD: "WARD",
 }
 
 ## Emitted when a clickable card is clicked (never for an Unplayable one).
@@ -92,6 +137,13 @@ var discard_marked := false:
 	set(value):
 		discard_marked = value
 		queue_redraw()
+## The player in a fight: when set, Deal and Block numbers on the face show their effective value (see
+## body_lines). Null outside a fight, so printed numbers show. The owner rebuilds or redraws the card when
+## the player's statuses change.
+var live: Combatant = null:
+	set(value):
+		live = value
+		queue_redraw()
 var view_scale := 1.0:
 	set(value):
 		view_scale = value
@@ -110,6 +162,7 @@ var clickable := false:
 ## When true (and the card is not Unplayable) the card can be dragged out of the hand. Off by default.
 var draggable := false
 
+static var _neutral: Combatant = null
 var _pressing := false
 var _dragging := false
 var _press_global := Vector2.ZERO
@@ -142,6 +195,8 @@ func _ready() -> void:
 func set_card(new_card: CardData) -> void:
 	card = new_card
 	class_id = palette_id(new_card)
+	# A Fading card reads as half there: slightly see-through, with a dashed edge (see _draw).
+	self_modulate = Color(1, 1, 1, FADING_ALPHA) if new_card != null and new_card.fading else Color.WHITE
 	queue_redraw()
 
 
@@ -169,15 +224,32 @@ static func find_all(node: Node) -> Array[CardView]:
 
 ## The palette key for a card: its character when that class has a frame, else neutral.
 static func palette_id(c: CardData) -> StringName:
-	if c != null and PALETTES.has(c.character):
+	if is_status_card(c):
+		return &"status"
+	if c != null and PALETTES.has(c.character) and c.character != &"status":
 		return c.character
 	return &""
+
+
+## A status card (Dread, Murmur): Dormant with no effects, so it can only clog the hand.
+static func is_status_card(c: CardData) -> bool:
+	return c != null and c.dormant and c.effects.is_empty()
+
+
+## The effects whose kinds the icons show: the card's own, plus an Oath's lasting effects.
+static func icon_effects(c: CardData) -> Array[CardEffect]:
+	if not c.oath or c.oath_effects.is_empty():
+		return c.effects
+	var all: Array[CardEffect] = []
+	all.append_array(c.oath_effects)
+	all.append_array(c.effects)
+	return all
 
 
 ## The effect kind whose icon leads the card, or -1 for a card with no effects.
 static func primary_kind(c: CardData) -> int:
 	for kind in ICON_PRIORITY:
-		for effect in c.effects:
+		for effect in icon_effects(c):
 			if effect.kind == kind:
 				return kind
 	return -1
@@ -188,7 +260,7 @@ const FIST_IDS: Array[StringName] = [&"shove", &"shoulder_charge"]
 const HEAVY_DAMAGE := 12
 const LIGHT_DAMAGE := 4
 
-## Which weapon icon a card's plain damage shows, from its own data: class (pickpocket needle,
+## Which weapon icon a card's plain damage shows, from its own data: class (thief needle,
 ## medium bone), target (all enemies sweep), id (fist), magnitude (axe 12+, dagger up to 4)
 ## and cost (a free light hit is a flurry); otherwise a sword. Empty when the card has no DAMAGE
 ## effect, or for kinds that draw their own composite icon (see docs/CARD_ART_DESIGN.md).
@@ -198,12 +270,12 @@ static func icon_variant(c: CardData) -> StringName:
 	if primary_kind(c) == CardEffect.Kind.DAMAGE_PER_BLOCK:
 		return &"hammer"
 	var total := 0
-	for effect in c.effects:
+	for effect in icon_effects(c):
 		if effect.kind == CardEffect.Kind.DAMAGE:
 			total += effect.amount
 	if total <= 0 or primary_kind(c) != CardEffect.Kind.DAMAGE:
 		return &""
-	if c.character == &"pickpocket":
+	if c.character == &"thief":
 		return &"needle"
 	if c.character == &"medium":
 		return &"bone"
@@ -225,9 +297,9 @@ static func secondary_kinds(c: CardData) -> Array[int]:
 	for kind in ICON_PRIORITY:
 		if kind == primary or out.size() >= 3:
 			continue
-		if kind == CardEffect.Kind.DAMAGE and primary in [CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT]:
+		if kind == CardEffect.Kind.DAMAGE and primary in [CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN, CardEffect.Kind.DAMAGE_PER_SCENT]:
 			continue
-		for effect in c.effects:
+		for effect in icon_effects(c):
 			if effect.kind == kind:
 				out.append(kind)
 				break
@@ -351,7 +423,8 @@ func _raised() -> bool:
 func _draw() -> void:
 	if card == null:
 		return
-	var muted := state == State.UNPLAYABLE
+	# A Dormant card is always muted (it can never be played), even where its state is NORMAL.
+	var muted := state == State.UNPLAYABLE or card.dormant
 	var p := _palette(class_id, muted, not muted and _raised())
 	var top := LIFT * (1.0 - _lift)
 	draw_set_transform(Vector2(0, top * view_scale), 0.0, Vector2(view_scale, view_scale))
@@ -366,6 +439,12 @@ func _draw() -> void:
 	_box(Rect2(Vector2.ZERO, BASE), frame, 8)
 	_box(Rect2(4, 4, BASE.x - 8, BASE.y - 8), stock, 5)
 	_draw_class_frame(p)
+	if card.fading:
+		_dashed_rect(Rect2(1.5, 1.5, BASE.x - 3, BASE.y - 3), Color(1, 1, 1, 0.75))
+	if card.oath:
+		# An Oath wears a gold double rule round the stock, so it reads as a vow that stays.
+		_box(Rect2(2, 2, BASE.x - 4, BASE.y - 4), Color(0, 0, 0, 0), 7, 2, SELECT_GOLD)
+		_box(Rect2(5.5, 5.5, BASE.x - 11, BASE.y - 11), Color(0, 0, 0, 0), 4, 1, Color(SELECT_GOLD, 0.6))
 
 	# Header: price stamp, class label, emblem.
 	var header := Rect2(8, 6, BASE.x - 16, 24)
@@ -378,7 +457,10 @@ func _draw() -> void:
 	# Name banner; a long name shrinks (down to 8 px) to fit.
 	var banner := Rect2(6, 33, BASE.x - 12, 20)
 	_box(banner, p.banner, 3)
-	_text(card.display_name, banner, _fit_size(card.display_name, banner.size.x - 8, 13, 8), p.banner_ink, true)
+	# A rarity gem sits at the right end of the banner, so the name leaves room for it.
+	var name_rect := Rect2(banner.position, Vector2(banner.size.x - (16.0 if RARITY_GEM_COLORS.has(card.rarity) else 0.0), banner.size.y))
+	_text(card.display_name, name_rect, _fit_size(card.display_name, name_rect.size.x - 8, 13, 8), title_color(p), true)
+	_draw_rarity_gem(Vector2(BASE.x - 14, 43))
 	_draw_hotkey(Vector2(9, 30))
 
 	# Art window with the procedural icon.
@@ -390,6 +472,8 @@ func _draw() -> void:
 	else:
 		_draw_window_motif(win, p)
 		_draw_card_icons(win, p)
+	if card.anchor:
+		_draw_anchor(Vector2(win.end.x - 10, win.position.y + 10))
 
 	# Effect text.
 	var body := Rect2(9, 110, BASE.x - 18, 56)
@@ -503,7 +587,8 @@ func _draw_cost(c: Vector2, muted: bool) -> void:
 	draw_circle(c, 13.5, col)
 	draw_arc(c, 10.5, 0, TAU, 28, Color(0, 0, 0, 0.35), 1.0, true)
 	var ink := Color.WHITE if muted else Color(0.14, 0.1, 0.04)
-	_text(str(card.cost), Rect2(c - Vector2(13, 13), Vector2(26, 26)), 17, ink, true)
+	# A Surge card spends all the energy there is, so its stamp shows X, not a number.
+	_text(cost_text(), Rect2(c - Vector2(13, 13), Vector2(26, 26)), 17, ink, true)
 
 
 # --- class frames, emblems, motifs ------------------------------------------------------
@@ -521,13 +606,18 @@ func _draw_class_frame(p: Dictionary) -> void:
 			for pt in [Vector2(3, 3), Vector2(BASE.x - 3, 3), Vector2(3, BASE.y - 3), Vector2(BASE.x - 3, BASE.y - 3)]:
 				draw_line(pt + Vector2(-2, -1), pt + Vector2(2, 1), Color(p.ink, 0.65), 1.0)
 				draw_line(pt + Vector2(-2, 1), pt + Vector2(2, -1), Color(p.ink, 0.65), 1.0)
-		&"pickpocket":
+		&"thief":
 			# Sea-glass thread stitched round the stock.
 			var r := Rect2(7, 7, BASE.x - 14, BASE.y - 14)
 			_dashed_rect(r, Color(accent, 0.55))
 		&"medium":
 			# A thin bone double line.
 			_box(Rect2(6, 6, BASE.x - 12, BASE.y - 12), Color(0, 0, 0, 0), 4, 1, Color(accent, 0.4))
+		&"status":
+			# Torn, mildewed edge: a ragged dashed border and a few creeping blotches in the corners.
+			_dashed_rect(Rect2(6, 6, BASE.x - 12, BASE.y - 12), Color(accent, 0.6))
+			for pt in [Vector2(9, 9), Vector2(BASE.x - 12, BASE.y - 14), Vector2(BASE.x - 14, 12)]:
+				draw_circle(pt + Vector2(2, 2), 2.4, Color(accent, 0.22))
 		_:
 			_box(Rect2(6, 6, BASE.x - 12, BASE.y - 12), Color(0, 0, 0, 0), 4, 1, Color(accent, 0.25))
 
@@ -554,13 +644,17 @@ func _draw_header_decor(header: Rect2, p: Dictionary) -> void:
 			draw_line(Vector2(38, header.end.y - 3), Vector2(98, header.end.y - 3), Color(accent, 0.55), 1.0)
 			for x in range(42, 98, 8):
 				draw_line(Vector2(x, header.end.y - 5), Vector2(x + 2, header.end.y - 1), Color(p.ink, 0.55), 1.0)
-		&"pickpocket":
+		&"thief":
 			draw_line(Vector2(header.position.x + 4, header.end.y - 3), Vector2(header.end.x - 4, header.end.y - 3), Color(accent, 0.7), 1.0)
 			for i in 6:
 				draw_line(Vector2(header.position.x + 40 + i * 9, header.end.y - 3), Vector2(header.position.x + 44 + i * 9, header.end.y - 1), Color(accent, 0.7), 1.0)
 		&"medium":
 			for pt in [Vector2(42, 21), Vector2(94, 21), Vector2(60, 25), Vector2(78, 25)]:
 				draw_circle(pt + Vector2(0, 0), 0.9, Color(accent, 0.7))
+		&"status":
+			# A row of drips along the header's lower edge.
+			for x in range(42, 98, 9):
+				draw_line(Vector2(x, header.end.y - 4), Vector2(x, header.end.y - 1 + float(x % 3)), Color(accent, 0.7), 1.6)
 		_:
 			draw_line(Vector2(header.position.x + 4, header.end.y - 3), Vector2(header.end.x - 4, header.end.y - 3), Color(p.ink, 0.25), 1.0)
 
@@ -576,10 +670,15 @@ func _draw_emblem(c: Vector2, p: Dictionary) -> void:
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-6, -7), c + Vector2(6, -7), c + Vector2(5, 5), c + Vector2(0, 8), c + Vector2(-5, 5)]), glyph)
 			draw_line(c + Vector2(-3, -2), c + Vector2(3, -2), frame, 1.2)
 			draw_line(c + Vector2(-3, 2), c + Vector2(3, 2), frame, 1.2)
-		&"pickpocket":
+		&"thief":
 			# A keyhole.
 			draw_circle(c + Vector2(0, -2.5), 4.0, glyph)
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-1.8, 0), c + Vector2(1.8, 0), c + Vector2(3.8, 7.5), c + Vector2(-3.8, 7.5)]), glyph)
+		&"status":
+			# A sickly eye, half shut.
+			draw_arc(c + Vector2(0, 1), 6.5, PI * 1.12, PI * 1.88, 12, glyph, 1.6, true)
+			draw_arc(c + Vector2(0, -1), 6.5, PI * 0.12, PI * 0.88, 12, glyph, 1.6, true)
+			draw_circle(c, 2.2, glyph)
 		&"medium":
 			# Cloudy-glass orb, matching the Medium's current keepsake.
 			draw_circle(c, 7.0, glyph)
@@ -606,7 +705,7 @@ func _draw_window_motif(win: Rect2, p: Dictionary) -> void:
 					b = Vector2(win.end.x, win.position.y + (x + 50 - win.end.x))
 				draw_line(a, b, Color(accent, 0.12), 3.0)
 				x += 14
-		&"pickpocket":
+		&"thief":
 			var y := win.position.y + 6
 			while y < win.end.y - 3:
 				draw_line(Vector2(win.position.x + 4, y), Vector2(win.end.x - 4, y), Color(accent, 0.10), 1.0)
@@ -614,6 +713,9 @@ func _draw_window_motif(win: Rect2, p: Dictionary) -> void:
 		&"medium":
 			for r in [10.0, 18.0, 26.0]:
 				draw_arc(c, r, 0, TAU, 32, Color(accent, 0.12), 1.0, true)
+		&"status":
+			for r in [8.0, 15.0, 22.0]:
+				draw_arc(c, r, 0.4 * r, 0.4 * r + 4.2, 20, Color(accent, 0.18), 1.4, true)
 		_:
 			draw_arc(c, 18.0, 0, TAU, 32, Color(0.9, 0.86, 0.76, 0.1), 1.0, true)
 	if card.target_mode == CardData.TargetMode.ALL_ENEMIES:
@@ -647,6 +749,8 @@ func _draw_painted_window(art: Texture2D, win: Rect2, p: Dictionary, muted: bool
 func _draw_card_icons(win: Rect2, p: Dictionary) -> void:
 	var primary := primary_kind(card)
 	if primary < 0:
+		if is_status_card(card):
+			_draw_blot(win.get_center(), 15.0, p.accent)
 		return
 	var window_col: Color = p.window
 	var center := win.get_center() + Vector2(0, -1)
@@ -661,18 +765,145 @@ func _draw_card_icons(win: Rect2, p: Dictionary) -> void:
 		x -= 23.0
 
 
+## A status card's art: a ragged inkblot with a few drips.
+func _draw_blot(c: Vector2, r: float, col: Color) -> void:
+	var pts := PackedVector2Array()
+	for i in 18:
+		var a := TAU * i / 18.0
+		pts.append(c + Vector2.from_angle(a) * r * (0.62 + 0.38 * absf(sin(a * 2.5 + 0.7))))
+	draw_colored_polygon(pts, Color(col, 0.55))
+	for dx in [-0.5, 0.1, 0.6]:
+		draw_line(c + Vector2(dx, 0.6) * r, c + Vector2(dx, 1.15 + dx * 0.3) * r, Color(col, 0.55), 2.0)
+	draw_circle(c + Vector2(-0.3, -0.1) * r, r * 0.12, Color(0, 0, 0, 0.6))
+	draw_circle(c + Vector2(0.25, -0.1) * r, r * 0.12, Color(0, 0, 0, 0.6))
+
+
+## Gold of a Remembered card's title: bright on a dark banner, a deep gold on a light one.
+const REMEMBERED_TITLE := Color("#F2CC5B")
+const REMEMBERED_TITLE_ON_PAPER := Color("#7A5500")
+
+
+## The card name's colour: the palette's banner ink, or gold for a Remembered card.
+func title_color(p: Dictionary) -> Color:
+	if card == null or not card.is_remembered:
+		return p.banner_ink
+	return REMEMBERED_TITLE if (p.banner as Color).get_luminance() < 0.5 else REMEMBERED_TITLE_ON_PAPER
+
+
+## The text of the keyword line ("FORGOTTEN · SURGE"), empty for a card without keywords.
+func keyword_text() -> String:
+	return " · ".join(card.keyword_lines()).to_upper() if card != null else ""
+
+
+## What the cost stamp shows: X for a Surge card, else the energy cost.
+func cost_text() -> String:
+	return "X" if card.surge else str(card.cost)
+
+
+## A small anchor in a dark disc (the Anchor keyword marker).
+func _draw_anchor(c: Vector2) -> void:
+	draw_circle(c, 9.0, Color(0, 0, 0, 0.7))
+	draw_arc(c, 9.0, 0, TAU, 20, Color(KEYWORD_INK, 0.7), 1.0, true)
+	var col := KEYWORD_INK
+	draw_arc(c + Vector2(0, -5.2), 1.6, 0, TAU, 10, col, 1.2, true)
+	draw_line(c + Vector2(0, -3.6), c + Vector2(0, 4.6), col, 1.3)
+	draw_line(c + Vector2(-2.6, -1.4), c + Vector2(2.6, -1.4), col, 1.3)
+	draw_arc(c + Vector2(0, 0.6), 4.6, 0.25, PI - 0.25, 10, col, 1.3, true)
+
+
+## The keyword line (for example "FORGOTTEN · SURGE") in a small accent colour.
+func _draw_keywords(rect: Rect2, ink: Color) -> void:
+	var txt := keyword_text()
+	var col := KEYWORD_INK_PAPER if class_id == &"" else KEYWORD_INK
+	_text(txt, rect, _fit_size(txt, rect.size.x, 9, 7), col, true)
+	draw_line(Vector2(rect.position.x + 14, rect.end.y), Vector2(rect.end.x - 14, rect.end.y), Color(ink, 0.18), 1.0)
+
+
 func _draw_body(body: Rect2, ink: Color) -> void:
-	var lines := PackedStringArray()
-	for effect in card.effects:
-		lines.append(effect.describe())
-	var txt := "\n".join(lines)
+	if keyword_text() != "":
+		var band := Rect2(body.position.x, body.position.y, body.size.x, KEYWORD_H)
+		_draw_keywords(band, ink)
+		body.position.y += KEYWORD_H + 1
+		body.size.y -= KEYWORD_H + 1
+	var lines := body_lines()
+	var txt := _joined(lines)
 	var size := 13
 	var h := _font.get_multiline_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size).y
-	while size > 10 and h > body.size.y:
+	# An Oath carries two effects (its price and its lasting effect), so its text may shrink further.
+	var smallest := 8 if card.oath else 10
+	while size > smallest and h > body.size.y:
 		size -= 1
 		h = _font.get_multiline_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size).y
 	var y := body.position.y + (body.size.y - h) / 2.0 + _font.get_ascent(size)
-	draw_multiline_string(_font, Vector2(body.position.x, y), txt, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size, -1, ink)
+	for line in lines:
+		var col := ink
+		if line.delta != 0:
+			col = _number_color(line.delta)
+		draw_multiline_string(_font, Vector2(body.position.x, y), line.text, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size, -1, col)
+		y += _font.get_multiline_string_size(line.text, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size).y
+
+
+func _joined(lines: Array[Dictionary]) -> String:
+	var texts := PackedStringArray()
+	for line in lines:
+		texts.append(line.text)
+	return "\n".join(texts)
+
+
+func _number_color(delta: int) -> Color:
+	var paper := class_id == &""
+	if delta > 0:
+		return NUMBER_RAISED_PAPER if paper else NUMBER_RAISED
+	return NUMBER_LOWERED_PAPER if paper else NUMBER_LOWERED
+
+
+## The effect lines of the card face as {text, delta}: delta is +1 when the player's statuses raise the
+## printed Deal or Block number, -1 when they lower it and 0 otherwise (text is then the printed text).
+## Only plain Deal and Block lines change: the number shown is the effective one, from the same engine
+## functions Combat uses (Malice and Shaken for Deal, Ward and Frayed for Block). The target's Expose is
+## per target, so it stays in the preview line.
+func body_lines() -> Array[Dictionary]:
+	var lines: Array[Dictionary] = []
+	for effect in card.effects:
+		var effective := live_amount(effect)
+		if effective < 0 or effective == effect.amount:
+			lines.append({"text": effect.describe(), "delta": 0})
+			continue
+		var shown := effect.duplicate() as CardEffect
+		shown.amount = effective
+		lines.append({"text": shown.describe(), "delta": 1 if effective > effect.amount else -1})
+	# An Oath's lasting effect: its trigger on one line, what it does on the next.
+	if card.oath and not card.oath_effects.is_empty():
+		var sworn: PackedStringArray = []
+		for effect in card.oath_effects:
+			sworn.append(effect.describe())
+		lines.append({"text": "%s: %s" % [card.oath_trigger_text(), ", ".join(sworn)], "delta": 0})
+	if not card.discard_effects.is_empty():
+		var thrown: PackedStringArray = []
+		for effect in card.discard_effects:
+			thrown.append(effect.describe())
+		lines.append({"text": "When discarded: %s" % ", ".join(thrown), "delta": 0})
+	return lines
+
+
+## The effective number of a plain Deal or Block effect for `live` (one hit, or the Block gained), or -1
+## when there is no live number: no fight, another kind, or Block that scales with energy spent.
+func live_amount(effect: CardEffect) -> int:
+	if live == null or effect.amount <= 0 or card.dormant:
+		return -1
+	match effect.kind:
+		CardEffect.Kind.DAMAGE:
+			return Combatant.hit_damage(effect.amount, live, _neutral_defender())
+		CardEffect.Kind.BLOCK:
+			return -1 if effect.per_energy else live.block_from_card(effect.amount)
+	return -1
+
+
+## A defender with no statuses, so only the attacker's side shows on a card face.
+static func _neutral_defender() -> Combatant:
+	if _neutral == null:
+		_neutral = Combatant.new("Neutral", 1)
+	return _neutral
 
 
 func _draw_strip(strip: Rect2, p: Dictionary) -> void:
@@ -693,7 +924,8 @@ func _draw_strip(strip: Rect2, p: Dictionary) -> void:
 	var left := Rect2(strip.position.x + 5, strip.position.y, room, strip.size.y)
 	if note != "":
 		# A long note shrinks (down to 9 px) rather than being cut off.
-		_text(note, left, _fit_size(note, room, 11, 9), WARN)
+		# WARN amber vanishes on the pale neutral paper, so those cards use the darker keyword amber.
+		_text(note, left, _fit_size(note, room, 11, 9), WARN if class_id != &"" else KEYWORD_INK_PAPER)
 		return
 	var parts := PackedStringArray()
 	match card.target_mode:
@@ -886,6 +1118,22 @@ func _draw_icon(kind: int, c: Vector2, r: float, window_col: Color, variant := &
 			_fill(_heart(c, r), col)
 			draw_line(c + Vector2(0, -0.35) * r, c + Vector2(0, 0.45) * r, window_col, w)
 			draw_line(c + Vector2(-0.4, 0.05) * r, c + Vector2(0.4, 0.05) * r, window_col, w)
+		CardEffect.Kind.SHAKEN:
+			var zig := PackedVector2Array()
+			for i in 7:
+				zig.append(c + Vector2(-0.9 + 0.3 * i, (0.55 if i % 2 == 0 else -0.55)) * r)
+			draw_polyline(zig, col, w * 1.5, true)
+			draw_arc(c, r * 1.0, deg_to_rad(200), deg_to_rad(340), 10, Color(col, 0.6), w, true)
+		CardEffect.Kind.FRAYED:
+			_fill(_pts([Vector2(-0.8, -0.8), Vector2(0.8, -0.8), Vector2(0.8, -0.1), Vector2(-0.8, -0.1)], c, r), col)
+			for i in 5:
+				var x := -0.64 + 0.32 * i
+				draw_line(c + Vector2(x, -0.1) * r, c + Vector2(x * 1.35 + 0.1 * (i - 2), 0.9 - 0.12 * (i % 2)) * r, col, w)
+		CardEffect.Kind.MALICE:
+			_fill(_pts([Vector2(0, -1.0), Vector2(0.85, 0.15), Vector2(0.32, 0.15), Vector2(0.32, 0.95), Vector2(-0.32, 0.95), Vector2(-0.32, 0.15), Vector2(-0.85, 0.15)], c, r), col)
+		CardEffect.Kind.WARD:
+			_shield(c, r, col, window_col)
+			draw_arc(c, r * 1.15, 0, TAU, 24, Color(col, 0.55), w, true)
 		CardEffect.Kind.DAMAGE_PER_BLOCK:
 			_shield(c + Vector2(-0.15, 0.1) * r, r * 0.85, KIND_COLORS[CardEffect.Kind.BLOCK], window_col)
 			_hammer(c + Vector2(0.3, -0.2) * r, r * 0.95, KIND_COLORS[CardEffect.Kind.DAMAGE])
@@ -900,6 +1148,72 @@ func _draw_icon(kind: int, c: Vector2, r: float, window_col: Color, variant := &
 		CardEffect.Kind.DAMAGE_PER_HAUNT:
 			_ghost(c + Vector2(-0.15, 0.1) * r, r * 0.85, KIND_COLORS[CardEffect.Kind.HAUNT], window_col)
 			_blade(c + Vector2(0.35, -0.25) * r, r * 0.8, KIND_COLORS[CardEffect.Kind.DAMAGE])
+		CardEffect.Kind.GLIMPSE:
+			# An eye: an almond with an iris and a pupil.
+			var almond := PackedVector2Array()
+			for i in 9:
+				var x := -1.0 + 0.25 * i
+				almond.append(c + Vector2(x, -0.62 * (1.0 - x * x)) * r)
+			for i in 9:
+				var x := 1.0 - 0.25 * i
+				almond.append(c + Vector2(x, 0.62 * (1.0 - x * x)) * r)
+			_fill(almond, col)
+			draw_circle(c, r * 0.4, window_col)
+			draw_circle(c, r * 0.2, col)
+			draw_circle(c + Vector2(0.08, -0.08) * r, r * 0.07, Color(1, 1, 1, 0.8))
+		CardEffect.Kind.ADD_CARD:
+			# A card with a plus: a darker card behind, the new one in front.
+			_fill(_pts([Vector2(-0.8, -0.85), Vector2(0.2, -0.85), Vector2(0.2, 0.55), Vector2(-0.8, 0.55)], c, r), col.darkened(0.4))
+			_fill(_pts([Vector2(-0.3, -0.55), Vector2(0.7, -0.55), Vector2(0.7, 0.85), Vector2(-0.3, 0.85)], c, r), col)
+			draw_line(c + Vector2(0.2, -0.1) * r, c + Vector2(0.2, 0.55) * r, window_col, w * 1.3)
+			draw_line(c + Vector2(-0.12, 0.22) * r, c + Vector2(0.52, 0.22) * r, window_col, w * 1.3)
+		CardEffect.Kind.RECALL:
+			# A returning arrow: an open circle whose head curls back in.
+			var end_angle := deg_to_rad(215)
+			draw_arc(c, r * 0.72, deg_to_rad(-60), end_angle, 20, col, w * 1.7, true)
+			var tip := c + Vector2.from_angle(end_angle) * r * 0.72
+			var along := Vector2.from_angle(end_angle + PI / 2.0)
+			var out := Vector2.from_angle(end_angle)
+			_fill(PackedVector2Array([tip + along * r * 0.5, tip + out * r * 0.38, tip - out * r * 0.38]), col)
+		CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
+			# A pile of cards under a blade: damage that grows with the Forgotten pile.
+			for i in 3:
+				var o := Vector2(-0.45 + 0.12 * i, 0.55 - 0.2 * i)
+				_fill(_pts([Vector2(-0.6, -0.3), Vector2(0.6, -0.3), Vector2(0.6, 0.3), Vector2(-0.6, 0.3)], c + o * r, r * 0.8, -0.12 + 0.12 * i), Color(0.55, 0.52, 0.62).lightened(0.12 * i))
+			_blade(c + Vector2(0.3, -0.25) * r, r * 0.9, KIND_COLORS[CardEffect.Kind.DAMAGE])
+		CardEffect.Kind.SCENT:
+			_scent_trail(c, r, col)
+		CardEffect.Kind.DAMAGE_PER_SCENT:
+			_scent_trail(c + Vector2(-0.2, 0.2) * r, r * 0.75, KIND_COLORS[CardEffect.Kind.SCENT])
+			_blade(c + Vector2(0.35, -0.25) * r, r * 0.8, KIND_COLORS[CardEffect.Kind.DAMAGE])
+
+
+## Colour of a rarity gem on the name banner: none for Common, steel blue for Uncommon, gold for Rare.
+const RARITY_GEM_COLORS := {CardData.Rarity.UNCOMMON: Color("#7FA8D8"), CardData.Rarity.RARE: Color("#E8B773")}
+
+
+static func rarity_gem_color(rarity: int) -> Color:
+	return RARITY_GEM_COLORS.get(rarity, Color(0, 0, 0, 0))
+
+
+## A small diamond at the right end of the name banner for an Uncommon or Rare card (a Rare is a little larger).
+func _draw_rarity_gem(c: Vector2) -> void:
+	if card == null or not RARITY_GEM_COLORS.has(card.rarity):
+		return
+	var col: Color = RARITY_GEM_COLORS[card.rarity]
+	var r := 4.5 if card.rarity == CardData.Rarity.RARE else 3.5
+	var diamond := PackedVector2Array([c + Vector2(0, -r), c + Vector2(r, 0), c + Vector2(0, r), c + Vector2(-r, 0)])
+	draw_colored_polygon(diamond, col)
+	draw_polyline(PackedVector2Array([diamond[0], diamond[1], diamond[2], diamond[3], diamond[0]]), Color(0, 0, 0, 0.55), 1.0, true)
+
+
+## A scent trail: three growing drops along a drifting line (placeholder glyph until the card art is designed).
+func _scent_trail(c: Vector2, r: float, col: Color) -> void:
+	var pts := PackedVector2Array([c + Vector2(-0.8, 0.5) * r, c + Vector2(-0.3, 0.1) * r, c + Vector2(0.1, 0.3) * r, c + Vector2(0.55, -0.2) * r])
+	draw_polyline(pts, Color(col, 0.55), 1.5, true)
+	draw_circle(c + Vector2(-0.6, 0.55) * r, r * 0.12, col)
+	draw_circle(c + Vector2(-0.05, 0.2) * r, r * 0.18, col)
+	draw_circle(c + Vector2(0.6, -0.25) * r, r * 0.26, col)
 
 
 static func kind_color(kind: int) -> Color:

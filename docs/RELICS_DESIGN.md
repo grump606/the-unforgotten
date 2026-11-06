@@ -24,6 +24,15 @@ Decisions (from the user): relics are sold by vendors only, one relic per vendor
 | FIGHT_START_HAUNT | Every enemy starts the fight with `amount` Haunted |
 | TURN_START_HEAL_PER_HAUNTED | At the start of every player turn heal `amount` per Haunted living enemy |
 | HAUNT_BONUS | Cards that apply Haunt apply `amount` more |
+| FIGHT_START_GLIMPSE | Turn 1 of each fight opens a Glimpse `amount` after the opening hand is dealt |
+| FIGHT_START_MALICE | Start each fight with Malice +`amount` (lasts the fight) |
+| FIGHT_START_WARD | Start each fight with Ward +`amount` (lasts the fight) |
+| FIRST_FORGOTTEN_RETURN | The first Forgotten card played each fight returns to hand from the Forgotten pile |
+| ANCHOR_END_BLOCK | At end of turn, each Anchor card still in hand gives `amount` Block through the enemy phase |
+| FIRST_ATTACK_SHAKEN | The first card with a damage effect each fight applies Shaken `amount` to the enemies it hit |
+| FIGHT_START_SCENT | On turn 1 the first living enemy becomes the quarry with `amount` Scent |
+| SCENT_HEIR | When the quarry dies, `amount` more Scent passes on than the usual half (never more than it held) |
+| QUARRY_KILL_HEAL | Heal `amount` when the quarry dies |
 
 Per-turn grants happen after `start_turn_block()` (which resets Block to Hold and Thorns to 0), so they are not wiped.
 
@@ -37,14 +46,35 @@ Per-turn grants happen after `start_turn_block()` (which resets Block to Hold an
 | Regulation Dog Tags | Deserter | FIGHT_START_BLOCK 8 | 55 |
 | Barbed Greatcoat | Deserter | TURN_START_THORNS 3 | 65 |
 | Field Ration Tin | Deserter | TURN_START_BLOCK 3 | 75 |
-| Silk Gloves | Pickpocket | FIRST_PLAY_DRAW 1 | 70 |
-| Skeleton Key | Pickpocket | FIRST_TURN_ENERGY 1 | 60 |
-| Marked Deck | Pickpocket | PLAYS_BLOCK 4 | 65 |
+| Silk Gloves | Thief | FIRST_PLAY_DRAW 1 | 70 |
+| Skeleton Key | Thief | FIRST_TURN_ENERGY 1 | 60 |
+| Marked Deck | Thief | PLAYS_BLOCK 4 | 65 |
 | Grave Dirt | Medium | FIGHT_START_HAUNT 2 | 60 |
 | Planchette | Medium | TURN_START_HEAL_PER_HAUNTED 2 | 70 |
 | Bone Rosary | Medium | HAUNT_BONUS 1 | 75 |
 
 Prices and amounts are placeholders for tuning.
+
+### Keyword relics (Phase 5c)
+
+| Relic | Class | Kind, amount | Price |
+|---|---|---|---|
+| Cracked Lorgnette | Thief | FIGHT_START_GLIMPSE 2 | 60 |
+| Hushing Veil | Thief | FIRST_ATTACK_SHAKEN 1 | 65 |
+| Mourner's Armband | Deserter | FIGHT_START_WARD 1 | 70 |
+| Iron Stakes | Deserter | ANCHOR_END_BLOCK 2 | 60 |
+| Pressed Flower | Medium | FIRST_FORGOTTEN_RETURN 1 | 70 |
+| Candle Stub | neutral | FIGHT_START_MALICE 1 | 75 |
+
+### Stray relics
+
+| Relic | Class | Kind, amount | Price |
+|---|---|---|---|
+| Hunter's Whistle | Stray | FIGHT_START_SCENT 2 | 65 |
+| Wolf Fang | Stray | SCENT_HEIR 2 | 70 |
+| Bloody Muzzle | Stray | QUARRY_KILL_HEAL 3 | 60 |
+
+Pools before the Stray: 5 Thief, 5 Deserter, 4 Medium class relics plus 4 neutral. The new relics use code-drawn badges like the rest.
 
 ## Run integration
 

@@ -80,7 +80,7 @@ func _initialize() -> void:
 		check(detached.time == 0.0, "a %s scene outside the tree does not advance" % label)
 
 	# Rest: every class, a missing class, and the breathing moves.
-	for id in [&"deserter", &"pickpocket", &"medium", &"", &"nobody"]:
+	for id in [&"deserter", &"thief", &"medium", &"", &"nobody"]:
 		var rest := RestScene.new()
 		rest.character_id = id
 		rest.size = holder.size
@@ -89,7 +89,7 @@ func _initialize() -> void:
 		rest.advance(0.5)
 		await process_frame
 		check(rest.breath() != breath0, "the rest scene draws for class '%s'" % id)
-		var expected: StringName = &"rest_" + id if id in [&"deserter", &"pickpocket", &"medium"] else &"rest"
+		var expected: StringName = &"rest_" + id if id in [&"deserter", &"thief", &"medium"] else &"rest"
 		check(rest.background_name() == expected, "the rest scene for '%s' uses the painting %s" % [id, expected])
 
 	# Story: each beat index and an unknown one build and draw, with their own mood.
@@ -151,13 +151,57 @@ func _initialize() -> void:
 	scene._show_stop()
 	body = scene.get_node("%Body")
 	check(body.find_child("RestCard", true, false) != null and _find_button(body, RestContent.BUTTON) != null, "the rest stop shows a story card with one button")
-	check(scene._header.text.contains("HP %d/%d  Healed (+30)" % [run_state.player.max_hp, run_state.player.max_hp]), "the header shows full HP and the amount healed")
+	check(scene._header.text.contains("HP %d/%d  Rest heals +30" % [run_state.player.max_hp - 30, run_state.player.max_hp]), "the header shows current HP and what resting heals")
 	var hp_before := run_state.player.hp
 	var index_before := run_state.stop_index
 	_find_button(body, RestContent.BUTTON).pressed.emit()
 	await process_frame
 	check(run_state.player.hp == run_state.player.max_hp and run_state.stop_index == index_before + 1, "the card's button heals to full and moves on")
-	check(not scene._header.text.contains("Healed"), "the Healed note is only shown at the rest stop")
+	check(not scene._header.text.contains("Rest heals"), "the rest note is only shown at the rest stop")
+
+	# The rest stop's second choice: Remember one card instead of the heal.
+	_go_to(scene, RunState.StopType.REST)
+	run_state.player.hp = run_state.player.max_hp - 20
+	scene._show_stop()
+	await process_frame
+	body = scene.get_node("%Body")
+	var remember_button := _find_button(body, "Remember a card")
+	check(remember_button != null and not remember_button.disabled, "the rest stop offers Remember beside the heal")
+	var hp_hurt := run_state.player.hp
+	var rest_index := run_state.stop_index
+	var options := run_state.rememberable_indices()
+	remember_button.pressed.emit()
+	await process_frame
+	body = scene.get_node("%Body")
+	var picks := CardView.find_all(body)
+	check(picks.size() == options.size() and not picks.is_empty(), "the picker lists exactly the cards that can be Remembered")
+	var all_upgradable := true
+	for view in picks:
+		all_upgradable = all_upgradable and view.card.can_remember()
+	check(all_upgradable, "every picker card has a remembered block")
+	check(_find_button(body, "Cancel") != null, "the picker has a Cancel")
+	_find_button(body, "Cancel").pressed.emit()
+	await process_frame
+	body = scene.get_node("%Body")
+	check(run_state.stop_index == rest_index and _find_button(body, RestContent.BUTTON) != null, "Cancel returns to the rest choices")
+	_find_button(body, "Remember a card").pressed.emit()
+	await process_frame
+	body = scene.get_node("%Body")
+	var chosen: CardData = CardView.find_all(body)[0].card
+	var deck_before := run_state.deck.size()
+	CardView.find_all(body)[0].pressed.emit()
+	await process_frame
+	var remembered_count := 0
+	for card in run_state.deck:
+		if card.is_remembered and card.id == chosen.id:
+			remembered_count += 1
+	check(remembered_count == 1 and run_state.deck.size() == deck_before, "picking a card Remembers it in place")
+	check(run_state.player.hp == hp_hurt and run_state.stop_index == rest_index + 1, "Remember does not heal and moves on")
+	var no_pick := RunState.new(3, &"medium")
+	for i in no_pick.deck.size():
+		if no_pick.deck[i].can_remember():
+			no_pick.deck[i] = no_pick.deck[i].remembered_card()
+	check(no_pick.rememberable_indices().is_empty(), "setup: nothing left to Remember")
 
 	for beat in 4:
 		_go_to(scene, RunState.StopType.STORY)

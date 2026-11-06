@@ -37,7 +37,7 @@ func _test_new_cards_load() -> void:
 		StarterContent.STEADY_BREATH_PATH: [1, [CardEffect.Kind.DRAW, CardEffect.Kind.BLOCK]],
 		StarterContent.SHOULDER_CHARGE_PATH: [2, [CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK]],
 		StarterContent.HAMSTRING_PATH: [2, [CardEffect.Kind.DAMAGE, CardEffect.Kind.EXPOSE]],
-		StarterContent.IRON_RESOLVE_PATH: [2, [CardEffect.Kind.BLOCK]],
+		StarterContent.IRON_RESOLVE_PATH: [2, [CardEffect.Kind.BLOCK, CardEffect.Kind.WARD]],
 		StarterContent.FLURRY_PATH: [0, [CardEffect.Kind.DAMAGE]],
 		StarterContent.GUARDED_STRIKE_PATH: [1, [CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK]],
 	}
@@ -101,7 +101,7 @@ func _test_small_enemies_in_trios() -> void:
 	var hound := StarterContent._load_enemy(StarterContent.CINDER_HOUND_PATH)
 	var crow := StarterContent._load_enemy(StarterContent.MOURNING_CROW_PATH)
 	if hound != null and crow != null:
-		_check(hound.max_hp != crow.max_hp and hound.intents.size() != crow.intents.size(), "new enemies are distinct")
+		_check(hound.max_hp != crow.max_hp and hound.intents[2].kind != crow.intents[2].kind, "new enemies are distinct")
 		_check(hound.max_hp >= 16 and hound.max_hp <= 24 and crow.max_hp >= 16 and crow.max_hp <= 24, "new enemies are small")
 
 
@@ -226,7 +226,7 @@ func _test_mid_boss_encounter() -> void:
 	var kinds := {}
 	for intent in mid[0].intents:
 		kinds[intent.kind] = true
-	_check(kinds.has(CardEffect.Kind.DAMAGE) and kinds.has(CardEffect.Kind.BLOCK) and kinds.has(CardEffect.Kind.EXPOSE), "the Brakeman mixes attacks, block and a status")
+	_check(kinds.has(CardEffect.Kind.DAMAGE) and kinds.has(CardEffect.Kind.BLOCK) and kinds.has(CardEffect.Kind.ADD_CARD), "the Brakeman mixes attacks, block and a status")
 	var pool_names := []
 	for enemy in StarterContent.enemy_pool():
 		pool_names.append(enemy.id)
@@ -265,7 +265,7 @@ func _test_mid_boss_encounter() -> void:
 ## Characters own their starting decks and class cards; neutral cards are shared.
 func _test_characters_and_pools() -> void:
 	var all := StarterContent.all_cards()
-	_check(all.size() == StarterContent.ALL_CARD_PATHS.size() and all.size() == 35, "all_cards loads all 35 cards")
+	_check(all.size() == StarterContent.ALL_CARD_PATHS.size() and all.size() == 112, "all_cards loads all 112 cards")
 	var ids := {}
 	for card in all:
 		_check(not ids.has(card.id), "card id is unique: %s" % card.id)
@@ -276,11 +276,11 @@ func _test_characters_and_pools() -> void:
 		if card.character == &"":
 			neutral_ids.append(String(card.id))
 	neutral_ids.sort()
-	_check(neutral_ids == ["brace", "flurry", "glimpse_exit", "shove", "slip_past", "sweep"], "the neutral pool is Brace, Flurry, Glimpse the Exit, Shove, Slip Past and Sweep")
+	_check(neutral_ids == ["brace", "counter_step", "downpour", "flurry", "glimpse_exit", "hold_fast", "lucky_break", "pull_together", "second_look", "shake_them", "shove", "slip_past", "steady_hands", "sweep"], "the neutral pool is the six originals and eight shared cards")
 
-	_check(StarterContent.character_ids() == [&"deserter", &"pickpocket", &"medium"], "three characters, in selection order")
+	_check(StarterContent.character_ids() == [&"deserter", &"thief", &"medium", &"stray"], "four characters, in selection order")
 	_check(StarterContent.character(&"nobody") == null, "an unknown character is null")
-	var max_hp := {&"deserter": 52, &"pickpocket": 36, &"medium": 60}
+	var max_hp := {&"deserter": 52, &"thief": 36, &"medium": 56, &"stray": 37}
 	for id in StarterContent.character_ids():
 		var character := StarterContent.character(id)
 		_check(character != null and character.id == id and character.display_name != "" and character.pitch != "", "character %s loads with a name and pitch" % id)
@@ -290,7 +290,7 @@ func _test_characters_and_pools() -> void:
 		_check(character.starting_deck.size() == 10, "character %s starts with 10 cards" % id)
 		for card in character.starting_deck:
 			_check(card.character == &"" or card.character == id, "%s starting deck holds only neutral or own cards (%s)" % [id, card.id])
-		var pool := StarterContent.reward_pool(id)
+		var pool := StarterContent.vendor_pool(id)
 		var pool_ids := {}
 		for card in pool:
 			_check(not pool_ids.has(card.id), "%s pool card is distinct: %s" % [id, card.id])
@@ -302,7 +302,7 @@ func _test_characters_and_pools() -> void:
 	var deserter_ids := {}
 	for card in StarterContent.reward_pool(&"deserter"):
 		deserter_ids[card.id] = true
-	_check(deserter_ids.has(&"heavy_blow") and not deserter_ids.has(&"hamstring"), "the Deserter can take Heavy Blow but not the Pickpocket's Hamstring")
+	_check(deserter_ids.has(&"heavy_blow") and not deserter_ids.has(&"hamstring"), "the Deserter can take Heavy Blow but not the Thief's Hamstring")
 
 
 ## Registry guard: every .tres file in `dir` that is not in `registered` (or in `excluded`) fails,
@@ -340,6 +340,7 @@ func _test_registry_entries_load() -> void:
 		_check(card != null, "card registry entry loads as CardData: %s" % path)
 		if card != null:
 			_check(not card_ids.has(card.id), "card id is unique: %s" % card.id)
+			_check(not (card.fading and card.anchor), "card is not both Fading and Anchor: %s" % card.id)
 			card_ids[card.id] = true
 	var relic_ids := {}
 	for path in StarterContent.RELIC_PATHS:

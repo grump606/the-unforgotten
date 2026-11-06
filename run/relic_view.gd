@@ -23,6 +23,15 @@ const GLYPH_NAMES := {
 	RelicData.Kind.FIGHT_START_HAUNT: "grave mound",
 	RelicData.Kind.TURN_START_HEAL_PER_HAUNTED: "planchette",
 	RelicData.Kind.HAUNT_BONUS: "rosary",
+	RelicData.Kind.FIGHT_START_GLIMPSE: "lorgnette",
+	RelicData.Kind.FIGHT_START_MALICE: "candle",
+	RelicData.Kind.FIGHT_START_WARD: "armband",
+	RelicData.Kind.FIRST_FORGOTTEN_RETURN: "pressed flower",
+	RelicData.Kind.ANCHOR_END_BLOCK: "stakes",
+	RelicData.Kind.FIRST_ATTACK_SHAKEN: "veil",
+	RelicData.Kind.FIGHT_START_SCENT: "whistle",
+	RelicData.Kind.SCENT_HEIR: "fang",
+	RelicData.Kind.QUARRY_KILL_HEAL: "muzzle",
 }
 
 var relic: RelicData
@@ -144,6 +153,24 @@ func _draw_glyph(kind: RelicData.Kind, ink: Color, accent: Color, bg: Color) -> 
 			_glyph_turn_start_heal_per_haunted(ink, accent, bg)
 		RelicData.Kind.HAUNT_BONUS:
 			_glyph_haunt_bonus(ink, accent, bg)
+		RelicData.Kind.FIGHT_START_GLIMPSE:
+			_glyph_lorgnette(ink, accent, bg)
+		RelicData.Kind.FIGHT_START_MALICE:
+			_glyph_candle(ink, accent, bg)
+		RelicData.Kind.FIGHT_START_WARD:
+			_glyph_armband(ink, accent, bg)
+		RelicData.Kind.FIRST_FORGOTTEN_RETURN:
+			_glyph_pressed_flower(ink, accent, bg)
+		RelicData.Kind.ANCHOR_END_BLOCK:
+			_glyph_stakes(ink, accent, bg)
+		RelicData.Kind.FIRST_ATTACK_SHAKEN:
+			_glyph_veil(ink, accent, bg)
+		RelicData.Kind.FIGHT_START_SCENT:
+			_glyph_whistle(ink, accent, bg)
+		RelicData.Kind.SCENT_HEIR:
+			_glyph_fang(ink, accent, bg)
+		RelicData.Kind.QUARRY_KILL_HEAL:
+			_glyph_muzzle(ink, accent, bg)
 
 ## A travelling flask.
 func _glyph_max_hp(ink: Color, accent: Color, _bg: Color) -> void:
@@ -269,6 +296,60 @@ func _glyph_haunt_bonus(ink: Color, accent: Color, _bg: Color) -> void:
 	draw_line(Vector2(18, 21.5), Vector2(18, 25), accent, 1.2)
 	draw_rect(Rect2(17, 24.5, 2, 5.5), ink)
 	draw_rect(Rect2(15.2, 26.2, 5.6, 2), ink)
+
+## A cracked lorgnette: a lens on a short handle.
+func _glyph_lorgnette(ink: Color, accent: Color, bg: Color) -> void:
+	draw_line(Vector2(21, 21), Vector2(28, 29), ink, 2.6, true)
+	draw_circle(Vector2(15, 15), 8.0, ink)
+	draw_circle(Vector2(15, 15), 5.8, bg)
+	draw_line(Vector2(12, 11), Vector2(17, 19), accent, 1.2, true)
+
+## A candle stub with a flame.
+func _glyph_candle(ink: Color, accent: Color, _bg: Color) -> void:
+	draw_rect(Rect2(13, 17, 10, 11), ink)
+	draw_colored_polygon(PackedVector2Array([Vector2(18, 7), Vector2(22, 13), Vector2(18, 16), Vector2(14, 13)]), accent)
+
+## A mourning armband: a dark band with a stripe.
+func _glyph_armband(ink: Color, accent: Color, _bg: Color) -> void:
+	draw_rect(Rect2(8, 12, 20, 12), ink)
+	draw_rect(Rect2(8, 16.5, 20, 3), accent)
+
+## A pressed flower: a bloom on a stem.
+func _glyph_pressed_flower(ink: Color, accent: Color, bg: Color) -> void:
+	draw_line(Vector2(18, 20), Vector2(18, 30), accent, 1.8, true)
+	for k in 5:
+		var angle := TAU * k / 5.0
+		draw_circle(Vector2(18, 14) + Vector2(cos(angle), sin(angle)) * 5.0, 3.2, ink)
+	draw_circle(Vector2(18, 14), 2.2, bg)
+
+## Two iron stakes driven into the ground.
+func _glyph_stakes(ink: Color, accent: Color, _bg: Color) -> void:
+	for x in [12.0, 24.0]:
+		draw_colored_polygon(PackedVector2Array([Vector2(x - 2.5, 8), Vector2(x + 2.5, 8), Vector2(x, 27)]), ink)
+	draw_line(Vector2(6, 27), Vector2(30, 27), accent, 2.0, true)
+
+## A veil: a hanging cloth with a fold.
+func _glyph_veil(ink: Color, accent: Color, _bg: Color) -> void:
+	draw_colored_polygon(PackedVector2Array([Vector2(9, 9), Vector2(27, 9), Vector2(24, 28), Vector2(12, 28)]), ink)
+	draw_line(Vector2(18, 9), Vector2(18, 28), accent, 1.2, true)
+
+## A small bone whistle with a cord.
+func _glyph_whistle(ink: Color, accent: Color, _bg: Color) -> void:
+	draw_rect(Rect2(8, 15, 17, 8), ink)
+	draw_circle(Vector2(25, 19), 4.5, ink)
+	draw_rect(Rect2(12, 12, 6, 3), accent)
+	draw_line(Vector2(8, 17), Vector2(5, 9), accent, 1.4, true)
+
+## A muzzle with a drop of blood.
+func _glyph_muzzle(ink: Color, accent: Color, _bg: Color) -> void:
+	draw_colored_polygon(PackedVector2Array([Vector2(7, 12), Vector2(26, 12), Vector2(29, 22), Vector2(10, 25)]), ink)
+	draw_circle(Vector2(25, 28), 2.2, accent)
+	draw_line(Vector2(14, 12), Vector2(14, 25), accent, 1.2, true)
+
+## A curved fang.
+func _glyph_fang(ink: Color, accent: Color, _bg: Color) -> void:
+	draw_colored_polygon(PackedVector2Array([Vector2(11, 8), Vector2(25, 8), Vector2(18, 29)]), ink)
+	draw_line(Vector2(14, 11), Vector2(18, 22), accent, 1.4, true)
 
 ## A rectangle of half-size `half` around `center`, turned by `angle` radians.
 func _rotated_rect(center: Vector2, half: Vector2, angle: float, color: Color) -> void:

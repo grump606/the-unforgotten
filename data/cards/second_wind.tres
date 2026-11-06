@@ -16,8 +16,8 @@ amount = 1
 [resource]
 script = ExtResource("1_card")
 id = &"second_wind"
-display_name = "Second Wind"
+display_name = "Borrowed Breath"
 cost = 0
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_block"), SubResource("Resource_draw")])
 target_mode = 2
-character = &"pickpocket"
+character = &"thief"

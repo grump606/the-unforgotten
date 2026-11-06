@@ -1,6 +1,6 @@
 class_name Fighter
 extends Control
-## One combatant on the battle stage, seen from the side (Slay the Spire style): the figure standing on
+## One combatant on the battle stage, seen from the side: the figure standing on
 ## the ground line, the enemy's intent floating above its head, an HP bar with Block beneath its feet and
 ## status pills under that. The player stands on the left facing right; enemies face left.
 ##
@@ -9,7 +9,9 @@ extends Control
 ## The figure is the enemy's painted figure layer when there is one, else a code-drawn stand-in.
 
 const OVERHEAD := 58.0 ## room above the figure for the intent and the target marker
-const UNDER := 50.0 ## room below the feet for the HP bar and status pills
+const UNDER := 68.0 ## room below the feet for the HP bar and up to two rows of status pills
+const CHIP_H := 16.0
+const CHIP_GAP := 4.0
 const MIN_WIDTH := 150.0
 const LUNGE_TIME := 0.45
 const FLASH_TIME := 0.35
@@ -28,6 +30,8 @@ const ART_KEYS := {
 	&"gate_warden": &"warden", &"lost_shade": &"shade", &"skittering_wisp": &"wisp", &"hollow_colossus": &"colossus",
 	&"pale_whisperer": &"whisperer", &"cinder_hound": &"hound", &"mourning_crow": &"crow",
 	&"the_conductor": &"conductor", &"the_brakeman": &"brakeman",
+	&"proto_pest": &"hound", # the debug-only prototype enemy borrows the hound's figure
+	&"proto_dreadkeeper": &"whisperer", # likewise the Dreadkeeper borrows the whisperer's
 }
 ## Figure height in pixels per enemy (the player and unknown ids use DEFAULT_HEIGHT).
 const HEIGHTS := {
@@ -47,11 +51,12 @@ const PLAYER_HEIGHT := 205.0
 ## Class colours of the code-drawn player stand-in: cloak, accent.
 const CLASS_COLORS := {
 	&"deserter": [Color(0.40, 0.30, 0.24), Color(0.92, 0.55, 0.22)],
-	&"pickpocket": [Color(0.16, 0.30, 0.31), Color(0.30, 0.85, 0.80)],
+	&"thief": [Color(0.16, 0.30, 0.31), Color(0.30, 0.85, 0.80)],
 	&"medium": [Color(0.30, 0.22, 0.42), Color(0.72, 0.52, 1.0)],
+	&"stray": [Color(0.14, 0.20, 0.32), Color(0.43, 0.56, 0.76)],
 }
 ## Which way each painted class figure faces as drawn (+1 right, -1 left); the stage mirrors it to face right.
-const PLAYER_ART_FACING := {&"deserter": 1.0, &"pickpocket": 1.0, &"medium": 1.0}
+const PLAYER_ART_FACING := {&"deserter": 1.0, &"thief": 1.0, &"medium": 1.0, &"stray": 1.0}
 ## Painted enemy sprites that face right as drawn (everything else faces left); the stage mirrors them.
 const SPRITE_FACES_RIGHT: Array[StringName] = []
 const HP_BACK := Color(0.10, 0.04, 0.05)
@@ -61,6 +66,9 @@ const SHADOW := Color(0, 0, 0, 0.38)
 signal pressed
 
 var unit: Combatant
+## Who an enemy's Omen is aimed at (the player), so its damage shows the number the hit really deals: the
+## enemy's Malice and Shaken, then the target's Expose. Null shows the printed number.
+var intent_target: Combatant = null
 var is_player := false
 ## Which way the fighter faces: +1 right (the player), -1 left (enemies).
 var facing := -1.0
@@ -377,7 +385,7 @@ func stance_motion() -> Vector3:
 			&"deserter":
 				speed = 1.8
 				strength = 0.8
-			&"pickpocket":
+			&"thief":
 				speed = 2.8
 				strength = 1.15
 			&"medium":
@@ -402,41 +410,89 @@ func lunge_amount() -> float:
 	return 0.0 if _lunge_delay > 0.0 else sin(_lunge * PI)
 
 
-## The statuses shown as pills, in display order: {kind, value, text, color}. Hold and Thorns count too.
+## The statuses shown as pills, in display order: {kind, value, label, text, color}. `label` is what the
+## pill shows next to its glyph: the turns for Exposed, Haunt, Shaken and Frayed, the signed stack for
+## Malice and Ward (a debuff is tinted red), the amount for Hold and Thorns.
 func status_chips() -> Array[Dictionary]:
 	var chips: Array[Dictionary] = []
 	if unit == null:
 		return chips
 	var exposed := unit.status_turns(Combatant.Status.EXPOSED)
 	if exposed > 0:
-		chips.append({"kind": &"exposed", "value": exposed, "text": "Exposed %d" % exposed, "color": CardView.kind_color(CardEffect.Kind.EXPOSE)})
+		chips.append(_chip(&"exposed", exposed, "Exposed %d" % exposed, CardView.kind_color(CardEffect.Kind.EXPOSE)))
 	var haunted := unit.status_turns(Combatant.Status.HAUNTED)
 	if haunted > 0:
-		chips.append({"kind": &"haunt", "value": haunted, "text": "Haunt %d" % haunted, "color": CardView.kind_color(CardEffect.Kind.HAUNT)})
+		chips.append(_chip(&"haunt", haunted, "Haunt %d" % haunted, CardView.kind_color(CardEffect.Kind.HAUNT)))
+	var shaken := unit.stacks(Combatant.Status.SHAKEN)
+	if shaken > 0:
+		chips.append(_chip(&"shaken", shaken, "Shaken %d" % shaken, CardView.kind_color(CardEffect.Kind.SHAKEN)))
+	var frayed := unit.stacks(Combatant.Status.FRAYED)
+	if frayed > 0:
+		chips.append(_chip(&"frayed", frayed, "Frayed %d" % frayed, CardView.kind_color(CardEffect.Kind.FRAYED)))
+	var malice := unit.stacks(Combatant.Status.MALICE)
+	if malice != 0:
+		chips.append(_chip(&"malice", malice, "Malice %+d" % malice, CardView.kind_color(CardEffect.Kind.MALICE) if malice > 0 else CardView.STATUS_NEGATIVE, "%+d" % malice))
+	var ward := unit.stacks(Combatant.Status.WARD)
+	if ward != 0:
+		chips.append(_chip(&"ward", ward, "Ward %+d" % ward, CardView.kind_color(CardEffect.Kind.WARD) if ward > 0 else CardView.STATUS_NEGATIVE, "%+d" % ward))
+	var scent := unit.stacks(Combatant.Status.SCENT)
+	if scent > 0:
+		chips.append(_chip(&"scent", scent, "Scent %d" % scent, CardView.kind_color(CardEffect.Kind.SCENT)))
 	if unit.hold > 0:
-		chips.append({"kind": &"hold", "value": unit.hold, "text": "Hold %d" % unit.hold, "color": CardView.kind_color(CardEffect.Kind.HOLD)})
+		chips.append(_chip(&"hold", unit.hold, "Hold %d" % unit.hold, CardView.kind_color(CardEffect.Kind.HOLD)))
 	if unit.thorns > 0:
-		chips.append({"kind": &"thorns", "value": unit.thorns, "text": "Thorns %d" % unit.thorns, "color": CardView.kind_color(CardEffect.Kind.THORNS)})
+		chips.append(_chip(&"thorns", unit.thorns, "Thorns %d" % unit.thorns, CardView.kind_color(CardEffect.Kind.THORNS)))
 	return chips
 
 
-## Where each status pill is drawn, in the order of status_chips(): a centered row under the HP bar.
+static func _chip(kind: StringName, value: int, text: String, color: Color, label := "") -> Dictionary:
+	return {"kind": kind, "value": value, "text": text, "color": color, "label": label if label != "" else str(value)}
+
+
+## Where each status pill is drawn, in the order of status_chips(): centered rows under the HP bar. A row
+## holds as many pills as fit the figure's width; the rest wrap onto the next row.
 func chip_rects() -> Array[Rect2]:
 	var rects: Array[Rect2] = []
 	var chips := status_chips()
 	var font: Font = ThemeDB.fallback_font
 	var widths: Array[float] = []
-	var total := 0.0
 	for chip in chips:
-		var w := font.get_string_size(str(chip.value), HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 22.0
-		widths.append(w)
-		total += w + 4.0
-	var x := size.x / 2.0 - (total - 4.0) / 2.0
+		widths.append(font.get_string_size(chip.label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 19.0)
+	var room := maxf(size.x - 4.0, 60.0)
 	var y := bar_rect().end.y + 5.0
-	for w in widths:
-		rects.append(Rect2(x, y, w, 16))
-		x += w + 4.0
+	var start := 0
+	while start < widths.size():
+		var end := start
+		var total := 0.0
+		while end < widths.size() and (end == start or total + CHIP_GAP + widths[end] <= room):
+			total += widths[end] + (CHIP_GAP if end > start else 0.0)
+			end += 1
+		var x := size.x / 2.0 - total / 2.0
+		for i in range(start, end):
+			rects.append(Rect2(x, y, widths[i], CHIP_H))
+			x += widths[i] + CHIP_GAP
+		y += CHIP_H + 2.0
+		start = end
 	return rects
+
+
+## The Omen of `enemy` as it will really land on `target`: a damage intent carries the number after the
+## enemy's Malice and Shaken and the target's Expose (Combatant.hit_damage), a Block intent the number
+## after the enemy's Ward and Frayed. Any other intent, or no target, is returned as printed.
+static func effective_intent(enemy: EnemyUnit, target: Combatant) -> CardEffect:
+	var intent := enemy.current_intent() if enemy != null else null
+	if intent == null or target == null:
+		return intent
+	var effective := intent.amount
+	if intent.kind == CardEffect.Kind.DAMAGE:
+		effective = Combatant.hit_damage(intent.amount, enemy, target)
+	elif intent.kind == CardEffect.Kind.BLOCK:
+		effective = enemy.block_from_card(intent.amount)
+	if effective == intent.amount:
+		return intent
+	var shown := intent.duplicate() as CardEffect
+	shown.amount = effective
+	return shown
 
 
 ## Where the intent badge sits (above the head), in this control's coordinates.
@@ -579,7 +635,7 @@ func _draw_stand_in(tint: Color) -> void:
 		&"deserter": # a sword held low in front
 			draw_line(Vector2(0.18, -0.30) * h, Vector2(0.42, -0.62) * h, prop.darkened(0.2), 4.0, true)
 			draw_line(Vector2(0.15, -0.34) * h, Vector2(0.24, -0.26) * h, prop, 3.0, true)
-		&"pickpocket": # a dagger and a coin
+		&"thief": # a dagger and a coin
 			draw_line(Vector2(0.18, -0.34) * h, Vector2(0.34, -0.50) * h, prop.darkened(0.2), 3.0, true)
 			draw_circle(Vector2(0.24, -0.20) * h, 0.03 * h, prop)
 		&"medium": # a lantern with a pale flame
@@ -590,16 +646,30 @@ func _draw_stand_in(tint: Color) -> void:
 			pass
 
 
+## The short text beside the Omen badge: the amount (signed for Malice and Ward, "3x3" for a multi-hit
+## attack) or, for a card an enemy adds, the card's name ("Dread"), so the exact effect is readable.
+static func omen_text(intent: CardEffect) -> String:
+	if intent.kind in [CardEffect.Kind.MALICE, CardEffect.Kind.WARD]:
+		return "%+d" % intent.amount
+	if intent.kind == CardEffect.Kind.ADD_CARD and intent.card != null:
+		return intent.card.display_name if intent.amount <= 1 else "%dx %s" % [intent.amount, intent.card.display_name]
+	if intent.is_damage() and intent.hits > 1:
+		return "%dx%d" % [intent.amount, intent.hits]
+	return str(intent.amount)
+
+
 ## The intent floating above the head: a round badge with the action's icon and its amount beside it.
 ## (The full description is in the figure's tooltip.)
 func _draw_intent(a: float) -> void:
 	var enemy := unit as EnemyUnit
-	var intent := enemy.current_intent() if enemy != null else null
+	var intent := effective_intent(enemy, intent_target)
 	if intent == null:
 		return
 	var col := CardView.kind_color(int(intent.kind))
+	if intent.kind in [CardEffect.Kind.MALICE, CardEffect.Kind.WARD] and intent.amount < 0:
+		col = CardView.STATUS_NEGATIVE
 	var c := intent_center()
-	var number := str(intent.amount)
+	var number := omen_text(intent)
 	var nw := ThemeDB.fallback_font.get_string_size(number, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
 	var total := 30.0 + 5.0 + nw
 	var cx := c.x - total / 2.0 + 15.0
@@ -646,7 +716,7 @@ func _draw_chips(a: float) -> void:
 		var col: Color = chip.color
 		HudIcons.box(self, r, Color(0.04, 0.03, 0.05, 0.9 * a), 8, 1, Color(col, a))
 		HudIcons.status(self, chip.kind, Vector2(r.position.x + 9, r.position.y + 8), Color(col, a))
-		HudIcons.text(self, str(chip.value), Rect2(r.position.x + 16, r.position.y, r.size.x - 18, r.size.y), 11, Color(0.97, 0.95, 0.92, a), false)
+		HudIcons.text(self, chip.label, Rect2(r.position.x + 16, r.position.y, r.size.x - 18, r.size.y), 11, Color(0.97, 0.95, 0.92, a), false)
 
 
 func _draw_floats() -> void:

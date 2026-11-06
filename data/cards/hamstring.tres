@@ -19,4 +19,5 @@ id = &"hamstring"
 display_name = "Hamstring"
 cost = 2
 effects = Array[ExtResource("2_effect")]([SubResource("Resource_damage"), SubResource("Resource_expose")])
-character = &"pickpocket"
+character = &"thief"
+rarity = 1

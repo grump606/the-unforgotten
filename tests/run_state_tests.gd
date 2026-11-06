@@ -368,7 +368,7 @@ func _test_story_content_loaders() -> void:
 		_check(beat != null and beat is StoryBeat and not beat.title.is_empty() and not beat.text.is_empty() and not beat.button_text.is_empty(), "story beat %d loads typed with title, text and button" % i)
 	_check(StoryContent.beat(-1) == null, "negative beat index returns null")
 	_check(StoryContent.beat(StoryContent.beat_count()) == null, "out-of-range beat index returns null")
-	for character_id in [&"deserter", &"pickpocket", &"medium"]:
+	for character_id in [&"deserter", &"thief", &"medium", &"stray"]:
 		for i in StoryContent.beat_count():
 			var own := StoryContent.beat(i, character_id)
 			_check(own != null and not own.text.is_empty(), "%s beat %d loads" % [character_id, i])
@@ -776,10 +776,17 @@ func _test_progressive_difficulty() -> void:
 	var template := load(StarterContent.COLOSSUS_PATH) as EnemyData
 	var hp_before := template.max_hp
 	var damage_before: int = template.intents[1].amount
+	var frayed_before: int = template.intents[0].amount
 	var scaled := StarterContent.scaled(template.duplicate(true) as EnemyData, 1.5)
 	_check(scaled.max_hp == roundi(hp_before * 1.5) and scaled.intents[1].amount == roundi(damage_before * 1.5), "scaled multiplies HP and damage, rounded")
-	_check(scaled.intents[0].kind == CardEffect.Kind.BLOCK and scaled.intents[0].amount == template.intents[0].amount, "scaled leaves Block alone")
+	_check(scaled.intents[0].kind == CardEffect.Kind.FRAYED and scaled.intents[0].amount == frayed_before, "scaled leaves a status alone")
 	_check(template.max_hp == hp_before and template.intents[1].amount == damage_before, "scaling leaves the shared resource unchanged")
+	var conductor := load(StarterContent.CONDUCTOR_PATH) as EnemyData
+	var triple_index := -1
+	for i in conductor.intents.size():
+		if conductor.intents[i].hits == 3:
+			triple_index = i
+	_check(triple_index >= 0 and StarterContent.scaled(conductor.duplicate(true) as EnemyData, 1.5).intents[triple_index].hits == 3, "scaling keeps a multi-hit attack's hit count")
 	# The stop numbers feed the encounter: the same seed at the same stop gives the same ramped pack.
 	var run_a := RunState.new(5)
 	var run_b := RunState.new(5)

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"wolf_fang"
+display_name = "Wolf Fang"
+description = "When the quarry dies, 2 more Scent passes on."
+character = &"stray"
+kind = 19
+amount = 2
+price = 70

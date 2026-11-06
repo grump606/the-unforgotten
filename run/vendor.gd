@@ -34,6 +34,43 @@ const PRICEY_FROM := 12
 const DRAW_VALUE := 4
 ## How much one point of energy gained adds.
 const ENERGY_VALUE := 4
+## A per_energy (Surge) effect is valued as if this much energy were spent on it.
+const SURGE_TYPICAL_ENERGY := 2
+## Keyword adjustments added to a card's value (see card_value). Kept small so a keyword shifts a
+## price tier only at the margin; Dormant is large enough to make a card junk whatever its effects.
+## Forgotten: the card is gone for the rest of the fight after one play, so it is worth less.
+const FORGOTTEN_ADJUST := -3
+## Fading: it must be played the turn it is drawn or it is lost, a small drawback.
+const FADING_ADJUST := -1
+## Ready: it opens the first hand every fight, a small bonus.
+const READY_ADJUST := 1
+## Anchor: it stays in hand and never costs a kept slot, a small bonus.
+const ANCHOR_ADJUST := 1
+## Dormant: it cannot be played at all, so it is effectively junk.
+const DORMANT_ADJUST := -20
+## Surge: takes any energy left over, so it is flexible; a small bonus.
+const SURGE_ADJUST := 1
+## Shaken and Frayed are worth a little less per turn than Expose (which boosts all damage by half).
+const SHAKEN_VALUE_PER_TURN := 2
+const FRAYED_VALUE_PER_TURN := 1
+## A Malice or Ward stack lasts the fight, so one point is worth several; a temporary stack lasts
+## one turn and is worth about a third of that. A negative amount (a debuff on enemies) is valued
+## the same way as a positive one.
+const MALICE_VALUE_PER_STACK := 6
+const WARD_VALUE_PER_STACK := 5
+const TEMPORARY_STACK_VALUE_PER_STACK := 2
+## Glimpse: each card looked at is a small chance to bin a dud. Recall: a Forgotten card back in hand
+## is about a drawn card less the Forgotten cost. Damage per Forgotten card assumes a typical pile of 2.
+const GLIMPSE_VALUE_PER_CARD := 1
+const RECALL_VALUE_PER_CARD := 3
+const TYPICAL_FORGOTTEN := 2
+## Scent: a point of it is worth about two points of damage over the hits that follow; a spender assumes a stack of 3.
+const SCENT_VALUE_PER_POINT := 2
+const TYPICAL_SCENT := 3
+## An Oath is worth its effect this many times: about how often a trigger fires in a fight.
+const OATH_FIRINGS := 3
+## A card's discard effects are worth this fraction (1 over the divisor) of the same effects played.
+const DISCARD_VALUE_DIVISOR := 2
 
 
 ## Gold awarded for winning a fight against `enemy_count` enemies.
@@ -51,12 +88,37 @@ const UNVALUED := -999999
 ## Raw strength of a card: 2 per energy of cost plus the value of each effect (effect_value).
 static func card_value(card: CardData) -> int:
 	var value := card.cost * 2
+	if card.forgotten:
+		value += FORGOTTEN_ADJUST
+	if card.fading:
+		value += FADING_ADJUST
+	if card.ready:
+		value += READY_ADJUST
+	if card.anchor:
+		value += ANCHOR_ADJUST
+	if card.dormant:
+		value += DORMANT_ADJUST
+	if card.surge:
+		value += SURGE_ADJUST
 	for effect in card.effects:
 		var effect_points := effect_value(effect)
 		if effect_points == UNVALUED:
 			push_error("Vendor.card_value: no valuation for CardEffect kind %d" % effect.kind)
 			continue
 		value += effect_points
+	# What a card does when thrown away at the end of the turn counts for half: it only fires if it is discarded.
+	for effect in card.discard_effects:
+		var discard_points := effect_value(effect)
+		if discard_points != UNVALUED:
+			value += discard_points / DISCARD_VALUE_DIVISOR
+	# An Oath's effects fire on a trigger for the rest of the fight, so they count several times.
+	if card.oath:
+		for effect in card.oath_effects:
+			var oath_points := effect_value(effect)
+			if oath_points == UNVALUED:
+				push_error("Vendor.card_value: no valuation for oath CardEffect kind %d" % effect.kind)
+				continue
+			value += oath_points * OATH_FIRINGS
 	return value
 
 
@@ -65,6 +127,23 @@ static func card_value(card: CardData) -> int:
 ## turn, a Haunt of about 4. Every CardEffect.Kind needs a branch here (a test enforces it).
 static func effect_value(effect: CardEffect) -> int:
 	var amount := effect.amount
+	# per_energy scales hits on a damage kind and the amount on any other kind, by a typical energy.
+	var multiplier := 1
+	if effect.per_energy:
+		if effect.is_damage():
+			multiplier = SURGE_TYPICAL_ENERGY
+		else:
+			amount *= SURGE_TYPICAL_ENERGY
+	var points := _base_effect_value(effect, amount)
+	if points == UNVALUED:
+		return UNVALUED
+	if effect.is_damage():
+		# Each hit lands separately (hits below 1 count as 1).
+		return points * maxi(effect.hits, 1) * multiplier
+	return points
+
+
+static func _base_effect_value(effect: CardEffect, amount: int) -> int:
 	match effect.kind:
 		CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK, CardEffect.Kind.HOLD:
 			return amount
@@ -91,7 +170,41 @@ static func effect_value(effect: CardEffect) -> int:
 			return amount * 2
 		CardEffect.Kind.DAMAGE_PER_HAUNT:
 			return amount * 4
+		CardEffect.Kind.SHAKEN:
+			return amount * SHAKEN_VALUE_PER_TURN
+		CardEffect.Kind.FRAYED:
+			return amount * FRAYED_VALUE_PER_TURN
+		CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
+			if effect.temporary:
+				return absi(amount) * TEMPORARY_STACK_VALUE_PER_STACK
+			return absi(amount) * (MALICE_VALUE_PER_STACK if effect.kind == CardEffect.Kind.MALICE else WARD_VALUE_PER_STACK)
+		CardEffect.Kind.GLIMPSE:
+			return amount * GLIMPSE_VALUE_PER_CARD
+		CardEffect.Kind.RECALL:
+			return amount * RECALL_VALUE_PER_CARD
+		CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
+			return amount * TYPICAL_FORGOTTEN
+		CardEffect.Kind.SCENT:
+			return amount * SCENT_VALUE_PER_POINT
+		CardEffect.Kind.DAMAGE_PER_SCENT:
+			return amount + effect.bonus * TYPICAL_SCENT
+		CardEffect.Kind.ADD_CARD:
+			return amount * _added_card_value(effect.card)
 	return UNVALUED
+
+
+## Value of one copy of a created card: its own card_value, which is large and negative for a Dormant
+## card (junk is a cost for whoever receives it, so a card adding one is worth less) and positive for a
+## playable one. 0 for no card. Depth-limited so a card that adds itself cannot recurse forever.
+static var _added_depth := 0
+
+static func _added_card_value(card: CardData) -> int:
+	if card == null or _added_depth >= 3:
+		return 0
+	_added_depth += 1
+	var value := card_value(card)
+	_added_depth -= 1
+	return value
 
 
 ## The single price rule: value < MID_FROM -> PRICE_CHEAP, value < PRICEY_FROM ->
@@ -148,7 +261,7 @@ var _healed := false
 ## `card_pool` is what the stock is drawn from (a character's pool); empty means every card.
 ## `relic_pool` is the relics that may be offered (the caller leaves out the ones already
 ## owned); one is picked after the card stock, and none is offered when it is empty.
-func _init(deck: Array[CardData], rng: RandomNumberGenerator, starting_gold: int, card_pool: Array[CardData] = [], relic_pool: Array[RelicData] = [], wallet: Wallet = null) -> void:
+func _init(deck: Array[CardData], rng: RandomNumberGenerator, starting_gold: int, card_pool: Array[CardData] = [], relic_pool: Array[RelicData] = [], wallet: Wallet = null, rarity_weights: Array[int] = [60, 32, 8]) -> void:
 	_deck = deck
 	if wallet != null:
 		_wallet = wallet  # shared: `starting_gold` is ignored
@@ -166,13 +279,9 @@ func _init(deck: Array[CardData], rng: RandomNumberGenerator, starting_gold: int
 		if not seen.has(card.id):
 			seen[card.id] = true
 			pool.append(card)
-	for i in range(pool.size() - 1, 0, -1):
-		var j := rng.randi_range(0, i)
-		var tmp := pool[i]
-		pool[i] = pool[j]
-		pool[j] = tmp
-	for i in mini(STOCK_CARDS, pool.size()):
-		_offers.append({"card": pool[i], "price": card_price(pool[i]), "sold": false})
+	# Each stock slot rolls a rarity, then a card of it (the same odds as a reward at this depth).
+	for card in StarterContent.pick_by_rarity(pool, STOCK_CARDS, rarity_weights, rng):
+		_offers.append({"card": card, "price": card_price(card), "sold": false})
 	if _offers.size() < STOCK_CARDS:
 		push_error("Vendor: could only stock %d of %d cards" % [_offers.size(), STOCK_CARDS])
 	# After the card shuffle, so the card stock never depends on whether a relic is offered.
