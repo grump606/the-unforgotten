@@ -184,6 +184,7 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 			targets = living_enemies()
 	# Only Oaths already Sworn react to this play, never the card being played.
 	var sworn_before := piles.sworn.size()
+	var block_before := player.block
 	var card := piles.play(hand_index)
 	# Surge spends all the energy there is; other cards spend their cost.
 	var spent := energy if card.surge else card.cost
@@ -208,6 +209,11 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 		_apply_play_relics(card, targets)
 	if plays_this_turn == 1:
 		_fire_oaths(CardData.OathTrigger.FIRST_PLAY, sworn_before)
+	_fire_oaths(CardData.OathTrigger.EACH_PLAY, sworn_before)
+	if player.block > block_before:
+		_fire_oaths(CardData.OathTrigger.ON_BLOCK_GAINED, sworn_before)
+	if card.hp_cost() > 0:
+		_fire_oaths(CardData.OathTrigger.ON_HP_LOST, sworn_before)
 	if card.forgotten and not card.oath:
 		_fire_oaths(CardData.OathTrigger.ON_FORGOTTEN, sworn_before)
 	card_played.emit(card, targets)
@@ -399,7 +405,15 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 		return false
 	phase = Phase.ENEMY_TURN
 	discard_marks.clear()
+	# Thrown-away cards: each one's own "when discarded" effects, then the Oaths that watch discards.
+	var thrown: Array[CardData] = []
+	for i in discard_indices:
+		thrown.append(piles.hand[i])
 	piles.discard_cards(discard_indices)
+	for card in thrown:
+		for effect in card.discard_effects:
+			_apply_lasting(effect)
+		_fire_oaths(CardData.OathTrigger.ON_DISCARD)
 	# Fading cards that were not played are lost before the enemies act; each one is a Forgotten card for
 	# the Oaths that care. A Glimpse or Recall from here opens at the start of the next turn.
 	var faded := piles.forget_fading_in_hand()
@@ -417,6 +431,8 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 	for held in piles.hand:
 		if held.anchor:
 			_fire_oaths(CardData.OathTrigger.ANCHOR_KEPT)
+	# Last, so Block it gives is not spent before the enemies act.
+	_fire_oaths(CardData.OathTrigger.END_OF_TURN)
 	# Haunt hurts first, so an enemy it kills never acts.
 	for enemy in living_enemies():
 		enemy.lose_hp(enemy.status_turns(Combatant.Status.HAUNTED))
@@ -501,16 +517,21 @@ func _fire_oaths(trigger: CardData.OathTrigger, limit: int = -1) -> void:
 		if oath.oath_trigger != trigger:
 			continue
 		for effect in oath.oath_effects:
-			if effect.kind == CardEffect.Kind.SCENT:
-				# One quarry: the current one, else the first living enemy.
-				var quarry := _scent_target(living_enemies())
-				if quarry != null:
-					_apply(effect, player, quarry)
-			elif effect.reach() == CardEffect.Reach.SELF:
-				_apply(effect, player, player)
-			else:
-				for enemy in living_enemies():
-					_apply(effect, player, enemy)
+			_apply_lasting(effect)
+
+
+## Applies one effect of an Oath or of a discarded card: Scent to the quarry (the current one, else the first
+## living enemy), a SELF-reach effect to the player, any other to every enemy still alive.
+func _apply_lasting(effect: CardEffect) -> void:
+	if effect.kind == CardEffect.Kind.SCENT:
+		var quarry := _scent_target(living_enemies())
+		if quarry != null:
+			_apply(effect, player, quarry)
+	elif effect.reach() == CardEffect.Reach.SELF:
+		_apply(effect, player, player)
+	else:
+		for enemy in living_enemies():
+			_apply(effect, player, enemy)
 
 
 ## Sum of `amount` over the owned relics of `kind` (0 with none).

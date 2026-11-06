@@ -69,6 +69,8 @@ const SCENT_VALUE_PER_POINT := 2
 const TYPICAL_SCENT := 3
 ## An Oath is worth its effect this many times: about how often a trigger fires in a fight.
 const OATH_FIRINGS := 3
+## A card's discard effects are worth this fraction (1 over the divisor) of the same effects played.
+const DISCARD_VALUE_DIVISOR := 2
 
 
 ## Gold awarded for winning a fight against `enemy_count` enemies.
@@ -104,6 +106,11 @@ static func card_value(card: CardData) -> int:
 			push_error("Vendor.card_value: no valuation for CardEffect kind %d" % effect.kind)
 			continue
 		value += effect_points
+	# What a card does when thrown away at the end of the turn counts for half: it only fires if it is discarded.
+	for effect in card.discard_effects:
+		var discard_points := effect_value(effect)
+		if discard_points != UNVALUED:
+			value += discard_points / DISCARD_VALUE_DIVISOR
 	# An Oath's effects fire on a trigger for the rest of the fight, so they count several times.
 	if card.oath:
 		for effect in card.oath_effects:

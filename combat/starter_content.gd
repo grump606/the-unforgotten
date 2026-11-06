@@ -83,6 +83,15 @@ const HOLD_FAST_PATH := "res://data/cards/hold_fast.tres"
 const PULL_TOGETHER_PATH := "res://data/cards/pull_together.tres"
 const LUCKY_BREAK_PATH := "res://data/cards/lucky_break.tres"
 const SHAKE_THEM_PATH := "res://data/cards/shake_them.tres"
+# Cards step 3: Oaths on the new triggers and the Thief's discard cards.
+const IRON_SKIN_PATH := "res://data/cards/iron_skin.tres"
+const BULWARK_VOW_PATH := "res://data/cards/bulwark_vow.tres"
+const NICK_AND_RUN_PATH := "res://data/cards/nick_and_run.tres"
+const BLOOD_PRICE_PATH := "res://data/cards/blood_price.tres"
+const PACK_INSTINCT_PATH := "res://data/cards/pack_instinct.tres"
+const LOOSE_CHANGE_PATH := "res://data/cards/loose_change.tres"
+const SLIPPED_POCKET_PATH := "res://data/cards/slipped_pocket.tres"
+const SPARE_KEY_PATH := "res://data/cards/spare_key.tres"
 const CINDER_HOUND_PATH := "res://data/enemies/cinder_hound.tres"
 const MOURNING_CROW_PATH := "res://data/enemies/mourning_crow.tres"
 const WISP_PATH := "res://data/enemies/skittering_wisp.tres"
@@ -116,6 +125,8 @@ const ALL_CARD_PATHS: Array[String] = [
 	QUICK_HANDS_PATH, LIGHT_STEP_PATH, UNBROKEN_VOW_PATH, STANDING_GUARD_PATH, OPEN_GRAVE_PATH, QUIET_DEBT_PATH,
 	# Neutral pool
 	STEADY_HANDS_PATH, COUNTER_STEP_PATH, SECOND_LOOK_PATH, DOWNPOUR_PATH, HOLD_FAST_PATH, PULL_TOGETHER_PATH, LUCKY_BREAK_PATH, SHAKE_THEM_PATH,
+	# Cards step 3
+	IRON_SKIN_PATH, BULWARK_VOW_PATH, NICK_AND_RUN_PATH, BLOOD_PRICE_PATH, PACK_INSTINCT_PATH, LOOSE_CHANGE_PATH, SLIPPED_POCKET_PATH, SPARE_KEY_PATH,
 	# The Stray
 	CATCH_THE_SCENT_PATH, SNAP_PATH, BRISTLE_PATH, RUN_DOWN_PATH, WORRY_PATH, CIRCLE_PATH, NOSE_TO_THE_WIND_PATH, OLD_WOUND_PATH, HOWL_PATH, POUNCE_PATH, SAVAGE_PATH, BRING_DOWN_PATH, HACKLES_PATH, TEAR_LOOSE_PATH, GO_FERAL_PATH,
 ]

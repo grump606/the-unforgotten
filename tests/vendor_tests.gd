@@ -227,6 +227,14 @@ func _test_payoff_pricing() -> void:
 ## multi-hit valuation existed. Update it on purpose whenever a card is retuned (Flurry and Glimpse the
 ## Exit changed in Phase 4a; Bleed the Veil, Heavy Blow, Iron Resolve and Last Stand in the 4e balance pass); a new card is added with its computed value and price.
 const GOLDEN := {
+	"iron_skin": [14, 24],
+	"bulwark_vow": [-7, 10],
+	"nick_and_run": [-13, 10],
+	"blood_price": [19, 24],
+	"pack_instinct": [-12, 10],
+	"loose_change": [5, 10],
+	"slipped_pocket": [8, 16],
+	"spare_key": [3, 10],
 	"steady_hands": [12, 24],
 	"counter_step": [10, 16],
 	"second_look": [5, 10],
