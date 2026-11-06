@@ -92,6 +92,39 @@ const PACK_INSTINCT_PATH := "res://data/cards/pack_instinct.tres"
 const LOOSE_CHANGE_PATH := "res://data/cards/loose_change.tres"
 const SLIPPED_POCKET_PATH := "res://data/cards/slipped_pocket.tres"
 const SPARE_KEY_PATH := "res://data/cards/spare_key.tres"
+# Cards step 4: wider class pools.
+const CLEAVE_PATH := "res://data/cards/cleave.tres"
+const CATCH_BREATH_PATH := "res://data/cards/catch_breath.tres"
+const TAUNT_PATH := "res://data/cards/taunt.tres"
+const BRACE_FOR_IMPACT_PATH := "res://data/cards/brace_for_impact.tres"
+const SHIELD_BASH_PATH := "res://data/cards/shield_bash.tres"
+const IRON_WILL_PATH := "res://data/cards/iron_will.tres"
+const EARTHSHAKER_PATH := "res://data/cards/earthshaker.tres"
+const FORTIFY_PATH := "res://data/cards/fortify.tres"
+const PICKPOCKET_PATH := "res://data/cards/pickpocket.tres"
+const SHIV_FLURRY_PATH := "res://data/cards/shiv_flurry.tres"
+const SMOKE_BOMB_PATH := "res://data/cards/smoke_bomb.tres"
+const TRIPWIRE_PATH := "res://data/cards/tripwire.tres"
+const SECOND_STORY_PATH := "res://data/cards/second_story.tres"
+const VANISH_PATH := "res://data/cards/vanish.tres"
+const STEADY_AIM_PATH := "res://data/cards/steady_aim.tres"
+const THE_BIG_SCORE_PATH := "res://data/cards/the_big_score.tres"
+const WHISPER_CAMPAIGN_PATH := "res://data/cards/whisper_campaign.tres"
+const HEX_PATH := "res://data/cards/hex.tres"
+const DRAIN_PATH := "res://data/cards/drain.tres"
+const MOURNERS_PATH := "res://data/cards/mourners.tres"
+const DARK_PACT_PATH := "res://data/cards/dark_pact.tres"
+const VEIL_WALK_PATH := "res://data/cards/veil_walk.tres"
+const WAIL_PATH := "res://data/cards/wail.tres"
+const FRIGHTFUL_VISAGE_PATH := "res://data/cards/frightful_visage.tres"
+const LUNGE_PATH := "res://data/cards/lunge.tres"
+const GNASH_PATH := "res://data/cards/gnash.tres"
+const PROWL_PATH := "res://data/cards/prowl.tres"
+const MAUL_PATH := "res://data/cards/maul.tres"
+const PACK_HUNT_PATH := "res://data/cards/pack_hunt.tres"
+const STALK_PATH := "res://data/cards/stalk.tres"
+const CRIPPLE_PATH := "res://data/cards/cripple.tres"
+const WILD_HUNT_PATH := "res://data/cards/wild_hunt.tres"
 const CINDER_HOUND_PATH := "res://data/enemies/cinder_hound.tres"
 const MOURNING_CROW_PATH := "res://data/enemies/mourning_crow.tres"
 const WISP_PATH := "res://data/enemies/skittering_wisp.tres"
@@ -125,6 +158,8 @@ const ALL_CARD_PATHS: Array[String] = [
 	QUICK_HANDS_PATH, LIGHT_STEP_PATH, UNBROKEN_VOW_PATH, STANDING_GUARD_PATH, OPEN_GRAVE_PATH, QUIET_DEBT_PATH,
 	# Neutral pool
 	STEADY_HANDS_PATH, COUNTER_STEP_PATH, SECOND_LOOK_PATH, DOWNPOUR_PATH, HOLD_FAST_PATH, PULL_TOGETHER_PATH, LUCKY_BREAK_PATH, SHAKE_THEM_PATH,
+	# Cards step 4
+	CLEAVE_PATH, CATCH_BREATH_PATH, TAUNT_PATH, BRACE_FOR_IMPACT_PATH, SHIELD_BASH_PATH, IRON_WILL_PATH, EARTHSHAKER_PATH, FORTIFY_PATH, PICKPOCKET_PATH, SHIV_FLURRY_PATH, SMOKE_BOMB_PATH, TRIPWIRE_PATH, SECOND_STORY_PATH, VANISH_PATH, STEADY_AIM_PATH, THE_BIG_SCORE_PATH, WHISPER_CAMPAIGN_PATH, HEX_PATH, DRAIN_PATH, MOURNERS_PATH, DARK_PACT_PATH, VEIL_WALK_PATH, WAIL_PATH, FRIGHTFUL_VISAGE_PATH, LUNGE_PATH, GNASH_PATH, PROWL_PATH, MAUL_PATH, PACK_HUNT_PATH, STALK_PATH, CRIPPLE_PATH, WILD_HUNT_PATH,
 	# Cards step 3
 	IRON_SKIN_PATH, BULWARK_VOW_PATH, NICK_AND_RUN_PATH, BLOOD_PRICE_PATH, PACK_INSTINCT_PATH, LOOSE_CHANGE_PATH, SLIPPED_POCKET_PATH, SPARE_KEY_PATH,
 	# The Stray
