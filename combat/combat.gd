@@ -581,6 +581,10 @@ func _apply_turn_start_relics() -> void:
 		var malice := _relic_total(RelicData.Kind.FIGHT_START_MALICE)
 		if malice > 0:
 			player.apply_status(Combatant.Status.MALICE, malice)
+		# The first living enemy becomes the quarry from the first turn.
+		var scent := _relic_total(RelicData.Kind.FIGHT_START_SCENT)
+		if scent > 0 and not living_enemies().is_empty():
+			_give_scent(living_enemies()[0], scent)
 		var ward := _relic_total(RelicData.Kind.FIGHT_START_WARD)
 		if ward > 0:
 			player.apply_status(Combatant.Status.WARD, ward)
@@ -733,7 +737,11 @@ func _pass_on_scent() -> void:
 	for enemy in enemies:
 		if not enemy.is_dead() or enemy.stacks(Combatant.Status.SCENT) <= 0:
 			continue
-		var carried := enemy.stacks(Combatant.Status.SCENT) / 2
+		var held := enemy.stacks(Combatant.Status.SCENT)
+		player.heal(_relic_total(RelicData.Kind.QUARRY_KILL_HEAL))
+		var carried := held / 2
+		if carried > 0 or _relic_total(RelicData.Kind.SCENT_HEIR) > 0:
+			carried = mini(held, carried + _relic_total(RelicData.Kind.SCENT_HEIR))
 		enemy.remove_status(Combatant.Status.SCENT)
 		var living := living_enemies()
 		if carried > 0 and not living.is_empty():
