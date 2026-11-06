@@ -169,3 +169,28 @@ Choices where the spec left room:
 - `from_line` maps COMBAT stops to fights, the mid-boss and boss flags to MID_BOSS and BOSS, VENDOR to SHOP, and
   validates only the graph shape and enemy counts (the 21-row line is not the generated layout).
 
+
+## Map screen
+
+Files: `run/map_view.gd` (`MapView`, the drawing and input), `run/screens/map_screen.gd` (`MapScreen`, the glue to
+a run), `tools/map_sheet.gd` (screenshots), `tests/ui_map_test.gd`.
+
+- `MapView` is a pure presentation `Control`: `set_data(route, visited, current, reachable, character_id)` and
+  `signal node_chosen(node_id)`; `set_status(text)` sets the line at the right of its header strip. It shows one
+  act, left to right (one column per row, up to 4 nodes tall), the act of the next choice (else of the current
+  node), and scales from the window size (laid out for 1152x648). It draws its own header strip (act, "Row 7/15",
+  the status text), a dimmed painted backdrop (`BACKDROP_SCREEN`, falling back to a dark panel), inked edges
+  (bright for the path taken, pulsing from the current node to its choices, faint otherwise), glyph nodes (crossed
+  blades for fights with 1 to 3 pips for the enemy count, horned blades for elites, flame for rests, coin for shops,
+  open book for story beats, bell for the mid-boss, eye for the final boss) and a legend. Visited nodes are dimmed with
+  a tick, the
+  current node is ringed, reachable ones pulse; hovering any node shows a label ("Fight: 2 enemies", "Rest", "Shop",
+  "Story: <beat title>", "Mid-boss", "Final boss").
+- `MapScreen` is a `RunScreen`: run.gd attaches it like the others and calls `show_map(run)`, which builds the view
+  from `run.route`, `run.visited`, `run.current_node` and `run.reachable_nodes()`. `node_chosen(node_id)` is
+  re-emitted; run.gd calls `run.choose_node(id)`. `present(...)` does the same from plain data (used by the test and
+  the screenshot tool).
+- Controls: click a reachable node to choose it; Left/Right (or Up/Down) cycle the reachable choices and Enter or
+  Space chooses the selected one (ringed while the view has focus). Unreachable, visited and current nodes cannot be
+  chosen.
+- Screenshots: `godot --path . -s res://tools/map_sheet.gd -- <out dir>` (needs a window, not `--headless`).
