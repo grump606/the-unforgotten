@@ -189,6 +189,8 @@ func tooltip_for(id: int) -> String:
 			return "Mid-boss"
 		RouteMap.NodeType.BOSS:
 			return "Final boss"
+		RouteMap.NodeType.TREASURE:
+			return "Treasure: a relic"
 	return ""
 
 
@@ -492,6 +494,8 @@ func _glyph_color(type: RouteMap.NodeType) -> Color:
 			return Color("#a9cfe3")
 		RouteMap.NodeType.MID_BOSS:
 			return Color("#e6c25a")
+		RouteMap.NodeType.TREASURE:
+			return Color("#f6d98e")
 	return Color("#f4eee0")
 
 
@@ -512,6 +516,8 @@ func _draw_glyph(type: RouteMap.NodeType, c: Vector2, g: float, col: Color) -> v
 			_glyph_bell(c, g, col)
 		RouteMap.NodeType.BOSS:
 			_glyph_eye(c, g, col)
+		RouteMap.NodeType.TREASURE:
+			_glyph_chest(c, g, col)
 
 
 func _glyph_blades(c: Vector2, g: float, col: Color) -> void:
@@ -610,6 +616,30 @@ func _glyph_armchair(c: Vector2, g: float, col: Color) -> void:
 	draw_colored_polygon(seat, cream)
 
 
+## A treasure chest: a domed lid on a box, two straps and a lock plate. A wide dome-on-box silhouette, unlike the
+## round coin and the high-backed armchair.
+func _glyph_chest(c: Vector2, g: float, col: Color) -> void:
+	var dark := Color(col.r * 0.32, col.g * 0.26, col.b * 0.14, col.a)
+	var cream := Color(minf(col.r * 1.1, 1.0), minf(col.g * 1.1, 1.0), minf(col.b * 1.25, 1.0), col.a)
+	var hinge_y := -0.02
+	var shape: Array[Vector2] = [Vector2(-1.04, 0.84), Vector2(-1.04, hinge_y)]
+	for i in 11:
+		var a := PI + PI * i / 10.0
+		shape.append(Vector2(cos(a) * 1.04, hinge_y + sin(a) * 0.82))
+	shape.append_array([Vector2(1.04, hinge_y), Vector2(1.04, 0.84)])
+	draw_colored_polygon(_scaled(shape, c, g), col)
+	var w := maxf(1.5, g * 0.13)
+	draw_line(c + Vector2(-1.04, hinge_y) * g, c + Vector2(1.04, hinge_y) * g, dark, w, true)
+	for x in [-0.62, 0.62]:
+		var top := hinge_y - 0.82 * sqrt(maxf(1.0 - pow(x / 1.04, 2.0), 0.0))
+		draw_line(c + Vector2(x, top) * g, c + Vector2(x, 0.84) * g, dark, w, true)
+	draw_line(c + Vector2(-1.04, 0.84) * g, c + Vector2(1.04, 0.84) * g, dark, w, true)
+	var plate := _scaled([Vector2(-0.24, -0.14), Vector2(0.24, -0.14), Vector2(0.24, 0.3), Vector2(-0.24, 0.3)], c, g)
+	draw_colored_polygon(plate, cream)
+	draw_circle(c + Vector2(0, 0.06) * g, g * 0.07, dark)
+	draw_line(c + Vector2(0, 0.06) * g, c + Vector2(0, 0.2) * g, dark, maxf(1.2, g * 0.08), true)
+
+
 func _scaled(points: Array, c: Vector2, g: float) -> PackedVector2Array:
 	var out := PackedVector2Array()
 	for p in points:
@@ -624,7 +654,8 @@ func _draw_legend() -> void:
 		present[_route.node(id).type] = true
 	var items: Array = []
 	for pair in [[RouteMap.NodeType.FIGHT, "Fight"], [RouteMap.NodeType.ELITE, "Elite"], [RouteMap.NodeType.REST, "Rest"],
-			[RouteMap.NodeType.SHOP, "Shop"], [RouteMap.NodeType.STORY, "Story"], [RouteMap.NodeType.MID_BOSS, "Mid-boss"], [RouteMap.NodeType.BOSS, "Boss"]]:
+			[RouteMap.NodeType.SHOP, "Shop"], [RouteMap.NodeType.TREASURE, "Treasure"], [RouteMap.NodeType.STORY, "Story"], [RouteMap.NodeType.MID_BOSS, "Mid-boss"],
+			[RouteMap.NodeType.BOSS, "Boss"]]:
 		if present.has(pair[0]):
 			items.append(pair)
 	var fs := int(13 * s)

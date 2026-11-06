@@ -34,6 +34,12 @@ static func choose_route(run: RunState) -> int:
 	return options[0] if not options.is_empty() else -1
 
 
+## Treasure stop for both bots: open the chest and take what is in it (a relic, or the fallback gold). False on a
+## RunState failure.
+static func treasure_stop(run: RunState) -> bool:
+	return run.open_treasure() and run.take_treasure()
+
+
 ## Rest stop for both bots: Rest (heal to full) while HP is under REST_BELOW of max or nothing can be
 ## Remembered, else Remember a card (no heal). `smart` picks the card by score gain (SmartPolicy.remember_pick),
 ## greedy takes the first attack that can be Remembered, else the first card. False on a RunState failure.

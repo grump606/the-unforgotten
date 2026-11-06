@@ -10,7 +10,7 @@ extends RefCounted
 ##
 ## NodeType is append-only (it is stored as ints in the plain-data form).
 
-enum NodeType { FIGHT, ELITE, REST, SHOP, STORY, MID_BOSS, BOSS }
+enum NodeType { FIGHT, ELITE, REST, SHOP, STORY, MID_BOSS, BOSS, TREASURE }
 
 const KIND_GENERATED := &"generated"
 const KIND_LINE := &"line"
@@ -25,6 +25,11 @@ const STORY_LOCAL_ROWS := [[0, 13], [3, 13]]
 ## The local row of the forced rest row: the free row just before the story beat that precedes the boss. Every
 ## node in it is a rest, so every path rests before each boss. The row before it (local row 11) holds no rest.
 const FORCED_REST_ROW := 12
+## The local row of each act's forced treasure row (indexed by act): a free row in the middle of the act whose
+## nodes are all TREASURE, so every path passes one chest per act. Act 1 has free rows 1 to 12 (the chest at
+## free index 5), act 2 has its story beat at row 3 (the chest at free index 6). Neither is next to the forced
+## rest row or to the other forced row, and both sit after the first safe rows.
+const TREASURE_LOCAL_ROWS := [6, 7]
 ## `row_info()["type"]` for a free row (a row that holds fights, rests and shops, or the forced rest row).
 const FREE_ROW := -1
 
@@ -48,9 +53,10 @@ const SEED_LIMIT := 9.0e18
 ## Tuning values in one place. Weights are relative (they need not add up to 100). `generate` merges the
 ## caller's config over this, key by key (and `type_weights` entry by entry).
 const CONFIG := {
-	# Per free node (the forced rest row is all rests whatever these are). Elite is 0 until the elite phase;
-	# it works whenever the weight is positive.
-	"type_weights": {"fight": 26.0, "rest": 18.0, "shop": 7.0, "elite": 0.0},
+	# Per free node (the forced rest row is all rests and the forced treasure row all chests whatever these are).
+	# Elite is 0 until the elite phase; it works whenever the weight is positive. "treasure" is a reserved key:
+	# chests only ever appear in the forced treasure row, so the generator does not roll it.
+	"type_weights": {"fight": 26.0, "rest": 18.0, "shop": 7.0, "elite": 0.0, "treasure": 0.0},
 	# Enemy count weights (for counts 1, 2, 3 ...) by the node's row in the run; the first band whose
 	# max_row is not below the row applies.
 	"enemy_bands": [
@@ -65,13 +71,13 @@ const CONFIG := {
 	# Map-level availability: every run of this many consecutive free rows (within an act, counting only
 	# rows at or after safe_rows) holds one. 0 turns a window off.
 	"rest_window": 6,
-	"shop_window": 8,
+	"shop_window": 7,
 	# Chance that a node with a single exit edge gets a second one.
 	"extra_edge_chance": 0.5,
 }
 
-const _TYPE_KEYS := ["fight", "rest", "shop", "elite"]
-const _TYPE_OF_KEY := {"fight": NodeType.FIGHT, "rest": NodeType.REST, "shop": NodeType.SHOP, "elite": NodeType.ELITE}
+const _TYPE_KEYS := ["fight", "rest", "shop", "elite", "treasure"]
+const _TYPE_OF_KEY := {"fight": NodeType.FIGHT, "rest": NodeType.REST, "shop": NodeType.SHOP, "elite": NodeType.ELITE, "treasure": NodeType.TREASURE}
 
 
 ## One node. `enemy_count` is 0 for non-fights and 1 for bosses; `backdrop` is "" for non-fights;
@@ -113,24 +119,25 @@ var _rows: Array = []
 
 # --- Layout ---------------------------------------------------------------------------------------------
 
-## What row `row` (0 to 29) holds: {"act", "type", "free", "beat", "forced"}. `type` is a NodeType for a choke row
-## (story, mid-boss, boss) or FREE_ROW; `free` is the index among the act's free rows (-1 for choke rows);
-## `beat` the story beat of a story row (-1 otherwise); `forced` is true for the forced rest row (a free row).
+## What row `row` (0 to 29) holds: {"act", "type", "free", "beat", "forced", "treasure"}. `type` is a NodeType for a
+## choke row (story, mid-boss, boss) or FREE_ROW; `free` is the index among the act's free rows (-1 for choke rows);
+## `beat` the story beat of a story row (-1 otherwise); `forced` is true for the forced rest row and `treasure` for
+## the forced treasure row (both are free rows).
 @warning_ignore("integer_division")
 static func row_info(row: int) -> Dictionary:
 	var act := row / ACT_ROWS
 	var local := row % ACT_ROWS
 	if local == BOSS_LOCAL_ROW:
-		return {"act": act, "type": NodeType.MID_BOSS if act == 0 else NodeType.BOSS, "free": -1, "beat": -1, "forced": false}
+		return {"act": act, "type": NodeType.MID_BOSS if act == 0 else NodeType.BOSS, "free": -1, "beat": -1, "forced": false, "treasure": false}
 	var stories: Array = STORY_LOCAL_ROWS[act]
 	var story_at := stories.find(local)
 	if story_at != -1:
-		return {"act": act, "type": NodeType.STORY, "free": -1, "beat": act * 2 + story_at, "forced": false}
+		return {"act": act, "type": NodeType.STORY, "free": -1, "beat": act * 2 + story_at, "forced": false, "treasure": false}
 	var before := 0
 	for story_row in stories:
 		if story_row < local:
 			before += 1
-	return {"act": act, "type": FREE_ROW, "free": local - before, "beat": -1, "forced": local == FORCED_REST_ROW}
+	return {"act": act, "type": FREE_ROW, "free": local - before, "beat": -1, "forced": local == FORCED_REST_ROW, "treasure": local == TREASURE_LOCAL_ROWS[act]}
 
 
 ## The row numbers of act `act`'s free rows, in order.
@@ -138,6 +145,17 @@ static func free_rows(act: int) -> Array[int]:
 	var result: Array[int] = []
 	for row in range(act * ACT_ROWS, (act + 1) * ACT_ROWS):
 		if int(row_info(row)["type"]) == FREE_ROW:
+			result.append(row)
+	return result
+
+
+## The rows the rest and shop availability windows count: the act's free rows without the treasure row (a chest row
+## offers neither a rest nor a shop and is not a choice between them), ending with the forced rest row. Window
+## indices (`_ensure_in_window`, `window_last_index`, the availability check) are positions in this list.
+static func window_rows(act: int) -> Array[int]:
+	var result: Array[int] = []
+	for row in free_rows(act):
+		if not bool(row_info(row)["treasure"]):
 			result.append(row)
 	return result
 
@@ -553,7 +571,7 @@ func _fights_in_row(row: int) -> int:
 	return count
 
 
-## Fills the free rows' types: the forced rest row is all rests; the first `safe_rows` free rows of an act are
+## Fills the free rows' types: the forced treasure row is all chests; the forced rest row is all rests; the first `safe_rows` free rows of an act are
 ## fights; the row before the forced one holds no rest; later nodes roll once by
 ## weight over the types still allowed for them (a rest, shop or elite is not allowed after a node of the same
 ## type on an incoming edge, and the fight weight is always allowed, so the blocked weight is spread over the
@@ -567,6 +585,10 @@ func _assign_types(rng: RandomNumberGenerator) -> void:
 		if int(info["type"]) != FREE_ROW:
 			continue
 		var free_index: int = info["free"]
+		if bool(info["treasure"]):
+			for id in _rows[row]:
+				nodes[id].type = NodeType.TREASURE
+			continue
 		if bool(info["forced"]):
 			for id in _rows[row]:
 				nodes[id].type = NodeType.REST
@@ -581,6 +603,8 @@ func _assign_types(rng: RandomNumberGenerator) -> void:
 			var rolls: Array[float] = []
 			for key in _TYPE_KEYS:
 				var type: int = _TYPE_OF_KEY[key]
+				if type == NodeType.TREASURE:
+					continue # chests only fill the forced treasure row
 				var weight := float(weights.get(key, 0.0))
 				if type != NodeType.FIGHT and _neighbour_has(n, type as NodeType, true, false):
 					weight = 0.0
@@ -594,23 +618,24 @@ func _assign_types(rng: RandomNumberGenerator) -> void:
 		if _fights_in_row(row) == 0:
 			var ids: Array = _rows[row]
 			nodes[ids[rng.randi_range(0, ids.size() - 1)]].type = NodeType.FIGHT
-		var act_rows := free_rows(int(info["act"]))
-		_ensure_in_window(rng, act_rows, free_index, NodeType.REST, NodeType.SHOP)
-		_ensure_in_window(rng, act_rows, free_index, NodeType.SHOP, NodeType.REST)
+		var act_rows := window_rows(int(info["act"]))
+		var window_index := act_rows.find(row)
+		_ensure_in_window(rng, act_rows, window_index, NodeType.REST, NodeType.SHOP)
+		_ensure_in_window(rng, act_rows, window_index, NodeType.SHOP, NodeType.REST)
 
 
 func _window_of(type: NodeType) -> int:
 	return int(config["rest_window"]) if type == NodeType.REST else int(config["shop_window"])
 
 
-## The last free-row index (within an act's free rows) at which a window for `type` may end. The forced rest row
+## The last window index (a position in `window_rows`) at which a window for `type` may end. The forced rest row
 ## satisfies the rest need itself and the row before it cannot hold a rest, so rest windows stop two rows before
 ## the end of the list; shop windows stop one row before (the forced row holds only rests).
-static func window_last_index(type: NodeType, free_count: int) -> int:
-	return free_count - (3 if type == NodeType.REST else 2)
+static func window_last_index(type: NodeType, window_count: int) -> int:
+	return window_count - (3 if type == NodeType.REST else 2)
 
 
-## True if the `window` free rows ending at `free_index` (never reaching back into the safe rows) hold a node
+## True if the `window` window rows ending at `free_index` (never reaching back into the safe rows) hold a node
 ## of `type`, ignoring the node `skip_id`.
 func _window_holds(act_rows: Array[int], free_index: int, window: int, type: NodeType, skip_id: int) -> bool:
 	for i in range(maxi(free_index - window + 1, 0), free_index + 1):
@@ -880,7 +905,11 @@ func _check_layout(v: Array[String], rows: Array) -> void:
 		var ids: Array = rows[r]
 		var row_type: int = info["type"]
 		if row_type == FREE_ROW:
-			if bool(info["forced"]):
+			if bool(info["treasure"]):
+				for id in ids:
+					if nodes[id].type != NodeType.TREASURE:
+						v.append("%s is in the forced treasure row and must be a treasure" % _describe(nodes[id]))
+			elif bool(info["forced"]):
 				for id in ids:
 					if nodes[id].type != NodeType.REST:
 						v.append("%s is in the forced rest row and must be a rest" % _describe(nodes[id]))
@@ -892,7 +921,10 @@ func _check_layout(v: Array[String], rows: Array) -> void:
 				v.append("free row %d has %d nodes, expected %d to %d" % [r, ids.size(), min_width, max_width])
 			for id in ids:
 				var t := nodes[id].type
-				if t != NodeType.FIGHT and t != NodeType.ELITE and t != NodeType.REST and t != NodeType.SHOP:
+				if bool(info["treasure"]):
+					if t != NodeType.TREASURE:
+						v.append("%s has type %d, but the treasure row holds only treasure" % [_describe(nodes[id]), t])
+				elif t != NodeType.FIGHT and t != NodeType.ELITE and t != NodeType.REST and t != NodeType.SHOP:
 					v.append("%s has type %d, which does not belong in a free row" % [_describe(nodes[id]), t])
 				if nodes[id].act != info["act"]:
 					v.append("%s is in the wrong act" % _describe(nodes[id]))
@@ -939,7 +971,7 @@ func _check_types(v: Array[String], rows: Array, preds: Array) -> void:
 	var safe := int(config["safe_rows"])
 	for r in rows.size():
 		var info := row_info(r)
-		if int(info["type"]) != FREE_ROW or bool(info["forced"]):
+		if int(info["type"]) != FREE_ROW or bool(info["forced"]) or bool(info["treasure"]):
 			continue
 		var plain_fights := 0
 		for id in rows[r]:
@@ -964,7 +996,7 @@ func _check_availability(v: Array[String], rows_by_number: Array) -> void:
 		if window <= 0:
 			continue
 		for act in ACTS:
-			var rows := free_rows(act)
+			var rows := window_rows(act)
 			for start in range(safe, window_last_index(pair[0], rows.size()) - window + 2):
 				var present := false
 				for i in range(start, start + window):
@@ -1082,7 +1114,7 @@ static func from_dict(data: Dictionary) -> RouteMap:
 		if not raw[i] is Dictionary:
 			return null
 		var d: Dictionary = raw[i]
-		if not _is_whole(d.get("id", i), i, i) or not _is_whole(d.get("type"), 0, NodeType.BOSS) or not _is_whole(d.get("row"), 0, last_row):
+		if not _is_whole(d.get("id", i), i, i) or not _is_whole(d.get("type"), 0, NodeType.TREASURE) or not _is_whole(d.get("row"), 0, last_row):
 			return null
 		if not _is_whole(d.get("col", 0), 0, MAX_COLUMN) or not _is_whole(d.get("enemy_count", 0), 0, 99):
 			return null

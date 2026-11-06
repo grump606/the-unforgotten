@@ -12,7 +12,7 @@ extends RefCounted
 ## picks a path through instead of the fixed line. Everything below that is not about the map behaves
 ## exactly as in line mode; `uses_map()` tells them apart.
 
-enum StopType { COMBAT, REST, STORY, VENDOR }
+enum StopType { COMBAT, REST, STORY, VENDOR, TREASURE }
 
 const REWARD_CHOICES := 3
 ## How many of a reward's choices come from the character's own cards (the rest are neutral).
@@ -25,6 +25,11 @@ const SKIP_GOLD := 10
 const REWARD_HEAL := 12
 ## Extra gold for beating the mid-boss, on top of Vendor.gold_for_win.
 const MID_BOSS_GOLD_BONUS := 15
+## A treasure chest holds a relic priced at least this much at a vendor (the cheapest tier, 50 and 55, is left out),
+## so a chest beats a shop's cheapest item. If every relic left to this character is cheaper, one of those is given.
+const TREASURE_MIN_RELIC_PRICE := 65
+## Gold a chest gives instead when the character owns every relic of its pool.
+const TREASURE_FALLBACK_GOLD := 100
 
 ## One stop on the line. `enemy_count` only matters for COMBAT stops and
 ## `beat_index` (into StoryContent) only for STORY stops. A COMBAT stop with
@@ -71,6 +76,8 @@ class Stop:
 				return "Story"
 			StopType.VENDOR:
 				return "Vendor"
+			StopType.TREASURE:
+				return "Treasure"
 		return "?"
 
 ## Who is playing: sets the starting HP and deck and which cards the run can offer.
@@ -113,6 +120,10 @@ var reward_heal_used := false
 var relics: Array[RelicData] = []
 
 var _vendor: Vendor = null
+## The open chest of a TREASURE stop (see open_treasure): `_treasure_opened` once rolled, `_treasure_relic` its
+## relic (null when the character owned every relic and the chest holds gold instead).
+var _treasure_opened := false
+var _treasure_relic: RelicData = null
 var _active_combat: Combat = null
 var _rng := RandomNumberGenerator.new()
 var _reward_choices: Array[CardData] = []
@@ -172,6 +183,8 @@ func restore_map(map: RouteMap, current: int, path: Array[int], inside_stop: boo
 	visited.assign(path)
 	stop_index = map.node(current).row if current >= 0 else 0
 	_map_stop = _stop_for_node(map.node(current)) if inside_stop and current >= 0 else null
+	_treasure_opened = false
+	_treasure_relic = null
 
 
 ## Map mode: the node ids the player may pick next. The start nodes before any choice, else the successors
@@ -208,6 +221,8 @@ static func stop_type_for_node(type: RouteMap.NodeType) -> StopType:
 			return StopType.VENDOR
 		RouteMap.NodeType.STORY:
 			return StopType.STORY
+		RouteMap.NodeType.TREASURE:
+			return StopType.TREASURE
 	return StopType.COMBAT
 
 
@@ -235,6 +250,8 @@ func _stop_for_node(n: RouteMap.MapNode) -> Stop:
 			stop = Stop.new(StopType.VENDOR)
 		RouteMap.NodeType.STORY:
 			stop = Stop.new(StopType.STORY, 0, n.beat_index)
+		RouteMap.NodeType.TREASURE:
+			stop = Stop.new(StopType.TREASURE)
 		RouteMap.NodeType.MID_BOSS:
 			stop = Stop.new(StopType.COMBAT, 1, 0, false, true)
 		RouteMap.NodeType.BOSS:
@@ -255,10 +272,10 @@ func reward_pending() -> bool:
 	return _reward_pending
 
 
-## True between stops: nothing is in flight (no fight, reward or vendor visit), so
+## True between stops: nothing is in flight (no fight, reward, vendor visit or opened chest), so
 ## the run can be saved and restored exactly (see run/run_save.gd).
 func at_stop_boundary() -> bool:
-	return not finished and not _reward_pending and _vendor == null and _active_combat == null
+	return not finished and not _reward_pending and _vendor == null and _active_combat == null and not _treasure_opened
 
 
 ## The run RNG's position, for saving. Restoring it makes the future identical.
@@ -546,6 +563,68 @@ func leave_vendor() -> bool:
 	return true
 
 
+## Whether the chest of the current TREASURE stop has been opened (false off a treasure stop).
+func treasure_opened() -> bool:
+	return _treasure_opened and in_treasure_stop()
+
+
+## True while the current stop is a TREASURE stop.
+func in_treasure_stop() -> bool:
+	var stop := current_stop()
+	return stop != null and stop.type == StopType.TREASURE
+
+
+## Opens the chest of the current TREASURE stop and returns true (again, harmlessly, if it is already open); false
+## elsewhere. Opening rolls the relic with the run RNG, so a run resumed from the save made when the stop was
+## entered rolls the same relic. The relic is chosen from the character's pool minus the relics owned: only those
+## priced at least TREASURE_MIN_RELIC_PRICE when there are any, else any of them. If none is left the chest holds
+## TREASURE_FALLBACK_GOLD instead (`treasure_relic()` stays null, `treasure_gold()` says so). A chest that is open
+## is not a stop boundary (the arrival save is the resume point, as for a vendor visit), so it is never saved open.
+func open_treasure() -> bool:
+	if not in_treasure_stop():
+		return false
+	if _treasure_opened:
+		return true
+	var unowned := _unowned_relics()
+	var choices: Array[RelicData] = []
+	for relic in unowned:
+		if relic.price >= TREASURE_MIN_RELIC_PRICE:
+			choices.append(relic)
+	if choices.is_empty():
+		choices = unowned
+	_treasure_relic = null
+	if not choices.is_empty():
+		_treasure_relic = choices[_rng.randi_range(0, choices.size() - 1)] if choices.size() > 1 else choices[0]
+	_treasure_opened = true
+	return true
+
+
+## The relic in the open chest, or null while it is closed, off a treasure stop and when the chest holds gold.
+func treasure_relic() -> RelicData:
+	return _treasure_relic if treasure_opened() else null
+
+
+## The gold the open chest holds instead of a relic (0 while closed or when it holds a relic).
+func treasure_gold() -> int:
+	return TREASURE_FALLBACK_GOLD if treasure_opened() and _treasure_relic == null else 0
+
+
+## Takes what the open chest holds (its relic, a MAX_HP relic raising max HP and HP once, here, like a purchase;
+## or the fallback gold) and moves on. False, changing nothing, unless the chest is open.
+func take_treasure() -> bool:
+	if not treasure_opened():
+		return false
+	if _treasure_relic != null:
+		relics.append(_treasure_relic)
+		if _treasure_relic.kind == RelicData.Kind.MAX_HP:
+			player.max_hp += _treasure_relic.amount
+			player.hp += _treasure_relic.amount
+	else:
+		gold += TREASURE_FALLBACK_GOLD
+	_advance()
+	return true
+
+
 ## The character's relic pool minus the relics already owned.
 func _unowned_relics() -> Array[RelicData]:
 	var left: Array[RelicData] = []
@@ -557,6 +636,8 @@ func _unowned_relics() -> Array[RelicData]:
 
 func _advance() -> void:
 	_vendor = null
+	_treasure_opened = false
+	_treasure_relic = null
 	if route != null:
 		_map_stop = null
 		if route.node(current_node).type == RouteMap.NodeType.BOSS:
