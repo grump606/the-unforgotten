@@ -15,7 +15,7 @@ func show() -> void:
 	# Keep the destination visible after combat; this screen does not advance the route.
 	var backdrop := BattleBackdrop.new()
 	var stop := run.current_stop()
-	backdrop.set_variant(stop.boss or stop.mid_boss, run.character.id, DestinationArt.battle_key(run.stop_index))
+	backdrop.set_variant(stop.boss or stop.mid_boss, run.character.id, run.battle_backdrop())
 	add_backdrop(backdrop)
 	if removing:
 		var picker := panel("Pick a card to remove from your deck.", true)

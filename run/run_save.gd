@@ -260,6 +260,8 @@ static func migrate(data: Dictionary, version: int) -> Dictionary:
 ## good save as path.bak, then moves the temp into place. Windows removes the destination before
 ## renaming, so a crash in between leaves path.tmp and path.bak, which load_file recovers.
 static func save(run: RunState, path: String = DEFAULT_PATH) -> String:
+	if run.uses_map():
+		return "map runs cannot be saved yet" # the save format knows only the stop line
 	if not run.at_stop_boundary():
 		return "run is not at a stop boundary"
 	var tmp := path + ".tmp"
