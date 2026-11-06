@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "The Name You Kept"
+text = "Beyond the Bellkeeper's court lie gardens full of unmarked stones. For a moment, you remember the sound of your own name.
+
+The people resting here look peaceful. None of them look up when you ask where the path leads.
+
+You stop thinking and follow your nose. The one you are tracking is still ahead, and the trail has not gone cold."
+button_text = "Keep walking"
