@@ -1,7 +1,7 @@
 extends SceneTree
-## Screenshots the route map screen: act 1 at the first choice, mid-run with a visited path, at the forced rest row before
+## Screenshots the route map screen: act 1 at the first choice, mid-run with a visited path (the treasure row on offer), at the forced rest row before
 ## the boss, act 2 (also at its forced rest row), for two characters, and a map with elites. Needs a rendering window (not --headless):
-##   godot --path . -s res://tools/map_sheet.gd -- <output dir>
+##   godot --path . -s res://tools/map_sheet.gd -- <output dir> [WxH]
 ## Default output is user://map_sheets. The shots use the project's 1152x648 window.
 
 var out_dir := "user://map_sheets"
@@ -12,6 +12,8 @@ func _initialize() -> void:
 	if args.size() > 0:
 		out_dir = args[0]
 	root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED # the view scales itself from the real window size
+	if args.size() > 1 and args[1].contains("x"): # an optional window size such as 800x450
+		DisplayServer.window_set_size(Vector2i(int(args[1].get_slice("x", 0)), int(args[1].get_slice("x", 1))))
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	for i in 8: # let the window settle at its final size before the first capture
 		await process_frame
@@ -21,7 +23,7 @@ func _initialize() -> void:
 		await _shot(route, id, 6, "act1_mid_%s" % id, true)
 		await _shot(route, id, 12, "act1_forced_rest_%s" % id)
 		await _shot(route, id, 15 + 12, "act2_forced_rest_%s" % id)
-		await _shot(route, id, 15 + 5, "act2_%s" % id, true)
+		await _shot(route, id, 15 + 7, "act2_%s" % id, true)
 	var elites := RouteMap.generate(11, &"thief", {"type_weights": {"elite": 14.0}})
 	await _shot(elites, &"thief", 5, "act1_elites_thief", true)
 	await _shot(elites, &"thief", 15 + 10, "act2_elites_thief")

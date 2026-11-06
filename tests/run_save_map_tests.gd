@@ -37,6 +37,7 @@ func run() -> int:
 	_test_v5_shape()
 	_test_corrupted_never_crashes()
 	_test_cannot_rechoose()
+	_test_treasure_saves()
 	_cleanup()
 	print("run_save_map_tests: %d checks" % _checks)
 	return _failures
@@ -118,6 +119,10 @@ func _advance(run_state: RunState, step: int) -> Array:
 				run_state.remember(spots[0])
 			else:
 				run_state.rest()
+		RunState.StopType.TREASURE:
+			run_state.open_treasure()
+			log.append(String(run_state.treasure_relic().id) if run_state.treasure_relic() != null else "gold")
+			run_state.take_treasure()
 		_:
 			run_state.read_story()
 	return log
@@ -213,7 +218,7 @@ func _test_round_trip_every_place() -> void:
 			_advance(run_state, step)
 			step += 1
 		_check(run_state.finished, "%s: the walk reached the end" % character)
-	for type in [RouteMap.NodeType.FIGHT, RouteMap.NodeType.REST, RouteMap.NodeType.SHOP, RouteMap.NodeType.STORY, RouteMap.NodeType.MID_BOSS, RouteMap.NodeType.BOSS]:
+	for type in [RouteMap.NodeType.FIGHT, RouteMap.NodeType.REST, RouteMap.NodeType.SHOP, RouteMap.NodeType.STORY, RouteMap.NodeType.MID_BOSS, RouteMap.NodeType.BOSS, RouteMap.NodeType.TREASURE]:
 		_check(seen_types.has(type), "a save was round-tripped inside a node of type %d" % type)
 	_check(after_mid_boss, "a save was round-tripped at the map right after the mid-boss")
 	_check(at_last_row, "a save was round-tripped inside the final row")
@@ -547,3 +552,62 @@ func _test_cannot_rechoose() -> void:
 	var before := RunState.new(31, &"deserter", true)
 	var copy := _clone(before)
 	_check(copy.reachable_nodes() == before.reachable_nodes() and copy.current_stop() == null, "a save made at the map resumes at the map with the same roads")
+
+
+func _to_chest(seed_value: int, character: StringName) -> RunState:
+	var run_state := RunState.new(seed_value, character, true)
+	var step := 0
+	while not run_state.finished and step < 200:
+		if run_state.current_stop() != null and run_state.current_stop().type == RunState.StopType.TREASURE:
+			return run_state
+		_advance(run_state, step)
+		step += 1
+	return run_state
+
+
+func _test_treasure_saves() -> void:
+	_cleanup()
+	for character in CHARACTERS:
+		var run_state := _to_chest(19, character)
+		_check(run_state.in_treasure_stop() and run_state.in_map_stop(), "%s: reached a chest" % character)
+		# Before opening: the save restores the closed chest.
+		var arrival := RunSave.to_dict(run_state)
+		var closed := _clone(run_state)
+		_check(closed != null and closed.in_treasure_stop() and not closed.treasure_opened() and _snapshot(closed) == _snapshot(run_state), "%s: a save at the closed chest restores it exactly" % character)
+		_check(RunSave.save(run_state, test_path) == "", "%s: the arrival save is written to a file" % character)
+		# After opening: not a boundary, so it cannot be saved over the arrival save.
+		run_state.open_treasure()
+		var relic := run_state.treasure_relic()
+		_check(not run_state.at_stop_boundary() and RunSave.save(run_state, test_path) != "", "%s: an open chest cannot be saved" % character)
+		var from_file := RunSave.load_file(test_path)
+		_check(from_file.run != null and from_file.run.in_treasure_stop() and not from_file.run.treasure_opened(), "%s: the arrival save is still the file after the chest was opened" % character)
+		from_file.run.open_treasure()
+		_check(from_file.run.treasure_relic() == relic and from_file.run.rng_state() == run_state.rng_state(), "%s: resuming and opening finds the same relic" % character)
+		closed.open_treasure()
+		_check(closed.treasure_relic() == relic, "%s: a clone of the closed chest finds the same relic" % character)
+		# After taking: the relic is in the save and the run is at the map.
+		run_state.take_treasure()
+		var taken := _clone(run_state)
+		_check(taken != null and not taken.in_map_stop() and taken.relics.size() == 1 and taken.relics[0] == relic and _snapshot(taken) == _snapshot(run_state), "%s: a save after taking holds the relic and restores at the map" % character)
+		_check(JSON.stringify(arrival).contains("\"at_node\":true") and int(arrival["version"]) == RunSave.MAP_VERSION, "%s: the arrival save is a plain v5 map save" % character)
+	_cleanup()
+	# Tampering: a chest must be in the treasure row and nothing else may be.
+	var base := _to_chest(19, &"deserter")
+	var data := RunSave.to_dict(base)
+	var nodes: Array = data["map"]["nodes"]
+	var chest_id := -1
+	var plain_id := -1
+	for entry in nodes:
+		if int(entry["type"]) == int(RouteMap.NodeType.TREASURE) and chest_id == -1:
+			chest_id = int(entry["id"])
+		if int(entry["row"]) == 9 and plain_id == -1:
+			plain_id = int(entry["id"])
+	var no_chest := _json_copy(data)
+	no_chest["map"]["nodes"][chest_id]["type"] = int(RouteMap.NodeType.FIGHT)
+	_rejects(no_chest, "a treasure row node turned into a fight", "invalid")
+	var stray := _json_copy(data)
+	stray["map"]["nodes"][plain_id]["type"] = int(RouteMap.NodeType.TREASURE)
+	_rejects(stray, "a chest in an ordinary row", "invalid")
+	var unknown := _json_copy(data)
+	unknown["map"]["nodes"][plain_id]["type"] = int(RouteMap.NodeType.TREASURE) + 1
+	_rejects(unknown, "a node type past the last", "damaged")

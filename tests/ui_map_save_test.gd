@@ -114,6 +114,9 @@ func _initialize() -> void:
 			run_state.read_story()
 		RunState.StopType.VENDOR:
 			run_state.leave_vendor()
+		RunState.StopType.TREASURE:
+			run_state.open_treasure()
+			run_state.take_treasure()
 	scene._show_stop()
 	await process_frame
 	loaded = RunSave.load_file(save_path)
@@ -239,6 +242,9 @@ func _initialize() -> void:
 				sea_run.read_story()
 			RunState.StopType.VENDOR:
 				sea_run.leave_vendor()
+			RunState.StopType.TREASURE:
+				sea_run.open_treasure()
+				sea_run.take_treasure()
 		sea_scene._show_stop()
 		await process_frame
 		check(sea_run.stop_index == 0 and sea_run.current_stop() == null and _ambience() == &"", "the sea stops once the first stop is left, though the row is still 0")
