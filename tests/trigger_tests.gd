@@ -18,6 +18,7 @@ func run() -> int:
 	_test_hp_lost()
 	_test_on_discard_oath()
 	_test_discard_effects()
+	_test_quarry_dies()
 	_test_text_and_keyword()
 	_test_shipped_cards()
 	_test_bots()
@@ -61,7 +62,7 @@ func _play(combat: Combat, card: CardData, target: int = 0) -> bool:
 
 func _test_enum_is_appended() -> void:
 	_check(T.TURN_START == 0 and T.FIRST_PLAY == 1 and T.ON_FORGOTTEN == 2 and T.ANCHOR_KEPT == 3, "the original triggers keep their numbers")
-	_check(T.END_OF_TURN == 4 and T.ON_BLOCK_GAINED == 5 and T.ON_HP_LOST == 6 and T.EACH_PLAY == 7 and T.ON_DISCARD == 8, "the new triggers are appended in order")
+	_check(T.END_OF_TURN == 4 and T.ON_BLOCK_GAINED == 5 and T.ON_HP_LOST == 6 and T.EACH_PLAY == 7 and T.ON_DISCARD == 8 and T.QUARRY_DIES == 9, "the new triggers are appended in order")
 	for trigger in T.values():
 		var oath := _oath(trigger, [_fx(K.BLOCK, 1)])
 		_check(oath.oath_trigger_text() != "", "trigger %d has text" % trigger)
@@ -142,6 +143,28 @@ func _test_on_discard_oath() -> void:
 	_play(kept, kept_oath)
 	kept.end_player_turn()
 	_check(kept.enemies[0].hp == 100, "kept cards are not discarded, so nothing fires")
+
+
+func _test_quarry_dies() -> void:
+	var oath := _oath(T.QUARRY_DIES, [_fx(K.SCENT, 2), _fx(K.BLOCK, 3)])
+	var mark := CardData.make(&"mark", "Mark", 0, [_fx(K.SCENT, 4)] as Array[CardEffect])
+	var kill := CardData.make(&"kill", "Kill", 0, [_fx(K.DAMAGE, 50)] as Array[CardEffect])
+	var list: Array[EnemyData] = [EnemyData.make("A", 5, [] as Array[CardEffect]), EnemyData.make("B", 100, [] as Array[CardEffect])]
+	var combat := Combat.new(Combatant.new("p", 40), [oath, mark, kill] as Array[CardData], list, 3)
+	combat.start()
+	_play(combat, oath)
+	_play(combat, mark)
+	_play(combat, kill)
+	# Half of 4 passes on (2) and the Oath adds 2 more; it also gives Block 3.
+	_check(combat.enemies[0].is_dead() and combat.enemies[1].stacks(Combatant.Status.SCENT) == 4, "the quarry's death passes Scent 2 and the Oath adds 2 (got %d)" % combat.enemies[1].stacks(Combatant.Status.SCENT))
+	_check(combat.player.block == 3, "the Oath's Block 3 lands when the quarry dies")
+	# A death with no Scent on the dead enemy fires nothing.
+	var oath2 := _oath(T.QUARRY_DIES, [_fx(K.BLOCK, 3)])
+	var c2 := Combat.new(Combatant.new("p", 40), [oath2, kill] as Array[CardData], [EnemyData.make("A", 5, [] as Array[CardEffect]), EnemyData.make("B", 100, [] as Array[CardEffect])] as Array[EnemyData], 3)
+	c2.start()
+	_play(c2, oath2)
+	_play(c2, kill)
+	_check(c2.player.block == 0, "a death with no Scent on the dead enemy fires nothing")
 
 
 func _test_discard_effects() -> void:
