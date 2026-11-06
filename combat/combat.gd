@@ -747,6 +747,8 @@ func _pass_on_scent() -> void:
 		if carried > 0 and not living.is_empty():
 			var heir := living[0] if living.size() == 1 else living[_rng.randi_range(0, living.size() - 1)]
 			_give_scent(heir, carried)
+		if not living.is_empty():
+			_fire_oaths(CardData.OathTrigger.QUARRY_DIES)
 
 
 ## Moves any enemy that has just crossed its phase threshold into phase two and announces it. Also passes
