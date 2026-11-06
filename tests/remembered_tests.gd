@@ -95,8 +95,8 @@ func _test_shipped_blocks() -> void:
 		_check(Vendor.card_value(plus) - Vendor.card_value(card) <= 10, "%s: the upgrade is modest" % label)
 		for keyword in card.remembered.gain_keywords + card.remembered.lose_keywords:
 			_check(RememberedData.KEYWORDS.has(keyword), "%s: '%s' is a real keyword" % [label, keyword])
-	_check(with_block >= 10, "about ten cards ship with a remembered block (%d)" % with_block)
-	for class_id in [&"thief", &"deserter", &"medium"]:
+	_check(with_block >= 38, "thirty-eight cards ship with a remembered block (%d)" % with_block)
+	for class_id in [&"thief", &"deserter", &"medium", &"stray"]:
 		_check(int(by_class.get(class_id, 0)) >= 2, "%s has at least two Remembered cards" % class_id)
 	_check(int(by_class.get(&"", 0)) >= 2, "a couple of neutral cards can be Remembered")
 
