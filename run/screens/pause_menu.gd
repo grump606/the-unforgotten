@@ -97,7 +97,18 @@ func show_options(message: String) -> void:
 	_plaque(RunScreen.add_button(box, "Save & Exit", _try_save_and_exit))
 	_plaque(RunScreen.add_button(box, "Sound", _show_sound))
 	_plaque(RunScreen.add_button(box, "New Journey", _confirm_new_run))
-	_add_label("Your journey is saved on arrival at each destination.\nSave & Exit returns you to the start of this destination.")
+	_add_label(save_note(run))
+
+
+## What the pause menu tells the player about saving. A line run saves on arrival at each destination. A
+## map run also saves when the map is shown, so between stops Save & Exit comes back to the map; inside a
+## stop it comes back to the start of that stop (the path was chosen on arrival and cannot be re-chosen).
+static func save_note(run: RunState) -> String:
+	if run == null or not run.uses_map():
+		return "Your journey is saved on arrival at each destination.\nSave & Exit returns you to the start of this destination."
+	if run.current_stop() == null:
+		return "Your journey is saved whenever the map is shown.\nSave & Exit returns you to this map, with the same roads to choose from."
+	return "Your journey is saved when you set out for a stop.\nSave & Exit returns you to the start of this stop; the road to it is already chosen."
 
 
 func _show_sound() -> void:

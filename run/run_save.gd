@@ -3,11 +3,17 @@ extends RefCounted
 ## Save and restore of an in-progress run, kept apart from RunState so the rules
 ## class stays pure. A save is written only at a stop boundary (RunState.
 ## at_stop_boundary: no fight, reward or vendor visit in flight), so it holds
-## just the player, deck, gold, stop index and the run RNG position.
+## just the player, deck, gold, stop index and the run RNG position. A map run (RunState.uses_map,
+## docs/MAP_DESIGN.md "Phase 3") also stores its route and where the player stands on it.
 ## A save file is untrusted input: from_dict / load_file validate every field and
 ## return a Result with an error message instead of ever failing.
 
-const VERSION := 4
+## The newest format this game reads and writes. Line runs keep writing LINE_VERSION so a v4 reader
+## (every release before map saves) can still load them; only a map run writes MAP_VERSION. A save
+## above VERSION is rejected, a v2 to v4 save loads as a line run exactly as before.
+const VERSION := 5
+const LINE_VERSION := 4
+const MAP_VERSION := 5
 ## The oldest format migrate() can upgrade. Anything older is rejected.
 const MIN_VERSION := 2
 ## The Thief's id before it was renamed (releases up to 0.7.3); accepted on load and mapped to "thief".
@@ -56,8 +62,8 @@ static func to_dict(run: RunState) -> Dictionary:
 	var relic_ids: Array = []
 	for relic in run.relics:
 		relic_ids.append(String(relic.id))
-	return {
-		"version": VERSION,
+	var data := {
+		"version": MAP_VERSION if run.uses_map() else LINE_VERSION,
 		"character": String(run.character.id),
 		"hp": run.player.hp,
 		"max_hp": run.player.max_hp,
@@ -72,6 +78,15 @@ static func to_dict(run: RunState) -> Dictionary:
 		# A string: JSON numbers are doubles and would round a 64-bit state.
 		"rng_state": str(run.rng_state()),
 	}
+	if run.uses_map():
+		# The whole route, not its seed, so tuning the generator later never changes a saved run.
+		data["map"] = run.route.to_dict()
+		data["current_node"] = run.current_node
+		data["visited"] = run.visited.duplicate()
+		# True when the player is inside the current node's stop (saved on arrival), false at the map.
+		data["at_node"] = run.in_map_stop()
+		data.erase("line") # the stop line does not exist in map mode (stops are placeholders)
+	return data
 
 
 static func from_dict(data: Variant) -> Result:
@@ -94,8 +109,13 @@ static func from_dict(data: Variant) -> Result:
 		return Result.fail("character content failed to load")
 	# Each validator stores what it accepts in `got` and returns why a field was rejected ("" if fine).
 	# The order matters: the deck check leaves the card table the offered check needs.
-	var got := {}
-	for check in [_check_numbers, _check_rng_state, _check_deck, _check_offered, _check_relics]:
+	var got := {"is_map": _int(d, "version", 0, 1000000) >= MAP_VERSION}
+	var checks: Array[Callable] = [_check_numbers]
+	if got["is_map"]:
+		checks.append(_check_map)
+	for later in [_check_rng_state, _check_deck, _check_offered, _check_relics]:
+		checks.append(later)
+	for check in checks:
 		error = check.call(d, run, got)
 		if error != "":
 			return Result.fail(error)
@@ -107,6 +127,8 @@ static func from_dict(data: Variant) -> Result:
 	run.deck = got["deck"]
 	run.gold = got["gold"]
 	run.stop_index = got["stop_index"]
+	if got["is_map"]:
+		run.restore_map(got["route"], got["current_node"], got["visited"], got["at_node"])
 	run.restore_rng_state((got["rng_state"] as String).to_int())
 	return _ok(run)
 
@@ -129,7 +151,7 @@ static func _check_character(character_id: Variant) -> String:
 	return ""
 
 
-## max_hp, hp, gold, the stop line and stop_index. hp is bounded by max_hp, so that order stays.
+## max_hp, hp, gold, the stop line (line saves) and stop_index. hp is bounded by max_hp, so that order stays.
 static func _check_numbers(d: Dictionary, run: RunState, got: Dictionary) -> String:
 	var max_hp: Variant = _int(d, "max_hp", 1, MAX_HP)
 	if max_hp == null:
@@ -140,16 +162,76 @@ static func _check_numbers(d: Dictionary, run: RunState, got: Dictionary) -> Str
 	var gold: Variant = _int(d, "gold", 0, MAX_GOLD)
 	if gold == null:
 		return "bad gold"
-	var line: Variant = d.get("line")
-	if typeof(line) != TYPE_STRING or line != line_signature(run):
-		return "this save is from an older version of the game's route and cannot be continued"
-	var stop_index: Variant = _int(d, "stop_index", 0, run.stops.size() - 1)
+	var is_map: bool = got["is_map"]
+	if not is_map:
+		var line: Variant = d.get("line")
+		if typeof(line) != TYPE_STRING or line != line_signature(run):
+			return "this save is from an older version of the game's route and cannot be continued"
+	var stop_index: Variant = _int(d, "stop_index", 0, (RouteMap.ROWS if is_map else run.stops.size()) - 1)
 	if stop_index == null:
 		return "bad stop_index"
 	got["max_hp"] = max_hp
 	got["hp"] = hp
 	got["gold"] = gold
 	got["stop_index"] = stop_index
+	return ""
+
+
+## A map save's route and position (v5). The route must be a well-formed, valid generated map for this
+## character; the player's place must be consistent with it: no node yet (nothing visited, row 0), or a
+## current node reached by a connected path of one node per row from the first row, with stop_index its
+## row. Between stops (`at_node` false) the current node must have somewhere to go; a run past its last
+## row is finished and is never saved.
+static func _check_map(d: Dictionary, run: RunState, got: Dictionary) -> String:
+	var raw_map: Variant = d.get("map")
+	if typeof(raw_map) != TYPE_DICTIONARY:
+		return "this save has no route map"
+	var route := RouteMap.from_dict(raw_map)
+	if route == null:
+		return "the saved route map is damaged"
+	if route.kind != RouteMap.KIND_GENERATED or route.row_count() != RouteMap.ROWS:
+		return "the saved route map is not a full journey"
+	if route.character_id != run.character.id:
+		return "the saved route map belongs to a different character"
+	var problems := route.validate()
+	if not problems.is_empty():
+		return "the saved route map is invalid (%s)" % problems[0]
+	var current: Variant = _int(d, "current_node", -1, route.node_count() - 1)
+	if current == null:
+		return "bad current_node"
+	var raw_visited: Variant = d.get("visited")
+	if typeof(raw_visited) != TYPE_ARRAY or (raw_visited as Array).size() > RouteMap.ROWS:
+		return "bad visited list"
+	var visited: Array[int] = []
+	for entry in raw_visited:
+		var id: Variant = _int({"id": entry}, "id", 0, route.node_count() - 1)
+		if id == null:
+			return "visited list names a node that is not on the map"
+		visited.append(id)
+	if typeof(d.get("at_node")) != TYPE_BOOL:
+		return "bad at_node"
+	var at_node: bool = d["at_node"]
+	if current == -1:
+		if not visited.is_empty() or at_node or got["stop_index"] != 0:
+			return "this save has not chosen a node yet but records progress"
+	else:
+		var row: int = route.node(current).row
+		if visited.size() != row + 1 or visited[visited.size() - 1] != current or got["stop_index"] != row:
+			return "the visited path does not end at the current node"
+		for i in visited.size():
+			if route.node(visited[i]).row != i:
+				return "the visited path skips or repeats a row"
+			if i == 0:
+				if not route.starts().has(visited[0]):
+					return "the visited path does not begin on the first row"
+			elif not route.next_ids(visited[i - 1]).has(visited[i]):
+				return "the visited path uses a road that is not on the map"
+		if not at_node and route.next_ids(current).is_empty():
+			return "this save is past the last row of the map"
+	got["route"] = route
+	got["current_node"] = current
+	got["visited"] = visited
+	got["at_node"] = at_node
 	return ""
 
 
@@ -240,6 +322,7 @@ static func _check_relics(d: Dictionary, run: RunState, got: Dictionary) -> Stri
 ## Upgrades a save dict of `version` to the current format, returning a copy. A v2 save may lack
 ## the fields v3 requires; a run that lacks them had seen no rewards, used neither reward
 ## alternative and bought no relics. Fields that are present are left for validation to judge.
+## A v5 save (a map run) needs no upgrade.
 static func migrate(data: Dictionary, version: int) -> Dictionary:
 	var d := data.duplicate()
 	if version < 3:
@@ -260,8 +343,6 @@ static func migrate(data: Dictionary, version: int) -> Dictionary:
 ## good save as path.bak, then moves the temp into place. Windows removes the destination before
 ## renaming, so a crash in between leaves path.tmp and path.bak, which load_file recovers.
 static func save(run: RunState, path: String = DEFAULT_PATH) -> String:
-	if run.uses_map():
-		return "map runs cannot be saved yet" # the save format knows only the stop line
 	if not run.at_stop_boundary():
 		return "run is not at a stop boundary"
 	var tmp := path + ".tmp"
