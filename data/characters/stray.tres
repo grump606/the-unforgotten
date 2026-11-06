@@ -15,5 +15,5 @@ script = ExtResource("1_char")
 id = &"stray"
 display_name = "The Stray"
 pitch = "A memorial hound with no name to lose. It tracks one quarry by scent and does not let go."
-max_hp = 40
+max_hp = 37
 starting_deck = Array[ExtResource("2_card")]([ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("4_slip_past"), ExtResource("4_slip_past"), ExtResource("5_glimpse_exit"), ExtResource("6_catch"), ExtResource("7_snap"), ExtResource("8_bristle"), ExtResource("9_run_down")])
