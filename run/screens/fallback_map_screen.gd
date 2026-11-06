@@ -32,4 +32,6 @@ static func describe(n: RouteMap.MapNode) -> String:
 			return "Mid-boss"
 		RouteMap.NodeType.BOSS:
 			return "Boss"
+		RouteMap.NodeType.TREASURE:
+			return "Treasure"
 	return "?"

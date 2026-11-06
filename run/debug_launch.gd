@@ -12,6 +12,12 @@ extends RefCounted
 ##   godot --path . -- --screen=rest --gold=0 --hp=10
 ##   godot --path . -- --screen=vendor:2        (the second shop on the line)
 ##
+## A treasure stop (map mode only, there is no chest on the old line): `--screen=treasure` opens the first act's
+## chest of a throwaway map run, `--screen=treasure:2` the second act's. Gold and HP are set as for the other screens.
+##
+##   godot --path . -- --screen=treasure --character=thief
+##   godot --path . -- --screen=treasure:2
+##
 ## Try the keyword prototype cards (data/prototype, never in the normal card pool): `--proto` swaps the
 ## player's deck for two copies of each, in a fight (default enemy: the Colossus) or with `--fight=`:
 ##
@@ -84,6 +90,8 @@ const SCREENS := {"vendor": RunState.StopType.VENDOR, "rest": RunState.StopType.
 ## Screens that are not a stop on the line: the character select, and the end card after the last boss
 ## ("end" = escaped, "defeat" = the defeat card).
 const SPECIAL_SCREENS := ["select", "end", "defeat"]
+## Stops that exist only on the map: opened in a throwaway map run. The number after the colon is the act (1 or 2).
+const MAP_SCREENS := ["treasure"]
 ## Defaults for a screen launch: enough gold for a few purchases, and a player at this share of max HP.
 const DEFAULT_GOLD := 100
 const DEFAULT_HP_PERCENT := 55
@@ -181,14 +189,18 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 		# "vendor", "rest", or "vendor:2" for the second one on the line.
 		var parts := screen_text.strip_edges().to_lower().split(":")
 		var special: bool = SPECIAL_SCREENS.has(parts[0])
-		if not (SCREENS.has(parts[0]) or special) or parts.size() > 2 or (special and parts.size() > 1) \
+		var on_map: bool = MAP_SCREENS.has(parts[0])
+		if not (SCREENS.has(parts[0]) or special or on_map) or parts.size() > 2 or (special and parts.size() > 1) \
 				or (parts.size() == 2 and (not parts[1].is_valid_int() or int(parts[1]) < 1)):
-			launch.error = "Unknown screen '%s'. Choose from: %s, %s (add :2 for the second shop or rest)." % [
-				screen_text.strip_edges(), ", ".join(SCREENS.keys()), ", ".join(SPECIAL_SCREENS)]
+			launch.error = "Unknown screen '%s'. Choose from: %s, %s, %s (add :2 for the second shop or rest, or the second act's chest)." % [
+				screen_text.strip_edges(), ", ".join(SCREENS.keys()), ", ".join(MAP_SCREENS), ", ".join(SPECIAL_SCREENS)]
 			return launch
 		launch.screen = parts[0]
 		launch.screen_index = int(parts[1]) if parts.size() == 2 else 1
-		if not special and launch.screen_index > screen_count(launch.screen):
+		if on_map and launch.screen_index > RouteMap.ACTS:
+			launch.error = "The map has only %d acts, so there are only %d %s stops." % [RouteMap.ACTS, RouteMap.ACTS, launch.screen]
+			return launch
+		if not special and not on_map and launch.screen_index > screen_count(launch.screen):
 			launch.error = "The line has only %d %s stop(s)." % [screen_count(launch.screen), launch.screen]
 			return launch
 	if gold_text.strip_edges() != "":

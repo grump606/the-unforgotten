@@ -39,6 +39,7 @@ var _reward := RewardScreen.new()
 var _story := StoryScreen.new()
 var _vendor := VendorScreen.new()
 var _rest := RestScreen.new()
+var _treasure := TreasureScreen.new()
 var _end := EndScreen.new()
 ## The map seam (map mode only): a screen that is attached like the others, has `show_map(run: RunState)`
 ## and emits `node_chosen(node_id: int)`. MapScreen is the real one; FallbackMapScreen is a plain list of
@@ -169,6 +170,7 @@ func _reset_screens() -> void:
 	_vendor.reset()
 	_reward.reset()
 	_rest.reset()
+	_treasure.reset()
 
 
 func _show_stop() -> void:
@@ -204,6 +206,9 @@ func _show_stop() -> void:
 			RunState.StopType.STORY:
 				_open(_story)
 				_story.show()
+			RunState.StopType.TREASURE:
+				_open(_treasure)
+				_treasure.show()
 			RunState.StopType.VENDOR:
 				_open(_vendor)
 				_vendor.stop_title = _stop_title
@@ -542,6 +547,21 @@ func _place_pause_button(variation: StringName, margin: int) -> void:
 	_pause_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, margin)
 
 
+## Map mode (debug): puts the run inside the chest of act `act` (0-based), on a path of the map that leads to it.
+func _place_at_treasure(act: int) -> void:
+	var chest: RouteMap.MapNode = null
+	for n in _run.route.nodes:
+		if n.type == RouteMap.NodeType.TREASURE and n.act == act:
+			chest = n
+			break
+	if chest == null:
+		return
+	var path: Array[int] = [chest.id]
+	while _run.route.node(path[0]).row > 0:
+		path.push_front(_run.route.node(path[0]).prev[0])
+	_run.restore_map(_run.route, chest.id, path, true)
+
+
 ## Opens a shop or rest stop of a throwaway run: the character's real deck, gold in hand (default 100)
 ## and the player already hurt (default 55% HP), so heals, purchases and removals can all be tried. The
 ## session never saves (see _debug_session); Pause > New Journey or Save & Exit leaves it.
@@ -550,8 +570,10 @@ func start_debug_screen(launch: DebugLaunch) -> void:
 		_new_run(_show_main_menu)
 		_debug_session = true # _new_run ends a session; a run started from here must stay unsaved
 		return
-	_run = RunState.new(randi(), launch.character_id)
-	if DebugLaunch.SCREENS.has(launch.screen):
+	_run = RunState.new(randi(), launch.character_id, launch.screen == "treasure")
+	if launch.screen == "treasure":
+		_place_at_treasure(launch.screen_index - 1)
+	elif DebugLaunch.SCREENS.has(launch.screen):
 		var wanted: int = DebugLaunch.SCREENS[launch.screen]
 		var seen := 0
 		for index in _run.stops.size():

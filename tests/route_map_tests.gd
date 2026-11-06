@@ -10,6 +10,7 @@ const SHOP := RouteMap.NodeType.SHOP
 const STORY := RouteMap.NodeType.STORY
 const MID_BOSS := RouteMap.NodeType.MID_BOSS
 const BOSS := RouteMap.NodeType.BOSS
+const TREASURE := RouteMap.NodeType.TREASURE
 
 var _failures := 0
 var _checks := 0
@@ -40,6 +41,7 @@ func run() -> int:
 	_test_from_line()
 	_test_elite_config()
 	_test_forced_rest_row()
+	_test_forced_treasure_row()
 	_test_config_merge()
 	_test_config_shapes()
 	_test_hostile_data()
@@ -120,7 +122,7 @@ func _test_structure() -> void:
 		for row in 30:
 			if map.row_nodes(row).size() > 1:
 				free += 1
-		_check(free == 24, "seed %d: 24 multi-node rows, 22 free and 2 forced rest rows (%d)" % [map_seed, free])
+		_check(free == 24, "seed %d: 24 multi-node rows, 20 plain free, 2 forced rest and 2 forced treasure rows (%d)" % [map_seed, free])
 		for forced_row in [12, 27]:
 			var forced_nodes := map.row_nodes(forced_row)
 			var all_rest := true
@@ -220,6 +222,10 @@ func _test_type_rules() -> void:
 			_check(rows.size() == 12, "seed %d: act %d has 12 free rows" % [map_seed, act + 1])
 			for i in rows.size():
 				var fights := 0
+				if bool(RouteMap.row_info(rows[i])["treasure"]):
+					for n in map.row_nodes(rows[i]):
+						_check(n.type == TREASURE, "seed %d: the treasure row of act %d is all chests" % [map_seed, act + 1])
+					continue
 				for n in map.row_nodes(rows[i]):
 					types_seen[n.type] = true
 					if n.type == FIGHT:
@@ -253,13 +259,15 @@ func _test_availability() -> void:
 	for map_seed in 320:
 		var map := RouteMap.generate(map_seed, CHARACTERS[map_seed % 4])
 		for act in 2:
-			var rows := RouteMap.free_rows(act)
-			# Windows only count free rows at or after the 3 safe rows and before the forced rest row: rest windows
-			# end by free row 9 (row 10 cannot hold a rest and row 11 is the forced one), shop windows by free row 10.
+			var rows := RouteMap.window_rows(act)
+			_check(rows.size() == 11, "seed %d: act %d has 11 window rows (12 free rows less the treasure row)" % [map_seed, act + 1])
+			# Windows count the free rows without the treasure row, at or after the 3 safe rows and before the forced
+			# rest row: rest windows end by window row 8 (row 9 cannot hold a rest and row 10 is the forced one), shop
+			# windows by window row 9.
 			for start in range(3, rows.size() - 7):
-				_check(_window_has(map, rows, start, 6, REST), "seed %d act %d: a rest within free rows %d to %d" % [map_seed, act + 1, start, start + 5])
-			for start in range(3, rows.size() - 8):
-				_check(_window_has(map, rows, start, 8, SHOP), "seed %d act %d: a shop within free rows %d to %d" % [map_seed, act + 1, start, start + 7])
+				_check(_window_has(map, rows, start, 6, REST), "seed %d act %d: a rest within window rows %d to %d" % [map_seed, act + 1, start, start + 5])
+			for start in range(3, rows.size() - 7):
+				_check(_window_has(map, rows, start, 7, SHOP), "seed %d act %d: a shop within window rows %d to %d" % [map_seed, act + 1, start, start + 6])
 		rest_density += map.count_of(REST)
 		shop_density += map.count_of(SHOP)
 		# The repair never forces a path: the rest or shop nodes are a minority of every row.
@@ -767,13 +775,68 @@ func _test_forced_rest_row() -> void:
 					rested_since = 0
 
 
+func _test_forced_treasure_row() -> void:
+	_check(RouteMap.TREASURE_LOCAL_ROWS == [6, 7] and RouteMap.NodeType.TREASURE == 7, "the treasure rows are act-local 6 and 7 and the enum value is appended")
+	for act in 2:
+		var local: int = RouteMap.TREASURE_LOCAL_ROWS[act]
+		_check(local != RouteMap.FORCED_REST_ROW and absi(local - RouteMap.FORCED_REST_ROW) > 1, "act %d: the treasure row is not next to the forced rest row" % (act + 1))
+		_check(int(RouteMap.row_info(act * 15 + local)["free"]) >= 3 and int(RouteMap.row_info(act * 15 + local)["type"]) == RouteMap.FREE_ROW, "act %d: the treasure row is a free row after the safe rows" % (act + 1))
+	for config in [{}, {"type_weights": {"treasure": 50.0}}, {"type_weights": {"elite": 14.0}}, {"free_widths": [4, 5]}, {"free_widths": [2, 3]}, {"type_weights": {"rest": 0.0}, "rest_window": 0}]:
+		for map_seed in 40:
+			var map := RouteMap.generate(map_seed, CHARACTERS[map_seed % 4], config)
+			_check(map.validate().is_empty(), "seed %d: %s validates" % [map_seed, str(config)])
+			_check(map.count_of(TREASURE) == map.row_nodes(6).size() + map.row_nodes(22).size(), "seed %d: chests only in the two treasure rows (%s)" % [map_seed, str(config)])
+			for row in [6, 22]:
+				for n in map.row_nodes(row):
+					_check(n.type == TREASURE and n.enemy_count == 0 and n.backdrop == &"", "seed %d: row %d holds chests with no enemies or backdrop" % [map_seed, row])
+	# Every path crosses exactly one chest per act, counted path by path on small maps.
+	for map_seed in 25:
+		var map := RouteMap.generate(map_seed, CHARACTERS[map_seed % 4])
+		if map.path_count() > 3000:
+			continue
+		for path in map.all_paths():
+			var per_act := [0, 0]
+			for id in path:
+				if map.node(id).type == TREASURE:
+					per_act[map.node(id).act] += 1
+			_check(per_act == [1, 1], "seed %d: a path passes one chest per act" % map_seed)
+	# The windows do not count the chest row: a stale chest row would not shift them.
+	_check(RouteMap.window_rows(0).size() == 11 and not RouteMap.window_rows(1).has(22) and not RouteMap.window_rows(0).has(6), "the window rows leave out the treasure row")
+	# Negatives.
+	var map := RouteMap.generate(8, &"thief")
+	var stray_chest := _copy(map)
+	stray_chest.row_nodes(9)[0].type = TREASURE
+	_check(_any_violation(stray_chest, "does not belong"), "a chest outside the treasure row is reported")
+	var plain_chest_row := _copy(map)
+	plain_chest_row.row_nodes(6)[1].type = FIGHT
+	_check(_any_violation(plain_chest_row, "must be a treasure"), "a non-chest in the treasure row is reported")
+	var rest_in_chests := _copy(map)
+	rest_in_chests.row_nodes(22)[0].type = REST
+	_check(not rest_in_chests.validate().is_empty(), "a rest in the second treasure row is reported")
+	var counted := _copy(map)
+	counted.row_nodes(6)[0].enemy_count = 2
+	_check(_any_violation(counted, "must have 0 enemies"), "a chest with enemies is reported")
+	var painted := _copy(map)
+	painted.row_nodes(6)[0].backdrop = &"battle_street"
+	_check(_any_violation(painted, "no backdrop"), "a chest with a backdrop is reported")
+	# Plain data: the new type survives a JSON round trip, and out-of-range types are still rejected.
+	var json := JSON.new()
+	json.parse(JSON.stringify(map.to_dict()))
+	var back := RouteMap.from_dict(json.data)
+	_check(back != null and back.validate().is_empty() and back.count_of(TREASURE) == map.count_of(TREASURE), "a map with chests round-trips through JSON")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "type": 8}]}) == null, "the type after treasure is still unknown")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "type": 7}]}) != null, "the treasure type is accepted")
+	# The weight key is reserved: positive does not put chests in free rows.
+	_check(RouteMap.config_problems({"type_weights": {"treasure": 5.0}}).is_empty(), "the treasure weight is an accepted config key")
+
+
 func _test_config_merge() -> void:
 	var cfg := RouteMap.make_config({"type_weights": {"elite": 5.0}, "rest_window": 5})
 	_check(float(cfg["type_weights"]["elite"]) == 5.0 and float(cfg["type_weights"]["fight"]) == 26.0 and int(cfg["rest_window"]) == 5, "make_config merges over the defaults")
 	_check(float(RouteMap.CONFIG["type_weights"]["elite"]) == 0.0, "the CONFIG constant is not changed by a merge")
 	var loose := RouteMap.generate(11, &"thief", {"rest_window": 5, "shop_window": 8})
 	_check(loose.validate().is_empty(), "a looser availability window still validates")
-	var rows := RouteMap.free_rows(0)
+	var rows := RouteMap.window_rows(0)
 	var ok := true
 	for start in range(3, rows.size() - 7):
 		ok = ok and _window_has(loose, rows, start, 5, REST)
@@ -837,8 +900,8 @@ func _test_node_mix() -> void:
 	var fights_per_path := float(path_fights) / walks
 	var rests_per_path := float(path_rests) / walks
 	var shops_per_path := float(path_shops) / walks
-	_check(fights_per_path > 15.0 and fights_per_path < 18.0, "a random path has about 16.5 fights (%.2f)" % fights_per_path)
-	_check(rests_per_path > 4.6 and rests_per_path < 6.2, "a random path has about 5.3 rests (%.2f)" % rests_per_path)
+	_check(fights_per_path > 13.8 and fights_per_path < 16.4, "a random path has about 15 fights (%.2f)" % fights_per_path)
+	_check(rests_per_path > 4.4 and rests_per_path < 5.8, "a random path has about 5 rests (%.2f)" % rests_per_path)
 	_check(shops_per_path > 1.5 and shops_per_path < 2.8, "a random path has about 2 shops (%.2f)" % shops_per_path)
 
 
@@ -886,7 +949,7 @@ func _test_skippable() -> void:
 	_check(low_rest / f < 1.6 and low_rest / f >= 1.0, "the rest-avoiding route sees about 1 rest per act (%.2f)" % (low_rest / f))
 	_check(high_rest / f > 3.5 and high_rest / f < 4.5, "the rest-seeking route sees about 4 rests per act (%.2f)" % (high_rest / f))
 	_check(low_shop / f < 0.3, "the shop-avoiding route sees almost no shops per act (%.2f)" % (low_shop / f))
-	_check(high_shop / f > 2.1 and high_shop / f < 3.1, "the shop-seeking route sees 2 to 3 shops per act (%.2f)" % (high_shop / f))
+	_check(high_shop / f > 1.8 and high_shop / f < 3.1, "the shop-seeking route sees 2 to 3 shops per act (%.2f)" % (high_shop / f))
 	_check(rest_free == 0, "no act allows a route with no rest (the forced rest row)")
 	_check(one_rest / f > 0.55, "most acts allow a route with exactly one rest, the forced one (%.2f)" % (one_rest / f))
 	_check(zero_shop / f > 0.8, "most acts allow a route with no shop at all (%.2f)" % (zero_shop / f))

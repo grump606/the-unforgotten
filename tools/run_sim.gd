@@ -111,6 +111,11 @@ func _initialize() -> void:
 					if not _shop(run):
 						quit(1)
 						return
+				RunState.StopType.TREASURE:
+					if not SimPolicy.treasure_stop(run):
+						printerr("run_sim: the chest could not be opened and taken at stop %d" % index)
+						quit(1)
+						return
 				_:
 					# RunState has no public way to pass a stop of another type.
 					printerr("run_sim: unsupported stop type %d at stop %d (%s)" % [stop.type, index, stop.describe()])

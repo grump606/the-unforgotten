@@ -34,6 +34,7 @@ func run() -> int:
 	_test_determinism()
 	_test_save_allowed()
 	_test_route_choice_policies()
+	_test_treasure()
 	print("run_state_map_tests: %d checks" % _checks)
 	return _failures
 
@@ -54,6 +55,9 @@ func _resolve(run_state: RunState, victory := true) -> void:
 			run_state.read_story()
 		RunState.StopType.VENDOR:
 			run_state.leave_vendor()
+		RunState.StopType.TREASURE:
+			run_state.open_treasure()
+			run_state.take_treasure()
 
 
 ## Chooses nodes (preferring `type` when offered) and resolves them until the run is at a node of `type`
@@ -432,3 +436,119 @@ func _test_route_choice_policies() -> void:
 			r.player.hp = hp
 			r.gold = gold
 			r.choose_node(plain)
+
+
+# --- Treasure (phase 4b) ----------------------------------------------------------------------------------
+
+func _chest_run(seed_value: int, character: StringName) -> RunState:
+	var run_state := RunState.new(seed_value, character, true)
+	_check(_walk_to(run_state, RouteMap.NodeType.TREASURE), "%s seed %d: the treasure row is on the way" % [character, seed_value])
+	return run_state
+
+
+func _test_treasure() -> void:
+	_check(RunState.stop_type_for_node(RouteMap.NodeType.TREASURE) == RunState.StopType.TREASURE and int(RunState.StopType.TREASURE) == 4, "a treasure node plays as the appended TREASURE stop")
+	var run_state := _chest_run(7, &"deserter")
+	var stop := run_state.current_stop()
+	_check(stop.type == RunState.StopType.TREASURE and stop.describe() == "Treasure" and run_state.stop_index == 6, "a treasure node is a TREASURE stop on row 6")
+	_check(run_state.in_treasure_stop() and not run_state.treasure_opened() and run_state.treasure_relic() == null and run_state.treasure_gold() == 0, "the chest starts closed")
+	_check(run_state.destination_label() != "" and run_state.at_stop_boundary() and run_state.reachable_nodes().is_empty(), "a closed chest is a boundary with a place name and no other road")
+	_check(not run_state.take_treasure() and run_state.current_stop() == stop, "nothing can be taken from a closed chest")
+	_check(not run_state.vendor_buy_relic().ok and run_state.rest() == -1 and not run_state.read_story(), "other stop actions fail at a chest")
+	var rng_before := run_state.rng_state()
+	var relics_before := run_state.relics.size()
+	_check(run_state.open_treasure() and run_state.treasure_opened(), "the chest opens")
+	var relic := run_state.treasure_relic()
+	_check(relic != null and relic.price >= RunState.TREASURE_MIN_RELIC_PRICE and StarterContent.relic_pool(&"deserter").has(relic), "the relic is from the pool and not in the cheapest tier")
+	_check(run_state.rng_state() != rng_before and not run_state.at_stop_boundary(), "opening rolls with the run RNG and the open chest is not a boundary")
+	var rng_open := run_state.rng_state()
+	_check(run_state.open_treasure() and run_state.treasure_relic() == relic and run_state.rng_state() == rng_open, "opening again changes nothing")
+	_check(run_state.relics.size() == relics_before, "an open chest has not yet given the relic")
+	var max_hp := run_state.player.max_hp
+	_check(run_state.take_treasure() and run_state.relics.has(relic) and run_state.relics.size() == relics_before + 1, "taking adds the relic")
+	_check(run_state.current_stop() == null and not run_state.reachable_nodes().is_empty() and run_state.at_stop_boundary(), "taking leaves the stop for the map")
+	_check(not run_state.treasure_opened() and run_state.treasure_relic() == null and not run_state.take_treasure() and not run_state.open_treasure(), "a taken chest is gone")
+	_check(run_state.player.max_hp == max_hp + (relic.amount if relic.kind == RelicData.Kind.MAX_HP else 0), "a max-HP relic raises max HP, others do not")
+	# A max-HP relic from a chest raises max HP and HP once, here.
+	var flask: RelicData = null
+	for candidate in StarterContent.relic_pool(&"deserter"):
+		if candidate.kind == RelicData.Kind.MAX_HP:
+			flask = candidate
+	var owned := _chest_run(9, &"deserter")
+	for candidate in StarterContent.relic_pool(&"deserter"):
+		if candidate != flask:
+			owned.relics.append(candidate)
+	var hp_before := owned.player.hp
+	var max_before := owned.player.max_hp
+	owned.open_treasure()
+	_check(flask != null and flask.price < RunState.TREASURE_MIN_RELIC_PRICE or owned.treasure_relic() == flask, "the last relic left is the one the chest holds")
+	_check(owned.treasure_relic() == flask and owned.take_treasure() and owned.player.max_hp == max_before + flask.amount and owned.player.hp == hp_before + flask.amount, "a max-HP relic raises max HP and HP once")
+	# Rules per character: never a duplicate, never from outside the pool, whatever is already owned.
+	for character in CHARACTERS:
+		var seen := {}
+		var held := _chest_run(3, character)
+		var guard := 0
+		while guard < 40:
+			guard += 1
+			held.open_treasure()
+			var got := held.treasure_relic()
+			if got == null:
+				_check(held.treasure_gold() == RunState.TREASURE_FALLBACK_GOLD, "%s: with every relic owned the chest holds gold" % character)
+				break
+			_check(not seen.has(got.id) and StarterContent.relic_pool(character).has(got), "%s: chest %d gives a new relic from the pool (%s)" % [character, guard, got.id])
+			seen[got.id] = true
+			held.take_treasure()
+			# A fresh chest: put the run back inside the same stop.
+			held.restore_map(held.route, held.current_node, held.visited, true)
+		_check(seen.size() == StarterContent.relic_pool(character).size(), "%s: repeated chests hand out the whole pool once (%d relics)" % [character, seen.size()])
+	# Gold fallback.
+	var rich := _chest_run(5, &"thief")
+	rich.relics.assign(StarterContent.relic_pool(&"thief"))
+	var gold_before := rich.gold
+	rich.open_treasure()
+	_check(rich.treasure_relic() == null and rich.treasure_gold() == RunState.TREASURE_FALLBACK_GOLD and rich.treasure_opened(), "a character with every relic finds gold")
+	_check(rich.take_treasure() and rich.gold == gold_before + RunState.TREASURE_FALLBACK_GOLD and rich.relics.size() == StarterContent.relic_pool(&"thief").size(), "taking the gold pays it and adds no relic")
+	# The price floor yields when nothing dearer is left.
+	var cheap := _chest_run(5, &"medium")
+	var pricey := 0
+	for candidate in StarterContent.relic_pool(&"medium"):
+		if candidate.price >= RunState.TREASURE_MIN_RELIC_PRICE:
+			cheap.relics.append(candidate)
+			pricey += 1
+	cheap.open_treasure()
+	_check(pricey > 0 and cheap.treasure_relic() != null and cheap.treasure_relic().price < RunState.TREASURE_MIN_RELIC_PRICE, "with only cheap relics left the chest gives one of those")
+	# Determinism: the same seed finds the same relic; a run reloaded from the arrival save finds it too.
+	for character in CHARACTERS:
+		var a := _chest_run(31, character)
+		var b := _chest_run(31, character)
+		var saved := RunSave.to_dict(a)
+		a.open_treasure()
+		b.open_treasure()
+		_check(a.treasure_relic() == b.treasure_relic() and a.rng_state() == b.rng_state(), "%s: the same seed finds the same relic" % character)
+		var json := JSON.new()
+		json.parse(JSON.stringify(saved))
+		var resumed := RunSave.from_dict(json.data).run
+		_check(resumed != null and resumed.in_treasure_stop() and not resumed.treasure_opened(), "%s: the arrival save resumes at the closed chest" % character)
+		resumed.open_treasure()
+		_check(resumed.treasure_relic() == a.treasure_relic(), "%s: a resumed chest holds the same relic" % character)
+	# Whole runs cross exactly two chests each (one per act).
+	for seed_value in 12:
+		var full := RunState.new(seed_value, CHARACTERS[seed_value % 4], true)
+		var chests := 0
+		while not full.finished:
+			full.choose_node(SimPolicy.choose_route(full))
+			if full.current_stop().type == RunState.StopType.TREASURE:
+				chests += 1
+				_check(SimPolicy.treasure_stop(full), "seed %d: the bot opens and takes the chest" % seed_value)
+			else:
+				_resolve(full)
+		_check(chests == 2 and full.escaped and full.relics.size() == 2, "seed %d: a run passes two chests and ends with their two relics (%d, %d)" % [seed_value, chests, full.relics.size()])
+	# Route choice: a chest is taken ahead of a fight.
+	var router := RunState.new(13, &"deserter", true)
+	var chest_row := router.route.row_nodes(6)
+	_check(SmartPolicy.choose_route(router) != -1 and chest_row[0].type == RouteMap.NodeType.TREASURE, "smart picks a node, and the map has its chest row")
+	var line := RunState.new(1)
+	var line_chests := 0
+	for line_stop in line.stops:
+		line_chests += 1 if line_stop.type == RunState.StopType.TREASURE else 0
+	_check(line_chests == 0 and not line.open_treasure(), "the old line has no chest")

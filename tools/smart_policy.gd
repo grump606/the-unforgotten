@@ -709,6 +709,9 @@ static func choose_route(run: RunState) -> int:
 		wanted.append(RouteMap.NodeType.REST)
 	if run.gold >= ROUTE_SHOP_GOLD:
 		wanted.append(RouteMap.NodeType.SHOP)
+	# A chest is free (a relic for nothing) and the forced treasure row is unavoidable, so it is taken
+	# whenever it is offered, ahead of a plain fight.
+	wanted.append(RouteMap.NodeType.TREASURE)
 	wanted.append(RouteMap.NodeType.FIGHT)
 	for type in wanted:
 		for id in options:

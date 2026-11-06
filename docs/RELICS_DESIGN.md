@@ -4,6 +4,15 @@
 
 Decisions (from the user): relics are sold by vendors only, one relic per vendor visit (two vendors on the line, so at most two per run); first set is 12 relics, 3 per class plus 3 neutral.
 
+## Where relics come from
+
+Two sources. Vendors sell one relic per visit (its `price`; see above). On the selectable route map (docs/MAP_DESIGN.md
+"Phase 4b") each act also has a forced row of treasure chests: opening one gives a relic for free, so a map run finds two
+relics from chests on top of what it buys. A chest picks uniformly, with the run RNG, from the character's pool minus the
+relics owned, among those with a vendor price of at least 65 (so never the 50 and 55 relics) while any are left, and
+otherwise from whatever is left; a character that owns the whole pool gets 100 gold instead. The old 21-stop line has no
+chests.
+
 ## Model
 
 `RelicData` (Resource, `combat/relic_data.gd`): `id: StringName`, `display_name`, `description`, `character: StringName` (`&""` = neutral, like cards), `kind: RelicData.Kind`, `amount: int`, `price: int`. Data lives in `data/relics/<id>.tres`; `StarterContent` gets `all_relics()` and `relic_pool(character_id)` (class relics for that character plus neutral), mirroring the card equivalents.

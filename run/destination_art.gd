@@ -20,6 +20,8 @@ static func label_for_stop(stop: RunState.Stop) -> String:
 			return "Candlehouse"
 		RunState.StopType.VENDOR:
 			return "The Lost-Property Stall"
+		RunState.StopType.TREASURE:
+			return "The Sealed Strongbox"
 		RunState.StopType.STORY:
 			var beat_labels := {0: 0, 1: 7, 2: 10, 3: 19}
 			return label_at(beat_labels.get(stop.beat_index, -1))
