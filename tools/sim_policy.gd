@@ -169,6 +169,9 @@ static func keep_score(combat: Combat, card: CardData) -> float:
 	var tier := _base_tier(card)
 	if _is_pointless(combat, card) or _too_costly_in_hp(combat, card) or card.dormant:
 		tier = 0.0
+	# A card with discard effects is worth more thrown away than kept.
+	if not card.discard_effects.is_empty():
+		tier -= 1.5
 	return tier * 10.0 - card.cost
 
 
