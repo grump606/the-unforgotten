@@ -76,6 +76,18 @@ func _initialize() -> void:
 		check(empty == 0, "%s: every node has a tooltip" % id)
 		first_view.queue_free()
 
+	# rest nodes (the armchair) and the legend draw
+	var rest_view := _view(RouteMap.generate(5, &"deserter"), [] as Array[int], -1, RouteMap.generate(5, &"deserter").starts(), &"deserter")
+	await process_frame
+	rest_view.queue_redraw()
+	await process_frame
+	var rest_count := 0
+	for node_id in rest_view.shown_ids():
+		if RouteMap.generate(5, &"deserter").node(node_id).type == RouteMap.NodeType.REST:
+			rest_count += 1
+	check(rest_count > 0 and rest_view.shown_ids().size() > 15, "rest nodes and the legend build and draw")
+	rest_view.queue_free()
+
 	var route := RouteMap.generate(5, &"deserter")
 	var walked := _walk(route, 4)
 	var visited: Array[int] = walked.visited
@@ -186,7 +198,7 @@ func _initialize() -> void:
 	chosen.clear()
 	_click(junk_view, Vector2(100, 100))
 	_key(junk_view, &"ui_accept")
-	check(junk_view.shown_ids().is_empty() or true, "junk data survives input")
+	check(chosen.is_empty() and is_instance_valid(junk_view), "junk data survives input and chooses nothing")
 	for v in [empty_view, null_view, junk_view]:
 		v.queue_free()
 

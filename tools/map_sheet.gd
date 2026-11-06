@@ -11,7 +11,10 @@ func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		out_dir = args[0]
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED # the view scales itself from the real window size
 	DirAccess.make_dir_recursive_absolute(out_dir)
+	for i in 8: # let the window settle at its final size before the first capture
+		await process_frame
 	for id in [&"deserter", &"medium"]:
 		var route := RouteMap.generate(7, id)
 		await _shot(route, id, 0, "act1_start_%s" % id)
