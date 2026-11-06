@@ -282,6 +282,7 @@ const GOLDEN := {
 	"heavy_blow": [17, 24],
 	"hold_the_line": [9, 16],
 	"iron_resolve": [15, 24],
+	"keep_the_trail": [6, 16],
 	"last_pocket": [12, 24],
 	"last_stand": [29, 24],
 	"lift": [8, 16],

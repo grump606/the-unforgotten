@@ -97,6 +97,7 @@ const OATH_FIRING_SHARE := {
 	CardData.OathTrigger.ON_HP_LOST: 0.3,
 	CardData.OathTrigger.EACH_PLAY: 2.5,
 	CardData.OathTrigger.ON_DISCARD: 1.0,
+	CardData.OathTrigger.QUARRY_DIES: 0.5,
 }
 ## Damage hits (and Block effects) the player lands per turn, for the same estimate.
 const TYPICAL_HITS_PER_TURN := 2
