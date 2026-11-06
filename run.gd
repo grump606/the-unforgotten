@@ -163,6 +163,7 @@ func _start_run(character_id: StringName) -> void:
 func _reset_screens() -> void:
 	_vendor.reset()
 	_reward.reset()
+	_rest.reset()
 
 
 func _show_stop() -> void:
@@ -235,12 +236,11 @@ func _update_header() -> void:
 			stop_text = destination + " — " + stop_text
 	if _run.reward_pending():
 		stop_text = "Reward"
-	# A rest stop shows the HP it will leave you with and how much that heals (see RestScreen).
+	# A rest stop shows your HP and how much resting would heal; Remember skips the heal (see RestScreen).
 	var hp_text := "HP %d/%d" % [player.hp, player.max_hp]
 	if not _run.finished and not _run.reward_pending() and _run.current_stop().type == RunState.StopType.REST:
-		hp_text = "HP %d/%d" % [player.max_hp, player.max_hp]
 		if _run.rest_heal_amount() > 0:
-			hp_text += "  Healed (+%d)" % _run.rest_heal_amount()
+			hp_text += "  Rest heals +%d" % _run.rest_heal_amount()
 	_header.text = prefix + "%s\nJourney %d/%d  ·  %s  ·  %s  ·  Gold %d  ·  Deck %d" % [
 		stop_text, position, _run.stops.size(), player.display_name, hp_text, _run.gold, _run.deck.size(),
 	]
@@ -312,6 +312,8 @@ func start_debug_fight(launch: DebugLaunch) -> void:
 			_run.stop_index = index
 			break
 	_run.debug_encounter.assign(launch.enemy_ids)
+	if launch.proto:
+		_run.deck = DebugLaunch.prototype_deck()
 	if launch.hp > 0:
 		_run.player.hp = mini(launch.hp, _run.player.max_hp)
 	_debug_fight = true

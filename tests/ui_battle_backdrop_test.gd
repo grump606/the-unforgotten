@@ -30,7 +30,7 @@ func _initialize() -> void:
 	root.add_child(holder)
 
 	# Every variant builds and draws; the variant is kept.
-	var variants := [[false, &""], [true, &""], [false, &"deserter"], [false, &"pickpocket"], [false, &"medium"], [true, &"medium"], [false, &"no_such_class"]]
+	var variants := [[false, &""], [true, &""], [false, &"deserter"], [false, &"thief"], [false, &"medium"], [true, &"medium"], [false, &"no_such_class"]]
 	for v in variants:
 		var backdrop := BattleBackdrop.new()
 		backdrop.size = holder.size
@@ -104,7 +104,7 @@ func _initialize() -> void:
 	check(a.mouse_filter == Control.MOUSE_FILTER_IGNORE, "the backdrop ignores the mouse")
 
 	# In the battle screen: one backdrop, lowest child, filling the screen, clicks pass through.
-	for variant in [[false, &"pickpocket"], [true, &"deserter"]]:
+	for variant in [[false, &"thief"], [true, &"deserter"]]:
 		var scene := _battle(variant[0], variant[1])
 		for i in 3:
 			await process_frame

@@ -2,7 +2,7 @@ extends SceneTree
 ## Headless balance simulation: plays many seeded fights with a simple greedy
 ## policy and prints win rate, turns and remaining HP per encounter size, then
 ## the win rate per enemy type (over the fights it appeared in) for each size.
-## Run: godot --headless --path . -s res://tools/balance_sim.gd -- --fights 500 --seed 1 [--character deserter|pickpocket|medium]
+## Run: godot --headless --path . -s res://tools/balance_sim.gd -- --fights 500 --seed 1 [--character deserter|thief|medium]
 ## Card choice lives in tools/sim_policy.gd (shared with run_sim.gd). Uses only the
 ## public Combat API and never mutates shared resources.
 
@@ -11,7 +11,7 @@ const DEFAULT_FIGHTS := 500
 const DEFAULT_SEED := 1
 var _player_hp := 0 # set from the chosen character in _initialize
 
-const USAGE := "Usage: godot --headless --path . -s res://tools/balance_sim.gd -- [--fights N] [--seed S] [--character ID] [--help]\n  --fights N      fights per encounter size, integer >= 1 (default 500)\n  --seed S        base random seed, integer (default 1)\n  --character ID  max HP and starting deck come from this character: deserter, pickpocket or medium (default deserter)\n  --help     print this usage and exit 0"
+const USAGE := "Usage: godot --headless --path . -s res://tools/balance_sim.gd -- [--fights N] [--seed S] [--character ID] [--help]\n  --fights N      fights per encounter size, integer >= 1 (default 500)\n  --seed S        base random seed, integer (default 1)\n  --character ID  max HP and starting deck come from this character: deserter, thief or medium (default deserter)\n  --help     print this usage and exit 0"
 
 
 func _initialize() -> void:
@@ -30,8 +30,7 @@ func _initialize() -> void:
 	if character == null:
 		quit(1)
 		return
-	var deck: Array[CardData] = []
-	deck.assign(character.starting_deck)
+	var deck := StarterContent.starter_deck(character.id)
 	_player_hp = character.max_hp
 	if deck.is_empty():
 		printerr("balance_sim: the deck failed to load")
@@ -132,7 +131,7 @@ func _run_fight(combat: Combat) -> int:
 	var outcome := [0]
 	combat.combat_ended.connect(func(victory: bool) -> void: outcome[0] = 1 if victory else -1)
 	combat.start()
-	while combat.phase == Combat.Phase.PLAYER_TURN:
+	while SimPolicy.is_acting(combat):
 		if combat.turn > TURN_CAP:
 			return 0
 		if not SimPolicy.play_turn(combat):

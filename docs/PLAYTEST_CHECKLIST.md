@@ -4,26 +4,26 @@ The numbers are tuned against bots, not people. Play with a pen: note what felt 
 
 ## Before you start
 - [ ] Install v0.7.2 first, then check the in-game update (see "Update flow") before playing on v0.7.3.
-- [ ] Play each class at least once to the end or to a loss: Deserter, Pickpocket, Medium. Note the class, the stop you died at, and what killed you.
+- [ ] Play each class at least once to the end or to a loss: Deserter, Thief, Medium. Note the class, the stop you died at, and what killed you.
 
 ## Per class (rate each 1 to 5: boring / fair / too hard / too easy)
 - [ ] **Deserter** (skill-sensitive): is Hold readable and worth it? Do you feel weak early, strong late, or just fine?
-- [ ] **Pickpocket** (burst): do the per-play cards (Spree, Last Pocket, Pocket Watch) feel good? Is anything pointless?
+- [ ] **Thief** (burst): do the per-play cards (Many Hands, Last Keepsake, Borrowed Time) feel good? Is anything pointless?
 - [ ] **Medium** (Haunt, HP costs): is Haunt satisfying or confusing? Do the HP-cost cards (Confess, Penance, Seance) feel risky or free? Is it too easy in ordinary fights?
-- [ ] Cards that felt weak or that you never played. The bots' verdict: Spree, Reckoning and Spirit Tithe are probably weak.
+- [ ] Cards that felt weak or that you never played. The bots' verdict: Many Hands, Reckoning and Spirit Tithe are probably weak.
 
 ## Keeping cards and the end-of-turn discard step (new, branch `hand-keep`)
 - [ ] Clarity: after pressing End Turn, is it obvious you are choosing cards to throw away? Is the "DISCARD" stamp, the hint line and the button wording ("Keep all", "Discard N", "Discard N more") clear?
 - [ ] The extra click: with 5 or fewer cards the step costs one extra press (E, E). Does it get annoying by the third fight? Should it be skippable (for example when nothing is marked, or auto when the hand is 5 or fewer)?
 - [ ] Back (button or Backspace): does it feel safe to press End Turn too early?
-- [ ] A 10-card hand (Pickpocket draw cards, Medium Seance): do the overlapping cards stay readable, can you hover and click each one, are the number keys 1-9 and 0 enough?
+- [ ] A 10-card hand (Thief draw cards, Medium Seance): do the overlapping cards stay readable, can you hover and click each one, are the number keys 1-9 and 0 enough?
 - [ ] Does keeping cards feel too strong? Watch for decks that hold a perfect hand every turn, and for fights that now end too fast. Likely knobs: `Combat.HAND_SIZE` (keep limit), `Combat.HAND_MAX` (cap). Bot numbers before and after are in the PR and README.
 - [ ] Do unplayable-but-valuable cards (expensive attacks, setup) now get used the following turn the way you expect?
 
 ## The Brakeman (stop 9, mid-boss) and the Conductor (last)
 - [ ] Medium vs the Brakeman: Haunt is capped at 9 (the tooltip says "Haunt capped at 9"). Is the fight now a real fight, or is it a wall? Target: you lose it sometimes, not mostly.
-- [ ] Deserter and Pickpocket vs the Brakeman: its Expose attack. Fair, or a spike you cannot play around?
-- [ ] The Conductor: is it the hardest fight? Does the Pickpocket still breeze through it?
+- [ ] Deserter and Thief vs the Brakeman: its Expose attack. Fair, or a spike you cannot play around?
+- [ ] The Conductor: is it the hardest fight? Does the Thief still breeze through it?
 
 ## Pacing and economy
 - [ ] 21 stops: where do you get bored, and where do you feel pressure?

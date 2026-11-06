@@ -6,6 +6,12 @@ extends RefCounted
 var draw_pile: Array[CardData] = []
 var hand: Array[CardData] = []
 var discard_pile: Array[CardData] = []
+## Cards removed for the rest of the fight (Forgotten). The deck is never modified, so they are
+## back next fight.
+var forgotten: Array[CardData] = []
+## Oaths played this fight (Sworn), in the order they were sworn. They stay for the fight and, like the
+## Forgotten pile, are back in the deck next fight. Sworn twice, a card is listed twice and fires twice.
+var sworn: Array[CardData] = []
 
 var _rng: RandomNumberGenerator
 
@@ -35,12 +41,52 @@ func draw(count: int, hand_limit: int = -1) -> int:
 	return drawn
 
 
-## Moves the card at `hand_index` to the discard pile and returns it.
+## Moves the draw pile's Ready cards into the hand (from the top of the pile down, stopping at
+## `hand_limit` cards in hand). Returns how many moved. Meant to run before the normal turn-1 draw.
+func draw_ready(hand_limit: int) -> int:
+	var moved := 0
+	var i := draw_pile.size() - 1
+	while i >= 0 and hand.size() < hand_limit:
+		if draw_pile[i].ready:
+			hand.append(draw_pile[i])
+			draw_pile.remove_at(i)
+			moved += 1
+		i -= 1
+	return moved
+
+
+## Moves the card at `hand_index` to the discard pile (the Forgotten pile for a Forgotten card, the Sworn
+## list for an Oath) and returns it.
 func play(hand_index: int) -> CardData:
 	var card: CardData = hand[hand_index]
 	hand.remove_at(hand_index)
-	discard_pile.append(card)
+	if card.oath:
+		sworn.append(card)
+	elif card.forgotten:
+		forgotten.append(card)
+	else:
+		discard_pile.append(card)
 	return card
+
+
+## Moves every Fading card still in hand to the Forgotten pile. Returns how many moved.
+func forget_fading_in_hand() -> int:
+	var moved := 0
+	for k in range(hand.size() - 1, -1, -1):
+		if hand[k].fading:
+			forgotten.append(hand[k])
+			hand.remove_at(k)
+			moved += 1
+	return moved
+
+
+## Hand cards that count toward the 5 kept: everything except Anchor and Fading cards.
+func counted_in_hand() -> int:
+	var n := 0
+	for card in hand:
+		if not card.anchor and not card.fading:
+			n += 1
+	return n
 
 
 ## Moves the hand cards at `hand_indices` (valid, unique) to the discard pile, in hand order.
@@ -51,6 +97,69 @@ func discard_cards(hand_indices: Array[int]) -> void:
 		discard_pile.append(hand[i])
 	for k in range(sorted.size() - 1, -1, -1):
 		hand.remove_at(sorted[k])
+
+
+## Adds a created card (fight-only: the deck array handed to _init is never touched) to `pile` and
+## returns where it actually went. HAND falls back to the discard pile when the hand already holds
+## `hand_limit` cards (-1 = no limit). DRAW inserts at a random position drawn from the seeded RNG
+## (never predictably on top or bottom). A null card changes nothing.
+func add_card(card: CardData, pile: CardEffect.Pile, hand_limit: int = -1) -> CardEffect.Pile:
+	if card == null:
+		return pile
+	match pile:
+		CardEffect.Pile.HAND:
+			if hand_limit >= 0 and hand.size() >= hand_limit:
+				discard_pile.append(card)
+				return CardEffect.Pile.DISCARD
+			hand.append(card)
+		CardEffect.Pile.DRAW:
+			# Position 0 is the bottom, draw_pile.size() the top.
+			draw_pile.insert(_rng.randi_range(0, draw_pile.size()), card)
+		CardEffect.Pile.DISCARD:
+			discard_pile.append(card)
+	return pile
+
+
+## The top `n` cards of the draw pile in the order they would be drawn (index 0 is drawn first; the
+## top of the pile is the END of the array). Looks only at what is there: never reshuffles.
+func top_cards(n: int) -> Array[CardData]:
+	var cards: Array[CardData] = []
+	var i := draw_pile.size() - 1
+	while i >= 0 and cards.size() < n:
+		cards.append(draw_pile[i])
+		i -= 1
+	return cards
+
+
+## Discards the cards at `indices` of top_cards() (valid, unique) to the discard pile in the order
+## given. The cards left on top keep their order.
+func discard_from_draw_top(indices: Array[int]) -> void:
+	var pile_indices: Array[int] = []
+	for i in indices:
+		var at := draw_pile.size() - 1 - i
+		discard_pile.append(draw_pile[at])
+		pile_indices.append(at)
+	pile_indices.sort()
+	for k in range(pile_indices.size() - 1, -1, -1):
+		draw_pile.remove_at(pile_indices[k])
+
+
+## Moves the Forgotten cards at `indices` (valid, unique) to the hand in the order given, or to the
+## discard pile once the hand holds `hand_limit` cards. Returns how many moved.
+func recall_from_forgotten(indices: Array[int], hand_limit: int) -> int:
+	var moving: Array[CardData] = []
+	for i in indices:
+		moving.append(forgotten[i])
+	var sorted := indices.duplicate()
+	sorted.sort()
+	for k in range(sorted.size() - 1, -1, -1):
+		forgotten.remove_at(sorted[k])
+	for card in moving:
+		if hand_limit >= 0 and hand.size() >= hand_limit:
+			discard_pile.append(card)
+		else:
+			hand.append(card)
+	return moving.size()
 
 
 func discard_hand() -> void:

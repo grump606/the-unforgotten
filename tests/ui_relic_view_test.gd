@@ -64,7 +64,7 @@ func _run_scene(character: StringName, stop_type: RunState.StopType, owned: Arra
 
 func _initialize() -> void:
 	var relics := StarterContent.all_relics()
-	check(relics.size() == 12, "the twelve relics load")
+	check(relics.size() == 21, "the twenty-one relics load")
 
 	# Every Kind has a glyph name; every relic has tooltip text with its name and effect.
 	for kind in RelicData.Kind.values():
@@ -144,7 +144,7 @@ func _initialize() -> void:
 	scene.queue_free()
 	await process_frame
 
-	scene = await _run_scene(&"pickpocket", RunState.StopType.VENDOR, none, 0)
+	scene = await _run_scene(&"thief", RunState.StopType.VENDOR, none, 0)
 	body = scene.get_node("%Body")
 	offer = scene._run.vendor().relic_offer()
 	check(_offer_relics(body).size() == 1 and _relic_button(body).disabled and _offer_relics(body)[0].dimmed, "an unaffordable relic is dimmed with a disabled plate")

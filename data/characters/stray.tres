@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Character" format=3]
+
+[ext_resource type="Script" path="res://run/character.gd" id="1_char"]
+[ext_resource type="Script" path="res://combat/card_data.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/shove.tres" id="3_shove"]
+[ext_resource type="Resource" path="res://data/cards/slip_past.tres" id="4_slip_past"]
+[ext_resource type="Resource" path="res://data/cards/glimpse_exit.tres" id="5_glimpse_exit"]
+[ext_resource type="Resource" path="res://data/cards/catch_the_scent.tres" id="6_catch"]
+[ext_resource type="Resource" path="res://data/cards/snap.tres" id="7_snap"]
+[ext_resource type="Resource" path="res://data/cards/bristle.tres" id="8_bristle"]
+[ext_resource type="Resource" path="res://data/cards/run_down.tres" id="9_run_down"]
+
+[resource]
+script = ExtResource("1_char")
+id = &"stray"
+display_name = "The Stray"
+pitch = "A memorial hound with no name to lose. It tracks one quarry by scent and does not let go."
+max_hp = 37
+starting_deck = Array[ExtResource("2_card")]([ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("3_shove"), ExtResource("4_slip_past"), ExtResource("4_slip_past"), ExtResource("5_glimpse_exit"), ExtResource("6_catch"), ExtResource("7_snap"), ExtResource("8_bristle"), ExtResource("9_run_down")])

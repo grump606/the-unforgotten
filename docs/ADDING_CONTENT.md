@@ -9,6 +9,8 @@ Content is data (`.tres` under `data/`) plus explicit, ordered registries in `co
 
 Set `effects` from `CardEffect.Kind` (`combat/card_effect.gd`; a card may have several, applied in order) and `target_mode` from `CardData.TargetMode` (single enemy, all enemies, self; block- and draw-only cards should target self). Being in `ALL_CARD_PATHS` is what puts a card in the reward pool and vendor stock (`StarterContent.reward_pool(character_id)`: neutral cards plus that character's own). `extended_deck()` is only the fixed balance-testing deck used by the stand-alone battle scene and the sims; its exact composition and size (`EXTENDED_DECK_SIZE`, 14) are pinned in `tests/content_tests.gd`, so change it only on purpose. A new card also means updating the card-count checks in `tests/content_tests.gd` (for example the `all_cards` size). Open the project once (or run `--import`) so Godot registers the new file.
 
+To let a card be Remembered at a rest stop, give it a `remembered` block (a `RememberedData` sub-resource in the same `.tres`, `combat/remembered_data.gd`): the full replacement `effects` list, an optional `cost` (-1 keeps the card's own) and `gain_keywords` / `lose_keywords`. The upgrade must be a modest improvement that keeps the card's identity. There is no second card id: the game builds the `+` card at run time (`CardData.remembered_card()`), and saves store it as `id+`.
+
 ## A relic
 1. Add `data/relics/<name>.tres` with a unique `id` (and `character` if class-bound).
 2. Append its path to `RELIC_PATHS`. Implement the effect where the hook lives (see `docs/RELICS_DESIGN.md`), and add a badge in the relic art if it needs a new one.

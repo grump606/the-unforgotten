@@ -16,6 +16,9 @@ func run() -> int:
 	_test_list()
 	_test_run_state_uses_debug_encounter()
 	_test_screens()
+	_test_proto()
+	_test_proto_statuses()
+	_test_proto_cycling()
 	return _failures
 
 
@@ -58,9 +61,9 @@ func _test_character_and_hp() -> void:
 
 
 func _test_env_fallback_and_args_win() -> void:
-	var env := {DebugLaunch.ENV_FIGHT: "crow", DebugLaunch.ENV_CHARACTER: "pickpocket", DebugLaunch.ENV_HP: "9"}
+	var env := {DebugLaunch.ENV_FIGHT: "crow", DebugLaunch.ENV_CHARACTER: "thief", DebugLaunch.ENV_HP: "9"}
 	var from_env := DebugLaunch.parse(PackedStringArray(), env)
-	_check(from_env.enemy_ids == [&"mourning_crow"] and from_env.character_id == &"pickpocket" and from_env.hp == 9, "the environment works without arguments")
+	_check(from_env.enemy_ids == [&"mourning_crow"] and from_env.character_id == &"thief" and from_env.hp == 9, "the environment works without arguments")
 	var args_win := DebugLaunch.parse(PackedStringArray(["--fight=eraser"]), env)
 	_check(args_win.enemy_ids == [&"the_conductor"], "a command-line fight overrides the environment")
 
@@ -99,6 +102,69 @@ func _test_run_state_uses_debug_encounter() -> void:
 	_check(run_state.boss_label() == "", "cleared, the run is normal again")
 
 
+## The status prototypes: cards for Shaken, Frayed, Malice and Ward, and the Pest that applies them.
+func _test_proto_statuses() -> void:
+	# Every card file in the folder is in the explicit list, with a proto_ id, and none is a registry card.
+	var listed := {}
+	for path in DebugLaunch.PROTO_CARD_PATHS:
+		listed[path] = true
+		var card := load(path) as CardData
+		_check(card != null and String(card.id).begins_with("proto_") and card.display_name.begins_with("Proto: "), "%s loads as a Proto card" % path)
+	for file in DirAccess.get_files_at("res://data/prototype"):
+		if file.ends_with(".tres"):
+			_check(listed.has("res://data/prototype/" + file), "%s is in PROTO_CARD_PATHS" % file)
+	# Every status effect has a prototype, including the debuff, temporary and self-targeted cases.
+	var kinds := {}
+	var has_temporary := false
+	var has_debuff := false
+	var has_self_cost := false
+	for card in DebugLaunch.prototype_deck():
+		for effect in card.effects:
+			kinds[effect.kind] = true
+			has_temporary = has_temporary or (effect.temporary and effect.kind == CardEffect.Kind.MALICE)
+			has_debuff = has_debuff or (effect.kind == CardEffect.Kind.MALICE and effect.amount < 0 and card.target_mode == CardData.TargetMode.SINGLE_ENEMY)
+			has_self_cost = has_self_cost or (effect.kind == CardEffect.Kind.SHAKEN and card.target_mode == CardData.TargetMode.SELF)
+	for kind in [CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD]:
+		_check(kinds.has(kind), "the prototype deck has a card of kind %d" % kind)
+	_check(has_temporary and has_debuff and has_self_cost, "prototypes cover a temporary Malice, a Malice debuff and a self-targeted Shaken")
+	# The Pest: shakes, frays, gains Malice, attacks; not in the enemy registry or any pool.
+	var pest := DebugLaunch.prototype_enemy(&"proto_pest")
+	_check(pest != null and pest.id == &"proto_pest" and pest.display_name.begins_with("Proto: "), "the Pest loads")
+	if pest != null:
+		var order: Array = []
+		for intent in pest.intents:
+			order.append(intent.kind)
+		_check(order == [CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.DAMAGE], "the Pest cycles Shaken, Frayed, Malice, attack: " + str(order))
+		_check(pest.intents[2].amount > 0, "the Pest's Malice intent is a buff for itself")
+	_check(StarterContent.enemy_by_id(&"proto_pest") == null and not StarterContent.enemy_ids().has(&"proto_pest"), "the Pest is not in the enemy registry")
+	var pooled := false
+	for enemy in StarterContent.enemy_pool():
+		pooled = pooled or String(enemy.id).begins_with("proto_")
+	for boss in StarterContent.boss_encounter() + StarterContent.mid_boss_encounter():
+		pooled = pooled or String(boss.id).begins_with("proto_")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	for tier in 3:
+		for enemy in StarterContent.varied_encounter(3, rng, tier, 0):
+			pooled = pooled or String(enemy.id).begins_with("proto_")
+	_check(not pooled, "the Pest is in no encounter pool")
+	# --fight= takes it by id, display name and alias, and --proto works with it.
+	var launch := DebugLaunch.parse(PackedStringArray(["--proto", "--fight=proto_pest"]), {})
+	_check(launch.requested and launch.proto and launch.error == "" and launch.enemy_ids == [&"proto_pest"], "--proto --fight=proto_pest parses")
+	_check(DebugLaunch.parse(PackedStringArray(["--fight=Proto: Pest"]), {}).enemy_ids == [&"proto_pest"], "the Pest resolves by display name")
+	_check(DebugLaunch.parse(PackedStringArray(["--fight=pest,crow"]), {}).enemy_ids == [&"proto_pest", &"mourning_crow"], "the Pest resolves by alias and mixes with others")
+	_check(DebugLaunch.help_text().contains("proto_pest"), "the help lists the Pest")
+	# The run builds the fight from it.
+	var run_state := RunState.new(1, &"thief")
+	for index in run_state.stops.size():
+		if run_state.stops[index].type == RunState.StopType.COMBAT:
+			run_state.stop_index = index
+			break
+	run_state.debug_encounter.assign([&"proto_pest"])
+	var combat := run_state.start_combat()
+	_check(combat != null and combat.enemies.size() == 1 and combat.enemies[0].data.id == &"proto_pest", "the run fights the Pest")
+
+
 func _test_screens() -> void:
 	var vendor := DebugLaunch.parse(PackedStringArray(["--screen=vendor", "--character=medium"]), {})
 	_check(vendor.requested and vendor.error == "" and vendor.screen == "vendor" and vendor.screen_index == 1 and vendor.enemy_ids.is_empty(), "--screen=vendor opens the first shop")
@@ -119,3 +185,68 @@ func _test_screens() -> void:
 	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor", "--fight=eraser"]), {}).error != "", "a fight and a screen together is an error")
 	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor", "--gold=-5"]), {}).error != "", "negative gold is an error")
 	_check(DebugLaunch.screen_count("vendor") == 3 and DebugLaunch.screen_count("rest") >= 3, "the default line has three shops and several rests")
+
+
+func _test_proto() -> void:
+	var launch := DebugLaunch.parse(PackedStringArray(["--proto"]), {})
+	_check(launch.requested and launch.proto and launch.error == "" and launch.enemy_ids.size() == 1, "--proto alone starts a fight with the prototype deck")
+	launch = DebugLaunch.parse(PackedStringArray(["--proto", "--fight=crow"]), {})
+	_check(launch.proto and launch.enemy_ids == [&"mourning_crow"], "--proto keeps the chosen enemy")
+	_check(not DebugLaunch.parse(PackedStringArray(["--fight=crow"]), {}).proto, "no --proto means the normal deck")
+	var deck := DebugLaunch.prototype_deck()
+	_check(deck.size() == DebugLaunch.PROTO_CARD_PATHS.size() * DebugLaunch.PROTO_COPIES and not deck.has(null), "the prototype deck holds every prototype card")
+	var in_pool := false
+	for card in StarterContent.all_cards():
+		in_pool = in_pool or String(card.id).begins_with("proto_")
+	for character_id in StarterContent.character_ids():
+		for card in StarterContent.reward_pool(character_id):
+			in_pool = in_pool or String(card.id).begins_with("proto_")
+	_check(not in_pool, "prototype cards are not in the card registry or any reward pool")
+
+
+## The cycling prototypes (Glimpse, Recall, add card, damage per Forgotten) and the Dreadkeeper: launch
+## arguments, the deck, what the Dreadkeeper does, and that none of it leaks into a registry or pool.
+func _test_proto_cycling() -> void:
+	var launch := DebugLaunch.parse(PackedStringArray(["--proto", "--fight=proto_dreadkeeper"]), {})
+	_check(launch.requested and launch.proto and launch.error == "" and launch.enemy_ids == [&"proto_dreadkeeper"], "--proto --fight=proto_dreadkeeper parses")
+	_check(DebugLaunch.parse(PackedStringArray(["--fight=dreadkeeper"]), {}).enemy_ids == [&"proto_dreadkeeper"], "the Dreadkeeper resolves by alias")
+	_check(DebugLaunch.parse(PackedStringArray(["--fight=Proto: Dreadkeeper"]), {}).enemy_ids == [&"proto_dreadkeeper"], "the Dreadkeeper resolves by display name")
+	_check(DebugLaunch.help_text().contains("proto_dreadkeeper"), "the help lists the Dreadkeeper")
+	var enemy := DebugLaunch.prototype_enemy(&"proto_dreadkeeper")
+	_check(enemy != null and enemy.max_hp == 70 and enemy.intents.size() == 4, "the Dreadkeeper has 70 HP and four intents")
+	if enemy != null and enemy.intents.size() == 4:
+		var first := enemy.intents[0]
+		var second := enemy.intents[1]
+		_check(first.kind == CardEffect.Kind.ADD_CARD and first.pile == CardEffect.Pile.DRAW and first.card != null and first.card.id == &"dread", "intent 1 shuffles a Dread into the draw pile")
+		_check(second.kind == CardEffect.Kind.ADD_CARD and second.pile == CardEffect.Pile.HAND and second.card != null and second.card.id == &"murmur", "intent 2 puts a Murmur in the hand")
+		_check(enemy.intents[2].kind == CardEffect.Kind.DAMAGE and enemy.intents[3].kind == CardEffect.Kind.DAMAGE and enemy.intents[3].amount > enemy.intents[2].amount, "intents 3 and 4 are a plain and a heavier attack")
+	_check(Fighter.ART_KEYS.has(&"proto_dreadkeeper"), "the Dreadkeeper has a figure")
+	var pooled := false
+	for e in StarterContent.enemy_pool():
+		pooled = pooled or String(e.id).begins_with("proto_")
+	for boss in StarterContent.boss_encounter() + StarterContent.mid_boss_encounter():
+		pooled = pooled or String(boss.id).begins_with("proto_")
+	_check(not pooled and StarterContent.enemy_by_id(&"proto_dreadkeeper") == null, "the Dreadkeeper is in no registry or encounter pool")
+	# The deck: one of each, the new kinds present, every card a proto_ card, ids unique, deck of a sensible size.
+	var deck := DebugLaunch.prototype_deck()
+	var ids := {}
+	var kinds := {}
+	for card in deck:
+		ids[card.id] = true
+		_check(String(card.id).begins_with("proto_") and card.display_name.begins_with("Proto: "), "%s is named as a prototype" % card.id)
+		for effect in card.effects:
+			kinds[effect.kind] = true
+	_check(ids.size() == deck.size() and deck.size() <= 24, "the prototype deck has one of each card and stays small (%d)" % deck.size())
+	for kind in [CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL, CardEffect.Kind.DAMAGE_PER_FORGOTTEN]:
+		_check(kinds.has(kind), "the prototype deck tries kind %d" % kind)
+	_check(ids.has(&"proto_forgotten_strike"), "the deck still feeds the Forgotten pile")
+	# The run builds the fight with the deck and the Dreadkeeper.
+	var run_state := RunState.new(1, &"thief")
+	for index in run_state.stops.size():
+		if run_state.stops[index].type == RunState.StopType.COMBAT:
+			run_state.stop_index = index
+			break
+	run_state.debug_encounter.assign([&"proto_dreadkeeper"])
+	run_state.deck = deck
+	var combat := run_state.start_combat()
+	_check(combat != null and combat.enemies.size() == 1 and combat.enemies[0].data.id == &"proto_dreadkeeper", "the run fights the Dreadkeeper")

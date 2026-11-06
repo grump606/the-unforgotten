@@ -6,18 +6,15 @@
 [sub_resource type="Resource" id="Resource_e1"]
 script = ExtResource("2_effect")
 kind = 8
-amount = 1
-
-[sub_resource type="Resource" id="Resource_e2"]
-script = ExtResource("2_effect")
-kind = 2
-amount = 1
+amount = 2
 
 [resource]
 script = ExtResource("1_card")
 id = &"pocket_watch"
-display_name = "Pocket Watch"
+display_name = "Borrowed Time"
 cost = 1
-effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+effects = Array[ExtResource("2_effect")]([SubResource("Resource_e1")])
 target_mode = 2
-character = &"pickpocket"
+forgotten = true
+character = &"thief"
+rarity = 1

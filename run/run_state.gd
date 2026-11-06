@@ -110,7 +110,8 @@ func _init(rng_seed: int = 0, character_id: StringName = StarterContent.DEFAULT_
 		# fight then fails cleanly because Combat rejects an empty deck.
 		character = Character.new()
 	player = Combatant.new(character.display_name, character.max_hp)
-	deck.assign(character.starting_deck)
+	if character.id != &"":
+		deck.assign(StarterContent.starter_deck(character.id))
 	stops = _default_line()
 
 
@@ -154,6 +155,8 @@ func start_combat() -> Combat:
 	if not debug_encounter.is_empty():
 		for enemy_id in debug_encounter:
 			var enemy := StarterContent.enemy_by_id(enemy_id)
+			if enemy == null:
+				enemy = DebugLaunch.prototype_enemy(enemy_id) # debug-only prototype enemies
 			if enemy != null:
 				enemies.append(enemy)
 	elif stop.boss:
@@ -291,6 +294,29 @@ func rest() -> int:
 	return restored
 
 
+## Deck positions of the cards the Remember choice can bring back stronger: those with a remembered
+## block that are not yet Remembered. Empty off a rest stop.
+func rememberable_indices() -> Array[int]:
+	var indices: Array[int] = []
+	var stop := current_stop()
+	if stop == null or stop.type != StopType.REST:
+		return indices
+	for i in deck.size():
+		if deck[i].can_remember():
+			indices.append(i)
+	return indices
+
+
+## The rest stop's second choice: the card at `deck_index` becomes its Remembered form, no heal, and the
+## line moves on. False (changing nothing) off a rest stop or for a card that cannot be Remembered.
+func remember(deck_index: int) -> bool:
+	if not rememberable_indices().has(deck_index):
+		return false
+	deck[deck_index] = deck[deck_index].remembered_card()
+	_advance()
+	return true
+
+
 ## HP the rest at this stop will restore (0 off a rest stop).
 func rest_heal_amount() -> int:
 	var stop := current_stop()
@@ -336,7 +362,7 @@ func vendor() -> Vendor:
 	if stop == null or stop.type != StopType.VENDOR:
 		return null
 	if _vendor == null:
-		_vendor = Vendor.new(deck, _rng, 0, StarterContent.reward_pool(character.id), _unowned_relics(), _wallet)
+		_vendor = Vendor.new(deck, _rng, 0, StarterContent.vendor_pool(character.id), _unowned_relics(), _wallet, StarterContent.rarity_weights(rarity_tier()))
 	return _vendor
 
 
@@ -440,6 +466,14 @@ func _default_line() -> Array[Stop]:
 	return line
 
 
+## How far into the run the player is, 0 to 3 (a quarter of the stop line each): picks the rarity odds
+## (StarterContent.rarity_weights) for rewards and vendor stock.
+func rarity_tier() -> int:
+	if stops.is_empty():
+		return 0
+	return clampi(stop_index * StarterContent.RARITY_WEIGHTS.size() / stops.size(), 0, StarterContent.RARITY_WEIGHTS.size() - 1)
+
+
 func _roll_rewards() -> void:
 	# Mostly the character's own cards, with a neutral one mixed in: up to REWARD_CLASS_CHOICES
 	# class cards, then neutral cards to fill, then any class cards left over.
@@ -450,12 +484,18 @@ func _roll_rewards() -> void:
 			neutral_cards.append(card)
 		else:
 			class_cards.append(card)
-	_shuffle(class_cards)
-	_shuffle(neutral_cards)
+	# Each slot rolls a rarity first (rarer cards come up more often deeper into the run), then a card of it.
+	var weights := StarterContent.rarity_weights(rarity_tier())
 	var picks: Array[CardData] = []
-	picks.append_array(class_cards.slice(0, REWARD_CLASS_CHOICES))
-	picks.append_array(neutral_cards.slice(0, REWARD_CHOICES - picks.size()))
-	picks.append_array(class_cards.slice(REWARD_CLASS_CHOICES, REWARD_CLASS_CHOICES + REWARD_CHOICES - picks.size()))
+	var class_picks := StarterContent.pick_by_rarity(class_cards, REWARD_CLASS_CHOICES, weights, _rng)
+	picks.append_array(class_picks)
+	picks.append_array(StarterContent.pick_by_rarity(neutral_cards, REWARD_CHOICES - picks.size(), weights, _rng))
+	if picks.size() < REWARD_CHOICES:
+		var rest: Array[CardData] = []
+		for card in class_cards:
+			if not class_picks.has(card):
+				rest.append(card)
+		picks.append_array(StarterContent.pick_by_rarity(rest, REWARD_CHOICES - picks.size(), weights, _rng))
 	_reward_choices.assign(picks)
 	for card in picks:
 		if not offered_ids.has(card.id):

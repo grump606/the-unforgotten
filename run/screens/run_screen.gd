@@ -58,12 +58,18 @@ func add_backdrop(scene: Control) -> void:
 ## The pick-a-card-to-remove list shared by the reward and vendor screens. The cards sit in a
 ## vertical ScrollContainer (a big deck scrolls instead of running off the window); the Cancel
 ## button is outside it, so it is always visible. Returns the scroll container.
-func add_remove_picker(box: VBoxContainer, on_pick: Callable, on_cancel: Callable) -> ScrollContainer:
+## `only` (deck positions) limits the picker to those cards; `on_pick` still receives the deck position.
+func add_remove_picker(box: VBoxContainer, on_pick: Callable, on_cancel: Callable, only: Array[int] = []) -> ScrollContainer:
 	var grid := GridContainer.new()
 	grid.columns = PICKER_COLUMNS
 	grid.add_theme_constant_override("h_separation", 6)
 	grid.add_theme_constant_override("v_separation", 6)
-	for i in run.deck.size():
+	var shown: Array[int] = only
+	if only.is_empty():
+		shown = []
+		for i in run.deck.size():
+			shown.append(i)
+	for i in shown:
 		grid.add_child(card_view(run.deck[i], PICKER_CARD_SCALE, on_pick.bind(i)))
 	var scroll := ScrollContainer.new()
 	scroll.name = "PickerScroll"
@@ -74,8 +80,8 @@ func add_remove_picker(box: VBoxContainer, on_pick: Callable, on_cancel: Callabl
 	# Tall enough for the whole deck, but never more than the window leaves after the title and Cancel.
 	# (Computed from the card size: a grid's own minimum size is not settled until it is in the tree.)
 	var cell := Vector2(CardView.BASE.x, CardView.BASE.y + CardView.LIFT) * PICKER_CARD_SCALE
-	var columns := mini(PICKER_COLUMNS, maxi(run.deck.size(), 1))
-	var rows := ceili(float(run.deck.size()) / PICKER_COLUMNS)
+	var columns := mini(PICKER_COLUMNS, maxi(shown.size(), 1))
+	var rows := ceili(float(shown.size()) / PICKER_COLUMNS)
 	var content := Vector2(columns * cell.x + (columns - 1) * 6.0, rows * cell.y + maxi(rows - 1, 0) * 6.0)
 	var window_height := body.get_viewport_rect().size.y if body.is_inside_tree() else 648.0
 	scroll.custom_minimum_size = Vector2(content.x, minf(content.y + 2.0, maxf(window_height - PICKER_RESERVED_HEIGHT, 120.0)))

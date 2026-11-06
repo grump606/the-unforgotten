@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"mourners_armband"
+display_name = "Mourner's Armband"
+description = "Start each fight with Ward +1."
+character = &"deserter"
+kind = 14
+amount = 1
+price = 70

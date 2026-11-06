@@ -13,7 +13,7 @@ Status: proposal only, nothing implemented. The owner said rewards "could use wo
 
 ## Weaknesses (evidenced from the code)
 
-1. **Small pools, no memory.** Pool sizes are about 17 (Deserter: 11 class + 6 neutral), 15 (Pickpocket) and 15 (Medium) by `.tres` count. Each roll is independent, so the same card can appear in consecutive rewards and in the vendor, and a card already owned is offered as if new. `CLASSES_PLAN.md` line 90 already flagged this risk.
+1. **Small pools, no memory.** Pool sizes are about 17 (Deserter: 11 class + 6 neutral), 15 (Thief) and 15 (Medium) by `.tres` count. Each roll is independent, so the same card can appear in consecutive rewards and in the vendor, and a card already owned is offered as if new. `CLASSES_PLAN.md` line 90 already flagged this risk.
 2. **Only four rewards per run.** The default line has four non-boss fights (1, 2, 2, 3 enemies), so a whole run adds at most 4 cards. Each pick matters a lot and a weak offer cannot be recovered from.
 3. **No rarity or power curve.** Every card is equally likely at fight 1 and fight 4. Nothing signals a strong card; the vendor's price tiers are the only power signal and rewards ignore them.
 4. **One reward type.** The reward is always "add a card". No upgrade, remove, heal, gold or max-HP option, even though removal and heal already exist as vendor services and `Vendor.remove_card` is reusable.

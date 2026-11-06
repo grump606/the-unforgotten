@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"hunters_whistle"
+display_name = "Hunter's Whistle"
+description = "The first enemy starts each fight with 2 Scent."
+character = &"stray"
+kind = 18
+amount = 2
+price = 65

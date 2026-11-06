@@ -3,7 +3,7 @@
 #   .\scripts\debug_fight.ps1 wisp,crow,hound -Character medium -Hp 20
 #   .\scripts\debug_fight.ps1 list                      # prints the accepted enemy names
 #   .\scripts\debug_fight.ps1 -Screen vendor            # the first shop, 100 gold, player at 55% HP
-#   .\scripts\debug_fight.ps1 -Screen rest -Character pickpocket -Hp 10 -Gold 0
+#   .\scripts\debug_fight.ps1 -Screen rest -Character thief -Hp 10 -Gold 0
 #   .\scripts\debug_fight.ps1 -Screen vendor:2          # the second shop on the line
 # Engine lookup: -Godot, $env:GODOT_EXE, $env:GODOT, then the winget install, then PATH.
 param(

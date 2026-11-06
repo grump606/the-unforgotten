@@ -10,6 +10,10 @@ func run() -> int:
 	_test_stock()
 	_test_prices()
 	_test_payoff_pricing()
+	_test_existing_card_prices_unchanged()
+	_test_hits_multiply_value()
+	_test_keyword_adjustments()
+	_test_per_energy_value()
 	_test_buy_card()
 	_test_remove_card()
 	_test_buy_heal()
@@ -75,7 +79,7 @@ func _test_prices() -> void:
 	# The free cycling cards must not sit in the cheapest tier next to plain block.
 	var second_wind := load(StarterContent.SECOND_WIND_PATH) as CardData
 	var brace := load(StarterContent.BRACE_PATH) as CardData
-	_check(Vendor.card_price(second_wind) > Vendor.card_price(brace), "Second Wind (free block + draw) costs more than Brace (free block)")
+	_check(Vendor.card_price(second_wind) > Vendor.card_price(brace), "Borrowed Breath (free block + draw) costs more than Brace (free block)")
 	_check(Vendor.PRICE_CHEAP < Vendor.PRICE_MID and Vendor.PRICE_MID < Vendor.PRICE_PRICEY, "tiers ascend")
 
 
@@ -207,14 +211,193 @@ func _test_payoff_pricing() -> void:
 	var spree := load("res://data/cards/spree.tres") as CardData
 	var reckoning := load("res://data/cards/reckoning.tres") as CardData
 	var last_pocket := load("res://data/cards/last_pocket.tres") as CardData
-	_check(Vendor.card_price(spree) > Vendor.PRICE_CHEAP, "Spree prices above the cheap tier")
+	_check(Vendor.card_price(spree) > Vendor.PRICE_CHEAP, "Many Hands prices above the cheap tier")
 	_check(Vendor.card_price(reckoning) > Vendor.PRICE_CHEAP, "Reckoning prices above the cheap tier")
-	_check(Vendor.card_price(last_pocket) > Vendor.PRICE_CHEAP, "Last Pocket prices above the cheap tier")
-	_check(Vendor.card_value(reckoning) > Vendor.card_value(spree), "Reckoning (2 energy, x2 Haunt) is worth more than Spree")
+	_check(Vendor.card_price(last_pocket) > Vendor.PRICE_CHEAP, "Last Keepsake prices above the cheap tier")
 	var plain_two := CardData.make(&"t_plain2", "Plain", 2, [CardEffect.make(CardEffect.Kind.DAMAGE, 2)] as Array[CardEffect])
-	_check(Vendor.card_value(spree) > Vendor.card_value(plain_two), "Spree is worth more than its base damage alone")
+	_check(Vendor.card_value(spree) > Vendor.card_value(plain_two), "Many Hands is worth more than its base damage alone")
 	var free_energy := CardData.make(&"t_energy", "Energy", 0, [CardEffect.make(CardEffect.Kind.GAIN_ENERGY, 1)] as Array[CardEffect])
 	_check(Vendor.card_price(free_energy) > Vendor.PRICE_CHEAP - 1 and Vendor.card_value(free_energy) == Vendor.ENERGY_VALUE, "gained energy has a deliberate value")
 	var costly := CardData.make(&"t_hpcost", "HP", 1, [CardEffect.make(CardEffect.Kind.DAMAGE, 8), CardEffect.make(CardEffect.Kind.LOSE_HP, 4)] as Array[CardEffect])
 	var free_hit := CardData.make(&"t_hit", "Hit", 1, [CardEffect.make(CardEffect.Kind.DAMAGE, 8)] as Array[CardEffect])
 	_check(Vendor.card_value(costly) < Vendor.card_value(free_hit), "paying HP lowers a card's value")
+
+
+## Golden table of id -> [value, price] for every data/cards card, taken before the keyword and
+## multi-hit valuation existed. Update it on purpose whenever a card is retuned (Flurry and Glimpse the
+## Exit changed in Phase 4a; Bleed the Veil, Heavy Blow, Iron Resolve and Last Stand in the 4e balance pass); a new card is added with its computed value and price.
+const GOLDEN := {
+	"iron_skin": [14, 24],
+	"bulwark_vow": [-7, 10],
+	"nick_and_run": [-13, 10],
+	"blood_price": [19, 24],
+	"pack_instinct": [-12, 10],
+	"loose_change": [5, 10],
+	"slipped_pocket": [8, 16],
+	"spare_key": [3, 10],
+	"steady_hands": [12, 24],
+	"counter_step": [10, 16],
+	"second_look": [5, 10],
+	"downpour": [10, 16],
+	"hold_fast": [10, 16],
+	"pull_together": [7, 16],
+	"lucky_break": [7, 16],
+	"shake_them": [6, 16],
+	"catch_the_scent": [4, 10],
+	"snap": [10, 16],
+	"bristle": [9, 16],
+	"run_down": [15, 24],
+	"worry": [9, 16],
+	"circle": [10, 16],
+	"nose_to_the_wind": [5, 10],
+	"old_wound": [10, 16],
+	"howl": [8, 16],
+	"pounce": [13, 24],
+	"savage": [16, 24],
+	"bring_down": [24, 24],
+	"hackles": [12, 24],
+	"tear_loose": [14, 24],
+	"go_feral": [13, 24],
+	"open_grave": [14, 24],
+	"light_step": [18, 24],
+	"quick_hands": [6, 16],
+	"quiet_debt": [8, 16],
+	"standing_guard": [15, 24],
+	"unbroken_vow": [5, 10],
+	"bash": [7, 16],
+	"bleed_the_veil": [16, 24],
+	"brace": [2, 10],
+	"cold_steel": [9, 16],
+	"cold_whisper": [3, 10],
+	"confess": [10, 16],
+	"counter_stance": [20, 24],
+	"cutting_word": [7, 16],
+	"dig_in": [4, 10],
+	"dig_deep": [11, 16],
+	"flurry": [4, 10],
+	"glimpse_exit": [7, 16],
+	"grave_chill": [16, 24],
+	"guarded_strike": [8, 16],
+	"hamstring": [14, 24],
+	"heavy_blow": [17, 24],
+	"hold_the_line": [9, 16],
+	"iron_resolve": [15, 24],
+	"keep_the_trail": [6, 16],
+	"last_pocket": [12, 24],
+	"last_stand": [29, 24],
+	"lift": [8, 16],
+	"lingering_dread": [12, 24],
+	"mark_the_weak": [8, 16],
+	"penance": [8, 16],
+	"pocket_watch": [7, 16],
+	"reckoning": [12, 24],
+	"seance": [12, 24],
+	"second_wind": [6, 16],
+	"shoulder_charge": [17, 24],
+	"shove": [8, 16],
+	"sleight": [3, 10],
+	"slip_past": [7, 16],
+	"spirit_tithe": [8, 16],
+	"spree": [13, 24],
+	"cleave": [12, 24],
+	"catch_breath": [12, 24],
+	"taunt": [9, 16],
+	"brace_for_impact": [13, 24],
+	"shield_bash": [11, 16],
+	"iron_will": [16, 24],
+	"earthshaker": [11, 16],
+	"fortify": [12, 24],
+	"pickpocket": [6, 16],
+	"shiv_flurry": [8, 16],
+	"smoke_bomb": [10, 16],
+	"tripwire": [7, 16],
+	"second_story": [9, 16],
+	"vanish": [7, 16],
+	"steady_aim": [8, 16],
+	"the_big_score": [23, 24],
+	"whisper_campaign": [5, 10],
+	"hex": [10, 16],
+	"drain": [10, 16],
+	"mourners": [14, 24],
+	"dark_pact": [5, 10],
+	"veil_walk": [10, 16],
+	"wail": [6, 16],
+	"frightful_visage": [7, 16],
+	"lunge": [9, 16],
+	"gnash": [10, 16],
+	"prowl": [11, 16],
+	"maul": [16, 24],
+	"pack_hunt": [10, 16],
+	"stalk": [4, 10],
+	"cripple": [8, 16],
+	"wild_hunt": [15, 24],
+	"steady_breath": [9, 16],
+	"sweep": [7, 16],
+	# Phase 4b Thief cards.
+	"sharpen": [8, 16],
+	"quick_study": [4, 10],
+	"cleaned_out": [7, 16],
+	# Phase 4d: Medium
+	"remember": [5, 10],
+	"chorus_of_the_lost": [6, 16],
+	"hollow_bargain": [-12, 10]
+}
+
+
+func _test_existing_card_prices_unchanged() -> void:
+	var dir := DirAccess.open("res://data/cards")
+	var seen := 0
+	for file in dir.get_files():
+		if not file.ends_with(".tres"):
+			continue
+		var card := load("res://data/cards/" + file) as CardData
+		seen += 1
+		if not GOLDEN.has(String(card.id)):
+			_check(false, "card %s is missing from the golden price table" % card.id)
+			continue
+		var want: Array = GOLDEN[String(card.id)]
+		_check(Vendor.card_value(card) == want[0], "value of %s is unchanged (%d)" % [card.id, Vendor.card_value(card)])
+		_check(Vendor.card_price(card) == want[1], "price of %s is unchanged (%d)" % [card.id, Vendor.card_price(card)])
+	_check(seen == GOLDEN.size(), "golden table covers every card (%d of %d)" % [seen, GOLDEN.size()])
+
+
+func _card(cost: int, effects: Array[CardEffect]) -> CardData:
+	return CardData.make(&"t_card", "T", cost, effects)
+
+
+func _test_hits_multiply_value() -> void:
+	var single := _card(1, [CardEffect.make(CardEffect.Kind.DAMAGE, 3)] as Array[CardEffect])
+	var triple := _card(1, [CardEffect.make(CardEffect.Kind.DAMAGE, 3, 0, 0, 3)] as Array[CardEffect])
+	var zero := _card(1, [CardEffect.make(CardEffect.Kind.DAMAGE, 3, 0, 0, 0)] as Array[CardEffect])
+	_check(Vendor.card_value(triple) == 2 + 9, "three hits of 3 are worth 9")
+	_check(Vendor.card_value(zero) == Vendor.card_value(single), "hits below 1 count as 1")
+	var block := _card(1, [CardEffect.make(CardEffect.Kind.BLOCK, 3, 0, 0, 3)] as Array[CardEffect])
+	_check(Vendor.card_value(block) == 2 + 3, "hits do not multiply a non-damage effect")
+
+
+func _test_keyword_adjustments() -> void:
+	var base := _card(1, [CardEffect.make(CardEffect.Kind.DAMAGE, 6)] as Array[CardEffect])
+	var base_value := Vendor.card_value(base)
+	var cases := {
+		"forgotten": -1, "fading": -1, "ready": 1, "anchor": 1, "dormant": -1, "surge": 1,
+	}
+	for key in cases:
+		var card := _card(1, [CardEffect.make(CardEffect.Kind.DAMAGE, 6)] as Array[CardEffect])
+		card.set(key, true)
+		var delta := Vendor.card_value(card) - base_value
+		_check(signi(delta) == cases[key], "%s moves value in its documented direction (%d)" % [key, delta])
+	var dormant := _card(1, [CardEffect.make(CardEffect.Kind.DAMAGE, 6)] as Array[CardEffect])
+	dormant.dormant = true
+	_check(Vendor.card_price(dormant) == Vendor.PRICE_CHEAP, "a dormant card is priced as junk")
+	var ready_card := _card(1, [CardEffect.make(CardEffect.Kind.DAMAGE, 6)] as Array[CardEffect])
+	ready_card.ready = true
+	_check(Vendor.card_value(ready_card) == base_value + Vendor.READY_ADJUST, "ready adds READY_ADJUST")
+
+
+func _test_per_energy_value() -> void:
+	var surge_hits := _card(0, [CardEffect.make(CardEffect.Kind.DAMAGE, 3, 0, 0, 1, true)] as Array[CardEffect])
+	surge_hits.surge = true
+	_check(Vendor.card_value(surge_hits) == 3 * Vendor.SURGE_TYPICAL_ENERGY + Vendor.SURGE_ADJUST, "per_energy damage is valued at the typical energy in hits")
+	var surge_block := _card(0, [CardEffect.make(CardEffect.Kind.BLOCK, 4, 0, 0, 1, true)] as Array[CardEffect])
+	surge_block.surge = true
+	_check(Vendor.card_value(surge_block) == 4 * Vendor.SURGE_TYPICAL_ENERGY + Vendor.SURGE_ADJUST, "per_energy block is valued at the typical energy in amount")

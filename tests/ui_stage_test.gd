@@ -51,7 +51,7 @@ func _initialize() -> void:
 		check(fighter.size.x >= Fighter.MIN_WIDTH and fighter.size.y == Fighter.OVERHEAD + fighter.figure_height + Fighter.UNDER, "%s fighter size" % unit.display_name)
 		check(fighter.facing < 0.0 and fighter.figure_rect().size.x > 20.0, "%s faces the player" % unit.display_name)
 		fighter.queue_free()
-	for id in [&"deserter", &"pickpocket", &"medium", &""]:
+	for id in [&"deserter", &"thief", &"medium", &""]:
 		var f := Fighter.new()
 		holder.add_child(f)
 		f.set_player(Combatant.new("Wanderer", 40), id)
@@ -180,7 +180,7 @@ func _initialize() -> void:
 	check(battle._target_index == 1 and views[1].targeted and not views[2].targeted, "clicking a fighter targets that enemy")
 	battle._combat.enemies[1].apply_status(Combatant.Status.EXPOSED, 2)
 	battle._refresh()
-	check(views[1].tooltip_text.contains("2 more turns") and views[1].tooltip_text.contains("Next: ") and not views[0].tooltip_text.contains("more turns"), "the tooltip shows the next move and statuses")
+	check(views[1].tooltip_text.contains("2 more turns") and views[1].tooltip_text.contains("Omen: ") and not views[0].tooltip_text.contains("more turns"), "the tooltip shows the next move and statuses")
 	check(battle._enemy_views[1] == views[1], "a refresh keeps the same fighters")
 	battle._combat.enemies[1].take_damage(9999)
 	battle._refresh()

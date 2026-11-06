@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" uid="uid://cvqeldq7ry1bu" path="res://combat/card_data.gd" id="1_card"]
+[ext_resource type="Script" uid="uid://v0wf0vn2ro0b" path="res://combat/card_effect.gd" id="2_effect"]
+
+[resource]
+script = ExtResource("1_card")
+id = &"murmur"
+display_name = "Murmur"
+cost = 0
+effects = Array[ExtResource("2_effect")]([])
+target_mode = 2
+dormant = true
+fading = true

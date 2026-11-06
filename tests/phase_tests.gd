@@ -152,4 +152,4 @@ func _test_bosses_define_phase_two() -> void:
 		_check(data.phase_two_title.strip_edges() != "", "%s has a phase two title" % data.display_name)
 		_check(data.phase_two_hp_percent >= 1 and data.phase_two_hp_percent <= 99, "%s has a sane phase two threshold" % data.display_name)
 		for intent in data.phase_two_intents:
-			_check(intent.kind in [CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK, CardEffect.Kind.EXPOSE], "%s phase two intents use enemy intent kinds" % data.display_name)
+			_check(intent.kind in [CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK, CardEffect.Kind.EXPOSE, CardEffect.Kind.MALICE, CardEffect.Kind.ADD_CARD], "%s phase two intents use enemy intent kinds" % data.display_name)

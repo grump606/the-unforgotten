@@ -19,7 +19,7 @@ Matches the UI's `Color(0.04, 0.04, 0.07)` pause background and the story tone (
 ## Per-character detail (`RunState.character.id`)
 
 - `deserter`: a discarded uniform coat on the seat at lower left (olive, brass buttons, epaulette), dimming and brightening with the lamp.
-- `pickpocket`: a stray pocket watch on a chain from a ceiling hook, swinging with a glint at each end of the swing.
+- `thief`: a stray pocket watch on a chain from a ceiling hook, swinging with a glint at each end of the swing.
 - `medium`: three faint translucent figures on the far bench, each flickering in and out on its own rhythm.
 - Anything else (empty, unknown): the neutral scene.
 
