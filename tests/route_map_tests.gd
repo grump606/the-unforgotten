@@ -39,6 +39,7 @@ func run() -> int:
 	_test_round_trip()
 	_test_from_line()
 	_test_elite_config()
+	_test_forced_rest_row()
 	_test_config_merge()
 	_test_config_shapes()
 	_test_hostile_data()
@@ -119,7 +120,17 @@ func _test_structure() -> void:
 		for row in 30:
 			if map.row_nodes(row).size() > 1:
 				free += 1
-		_check(free == 24, "seed %d: 24 free rows (%d)" % [map_seed, free])
+		_check(free == 24, "seed %d: 24 multi-node rows, 22 free and 2 forced rest rows (%d)" % [map_seed, free])
+		for forced_row in [12, 27]:
+			var forced_nodes := map.row_nodes(forced_row)
+			var all_rest := true
+			var rest_before := false
+			for n in forced_nodes:
+				all_rest = all_rest and n.type == REST
+			for n in map.row_nodes(forced_row - 1):
+				rest_before = rest_before or n.type == REST
+			_check(forced_nodes.size() >= 3 and all_rest, "seed %d: row %d is the forced rest row, all rests" % [map_seed, forced_row])
+			_check(not rest_before, "seed %d: row %d, before the forced rest row, holds no rest" % [map_seed, forced_row - 1])
 		_check(map.starts().size() == 1 and map.finals().size() == 1, "seed %d: one start and one final boss" % map_seed)
 		_check(map.node(map.starts()[0]).type == STORY and map.node(map.starts()[0]).beat_index == 0, "seed %d: the run opens with story beat 0" % map_seed)
 		var last := map.node(map.finals()[0])
@@ -215,11 +226,16 @@ func _test_type_rules() -> void:
 						fights += 1
 					if i < 3:
 						_check(n.type == FIGHT, "seed %d: free row %d of act %d is all fights" % [map_seed, i, act + 1])
+					if i == rows.size() - 1:
+						_check(n.type == REST, "seed %d: the last free row of act %d is the forced rest row" % [map_seed, act + 1])
+					if i == rows.size() - 2:
+						_check(n.type != REST, "seed %d: the row before the forced rest row of act %d has no rest" % [map_seed, act + 1])
 					_check(n.type != ELITE, "seed %d: no elites with the default weights" % map_seed)
 					if n.type == REST or n.type == SHOP:
 						for p in n.prev:
 							_check(map.node(p).type != n.type, "seed %d: %d does not follow its own type" % [map_seed, n.id])
-				_check(fights >= 1, "seed %d: free row %d of act %d keeps a plain fight" % [map_seed, i, act + 1])
+				if i < rows.size() - 1:
+					_check(fights >= 1, "seed %d: free row %d of act %d keeps a plain fight" % [map_seed, i, act + 1])
 	_check(types_seen.has(FIGHT) and types_seen.has(REST) and types_seen.has(SHOP), "fights, rests and shops all occur")
 
 
@@ -238,10 +254,11 @@ func _test_availability() -> void:
 		var map := RouteMap.generate(map_seed, CHARACTERS[map_seed % 4])
 		for act in 2:
 			var rows := RouteMap.free_rows(act)
-			# Windows only count free rows at or after the 3 safe rows.
-			for start in range(3, rows.size() - 3):
-				_check(_window_has(map, rows, start, 4, REST), "seed %d act %d: a rest within free rows %d to %d" % [map_seed, act + 1, start, start + 3])
+			# Windows only count free rows at or after the 3 safe rows and before the forced rest row: rest windows
+			# end by free row 9 (row 10 cannot hold a rest and row 11 is the forced one), shop windows by free row 10.
 			for start in range(3, rows.size() - 7):
+				_check(_window_has(map, rows, start, 6, REST), "seed %d act %d: a rest within free rows %d to %d" % [map_seed, act + 1, start, start + 5])
+			for start in range(3, rows.size() - 8):
 				_check(_window_has(map, rows, start, 8, SHOP), "seed %d act %d: a shop within free rows %d to %d" % [map_seed, act + 1, start, start + 7])
 		rest_density += map.count_of(REST)
 		shop_density += map.count_of(SHOP)
@@ -251,11 +268,13 @@ func _test_availability() -> void:
 			for n in map.row_nodes(row):
 				if n.type == REST or n.type == SHOP:
 					special += 1
+			if row % 15 == RouteMap.FORCED_REST_ROW:
+				continue
 			_check(special < map.row_nodes(row).size() or map.row_nodes(row).size() == 1 and map.row_nodes(row)[0].type != REST, "seed %d row %d: not every node is a rest or shop" % [map_seed, row])
 	var rests_per_map := float(rest_density) / 320.0
 	var shops_per_map := float(shop_density) / 320.0
-	_check(rests_per_map > 14.0 and rests_per_map < 26.0, "rests per map in a sane range (%.1f)" % rests_per_map)
-	_check(shops_per_map > 7.0 and shops_per_map < 16.0, "shops per map in a sane range (%.1f)" % shops_per_map)
+	_check(rests_per_map > 15.0 and rests_per_map < 25.0, "rests per map in a sane range (%.1f)" % rests_per_map)
+	_check(shops_per_map > 5.0 and shops_per_map < 11.0, "shops per map in a sane range (%.1f)" % shops_per_map)
 	# Tight windows and few rolled rests and shops make the repair do the work; it must not undo the other window.
 	var stress := {"type_weights": {"fight": 80.0, "rest": 3.0, "shop": 3.0}, "rest_window": 3, "shop_window": 3}
 	var stress_bad := 0
@@ -452,7 +471,7 @@ func _test_validate_catches_corruption() -> void:
 
 	var no_rests := _copy(map)
 	for n in no_rests.nodes:
-		if n.type == REST and n.act == 0:
+		if n.type == REST and n.act == 0 and n.row != RouteMap.FORCED_REST_ROW:
 			n.type = FIGHT
 	_check(_any_violation(no_rests, "hold no rest"), "an act without rests is reported")
 
@@ -461,6 +480,41 @@ func _test_validate_catches_corruption() -> void:
 		if n.type == SHOP:
 			n.type = FIGHT
 	_check(_any_violation(no_shops, "hold no shop"), "a map without shops is reported")
+
+	var no_forced := _copy(map)
+	for n in no_forced.row_nodes(12):
+		n.type = FIGHT
+		n.enemy_count = 1
+	_check(_any_violation(no_forced, "forced rest row"), "an act 1 map without the forced rest row is reported")
+
+	var no_forced_two := _copy(map)
+	no_forced_two.row_nodes(27)[0].type = SHOP
+	_check(_any_violation(no_forced_two, "forced rest row"), "one non-rest node in the act 2 forced rest row is reported")
+
+	var rest_before := _copy(map)
+	var before_target: RouteMap.MapNode = null
+	for n in rest_before.row_nodes(11):
+		if n.type == FIGHT:
+			before_target = n
+	_check(before_target != null, "setup: a fight in the row before the forced rest row")
+	if before_target != null:
+		before_target.type = REST
+		before_target.enemy_count = 0
+		before_target.backdrop = &""
+		_check(_any_violation(rest_before, "before the forced rest row"), "a rest in the row before the forced rest row is reported")
+
+	# The path check on its own: with every rest of act 1 turned into a fight, paths reach the mid-boss without one.
+	# (A forced-row node alone does not fail it when an earlier optional rest covers the path: the rule is per path.)
+	var routed_around := _copy(map)
+	for n in routed_around.nodes:
+		if n.type == REST and n.act == 0:
+			n.type = FIGHT
+	var path_problems: Array[String] = []
+	routed_around._check_rest_before_bosses(path_problems, routed_around._rows)
+	_check(not path_problems.is_empty(), "a path that reaches a boss without a rest is reported")
+	var path_ok: Array[String] = []
+	map._check_rest_before_bosses(path_ok, map._rows)
+	_check(path_ok.is_empty(), "every path of a generated map rests before each boss")
 
 	var all_rest := _copy(map)
 	for n in all_rest.row_nodes(10):
@@ -660,7 +714,7 @@ func _test_from_line() -> void:
 
 
 func _test_elite_config() -> void:
-	var config := {"type_weights": {"elite": 12.0}}
+	var config := {"type_weights": {"elite": 14.0}}
 	var elites := 0
 	var elites_by_count := {}
 	for map_seed in 150:
@@ -675,6 +729,7 @@ func _test_elite_config() -> void:
 					elites += 1
 					elites_by_count[n.enemy_count] = int(elites_by_count.get(n.enemy_count, 0)) + 1
 					_check(i >= 3, "seed %d: an elite is never in the first 3 free rows" % map_seed)
+					_check(i < rows.size() - 1, "seed %d: an elite is never in the forced rest row" % map_seed)
 					_check(n.enemy_count >= 2 and n.enemy_count <= Combat.MAX_ENEMIES, "seed %d: an elite has 2 or more enemies" % map_seed)
 					_check(n.backdrop != &"" and n.backdrop != &"battle_bell_court", "seed %d: an elite has a regular backdrop" % map_seed)
 					for p in n.prev:
@@ -685,6 +740,33 @@ func _test_elite_config() -> void:
 	_check(plain.count_of(ELITE) == 0, "no elites with the default weights")
 
 
+func _test_forced_rest_row() -> void:
+	# The forced rest row does not depend on the weights: even with rests weighted at zero it is all rests.
+	for config in [{"type_weights": {"rest": 0.0}, "rest_window": 0}, {"type_weights": {"elite": 14.0}}, {"free_widths": [4, 5]}, {"free_widths": [2, 3]}]:
+		for map_seed in 30:
+			var map := RouteMap.generate(map_seed, CHARACTERS[map_seed % 4], config)
+			_check(map.validate().is_empty(), "seed %d: %s validates" % [map_seed, str(config)])
+			for row in [12, 27]:
+				var all_rest := true
+				for n in map.row_nodes(row):
+					all_rest = all_rest and n.type == REST
+				_check(all_rest, "seed %d: row %d is all rests with %s" % [map_seed, row, str(config)])
+	# Every path passes a rest before each boss, counted path by path on small maps.
+	for map_seed in 25:
+		var map := RouteMap.generate(map_seed, CHARACTERS[map_seed % 4])
+		if map.path_count() > 3000:
+			continue
+		for path in map.all_paths():
+			var rested_since := 0
+			for id in path:
+				var n := map.node(id)
+				if n.type == REST:
+					rested_since += 1
+				elif n.is_boss():
+					_check(rested_since >= 1, "seed %d: a path reaches boss row %d without a rest" % [map_seed, n.row])
+					rested_since = 0
+
+
 func _test_config_merge() -> void:
 	var cfg := RouteMap.make_config({"type_weights": {"elite": 5.0}, "rest_window": 5})
 	_check(float(cfg["type_weights"]["elite"]) == 5.0 and float(cfg["type_weights"]["fight"]) == 26.0 and int(cfg["rest_window"]) == 5, "make_config merges over the defaults")
@@ -693,7 +775,7 @@ func _test_config_merge() -> void:
 	_check(loose.validate().is_empty(), "a looser availability window still validates")
 	var rows := RouteMap.free_rows(0)
 	var ok := true
-	for start in range(0, rows.size() - 4):
+	for start in range(3, rows.size() - 7):
 		ok = ok and _window_has(loose, rows, start, 5, REST)
 	_check(ok, "a rest window of 5 is honoured")
 
@@ -717,8 +799,9 @@ func _test_config_shapes() -> void:
 	_check(narrow.validate().is_empty(), "a narrower layout is valid")
 
 
-## The node mix over the free nodes of many maps, with the default weights: about 63% fights, 24% rests and
-## 13% shops (docs/MAP_DESIGN.md has the measured numbers). A random path takes about 15 fights, 5 rests, 3 shops.
+## The node mix over the free nodes of many maps (the forced rest rows included), with the default weights: about
+## 68% fights, 23% rests and 9% shops (docs/MAP_DESIGN.md has the measured numbers). A random path takes about 16.5
+## fights, 5.3 rests (2.7 per act, one of them the forced one) and 2.1 shops over the run.
 func _test_node_mix() -> void:
 	var counts := {FIGHT: 0, REST: 0, SHOP: 0, ELITE: 0}
 	var free_total := 0
@@ -747,28 +830,29 @@ func _test_node_mix() -> void:
 	var fight_share := float(counts[FIGHT]) / free_total
 	var rest_share := float(counts[REST]) / free_total
 	var shop_share := float(counts[SHOP]) / free_total
-	_check(fight_share > 0.58 and fight_share < 0.68, "fights are about 63%% of free nodes (%.3f)" % fight_share)
-	_check(rest_share > 0.20 and rest_share < 0.28, "rests are about 24%% of free nodes (%.3f)" % rest_share)
-	_check(shop_share > 0.10 and shop_share < 0.16, "shops are about 13%% of free nodes (%.3f)" % shop_share)
+	_check(fight_share > 0.63 and fight_share < 0.73, "fights are about 68%% of free nodes (%.3f)" % fight_share)
+	_check(rest_share > 0.19 and rest_share < 0.27, "rests are about 23%% of free nodes (%.3f)" % rest_share)
+	_check(shop_share > 0.06 and shop_share < 0.12, "shops are about 9%% of free nodes (%.3f)" % shop_share)
 	_check(counts[ELITE] == 0, "no elites by default")
 	var fights_per_path := float(path_fights) / walks
 	var rests_per_path := float(path_rests) / walks
 	var shops_per_path := float(path_shops) / walks
-	_check(fights_per_path > 13.5 and fights_per_path < 17.5, "a random path has about 15 fights (%.2f)" % fights_per_path)
-	_check(rests_per_path > 4.0 and rests_per_path < 7.0, "a random path has about 5 rests (%.2f)" % rests_per_path)
-	_check(shops_per_path > 2.0 and shops_per_path < 4.2, "a random path has about 3 shops (%.2f)" % shops_per_path)
+	_check(fights_per_path > 15.0 and fights_per_path < 18.0, "a random path has about 16.5 fights (%.2f)" % fights_per_path)
+	_check(rests_per_path > 4.6 and rests_per_path < 6.2, "a random path has about 5.3 rests (%.2f)" % rests_per_path)
+	_check(shops_per_path > 1.5 and shops_per_path < 2.8, "a random path has about 2 shops (%.2f)" % shops_per_path)
 
 
-## Rests and shops stay optional: per act, the route that avoids them sees about one rest and almost no shops
-## (and some maps allow none), while the route that seeks them out sees about 4 rests and 3 shops. Exact, by a
-## dynamic programme over each act's paths.
+## Rests and shops stay optional: per act, the route that avoids them sees only the forced rest (one rest in most
+## maps) and almost no shops (most maps allow none), while the route that seeks them out sees about 4 rests and
+## 2.5 shops. Exact, by a dynamic programme over each act's paths.
 func _test_skippable() -> void:
 	var low_rest := 0
 	var high_rest := 0
 	var low_shop := 0
 	var high_shop := 0
-	var zero_rest := 0
+	var one_rest := 0
 	var zero_shop := 0
+	var rest_free := 0
 	var acts := 0
 	for map_seed in 300:
 		var map := RouteMap.generate(map_seed, CHARACTERS[map_seed % 4])
@@ -791,16 +875,18 @@ func _test_skippable() -> void:
 				if type == REST:
 					low_rest += low[end]
 					high_rest += high[end]
-					zero_rest += 1 if low[end] == 0 else 0
+					one_rest += 1 if low[end] == 1 else 0
+					rest_free += 1 if low[end] == 0 else 0
 				else:
 					low_shop += low[end]
 					high_shop += high[end]
 					zero_shop += 1 if low[end] == 0 else 0
 			acts += 1
 	var f := float(acts)
-	_check(low_rest / f < 1.3 and low_rest / f > 0.4, "the rest-avoiding route sees about 1 rest per act (%.2f)" % (low_rest / f))
-	_check(high_rest / f > 3.5 and high_rest / f < 5.0, "the rest-seeking route sees about 4 rests per act (%.2f)" % (high_rest / f))
-	_check(low_shop / f < 0.5, "the shop-avoiding route sees almost no shops per act (%.2f)" % (low_shop / f))
-	_check(high_shop / f > 2.5, "the shop-seeking route sees about 3 shops per act (%.2f)" % (high_shop / f))
-	_check(zero_rest / f > 0.15, "many acts allow a route with no rest at all (%.2f)" % (zero_rest / f))
-	_check(zero_shop / f > 0.6, "most acts allow a route with no shop at all (%.2f)" % (zero_shop / f))
+	_check(low_rest / f < 1.6 and low_rest / f >= 1.0, "the rest-avoiding route sees about 1 rest per act (%.2f)" % (low_rest / f))
+	_check(high_rest / f > 3.5 and high_rest / f < 4.5, "the rest-seeking route sees about 4 rests per act (%.2f)" % (high_rest / f))
+	_check(low_shop / f < 0.3, "the shop-avoiding route sees almost no shops per act (%.2f)" % (low_shop / f))
+	_check(high_shop / f > 2.1 and high_shop / f < 3.1, "the shop-seeking route sees 2 to 3 shops per act (%.2f)" % (high_shop / f))
+	_check(rest_free == 0, "no act allows a route with no rest (the forced rest row)")
+	_check(one_rest / f > 0.55, "most acts allow a route with exactly one rest, the forced one (%.2f)" % (one_rest / f))
+	_check(zero_shop / f > 0.8, "most acts allow a route with no shop at all (%.2f)" % (zero_shop / f))

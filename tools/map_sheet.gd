@@ -1,6 +1,6 @@
 extends SceneTree
-## Screenshots the route map screen: act 1 at the first choice, mid-run with a visited path, near the boss
-## (with a hover label), act 2, for two characters, and a map with elites. Needs a rendering window (not --headless):
+## Screenshots the route map screen: act 1 at the first choice, mid-run with a visited path, at the forced rest row before
+## the boss, act 2 (also at its forced rest row), for two characters, and a map with elites. Needs a rendering window (not --headless):
 ##   godot --path . -s res://tools/map_sheet.gd -- <output dir>
 ## Default output is user://map_sheets. The shots use the project's 1152x648 window.
 
@@ -19,7 +19,8 @@ func _initialize() -> void:
 		var route := RouteMap.generate(7, id)
 		await _shot(route, id, 0, "act1_start_%s" % id)
 		await _shot(route, id, 6, "act1_mid_%s" % id, true)
-		await _shot(route, id, 12, "act1_boss_%s" % id)
+		await _shot(route, id, 12, "act1_forced_rest_%s" % id)
+		await _shot(route, id, 15 + 12, "act2_forced_rest_%s" % id)
 		await _shot(route, id, 15 + 5, "act2_%s" % id, true)
 	var elites := RouteMap.generate(11, &"thief", {"type_weights": {"elite": 14.0}})
 	await _shot(elites, &"thief", 5, "act1_elites_thief", true)
