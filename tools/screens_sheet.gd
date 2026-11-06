@@ -13,7 +13,7 @@ func _initialize() -> void:
 	if args.size() > 0:
 		out_dir = args[0]
 	DirAccess.make_dir_recursive_absolute(out_dir)
-	for id in [&"deserter", &"thief", &"medium"]:
+	for id in [&"deserter", &"thief", &"medium", &"stray"]:
 		var scene: Control = await _run(id)
 		_go_to(scene, RunState.StopType.REST, 0)
 		await _shot(scene, "rest_%s.png" % id, 3.0)

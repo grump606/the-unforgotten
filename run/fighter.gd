@@ -48,6 +48,8 @@ const SHAKE_TIME := 0.5
 const HEIGHT_SCALE := 1.2
 ## The player figure height before HEIGHT_SCALE.
 const PLAYER_HEIGHT := 205.0
+## Per-class size of the player figure (a multiple of PLAYER_HEIGHT); the Stray is a broad four-legged mastiff, so it is drawn smaller to stand as tall as the others look.
+const PLAYER_HEIGHT_FACTOR := {&"stray": 0.72}
 ## Class colours of the code-drawn player stand-in: cloak, accent.
 const CLASS_COLORS := {
 	&"deserter": [Color(0.40, 0.30, 0.24), Color(0.92, 0.55, 0.22)],
@@ -175,7 +177,7 @@ func set_player(player: Combatant, id: StringName) -> void:
 	facing = 1.0
 	unit = player
 	class_id = id
-	figure_height = PLAYER_HEIGHT * HEIGHT_SCALE
+	figure_height = PLAYER_HEIGHT * float(PLAYER_HEIGHT_FACTOR.get(id, 1.0)) * HEIGHT_SCALE
 	_tex = null
 	_art_facing = PLAYER_ART_FACING.get(id, 1.0)
 	var fig := PaintedArt.player_figure(id)
