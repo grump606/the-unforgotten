@@ -33,13 +33,19 @@ enum TargetMode { SINGLE_ENEMY, ALL_ENEMIES, SELF }
 ## fight. `effects` still happen when it is played (its cost: lose HP, add a Dread); `oath_effects` happen
 ## each time `oath_trigger` fires while it is Sworn. Oath effects land on the player when their reach is
 ## SELF and on every living enemy otherwise. A Dormant or Fading card cannot be an Oath.
-enum OathTrigger { TURN_START, FIRST_PLAY, ON_FORGOTTEN, ANCHOR_KEPT }
+## END_OF_TURN: as the player ends the turn, before the enemies act. ON_BLOCK_GAINED: after a card that gained Block.
+## ON_HP_LOST: after a card that cost HP. EACH_PLAY: after every card played. ON_DISCARD: for each card thrown away at
+## the end-of-turn discard. (Appended after the first four: the .tres files store the number.)
+enum OathTrigger { TURN_START, FIRST_PLAY, ON_FORGOTTEN, ANCHOR_KEPT, END_OF_TURN, ON_BLOCK_GAINED, ON_HP_LOST, EACH_PLAY, ON_DISCARD }
 @export var oath: bool = false
 @export var oath_trigger: OathTrigger = OathTrigger.TURN_START
 @export var oath_effects: Array[CardEffect] = []
 ## A basic card (Shove, Slip Past): part of every starting deck, left out of reward offers, but still sold at
 ## the vendor (see StarterContent.reward_pool and vendor_pool).
 @export var basic: bool = false
+## Effects that happen when the card is thrown away at the end-of-turn discard (not when it is played, Forgotten
+## or lost as Fading). SELF-reach effects land on the player, any other on every living enemy.
+@export var discard_effects: Array[CardEffect] = []
 ## How often the card turns up in rewards and vendor stock: Common most, Rare least, with the odds shifting
 ## towards the rarer ones deeper into the run (StarterContent.rarity_weights). Cards without the field are Common.
 enum Rarity { COMMON, UNCOMMON, RARE }
@@ -89,6 +95,8 @@ func keyword_lines() -> PackedStringArray:
 		lines.append("Surge")
 	if oath:
 		lines.append("Oath")
+	if not discard_effects.is_empty():
+		lines.append("Discarded")
 	return lines
 
 
@@ -108,6 +116,7 @@ func remembered_card() -> CardData:
 		variant.oath = oath
 		variant.rarity = rarity
 		variant.basic = basic
+		variant.discard_effects = discard_effects
 		variant.oath_trigger = oath_trigger
 		variant.oath_effects = remembered.oath_effects if not remembered.oath_effects.is_empty() else oath_effects
 		variant.character = character
@@ -160,7 +169,7 @@ func is_valid_oath() -> bool:
 
 ## Lead-in text for an Oath's trigger ("At turn start", ...).
 func oath_trigger_text() -> String:
-	return ["At turn start", "First card each turn", "When a card is Forgotten", "For each Anchor card kept"][oath_trigger]
+	return ["At turn start", "First card each turn", "When a card is Forgotten", "For each Anchor card kept", "At end of turn", "When you gain Block from a card", "When a card costs you HP", "Each card played", "When a card is discarded"][oath_trigger]
 
 
 func describe() -> String:
@@ -174,4 +183,10 @@ func describe() -> String:
 			sworn.append(effect.describe())
 		var oath_text := "%s: %s" % [oath_trigger_text(), ", ".join(sworn)]
 		text = oath_text if text.is_empty() else "%s. %s" % [text, oath_text]
+	if not discard_effects.is_empty():
+		var thrown: PackedStringArray = []
+		for effect in discard_effects:
+			thrown.append(effect.describe())
+		var discard_text := "When discarded: %s" % ", ".join(thrown)
+		text = discard_text if text.is_empty() else "%s. %s" % [text, discard_text]
 	return text

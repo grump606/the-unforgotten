@@ -39,7 +39,7 @@ func _test_each_class_has_two_oaths() -> void:
 			found[card.character] = int(found.get(card.character, 0)) + 1
 			_check(card.is_valid_oath(), "%s is a valid Oath" % card.id)
 	for class_id in EXPECTED:
-		_check(int(found.get(class_id, 0)) == 2, "%s has exactly two Oaths" % class_id)
+		_check(int(found.get(class_id, 0)) >= 2, "%s has at least its two original Oaths" % class_id)
 		for id in EXPECTED[class_id]:
 			var card := _load(id)
 			_check(card != null and card.oath and card.character == class_id, "%s is a %s Oath" % [id, class_id])

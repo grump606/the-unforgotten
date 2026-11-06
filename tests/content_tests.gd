@@ -265,7 +265,7 @@ func _test_mid_boss_encounter() -> void:
 ## Characters own their starting decks and class cards; neutral cards are shared.
 func _test_characters_and_pools() -> void:
 	var all := StarterContent.all_cards()
-	_check(all.size() == StarterContent.ALL_CARD_PATHS.size() and all.size() == 71, "all_cards loads all 71 cards")
+	_check(all.size() == StarterContent.ALL_CARD_PATHS.size() and all.size() == 79, "all_cards loads all 79 cards")
 	var ids := {}
 	for card in all:
 		_check(not ids.has(card.id), "card id is unique: %s" % card.id)

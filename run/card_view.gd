@@ -878,6 +878,11 @@ func body_lines() -> Array[Dictionary]:
 		for effect in card.oath_effects:
 			sworn.append(effect.describe())
 		lines.append({"text": "%s: %s" % [card.oath_trigger_text(), ", ".join(sworn)], "delta": 0})
+	if not card.discard_effects.is_empty():
+		var thrown: PackedStringArray = []
+		for effect in card.discard_effects:
+			thrown.append(effect.describe())
+		lines.append({"text": "When discarded: %s" % ", ".join(thrown), "delta": 0})
 	return lines
 
 

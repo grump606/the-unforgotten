@@ -83,11 +83,20 @@ const SCENT_FOCUS := 1.0
 ## An Oath scores less in a deck than its effects add up to: it spends a turn's energy before it pays back, and
 ## its Dread or HP cost drags on every later draw.
 const OATH_DECK_DISCOUNT := 0.6
+## A card with discard effects: what its deck score counts of them (it only fires when thrown away), and how much
+## more readily the bot throws it away at the end of the turn.
+const DISCARD_EFFECT_SHARE := 0.5
+const DISCARD_PREFERENCE := 3.0
 const OATH_FIRING_SHARE := {
 	CardData.OathTrigger.TURN_START: 1.0,
 	CardData.OathTrigger.FIRST_PLAY: 1.0,
 	CardData.OathTrigger.ON_FORGOTTEN: 0.5,
 	CardData.OathTrigger.ANCHOR_KEPT: 0.3,
+	CardData.OathTrigger.END_OF_TURN: 1.0,
+	CardData.OathTrigger.ON_BLOCK_GAINED: 0.7,
+	CardData.OathTrigger.ON_HP_LOST: 0.3,
+	CardData.OathTrigger.EACH_PLAY: 2.5,
+	CardData.OathTrigger.ON_DISCARD: 1.0,
 }
 ## Damage hits (and Block effects) the player lands per turn, for the same estimate.
 const TYPICAL_HITS_PER_TURN := 2
@@ -264,7 +273,10 @@ static func discards_for(combat: Combat) -> Array[int]:
 	for i in combat.piles.hand.size():
 		if combat.can_discard_card(i):
 			candidates.append(i)
-			scores.append(card_score(combat.piles.hand[i], weights))
+			var keep := card_score(combat.piles.hand[i], weights)
+			if not combat.piles.hand[i].discard_effects.is_empty():
+				keep -= DISCARD_PREFERENCE
+			scores.append(keep)
 	var out: Array[int] = []
 	for k in SimPolicy.worst_indices(scores):
 		out.append(candidates[k])
@@ -814,6 +826,8 @@ static func card_score(card: CardData, weights: Dictionary, depth: int = 0) -> f
 	if card.oath:
 		for effect in card.oath_effects:
 			total += _effect_score(card, effect, weights, forgotten, depth) * (TYPICAL_REMAINING_TURNS + 1) * float(OATH_FIRING_SHARE[card.oath_trigger]) * OATH_DECK_DISCOUNT
+	for effect in card.discard_effects:
+		total += _effect_score(card, effect, weights, forgotten, depth) * DISCARD_EFFECT_SHARE
 	# A Surge spends all its energy, so it is divided by a typical amount rather than its cost of 0.
 	return total / ((TYPICAL_SURGE_ENERGY if card.surge else card.cost) + 1)
 
