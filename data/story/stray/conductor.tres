@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "What They Call Peace"
+text = "Inside the abandoned hall, you find rows of names scraped from brass plaques. This place has an exit. Its custodians sealed it because souls who remember still want to leave.
+
+A bell sounds beyond the courtyard. Someone knows you are coming.
+
+The silence smells wrong. Something here has been wiped clean on purpose, and you know what a hidden trail feels like."
+button_text = "Cross the courtyard"

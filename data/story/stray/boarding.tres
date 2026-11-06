@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "A Voice Beyond the Rain"
+text = "You wake beneath a stone bearing no name. The people nearby sit quietly while rain washes their faces smooth.
+
+Somewhere beyond the roofs, someone calls for you. You cannot remember their face, but you know you must answer.
+
+You do not need the face. The rain is carrying something, thin and warm, and your body has already turned toward it."
+button_text = "Follow the voice"
