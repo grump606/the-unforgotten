@@ -153,6 +153,27 @@ func uses_map() -> bool:
 	return route != null
 
 
+## Map mode: true while the player is inside the current node's stop (from choosing it until it is
+## resolved), false at the map.
+func in_map_stop() -> bool:
+	return route != null and _map_stop != null
+
+
+## Map mode: puts a run built in line mode at a saved place on `map` (RunSave has validated all of it).
+## `current` is the node id (-1 before the first choice), `path` the visited ids, `inside_stop` whether
+## the player is in that node's stop rather than at the map. Replaces the line with the map's
+## placeholder stops, like `_init` does with use_map.
+func restore_map(map: RouteMap, current: int, path: Array[int], inside_stop: bool) -> void:
+	route = map
+	stops.clear()
+	for _row in RouteMap.ROWS:
+		stops.append(Stop.new(StopType.COMBAT))
+	current_node = current
+	visited.assign(path)
+	stop_index = map.node(current).row if current >= 0 else 0
+	_map_stop = _stop_for_node(map.node(current)) if inside_stop and current >= 0 else null
+
+
 ## Map mode: the node ids the player may pick next. The start nodes before any choice, else the successors
 ## of the current node. Empty while a stop is in progress (fight, reward, vendor, rest or story), when the
 ## run is finished, and in line mode.

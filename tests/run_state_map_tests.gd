@@ -32,7 +32,7 @@ func run() -> int:
 	_test_backdrops()
 	_test_whole_runs()
 	_test_determinism()
-	_test_save_refused()
+	_test_save_allowed()
 	_test_route_choice_policies()
 	print("run_state_map_tests: %d checks" % _checks)
 	return _failures
@@ -387,10 +387,11 @@ func _encounter_names(run_state: RunState) -> Array[String]:
 	return names
 
 
-func _test_save_refused() -> void:
+func _test_save_allowed() -> void:
 	var run_state := RunState.new(1, &"deserter", true)
 	var path := "user://map_run_test_save.json"
-	_check(RunSave.save(run_state, path) != "" and not FileAccess.file_exists(path), "a map run refuses to be saved (the format knows only the line)")
+	_check(RunSave.save(run_state, path) == "" and FileAccess.file_exists(path), "a map run can be saved (format 5, see run_save_map_tests.gd)")
+	RunSave.delete(path)
 
 
 func _test_route_choice_policies() -> void:
