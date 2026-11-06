@@ -33,12 +33,16 @@ func run() -> int:
 	_test_availability()
 	_test_enemy_counts()
 	_test_backdrops()
+	_test_unknown_characters()
 	_test_validate_accepts_generated()
 	_test_validate_catches_corruption()
 	_test_round_trip()
 	_test_from_line()
 	_test_elite_config()
 	_test_config_merge()
+	_test_config_shapes()
+	_test_hostile_data()
+	_test_node_mix()
 	print("route_map_tests: %d checks" % _checks)
 	return _failures
 
@@ -178,11 +182,15 @@ func _test_paths() -> void:
 		if map.path_count() <= 3000:
 			var paths := map.all_paths()
 			_check(paths.size() == map.path_count(), "seed %d: all_paths agrees with path_count" % map_seed)
+			var distinct := {}
+			var well_formed := true
 			for path in paths:
-				_check(path.size() == 30, "seed %d: a path takes one node per row" % map_seed)
+				distinct[path] = true
+				well_formed = well_formed and path.size() == 30 and map.node(path[0]).row == 0
 				for i in range(1, path.size()):
-					_check(map.next_ids(path[i - 1]).has(path[i]), "seed %d: a path follows edges" % map_seed)
-				break
+					well_formed = well_formed and map.next_ids(path[i - 1]).has(path[i])
+			_check(well_formed, "seed %d: every path takes one node per row and follows edges" % map_seed)
+			_check(distinct.size() == paths.size(), "seed %d: no path is listed twice" % map_seed)
 
 
 func _beat_weight(n: RouteMap.MapNode) -> int:
@@ -229,10 +237,11 @@ func _test_availability() -> void:
 		var map := RouteMap.generate(map_seed, CHARACTERS[map_seed % 4])
 		for act in 2:
 			var rows := RouteMap.free_rows(act)
-			for start in range(0, rows.size() - 3):
+			# Windows only count free rows at or after the 3 safe rows.
+			for start in range(3, rows.size() - 3):
 				_check(_window_has(map, rows, start, 4, REST), "seed %d act %d: a rest within free rows %d to %d" % [map_seed, act + 1, start, start + 3])
-			for start in range(0, rows.size() - 5):
-				_check(_window_has(map, rows, start, 6, SHOP), "seed %d act %d: a shop within free rows %d to %d" % [map_seed, act + 1, start, start + 5])
+			for start in range(3, rows.size() - 7):
+				_check(_window_has(map, rows, start, 8, SHOP), "seed %d act %d: a shop within free rows %d to %d" % [map_seed, act + 1, start, start + 7])
 		rest_density += map.count_of(REST)
 		shop_density += map.count_of(SHOP)
 		# The repair never forces a path: the rest or shop nodes are a minority of every row.
@@ -244,8 +253,15 @@ func _test_availability() -> void:
 			_check(special < map.row_nodes(row).size() or map.row_nodes(row).size() == 1 and map.row_nodes(row)[0].type != REST, "seed %d row %d: not every node is a rest or shop" % [map_seed, row])
 	var rests_per_map := float(rest_density) / 320.0
 	var shops_per_map := float(shop_density) / 320.0
-	_check(rests_per_map > 6.0 and rests_per_map < 24.0, "rests per map in a sane range (%.1f)" % rests_per_map)
-	_check(shops_per_map > 3.0 and shops_per_map < 16.0, "shops per map in a sane range (%.1f)" % shops_per_map)
+	_check(rests_per_map > 14.0 and rests_per_map < 26.0, "rests per map in a sane range (%.1f)" % rests_per_map)
+	_check(shops_per_map > 7.0 and shops_per_map < 16.0, "shops per map in a sane range (%.1f)" % shops_per_map)
+	# Tight windows and few rolled rests and shops make the repair do the work; it must not undo the other window.
+	var stress := {"type_weights": {"fight": 80.0, "rest": 3.0, "shop": 3.0}, "rest_window": 3, "shop_window": 3}
+	var stress_bad := 0
+	for map_seed in 150:
+		if not RouteMap.generate(map_seed, CHARACTERS[map_seed % 4], stress).validate().is_empty():
+			stress_bad += 1
+	_check(stress_bad == 0, "tight windows that the repair has to fill all validate (%d bad)" % stress_bad)
 
 
 func _test_enemy_counts() -> void:
@@ -277,7 +293,7 @@ func _test_backdrops() -> void:
 	for map_seed in 500:
 		for character in CHARACTERS:
 			var map := RouteMap.generate(map_seed, character)
-			var pool := map.backdrop_pool()
+			var pool := RouteMap.backdrop_pool(character)
 			if map_seed == 0:
 				_check(pool.size() == 5 and pool.has(StringName("battle_" + String(character))) and pool.has(&"battle_neutral"), "%s pool: three shared keys, its own and neutral" % character)
 				_check(not pool.has(&"battle_bell_court") and not pool.has(&"battle_threshold"), "%s pool excludes the boss backdrops" % character)
@@ -297,6 +313,19 @@ func _test_backdrops() -> void:
 					clean = clean and n.backdrop == &""
 			_check(clean, "seed %d %s: backdrops follow the no-repeat and pool rules" % [map_seed, character])
 	_check(pool_keys.size() == 8, "every key of the three shared, four character and neutral backdrops gets used (%d)" % pool_keys.size())
+
+
+func _test_unknown_characters() -> void:
+	for odd in [&"", &"nobody", &"bell_court", &"threshold", &"Medium"]:
+		var pool := RouteMap.backdrop_pool(odd)
+		_check(pool.size() == 4 and pool.has(&"battle_neutral") and not pool.has(&"battle_bell_court") and not pool.has(&"battle_threshold"), "'%s' gets the four-key pool without a boss key" % odd)
+		_check(not pool.has(StringName("battle_" + String(odd))) or odd == &"", "'%s' adds no key of its own" % odd)
+		var bad := 0
+		for map_seed in 120:
+			var map := RouteMap.generate(map_seed, odd)
+			if not map.validate().is_empty():
+				bad += 1
+		_check(bad == 0, "maps for the unknown character '%s' validate (%d bad)" % [odd, bad])
 
 
 func _test_validate_accepts_generated() -> void:
@@ -490,6 +519,51 @@ func _test_validate_catches_corruption() -> void:
 			break
 	_check(_any_violation(scenery, "no backdrop"), "a backdrop on a rest is reported")
 
+	var twice := _copy(map)
+	var doubled := twice.row_nodes(6)[0]
+	doubled.next.append(doubled.next[0])
+	_check(_any_violation(twice, "twice"), "a duplicate edge in next is reported")
+
+	var merged := _copy(map)
+	var merge_hit := false
+	for n in merged.nodes:
+		if n.type != FIGHT or n.prev.size() < 2:
+			continue
+		var all_fights := true
+		for p in n.prev:
+			all_fights = all_fights and merged.node(p).type == FIGHT
+		if all_fights:
+			n.backdrop = merged.node(n.prev[n.prev.size() - 1]).backdrop
+			merge_hit = true
+			break
+	_check(merge_hit and _any_violation(merged, "repeats backdrop"), "a repeat of the last of several predecessors' backdrops is reported")
+
+	var choke := _copy(map)
+	var choke_hit := false
+	for n in choke.nodes:
+		if n.type != STORY or n.row == 0 or n.row == 13:
+			continue
+		for before_id in n.prev:
+			for after_id in n.next:
+				var before := choke.node(before_id)
+				var after := choke.node(after_id)
+				if not choke_hit and before.type == FIGHT and after.type == FIGHT:
+					after.backdrop = before.backdrop
+					choke_hit = true
+	_check(choke_hit and _any_violation(choke, "repeats backdrop"), "a backdrop repeated across the story row is reported")
+
+	var alien := _copy(map)
+	alien.kind = &"weird"
+	_check(_any_violation(alien, "unknown map kind"), "an unknown kind is reported")
+
+	var no_widths := _copy(map)
+	no_widths.config["free_widths"] = []
+	_check(_any_violation(no_widths, "free_widths"), "a config without free_widths is reported, not a crash")
+
+	var tall := _copy(map)
+	tall.nodes[5].row = 2000000000
+	_check(not tall.validate().is_empty(), "an absurd row is reported without allocating rows")
+
 	var empty := RouteMap.new()
 	_check(not empty.validate().is_empty(), "an empty map is reported")
 
@@ -506,6 +580,46 @@ func _test_round_trip() -> void:
 	_check(RouteMap.from_dict({}) == null and RouteMap.from_dict({"nodes": [1]}) == null, "malformed data gives null")
 	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "type": 99}]}) == null, "an unknown node type gives null")
 	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "type": 0, "next": [5]}]}) == null, "an edge to a missing node gives null")
+
+
+func _test_hostile_data() -> void:
+	var good := RouteMap.generate(2, &"medium").to_dict()
+	_check(RouteMap.from_dict(good) != null, "setup: the good data loads")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 2000000000, "type": 0}]}) == null, "a huge row gives null")
+	_check(RouteMap.from_dict({"kind": "line", "nodes": [{"id": 0, "row": 2000000000, "type": 0}]}) == null, "a huge row in a line map gives null")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 30, "type": 0}]}) == null, "a row past the last of a generated map gives null")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": -1, "type": 0}]}) == null, "a negative row gives null")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "col": 99, "type": 0}]}) == null, "a huge column gives null")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "col": -1, "type": 0}]}) == null, "a negative column gives null")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "type": 0, "next": "1"}, {"id": 1, "row": 1, "type": 0}]}) == null, "a string next gives null")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "type": 0, "next": [0.5]}]}) == null, "a fractional edge gives null")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "type": "fight"}]}) == null, "a non-numeric type gives null")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": "0", "type": 0}]}) == null, "a string row gives null")
+	_check(RouteMap.from_dict({"nodes": [{"id": "0", "row": 0, "type": 0}]}) == null, "a string id gives null")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "type": 0.5}]}) == null, "a fractional type gives null")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "type": true}]}) == null, "a boolean type gives null")
+	var weird_kind: Dictionary = good.duplicate(true)
+	weird_kind["kind"] = "weird"
+	_check(RouteMap.from_dict(weird_kind) == null, "an unknown kind gives null")
+	weird_kind["kind"] = 3
+	_check(RouteMap.from_dict(weird_kind) == null, "a non-string kind gives null")
+	var no_widths: Dictionary = good.duplicate(true)
+	no_widths["config"]["free_widths"] = []
+	_check(RouteMap.from_dict(no_widths) == null, "empty free_widths in the data gives null")
+	var bad_weights: Dictionary = good.duplicate(true)
+	bad_weights["config"]["type_weights"] = [1, 2]
+	_check(RouteMap.from_dict(bad_weights) == null, "array type_weights in the data gives null")
+	var bad_bands: Dictionary = good.duplicate(true)
+	bad_bands["config"]["enemy_bands"] = {"a": 1}
+	_check(RouteMap.from_dict(bad_bands) == null, "dictionary enemy_bands in the data gives null")
+	var many := {"nodes": []}
+	for i in RouteMap.MAX_NODES + 1:
+		many["nodes"].append({"id": i, "row": 0, "type": 0})
+	_check(RouteMap.from_dict(many) == null, "too many nodes give null")
+	var twice: Dictionary = good.duplicate(true)
+	twice["nodes"][3]["next"] = [twice["nodes"][3]["next"][0], twice["nodes"][3]["next"][0]]
+	var doubled := RouteMap.from_dict(twice)
+	_check(doubled != null and _any_violation(doubled, "twice"), "a duplicate edge loads but validate reports it")
 
 
 func _test_from_line() -> void:
@@ -572,7 +686,7 @@ func _test_elite_config() -> void:
 
 func _test_config_merge() -> void:
 	var cfg := RouteMap.make_config({"type_weights": {"elite": 5.0}, "rest_window": 5})
-	_check(float(cfg["type_weights"]["elite"]) == 5.0 and float(cfg["type_weights"]["fight"]) == 55.0 and int(cfg["rest_window"]) == 5, "make_config merges over the defaults")
+	_check(float(cfg["type_weights"]["elite"]) == 5.0 and float(cfg["type_weights"]["fight"]) == 26.0 and int(cfg["rest_window"]) == 5, "make_config merges over the defaults")
 	_check(float(RouteMap.CONFIG["type_weights"]["elite"]) == 0.0, "the CONFIG constant is not changed by a merge")
 	var loose := RouteMap.generate(11, &"thief", {"rest_window": 5, "shop_window": 8})
 	_check(loose.validate().is_empty(), "a looser availability window still validates")
@@ -581,3 +695,64 @@ func _test_config_merge() -> void:
 	for start in range(0, rows.size() - 4):
 		ok = ok and _window_has(loose, rows, start, 5, REST)
 	_check(ok, "a rest window of 5 is honoured")
+
+
+func _test_config_shapes() -> void:
+	var defaults := JSON.stringify(RouteMap.generate(9, &"thief").to_dict())
+	for bad in [
+		{"free_widths": []}, {"free_widths": "34"}, {"free_widths": [3, 6]}, {"free_widths": [1]}, {"free_widths": [3.5]},
+		{"type_weights": [1, 2]}, {"type_weights": "x"}, {"type_weights": {"fight": "a"}}, {"type_weights": {"rest": -4}},
+		{"enemy_bands": {"max_row": 3}}, {"enemy_bands": []}, {"enemy_bands": [{"max_row": 5}]}, {"enemy_bands": [3]},
+		{"safe_rows": -1}, {"safe_rows": "3"}, {"rest_window": 99}, {"extra_edge_chance": 2.0}, {"extra_edge_chance": null},
+	]:
+		var map := RouteMap.generate(9, &"thief", bad)
+		_check(map.validate().is_empty(), "a malformed config %s does not break generation" % str(bad))
+		_check(JSON.stringify(map.to_dict()) == defaults, "a malformed config %s falls back to the defaults" % str(bad))
+		_check(not RouteMap.config_problems(bad).is_empty(), "config_problems flags %s" % str(bad))
+	_check(RouteMap.config_problems({"free_widths": [4, 5], "rest_window": 5}).is_empty(), "good overrides raise no config problem")
+	var wide := RouteMap.generate(4, &"stray", {"free_widths": [4, 5]})
+	_check(wide.validate().is_empty() and wide.row_nodes(1).size() >= 4, "a wider layout is honoured and valid")
+	var narrow := RouteMap.generate(4, &"stray", {"free_widths": [2, 3]})
+	_check(narrow.validate().is_empty(), "a narrower layout is valid")
+
+
+## The node mix over the free nodes of many maps, with the default weights: about 63% fights, 24% rests and
+## 13% shops (docs/MAP_DESIGN.md has the measured numbers). A random path takes about 15 fights, 5 rests, 3 shops.
+func _test_node_mix() -> void:
+	var counts := {FIGHT: 0, REST: 0, SHOP: 0, ELITE: 0}
+	var free_total := 0
+	var path_rests := 0
+	var path_shops := 0
+	var path_fights := 0
+	var walks := 0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	for map_seed in 400:
+		var map := RouteMap.generate(map_seed, CHARACTERS[map_seed % 4])
+		for n in map.nodes:
+			if n.type in counts and RouteMap.row_info(n.row)["type"] == RouteMap.FREE_ROW:
+				counts[n.type] += 1
+				free_total += 1
+		var id: int = map.starts()[0]
+		while true:
+			var here := map.node(id)
+			path_fights += 1 if here.type == FIGHT else 0
+			path_rests += 1 if here.type == REST else 0
+			path_shops += 1 if here.type == SHOP else 0
+			if here.next.is_empty():
+				break
+			id = here.next[rng.randi_range(0, here.next.size() - 1)]
+		walks += 1
+	var fight_share := float(counts[FIGHT]) / free_total
+	var rest_share := float(counts[REST]) / free_total
+	var shop_share := float(counts[SHOP]) / free_total
+	_check(fight_share > 0.58 and fight_share < 0.68, "fights are about 63%% of free nodes (%.3f)" % fight_share)
+	_check(rest_share > 0.20 and rest_share < 0.28, "rests are about 24%% of free nodes (%.3f)" % rest_share)
+	_check(shop_share > 0.10 and shop_share < 0.16, "shops are about 13%% of free nodes (%.3f)" % shop_share)
+	_check(counts[ELITE] == 0, "no elites by default")
+	var fights_per_path := float(path_fights) / walks
+	var rests_per_path := float(path_rests) / walks
+	var shops_per_path := float(path_shops) / walks
+	_check(fights_per_path > 13.5 and fights_per_path < 17.5, "a random path has about 15 fights (%.2f)" % fights_per_path)
+	_check(rests_per_path > 4.0 and rests_per_path < 7.0, "a random path has about 5 rests (%.2f)" % rests_per_path)
+	_check(shops_per_path > 2.0 and shops_per_path < 4.2, "a random path has about 3 shops (%.2f)" % shops_per_path)

@@ -37,12 +37,18 @@ That is 4 story beats, 2 bosses and 24 free rows per run, the same story order a
 
 ## Node types in free rows
 
-- Weights per free node (tuning values, kept in one config dictionary): fight about 55%, rest about 20%, shop about 10%,
-  elite about 10% (0 until phase 5). Elites never appear in the first 3 free rows of an act.
-- Adjacency: a rest, shop or elite may not follow a node of the same type on any incoming edge.
+- Weights per free node (tuning values, kept in one config dictionary `RouteMap.CONFIG`): fight 26, rest 42, shop 13,
+  elite 0 (until phase 5). The first 3 free rows of an act are all fights, and an elite never appears there. Because
+  those safe rows and the adjacency rule add fights, the weights are not the resulting mix: they give about 63% fights,
+  24% rests and 13% shops of all free nodes. Elite weight 14 (about 11% of free nodes) would bring the fights down to
+  about 57% and give a random path about 14 fights, 5 rests and 2.5 shops; it stays 0 by default.
+- Adjacency: a rest, shop or elite may not follow a node of the same type on any incoming edge. A blocked type is
+  taken out of that node's roll and the remaining weights are used as they are (one roll), so a blocked rest
+  turns into a fight, shop or elite in proportion to their weights, not always into a fight.
 - The generator guarantees nothing per path. It guarantees map-level availability: in each act every run of
-  4 consecutive free rows contains at least one rest node and every 6 consecutive free rows at least one shop node,
-  placed so the choice is real (not forced).
+  4 consecutive free rows contains at least one rest node and every 8 consecutive free rows at least one shop node,
+  placed so the choice is real (not forced). Windows only count free rows at or after the safe rows, so nothing is
+  forced inside the all-fight opening.
 
 ## Enemy count
 
@@ -61,8 +67,12 @@ Regular fights reuse the existing battle backdrops, assigned at generation and s
 - The mid-boss uses `battle_bell_court` and the final boss `battle_threshold`; those two keys are never in the pool.
 - A fight may not use the same backdrop as the most recent fight on any path leading into it. Walk back through any
   rest, shop or story nodes on each incoming path to the previous fight and take its backdrop; all those must differ
-  from the new node's. With at most 4 columns the pool of 5 always has a legal choice; if a bug ever leaves none, fall
-  back to the least recently used key and make the validator report it.
+  from the new node's. The pool is not always large enough for one greedy pass: a story node after a 4-wide row
+  passes all of that row's backdrops on to the fights behind it, and a rest beside a fight adds one more, which can
+  leave no legal key in the pool of 5 (or of 4). The pass re-rolls up to 60 times, then falls back to the least
+  recently used key and the validator reports the repeat (the generator then retries the whole map).
+- A character id outside `BattleBackdrop.TINTS` (including an empty one) has no key of its own, so its pool is the
+  three shared keys plus neutral. A boss key can never enter the pool.
 - Rest and shop nodes have no backdrop; they keep their one fixed painting.
 
 ## Determinism
@@ -88,16 +98,50 @@ arguments give an identical map. The map is plain data (`to_dict` / `from_dict`)
 dictionary `RouteMap.CONFIG`, `generate(seed, character_id, config)`, `validate()` (a list of broken rules, empty
 when valid), `to_dict()` / `from_dict()` and `from_line(stops)`. `RouteMap.NodeType` is its own append-only enum.
 Nothing in the game uses it yet; `tests/route_map_tests.gd` covers determinism, structure, the type, availability,
-enemy-count and backdrop rules over many seeds, the validator against deliberately broken maps, the round trip and
-the line adapter.
+enemy-count and backdrop rules over many seeds, the validator against deliberately broken maps, the round trip,
+hostile data, config shapes, the node mix and the line adapter.
+
+Loading and config are defensive. `from_dict` returns null for data that is not well formed (wrong types, an unknown
+kind or node type, a row outside the map, a column over 15, more than 1000 nodes, an edge to a missing node, a config
+of the wrong shape); rule breaks inside well-formed data are left to `validate()`, which also reports an unknown
+kind. `make_config` / `generate` ignore a config entry of the wrong shape or range and use the default for it
+(`RouteMap.config_problems()` lists them); `free_widths` must be whole numbers from 2 to 5 that differ by at most 1.
+`backdrop_pool(character_id)` is static.
+
+Measured node mix (2400 default maps, 600 per character, free nodes only, elites off). Before the retune the weights
+were fight 55 / rest 20 / shop 10 with rest and shop windows of 4 and 6 counted from the first free row:
+
+| | before | after |
+|---|---|---|
+| fight / rest / shop share of free nodes | 76.7% / 14.6% / 8.7% | 63.0% / 23.9% / 13.2% |
+| random path, fights (mean) | 18.5 | 15.45 (min 8, p10 13, p90 18, max 23) |
+| random path, rests (mean) | 3.4 | 5.47 (min 1, p10 4, p90 7, max 10) |
+| random path, shops (mean) | 2.05 | 3.07 (min 0, p10 1, p90 5, max 8) |
+| most rest-heavy path, rests (mean per map) | | 8.33 (p10 7, p90 9, max 10) |
+| most shop-heavy path, shops (mean per map) | | 6.02 (p10 5, p90 7, max 9) |
+| maps where every path holds a rest | 41.5% | 92.8% |
+| maps where every path holds a shop | 11.6% | 35.3% |
+| longest run of rows offering no rest | | mean 6.45, p90 7, max 9 |
+
+The path rows are 6 random walks per map (each exit equally likely); the heavy-path rows are exact (a dynamic
+programme over each map's paths). The map generator takes about 5 ms per map and `validate()` found no failure.
+"Every path holds a rest" is now caused by the density of rests (about 1 in 4 free nodes), not by a repair forcing
+one into a single row, and a rest is still skippable only by routing around rests row by row; if that proves too
+tight in play, lower the rest weight or widen `free_widths`. The mix cannot reach fight 55 / rest 22 / shop 12 exactly
+(those add up to 89, the rest being the elite share): with elites off the fights take that share, so a random path
+has about 15 fights instead of 13 to 14. With elite weight 14 the mix is 57 / 21 / 10 / 11 and a random path has 13.9
+fights, 4.9 rests and 2.5 shops.
 
 Choices where the spec left room:
 
 - "Consecutive free rows" are consecutive in the act's list of free rows, so the act 2 story row (row 3) does not
-  break a window. A window must be longer than the 3 safe rows, so the rest window of 4 puts a rest in the 4th free
-  row of every act.
+  break a window. A window only spans free rows at or after the 3 safe rows (the first one covers free rows 3 to 6 for
+  rests, 3 to 10 for shops), so the repair never fires inside the opening and does not pin a rest to one row.
 - Availability is applied as each row is rolled: a fight of the row that closes an empty window becomes the rest or
-  shop, so the choice is real. Every free row also keeps at least one plain fight.
+  shop, so the choice is real. Every free row also keeps at least one plain fight. A repair converts a plain fight
+  (if the row has a spare one), else an elite, else a node of the other special type, and only one whose loss leaves
+  the other type's window ending in this row satisfied; if no node qualifies, the generator's validate-and-retry
+  loop is the backstop. If all 20 attempts fail, `generate` pushes an error and returns the last map.
 - Out-degree is 1 or 2 and in-degree is capped at 2 between free rows; a one-node row links to every node on either
   side regardless of columns.
 - A story node after a 4-wide row passes all of that row's backdrops on to the fights behind it, which with a
