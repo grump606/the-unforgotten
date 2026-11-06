@@ -12,22 +12,26 @@ Replaces the fixed 21-stop line with a branching map the player chooses a path t
 - Node types: fight, elite fight (supported by the data model; weight 0 until phase 5), rest, shop, story beat,
   mid-boss, boss.
 - A rest or shop takes the place of a fight in its row. They are ordinary branches: a path that never picks one never
-  sees one. Only the story beats and the two bosses are on every path.
+  sees one. Only the story beats, the two bosses and the forced rest row before each boss are on every path.
 
 ## Row layout
 
 | Act | Row(s) | Content |
 |---|---|---|
 | 1 | 0 | Story beat 0 (boarding). One node. |
-| 1 | 1 to 12 | Free rows (3 to 4 nodes). Rows 1 to 3 are all fights. |
+| 1 | 1 to 11 | Free rows (3 to 4 nodes). Rows 1 to 3 are all fights. Row 11 holds no rest. |
+| 1 | 12 | Forced rest row (3 to 4 nodes, every one a rest). |
 | 1 | 13 | Story beat 1 (the Bellkeeper's hall). One node. |
 | 1 | 14 | Mid-boss. One node. |
-| 2 | 0 to 12 except 3 | Free rows (3 to 4 nodes). Rows 0 to 2 are all fights. |
+| 2 | 0 to 11 except 3 | Free rows (3 to 4 nodes). Rows 0 to 2 are all fights. Row 11 holds no rest. |
 | 2 | 3 | Story beat 2 (the garden). One node. |
+| 2 | 12 | Forced rest row (3 to 4 nodes, every one a rest). |
 | 2 | 13 | Story beat 3 (the Eraser). One node. |
 | 2 | 14 | Final boss. One node. |
 
-That is 4 story beats, 2 bosses and 24 free rows per run, the same story order as the line.
+That is 4 story beats, 2 bosses, 22 free rows and 2 forced rest rows per run, the same story order as the line.
+The forced rest row (`RouteMap.FORCED_REST_ROW`, local row 12) is a fairness anchor: every path rests once before
+each boss, whatever else it skipped. It is built and connected like any other free row.
 
 ## Edges
 
@@ -37,18 +41,24 @@ That is 4 story beats, 2 bosses and 24 free rows per run, the same story order a
 
 ## Node types in free rows
 
-- Weights per free node (tuning values, kept in one config dictionary `RouteMap.CONFIG`): fight 26, rest 42, shop 13,
-  elite 0 (until phase 5). The first 3 free rows of an act are all fights, and an elite never appears there. Because
-  those safe rows and the adjacency rule add fights, the weights are not the resulting mix: they give about 63% fights,
-  24% rests and 13% shops of all free nodes. Elite weight 14 (about 11% of free nodes) would bring the fights down to
-  about 57% and give a random path about 14 fights, 5 rests and 2.5 shops; it stays 0 by default.
+- Weights per free node (tuning values, kept in one config dictionary `RouteMap.CONFIG`): fight 26, rest 18, shop 7,
+  elite 0 (until phase 5). The first 3 free rows of an act are all fights, and an elite never appears there. The
+  forced rest row ignores the weights (all rests) and the row before it rolls with the rest weight at zero. Because
+  the safe rows and the adjacency rule add fights, the weights are not the resulting mix: they give about 68% fights,
+  23% rests (the forced rows included) and 9% shops of all free nodes, and a random path per act of about 8.3 fights,
+  2.7 rests (one of them the forced one) and 1.1 shops. An elite config (weight 14) still validates and keeps elites out
+  of the first 3 free rows and out of the forced row; it stays 0 by default.
 - Adjacency: a rest, shop or elite may not follow a node of the same type on any incoming edge. A blocked type is
   taken out of that node's roll and the remaining weights are used as they are (one roll), so a blocked rest
   turns into a fight, shop or elite in proportion to their weights, not always into a fight.
-- The generator guarantees nothing per path. It guarantees map-level availability: in each act every run of
-  4 consecutive free rows contains at least one rest node and every 8 consecutive free rows at least one shop node,
-  placed so the choice is real (not forced). Windows only count free rows at or after the safe rows, so nothing is
-  forced inside the all-fight opening.
+- Apart from the forced rest row the generator guarantees nothing per path. It guarantees map-level availability: in
+  each act every run of 6 consecutive free rows contains at least one rest node and every 8 consecutive free rows at
+  least one shop node, placed so the choice is real (not forced). Windows only count free rows at or after the safe
+  rows and before the forced rest row: rest windows end at free row 9 of the act (free row 10 cannot hold a rest and
+  free row 11 is the forced row), shop windows at free row 10. The forced row counts as satisfying the rests after the
+  last window and is exempt from the "no rest after rest" rule (the row before it has none anyway).
+- `validate()` reports: a forced-row node that is not a rest; a rest in the row before the forced row; any path that
+  reaches a boss without a rest since the start or the previous boss.
 
 ## Enemy count
 
@@ -108,7 +118,7 @@ kind. `make_config` / `generate` ignore a config entry of the wrong shape or ran
 (`RouteMap.config_problems()` lists them); `free_widths` must be whole numbers from 2 to 5 that differ by at most 1.
 `backdrop_pool(character_id)` is static.
 
-Measured node mix (2400 default maps, 600 per character, free nodes only, elites off). Before the retune the weights
+Measured node mix (2400 default maps, 600 per character, free nodes only, elites off; these are the phase 1 figures, superseded by the Phase 4a section below). Before the retune the weights
 were fight 55 / rest 20 / shop 10 with rest and shop windows of 4 and 6 counted from the first free row:
 
 | | before | after |
@@ -314,3 +324,50 @@ map "returns you to this map, with the same roads to choose from"; inside a stop
   once the player has left that stop (it was tied to `stop_index == 0`, which stays 0 at the map after row 0).
 - `rest_number()` is unbounded in map mode and `RestContent.beat` clamps, so rests after the fourth repeat "Before the
   Door". Left as is on purpose (a map holds at most a handful of rests); revisit with the balance pass.
+
+## Phase 4a: guaranteed rest before each boss, retuned mix
+
+Each act has a forced rest row (local row 12, every node a rest) just before the story beat that precedes its boss,
+so every path rests once before each boss. The row before it (local row 11) holds no rest, so the map never shows two
+rests back to back there. Everywhere else rests stay optional. The row layout, the node-type rules and `validate()`
+above describe the result; `ROWS` stays 15 per act and the story rows did not move, so the enemy-count bands (keyed
+to the run row) and the backdrop no-repeat rule are unchanged.
+
+Code: `RouteMap.FORCED_REST_ROW`, `row_info()["forced"]`, `window_last_index()`; the generator fills the forced row with
+rests and rolls the row before it without the rest weight; `validate()` gained the three rules listed under "Node
+types in free rows". `RunSave._check_map` re-validates through `validate()`, so it needed no change; a map saved
+under the old layout (unreleased: map runs are still debug-only) is now rejected as invalid.
+
+Weights and windows: fight 26 / rest 18 / shop 7 / elite 0 (was 26 / 42 / 13 / 0); rest window 6 (was 4), shop window
+8. At these weights the windows never fire in practice (identical results with the rest window off or 7); the
+density sets how avoidable things are.
+
+Measured over 2400 maps (600 per character; exact dynamic programme for the extremes, 8 random walks per act per
+map for the random path), 0 `validate()` failures, 0 first-attempt retries (before: 2.0%), about 6.6 ms per map
+(before: 7.2 ms).
+
+Per act, mean (act 1 / act 2), before (old weights, no forced row) and after:
+
+| Per act | before | after |
+|---|---|---|
+| random path, fights | 7.68 / 7.72 | 8.27 / 8.29 |
+| random path, rests | 2.78 / 2.80 | 2.66 / 2.65 (p10 2, p90 3.4) |
+| random path, shops | 1.54 / 1.48 | 1.07 / 1.06 (p10 0.4, p90 1.8) |
+| fewest rests on any path, mean | 0.99 / 0.99 | 1.30 / 1.36 (p50 1, p90 2, max 3) |
+| most rests on any path, mean | 4.14 / 4.14 | 3.92 / 3.92 (p10 3, p90 5, max 5) |
+| fewest shops on any path, mean | 0.20 / 0.15 | 0.09 / 0.08 |
+| most shops on any path, mean | 3.00 / 2.95 | 2.34 / 2.29 (p10 1, p90 3, max 4) |
+| maps with a shop-free path | 81% / 85% | 91% / 92% |
+| maps where the rest-avoiding route sees exactly one rest (the forced one) | n/a (28% allowed none) | 71% / 65%; none allow zero |
+| most fights on any path, mean | 9.93 / 9.96 | 10.06 / 10.03 |
+
+Over the whole run (after): random path 16.6 fights (p10 15.4, p90 17.8), 5.3 rests (p10 4.4, p90 6.3, min 3.4),
+2.1 shops (p10 1.3, p90 3.1); the cautious route sees 7.8 rests (p90 9, max 10) and 4.6 shops (p90 6, max 8); the
+skip-everything route sees 2.7 rests (the two forced ones plus a few) and 0.17 shops. Free nodes (forced rows
+included): 68.2% fights, 22.8% rests, 9.0% shops. Before: 63.0% / 23.9% / 13.2% (free nodes without a forced row),
+random path 15.4 fights, 5.6 rests, 3.0 shops.
+
+Choices where the spec left room: the forced row counts as a free row for width (3 or 4 nodes) and edges, and as the
+last entry of the act's free-row list, so "free rows" in the availability windows and `RouteMap.free_rows()` still
+count 12 per act; the 22 free rows are the ones that are not forced. The path check requires a rest before each boss
+(and so before story beats 1 and 3); story beats 0 and 2 have no guarantee before them.
