@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://cvqeldq7ry1bu" path="res://combat/card_data.gd" id="1_card"]
 [ext_resource type="Script" uid="uid://v0wf0vn2ro0b" path="res://combat/card_effect.gd" id="2_effect"]
 [ext_resource type="Resource" path="res://data/status/dread.tres" id="3_dread"]
+[ext_resource type="Script" path="res://combat/remembered_data.gd" id="9_rem"]
 
 [sub_resource type="Resource" id="Resource_p1"]
 script = ExtResource("2_effect")
@@ -22,6 +23,18 @@ kind = 16
 amount = 2
 temporary = true
 
+[sub_resource type="Resource" id="Rem_o2"]
+script = ExtResource("2_effect")
+kind = 16
+amount = 3
+temporary = true
+
+
+[sub_resource type="Resource" id="Rem_block"]
+script = ExtResource("9_rem")
+effects = Array[ExtResource("2_effect")]([SubResource("Resource_p1")])
+oath_effects = Array[ExtResource("2_effect")]([SubResource("Resource_o1"), SubResource("Rem_o2")])
+
 [resource]
 script = ExtResource("1_card")
 id = &"quick_hands"
@@ -34,3 +47,4 @@ oath = true
 oath_trigger = 1
 oath_effects = Array[ExtResource("2_effect")]([SubResource("Resource_o1"), SubResource("Resource_o2")])
 rarity = 2
+remembered = SubResource("Rem_block")
