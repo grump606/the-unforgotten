@@ -29,6 +29,9 @@ const GLYPH_NAMES := {
 	RelicData.Kind.FIRST_FORGOTTEN_RETURN: "pressed flower",
 	RelicData.Kind.ANCHOR_END_BLOCK: "stakes",
 	RelicData.Kind.FIRST_ATTACK_SHAKEN: "veil",
+	RelicData.Kind.FIGHT_START_SCENT: "whistle",
+	RelicData.Kind.SCENT_HEIR: "fang",
+	RelicData.Kind.QUARRY_KILL_HEAL: "muzzle",
 }
 
 var relic: RelicData
@@ -162,6 +165,12 @@ func _draw_glyph(kind: RelicData.Kind, ink: Color, accent: Color, bg: Color) -> 
 			_glyph_stakes(ink, accent, bg)
 		RelicData.Kind.FIRST_ATTACK_SHAKEN:
 			_glyph_veil(ink, accent, bg)
+		RelicData.Kind.FIGHT_START_SCENT:
+			_glyph_whistle(ink, accent, bg)
+		RelicData.Kind.SCENT_HEIR:
+			_glyph_fang(ink, accent, bg)
+		RelicData.Kind.QUARRY_KILL_HEAL:
+			_glyph_muzzle(ink, accent, bg)
 
 ## A travelling flask.
 func _glyph_max_hp(ink: Color, accent: Color, _bg: Color) -> void:
@@ -323,6 +332,24 @@ func _glyph_stakes(ink: Color, accent: Color, _bg: Color) -> void:
 func _glyph_veil(ink: Color, accent: Color, _bg: Color) -> void:
 	draw_colored_polygon(PackedVector2Array([Vector2(9, 9), Vector2(27, 9), Vector2(24, 28), Vector2(12, 28)]), ink)
 	draw_line(Vector2(18, 9), Vector2(18, 28), accent, 1.2, true)
+
+## A small bone whistle with a cord.
+func _glyph_whistle(ink: Color, accent: Color, _bg: Color) -> void:
+	draw_rect(Rect2(8, 15, 17, 8), ink)
+	draw_circle(Vector2(25, 19), 4.5, ink)
+	draw_rect(Rect2(12, 12, 6, 3), accent)
+	draw_line(Vector2(8, 17), Vector2(5, 9), accent, 1.4, true)
+
+## A muzzle with a drop of blood.
+func _glyph_muzzle(ink: Color, accent: Color, _bg: Color) -> void:
+	draw_colored_polygon(PackedVector2Array([Vector2(7, 12), Vector2(26, 12), Vector2(29, 22), Vector2(10, 25)]), ink)
+	draw_circle(Vector2(25, 28), 2.2, accent)
+	draw_line(Vector2(14, 12), Vector2(14, 25), accent, 1.2, true)
+
+## A curved fang.
+func _glyph_fang(ink: Color, accent: Color, _bg: Color) -> void:
+	draw_colored_polygon(PackedVector2Array([Vector2(11, 8), Vector2(25, 8), Vector2(18, 29)]), ink)
+	draw_line(Vector2(14, 11), Vector2(18, 22), accent, 1.4, true)
 
 ## A rectangle of half-size `half` around `center`, turned by `angle` radians.
 func _rotated_rect(center: Vector2, half: Vector2, angle: float, color: Color) -> void:

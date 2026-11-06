@@ -187,6 +187,7 @@ const RELIC_PATHS: Array[String] = [
 	"res://data/relics/grave_dirt.tres", "res://data/relics/planchette.tres", "res://data/relics/bone_rosary.tres",
 	"res://data/relics/cracked_lorgnette.tres", "res://data/relics/hushing_veil.tres", "res://data/relics/mourners_armband.tres",
 	"res://data/relics/iron_stakes.tres", "res://data/relics/pressed_flower.tres", "res://data/relics/candle_stub.tres",
+	"res://data/relics/hunters_whistle.tres", "res://data/relics/wolf_fang.tres", "res://data/relics/bloody_muzzle.tres",
 ]
 ## Playable characters, in the order a selection screen lists them.
 const CHARACTER_PATHS := {

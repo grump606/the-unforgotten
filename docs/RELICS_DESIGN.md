@@ -30,6 +30,9 @@ Decisions (from the user): relics are sold by vendors only, one relic per vendor
 | FIRST_FORGOTTEN_RETURN | The first Forgotten card played each fight returns to hand from the Forgotten pile |
 | ANCHOR_END_BLOCK | At end of turn, each Anchor card still in hand gives `amount` Block through the enemy phase |
 | FIRST_ATTACK_SHAKEN | The first card with a damage effect each fight applies Shaken `amount` to the enemies it hit |
+| FIGHT_START_SCENT | On turn 1 the first living enemy becomes the quarry with `amount` Scent |
+| SCENT_HEIR | When the quarry dies, `amount` more Scent passes on than the usual half (never more than it held) |
+| QUARRY_KILL_HEAL | Heal `amount` when the quarry dies |
 
 Per-turn grants happen after `start_turn_block()` (which resets Block to Hold and Thorns to 0), so they are not wiped.
 
@@ -63,7 +66,15 @@ Prices and amounts are placeholders for tuning.
 | Pressed Flower | Medium | FIRST_FORGOTTEN_RETURN 1 | 70 |
 | Candle Stub | neutral | FIGHT_START_MALICE 1 | 75 |
 
-Pools are now 5 Thief, 5 Deserter, 4 Medium class relics plus 4 neutral. The new relics use code-drawn badges like the rest.
+### Stray relics
+
+| Relic | Class | Kind, amount | Price |
+|---|---|---|---|
+| Hunter's Whistle | Stray | FIGHT_START_SCENT 2 | 65 |
+| Wolf Fang | Stray | SCENT_HEIR 2 | 70 |
+| Bloody Muzzle | Stray | QUARRY_KILL_HEAL 3 | 60 |
+
+Pools before the Stray: 5 Thief, 5 Deserter, 4 Medium class relics plus 4 neutral. The new relics use code-drawn badges like the rest.
 
 ## Run integration
 
