@@ -21,6 +21,8 @@ func run() -> int:
 	_test_haunt_bonus()
 	_test_relics_stack()
 	_test_keyword_relics()
+	_test_stray_relics()
+	_test_muzzle()
 	_test_vendor_relic_offer()
 	_test_vendor_buy_relic()
 	_test_run_state_relics()
@@ -78,14 +80,14 @@ func _fight(relics: Array, card: CardData = null, player_hp: int = 40, enemy_cou
 
 func _test_content() -> void:
 	var relics := StarterContent.all_relics()
-	_check(relics.size() == 18, "eighteen relics load (got %d)" % relics.size())
+	_check(relics.size() == 21, "twenty-one relics load (got %d)" % relics.size())
 	var ids := {}
 	var kinds := {}
 	for relic in relics:
 		ids[relic.id] = true
 		kinds[relic.kind] = true
 		_check(relic.amount > 0 and relic.price > 0 and relic.display_name != "" and relic.description != "", "%s has an amount, a price, a name and a description" % relic.id)
-	_check(ids.size() == 18, "relic ids are unique")
+	_check(ids.size() == 21, "relic ids are unique")
 	_check(kinds.size() == RelicData.Kind.size(), "every relic kind is used by exactly one relic")
 	for character_id in StarterContent.character_ids():
 		var pool := StarterContent.relic_pool(character_id)
@@ -96,10 +98,9 @@ func _test_content() -> void:
 				own += 1
 			elif relic.character == &"":
 				neutral += 1
-		# The Stray has no class relics yet.
-		_check((own >= 3 or character_id == &"stray") and neutral >= 3 and pool.size() == own + neutral, "%s: relic pool is 3+ class plus 3+ neutral relics" % character_id)
+		_check(own >= 3 and neutral >= 3 and pool.size() == own + neutral, "%s: relic pool is 3+ class plus 3+ neutral relics" % character_id)
 	# Append-only enum: the saved numbers must keep their meaning.
-	_check(RelicData.Kind.MAX_HP == 0 and RelicData.Kind.HAUNT_BONUS == 11 and RelicData.Kind.FIGHT_START_GLIMPSE == 12 and RelicData.Kind.FIRST_ATTACK_SHAKEN == 17, "relic kind numbering is unchanged")
+	_check(RelicData.Kind.MAX_HP == 0 and RelicData.Kind.HAUNT_BONUS == 11 and RelicData.Kind.FIGHT_START_GLIMPSE == 12 and RelicData.Kind.FIRST_ATTACK_SHAKEN == 17 and RelicData.Kind.FIGHT_START_SCENT == 18 and RelicData.Kind.QUARRY_KILL_HEAL == 20 and RelicData.Kind.SCENT_HEIR == 19, "relic kind numbering is unchanged")
 
 
 func _test_no_relics_changes_nothing() -> void:
@@ -327,6 +328,47 @@ func _test_keyword_relics() -> void:
 	var skill := _fight([_relic(RelicData.Kind.FIRST_ATTACK_SHAKEN, 1)], _card(0, [CardEffect.make(CardEffect.Kind.BLOCK, 3)]))
 	skill.play_card(0)
 	_check(skill.enemies[0].status_turns(Combatant.Status.SHAKEN) == 0 and not skill._first_attack_used, "a non-attack does not spend the trigger")
+
+
+## The Stray's relics: a Scent head start and a bigger inheritance.
+func _test_stray_relics() -> void:
+	var whistle := _fight([_relic(RelicData.Kind.FIGHT_START_SCENT, 2)], null, 40, 2)
+	_check(whistle.enemies[0].stacks(Combatant.Status.SCENT) == 2 and whistle.enemies[1].stacks(Combatant.Status.SCENT) == 0, "FIGHT_START_SCENT marks the first enemy with Scent 2")
+	var plain := _fight([], null, 40, 2)
+	_check(plain.enemies[0].stacks(Combatant.Status.SCENT) == 0, "without the relic nobody starts with Scent")
+	var kill := _card(0, [CardEffect.make(CardEffect.Kind.DAMAGE, 200)] as Array[CardEffect])
+	var mark := _card(0, [CardEffect.make(CardEffect.Kind.SCENT, 5)] as Array[CardEffect])
+	for case in [[0, 2], [2, 4]]:
+		var list: Array[EnemyData] = [EnemyData.make("A", 5, [] as Array[CardEffect]), EnemyData.make("B", 100, [] as Array[CardEffect])]
+		var relics: Array = [] if case[0] == 0 else [_relic(RelicData.Kind.SCENT_HEIR, case[0])]
+		var deck: Array[CardData] = [mark, kill]
+		var combat := Combat.new(Combatant.new("p", 40), deck, list, 1, _relics(relics))
+		combat.start()
+		for card_id in [&"t", &"t"]:
+			for i in combat.piles.hand.size():
+				if combat.piles.hand[i] == mark:
+					combat.play_card(i, 0)
+					break
+		for i in combat.piles.hand.size():
+			if combat.piles.hand[i] == kill:
+				combat.play_card(i, 0)
+				break
+		_check(combat.enemies[0].is_dead() and combat.enemies[1].stacks(Combatant.Status.SCENT) == case[1], "SCENT_HEIR %d: Scent 5 passes %d (got %d)" % [case[0], case[1], combat.enemies[1].stacks(Combatant.Status.SCENT)])
+
+
+func _test_muzzle() -> void:
+	var kill := _card(0, [CardEffect.make(CardEffect.Kind.DAMAGE, 200)] as Array[CardEffect])
+	var mark := _card(0, [CardEffect.make(CardEffect.Kind.SCENT, 2)] as Array[CardEffect])
+	var list: Array[EnemyData] = [EnemyData.make("A", 5, [] as Array[CardEffect]), EnemyData.make("B", 100, [] as Array[CardEffect])]
+	var deck: Array[CardData] = [mark, kill]
+	var combat := Combat.new(Combatant.new("p", 40, 20), deck, list, 1, _relics([_relic(RelicData.Kind.QUARRY_KILL_HEAL, 3)]))
+	combat.start()
+	for card in [mark, kill]:
+		for i in combat.piles.hand.size():
+			if combat.piles.hand[i] == card:
+				combat.play_card(i, 0)
+				break
+	_check(combat.enemies[0].is_dead() and combat.player.hp == 23, "QUARRY_KILL_HEAL heals 3 when the quarry dies (hp %d)" % combat.player.hp)
 
 
 func _test_vendor_relic_offer() -> void:

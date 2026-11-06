@@ -23,6 +23,9 @@ enum Kind {
 	FIRST_FORGOTTEN_RETURN,
 	ANCHOR_END_BLOCK,
 	FIRST_ATTACK_SHAKEN,
+	FIGHT_START_SCENT,
+	SCENT_HEIR,
+	QUARRY_KILL_HEAL,
 }
 
 ## PLAYS_BLOCK pays out on every Nth card played in a turn.
