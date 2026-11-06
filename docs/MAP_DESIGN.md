@@ -181,7 +181,7 @@ a run), `tools/map_sheet.gd` (screenshots), `tests/ui_map_test.gd`.
   node), and scales from the window size (laid out for 1152x648). It draws its own header strip (act, "Row 7/15",
   the status text), a dimmed painted backdrop (`BACKDROP_SCREEN`, falling back to a dark panel), inked edges
   (bright for the path taken, pulsing from the current node to its choices, faint otherwise), glyph nodes (crossed
-  blades for fights with 1 to 3 pips for the enemy count, horned blades for elites, flame for rests, coin for shops,
+  blades for fights with 1 to 3 pips for the enemy count, horned blades for elites, an armchair for rests, coin for shops,
   open book for story beats, bell for the mid-boss, eye for the final boss) and a legend. Visited nodes are dimmed with
   a tick, the
   current node is ringed, reachable ones pulse; hovering any node shows a label ("Fight: 2 enemies", "Rest", "Shop",
