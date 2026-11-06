@@ -132,6 +132,25 @@ tight in play, lower the rest weight or widen `free_widths`. The mix cannot reac
 has about 15 fights instead of 13 to 14. With elite weight 14 the mix is 57 / 21 / 10 / 11 and a random path has 13.9
 fights, 4.9 rests and 2.5 shops.
 
+How skippable they are (same 2400 maps, exact over each act's paths; acts are separate because both end in a boss
+that every path passes through, so the run figures are the sums):
+
+| Per act (act 1 / act 2) | rests | shops |
+|---|---|---|
+| fewest on any path (the skip-everything route), mean | 0.91 / 0.95 | 0.19 / 0.21 |
+| fewest, p10 / p50 / p90 | 0 / 1 / 2 | 0 / 0 / 1 |
+| maps with a path of none | 28.2% / 26.8% | 81.0% / 79.0% |
+| most on any path (the cautious route), mean | 4.16 / 4.17 | 2.97 / 3.04 |
+| most, p10 / p50 / p90 | 4 / 4 / 5 | 2 / 3 / 4 |
+| random path, mean | 2.73 / 2.75 | 1.52 / 1.55 |
+| longest run of free rows with none on offer: mean, p90, max | 3.1 / 3.1, 3, 5 | 4.1 / 3.9, 6 / 5, 10 / 9 |
+
+Over the whole run the skip-everything route sees 1.86 rests on average (7.2% of maps allow none) and 0.41 shops
+(64.7% allow none); the cautious route sees 8.33 rests and 6.02 shops. The runs without a rest are at most 3 free rows
+in most acts because the 3 safe rows count. The windows barely matter at these weights (a rest window of 6 gives the
+same figures to within noise): the node density sets how avoidable they are, so no retune was needed for the
+skippability targets.
+
 Choices where the spec left room:
 
 - "Consecutive free rows" are consecutive in the act's list of free rows, so the act 2 story row (row 3) does not

@@ -43,6 +43,7 @@ func run() -> int:
 	_test_config_shapes()
 	_test_hostile_data()
 	_test_node_mix()
+	_test_skippable()
 	print("route_map_tests: %d checks" % _checks)
 	return _failures
 
@@ -756,3 +757,50 @@ func _test_node_mix() -> void:
 	_check(fights_per_path > 13.5 and fights_per_path < 17.5, "a random path has about 15 fights (%.2f)" % fights_per_path)
 	_check(rests_per_path > 4.0 and rests_per_path < 7.0, "a random path has about 5 rests (%.2f)" % rests_per_path)
 	_check(shops_per_path > 2.0 and shops_per_path < 4.2, "a random path has about 3 shops (%.2f)" % shops_per_path)
+
+
+## Rests and shops stay optional: per act, the route that avoids them sees about one rest and almost no shops
+## (and some maps allow none), while the route that seeks them out sees about 4 rests and 3 shops. Exact, by a
+## dynamic programme over each act's paths.
+func _test_skippable() -> void:
+	var low_rest := 0
+	var high_rest := 0
+	var low_shop := 0
+	var high_shop := 0
+	var zero_rest := 0
+	var zero_shop := 0
+	var acts := 0
+	for map_seed in 300:
+		var map := RouteMap.generate(map_seed, CHARACTERS[map_seed % 4])
+		for act in 2:
+			for type in [REST, SHOP]:
+				var low := {}
+				var high := {}
+				for row in range(act * 15, act * 15 + 15):
+					for n in map.row_nodes(row):
+						var add := 1 if n.type == type else 0
+						var l := 1000
+						var h := -1
+						for p in n.prev:
+							if row != act * 15:
+								l = mini(l, low[p])
+								h = maxi(h, high[p])
+						low[n.id] = (l if row != act * 15 else 0) + add
+						high[n.id] = (h if row != act * 15 else 0) + add
+				var end: int = map.row_nodes(act * 15 + 14)[0].id
+				if type == REST:
+					low_rest += low[end]
+					high_rest += high[end]
+					zero_rest += 1 if low[end] == 0 else 0
+				else:
+					low_shop += low[end]
+					high_shop += high[end]
+					zero_shop += 1 if low[end] == 0 else 0
+			acts += 1
+	var f := float(acts)
+	_check(low_rest / f < 1.3 and low_rest / f > 0.4, "the rest-avoiding route sees about 1 rest per act (%.2f)" % (low_rest / f))
+	_check(high_rest / f > 3.5 and high_rest / f < 5.0, "the rest-seeking route sees about 4 rests per act (%.2f)" % (high_rest / f))
+	_check(low_shop / f < 0.5, "the shop-avoiding route sees almost no shops per act (%.2f)" % (low_shop / f))
+	_check(high_shop / f > 2.5, "the shop-seeking route sees about 3 shops per act (%.2f)" % (high_shop / f))
+	_check(zero_rest / f > 0.15, "many acts allow a route with no rest at all (%.2f)" % (zero_rest / f))
+	_check(zero_shop / f > 0.6, "most acts allow a route with no shop at all (%.2f)" % (zero_shop / f))
