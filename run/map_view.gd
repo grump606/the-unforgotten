@@ -1,7 +1,7 @@
 class_name MapView
 extends Control
 ## The route map of one act, drawn in code (docs/MAP_DESIGN.md, "Map screen"): rows run left to right,
-## nodes are glyphs (crossed blades, flame, coin, book, bell, eye), edges are inked lines. A pure
+## nodes are glyphs (crossed blades, an armchair, coin, book, bell, eye), edges are inked lines. A pure
 ## presentation component: it is handed a RouteMap and the run's position by `set_data` and knows nothing
 ## of RunState. Reachable nodes pulse and can be clicked (or chosen with the arrow keys and Enter); the
 ## view then emits `node_chosen(id)` and leaves the state alone until `set_data` is called again.
@@ -21,11 +21,13 @@ const BONE := Color("#e8e1d0")
 const BONE_DIM := Color("#a6b9b5")
 const AMBER := Color("#e8b773")
 const BLOOD := Color("#d96b65")
-const FLAME := Color("#f0a04a")
 const COIN := Color("#e6c25a")
 const PAPER := Color("#83b4cf")
 const EDGE_FAINT := Color(0.60, 0.66, 0.68, 0.24)
 const EDGE_TAKEN := Color("#e8b773")
+
+## The warm amber of the rest armchair.
+const HEARTH := Color("#e8c07a")
 
 const BOSS_NAMES := {RouteMap.NodeType.MID_BOSS: "The Bellkeeper", RouteMap.NodeType.BOSS: "The Eraser"}
 
@@ -84,7 +86,7 @@ func set_data(route: RouteMap, visited: Array[int], current: int, reachable: Arr
 	_route = route
 	_visited = visited.duplicate()
 	_current = current
-	_reachable = reachable.duplicate()
+	_reachable.assign(reachable.filter(func(id: int) -> bool: return _route != null and _route.node(id) != null))
 	_reachable.sort_custom(_by_place)
 	_character = character_id
 	_act = _pick_act()
@@ -271,7 +273,6 @@ func node_at(at: Vector2) -> int:
 func choose(id: int) -> bool:
 	if not _reachable.has(id):
 		return false
-	RunScreen.sfx(&"click")
 	node_chosen.emit(id)
 	return true
 
@@ -379,8 +380,6 @@ func _draw_header() -> void:
 	_text(progress_text(), Vector2(28.0 * s + title_w + 18.0 * s, 41.0 * s), int(17 * s), BONE_DIM)
 	if _status != "":
 		_text(_status, Vector2(0, 40.0 * s), int(15 * s), BONE, size.x - 28.0 * s, HORIZONTAL_ALIGNMENT_RIGHT)
-	if not _reachable.is_empty():
-		_text("Choose your road", Vector2(0, 82.0 * s), int(16 * s), Color(AMBER, 0.85), size.x, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _edge_points(a: int, b: int) -> PackedVector2Array:
@@ -486,7 +485,7 @@ func _glyph_color(type: RouteMap.NodeType) -> Color:
 		RouteMap.NodeType.ELITE:
 			return Color("#ff8a52")
 		RouteMap.NodeType.REST:
-			return FLAME
+			return HEARTH
 		RouteMap.NodeType.SHOP:
 			return COIN
 		RouteMap.NodeType.STORY:
@@ -504,7 +503,7 @@ func _draw_glyph(type: RouteMap.NodeType, c: Vector2, g: float, col: Color) -> v
 			_glyph_blades(c + Vector2(0, g * 0.18), g * 0.9, col)
 			_glyph_horns(c, g, col)
 		RouteMap.NodeType.REST:
-			_glyph_flame(c, g, col)
+			_glyph_armchair(c, g, col)
 		RouteMap.NodeType.SHOP:
 			_glyph_coin(c, g, col)
 		RouteMap.NodeType.STORY:
@@ -535,17 +534,6 @@ func _glyph_horns(c: Vector2, g: float, col: Color) -> void:
 			draw_arc(centre, g * 0.52, PI * 0.95, PI * 1.55, 8, col, w, true)
 		else:
 			draw_arc(centre, g * 0.52, PI * 1.45, PI * 2.05, 8, col, w, true)
-
-
-func _glyph_flame(c: Vector2, g: float, col: Color) -> void:
-	var outer := _scaled([Vector2(0.0, -1.05), Vector2(0.28, -0.55), Vector2(0.62, -0.1), Vector2(0.62, 0.38), Vector2(0.34, 0.72),
-			Vector2(0.0, 0.8), Vector2(-0.34, 0.72), Vector2(-0.62, 0.38), Vector2(-0.6, -0.05), Vector2(-0.36, -0.28), Vector2(-0.2, -0.62)], c, g)
-	draw_colored_polygon(outer, col)
-	var inner := _scaled([Vector2(0.0, -0.25), Vector2(0.3, 0.2), Vector2(0.28, 0.5), Vector2(0.0, 0.68), Vector2(-0.28, 0.5), Vector2(-0.3, 0.2)], c, g)
-	draw_colored_polygon(inner, Color(1.0, 0.93, 0.66, col.a))
-	var logs := Color(col.r * 0.55, col.g * 0.4, col.b * 0.25, col.a)
-	draw_line(c + Vector2(-g * 0.85, g * 0.98), c + Vector2(g * 0.85, g * 0.78), logs, maxf(2.0, g * 0.2), true)
-	draw_line(c + Vector2(-g * 0.85, g * 0.78), c + Vector2(g * 0.85, g * 0.98), logs, maxf(2.0, g * 0.2), true)
 
 
 func _glyph_coin(c: Vector2, g: float, col: Color) -> void:
@@ -596,6 +584,30 @@ func _glyph_eye(c: Vector2, g: float, col: Color) -> void:
 	draw_circle(c, g * 0.46, Color(0.55, 0.12, 0.12, col.a))
 	draw_line(c + Vector2(0, -0.46) * g, c + Vector2(0, 0.46) * g, Color(0.04, 0.02, 0.03, col.a), maxf(2.0, g * 0.16), true)
 	draw_line(c + Vector2(-0.95, 0.85) * g, c + Vector2(0.95, -0.85) * g, Color(0.04, 0.02, 0.03, col.a * 0.9), maxf(2.0, g * 0.14), true)
+
+
+## A high-backed armchair seen from the front: arched back, two armrests, a cushion and short legs.
+func _glyph_armchair(c: Vector2, g: float, col: Color) -> void:
+	var w := maxf(2.0, g * 0.2)
+	var cream := Color(minf(col.r * 1.12, 1.0), minf(col.g * 1.12, 1.0), minf(col.b * 1.2, 1.0), col.a)
+	var dark := Color(col.r * 0.35, col.g * 0.3, col.b * 0.2, col.a)
+	for x in [-0.72, 0.72]:
+		draw_line(c + Vector2(x, 0.6) * g, c + Vector2(x, 1.0) * g, col, w, true)
+	var back: Array[Vector2] = [Vector2(-0.52, 0.45), Vector2(-0.58, -0.55)]
+	for i in 9:
+		var a := PI + PI * i / 8.0
+		back.append(Vector2(cos(a) * 0.58, -0.55 + sin(a) * 0.5))
+	back.append_array([Vector2(0.58, -0.55), Vector2(0.52, 0.45)])
+	draw_colored_polygon(_scaled(back, c, g), col)
+	draw_arc(c + Vector2(0.0, -0.55) * g, g * 0.34, PI * 1.05, PI * 1.95, 8, dark, maxf(1.4, g * 0.1), true)
+	for m in [-1.0, 1.0]:
+		var arm := _scaled([Vector2(m * 0.45, -0.05), Vector2(m * 0.82, -0.12), Vector2(m * 1.04, 0.0), Vector2(m * 1.04, 0.66), Vector2(m * 0.45, 0.66)], c, g)
+		if m < 0.0:
+			arm.reverse()
+		draw_colored_polygon(arm, col)
+		draw_line(c + Vector2(m * 0.48, 0.04) * g, c + Vector2(m * 0.48, 0.64) * g, dark, maxf(1.4, g * 0.1), true)
+	var seat := _scaled([Vector2(-0.5, 0.18), Vector2(0.5, 0.18), Vector2(0.56, 0.58), Vector2(-0.56, 0.58)], c, g)
+	draw_colored_polygon(seat, cream)
 
 
 func _scaled(points: Array, c: Vector2, g: float) -> PackedVector2Array:
