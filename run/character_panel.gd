@@ -15,6 +15,8 @@ const PORTRAIT_HEIGHT := 66.0
 const FIGURE_HEIGHT := 62.0
 ## The painted portrait shows this top share of the class sprite: head, shoulders and chest.
 const PAINTED_CROP := 0.32
+## Classes whose portrait shows more of the sprite (the broad Stray would otherwise fill the window).
+const PAINTED_CROP_BY_CLASS := {&"stray": 0.62}
 ## Starting-deck cards: four per row, small enough that three panels sit comfortably across 1152 px
 ## and the whole group fits the window height without crowding the edges.
 const DECK_CARD_SCALE := 0.4
@@ -260,7 +262,7 @@ func _draw_painted_portrait(sz: Vector2) -> bool:
 	if fig.is_empty():
 		return false
 	var tex: Texture2D = fig.tex
-	var region := Rect2(0.0, 0.0, tex.get_width(), tex.get_height() * PAINTED_CROP)
+	var region := Rect2(0.0, 0.0, tex.get_width(), tex.get_height() * float(PAINTED_CROP_BY_CLASS.get(class_id, PAINTED_CROP)))
 	var scale_to := (sz.y - 2.0) / region.size.y
 	var width := minf(region.size.x * scale_to, sz.x - 2.0)
 	var dest := Rect2((sz.x - width) / 2.0, 1.0, width, sz.y - 2.0)
