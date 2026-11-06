@@ -7,6 +7,10 @@ extends RefCounted
 ##
 ## New stop kinds (vendor, cutscene) become new StopType values plus one branch
 ## in the screen; the stop line and the persistent player/deck stay as they are.
+##
+## Map mode (off by default, see docs/MAP_DESIGN.md "Phase 2"): the run follows a RouteMap the player
+## picks a path through instead of the fixed line. Everything below that is not about the map behaves
+## exactly as in line mode; `uses_map()` tells them apart.
 
 enum StopType { COMBAT, REST, STORY, VENDOR }
 
@@ -31,6 +35,8 @@ const MID_BOSS_GOLD_BONUS := 15
 ## `tier` is the 0-based act (0 up to the mid-boss, 1 after it) and `fight` the 0-based number of a
 ## regular COMBAT stop among the regular fights; both are set by RunState._default_line and
 ## drive the encounter pools and stat ramp (see StarterContent.varied_encounter).
+## In map mode `choose_node` builds the stop: `node_id` is the map node (-1 on the line), `backdrop` the
+## node's battle screen key (&"" on the line and for non-fights) and `fight` the row-keyed ramp number.
 class Stop:
 	var type: StopType
 	var enemy_count: int
@@ -39,6 +45,8 @@ class Stop:
 	var mid_boss: bool
 	var tier: int
 	var fight: int
+	var node_id: int = -1
+	var backdrop: StringName = &""
 
 	func _init(stop_type: StopType, count: int = 0, beat: int = 0, is_boss: bool = false, is_mid_boss: bool = false) -> void:
 		type = stop_type
@@ -70,7 +78,16 @@ var character: Character
 var player: Combatant
 var deck: Array[CardData]
 var stops: Array[Stop] = []
+## Line mode: the index into `stops`. Map mode: the row (0 to 29) of the current node, 0 before the first
+## choice, and `stops.size()` once the final boss is beaten. Progress text ("Journey n/30") reads it as is.
 var stop_index: int = 0
+## Map mode only (null in line mode): the generated map, from RouteMap.generate(seed, character id) with
+## its own RNG, so it never touches `_rng`.
+var route: RouteMap = null
+## Map mode: the id of the node the player is at, -1 before the first choice.
+var current_node: int = -1
+## Map mode: the ids of the nodes taken so far, in order.
+var visited: Array[int] = []
 ## Debug launch (run/debug_launch.gd): when non-empty, the next fight uses these enemy ids instead of the stop's encounter.
 var debug_encounter: Array[StringName] = []
 ## True once the line is finished, by reaching the end or by losing a fight.
@@ -100,9 +117,12 @@ var _active_combat: Combat = null
 var _rng := RandomNumberGenerator.new()
 var _reward_choices: Array[CardData] = []
 var _reward_pending: bool = false
+## Map mode: the stop of the current node, null between stops.
+var _map_stop: Stop = null
 
 
-func _init(rng_seed: int = 0, character_id: StringName = StarterContent.DEFAULT_CHARACTER_ID) -> void:
+## `use_map` turns on map mode. Off (the default) the run is the fixed line, untouched.
+func _init(rng_seed: int = 0, character_id: StringName = StarterContent.DEFAULT_CHARACTER_ID, use_map: bool = false) -> void:
 	_rng.seed = rng_seed
 	character = StarterContent.character(character_id)
 	if character == null:
@@ -112,12 +132,102 @@ func _init(rng_seed: int = 0, character_id: StringName = StarterContent.DEFAULT_
 	player = Combatant.new(character.display_name, character.max_hp)
 	if character.id != &"":
 		deck.assign(StarterContent.starter_deck(character.id))
-	stops = _default_line()
+	if use_map:
+		route = RouteMap.generate(rng_seed, character.id)
+		# No line in map mode: `stops` holds RouteMap.ROWS placeholder entries so `stops.size()` is the
+		# journey length. Nothing should read their contents; the live stop is `current_stop()`.
+		for _row in RouteMap.ROWS:
+			stops.append(Stop.new(StopType.COMBAT))
+	else:
+		stops = _default_line()
 
 
-## The stop the player is at, or null once the run is finished.
+## The stop the player is at, or null once the run is finished (and, in map mode, between stops).
 func current_stop() -> Stop:
-	return null if finished else stops[stop_index]
+	if finished:
+		return null
+	return _map_stop if route != null else stops[stop_index]
+
+
+func uses_map() -> bool:
+	return route != null
+
+
+## Map mode: the node ids the player may pick next. The start nodes before any choice, else the successors
+## of the current node. Empty while a stop is in progress (fight, reward, vendor, rest or story), when the
+## run is finished, and in line mode.
+func reachable_nodes() -> Array[int]:
+	var ids: Array[int] = []
+	if route == null or finished or _map_stop != null:
+		return ids
+	if current_node == -1:
+		return route.starts()
+	return route.next_ids(current_node)
+
+
+## Map mode: moves to node `id` and opens its stop (see `current_stop()`). False, changing nothing, unless
+## the node is currently reachable.
+func choose_node(id: int) -> bool:
+	if not reachable_nodes().has(id):
+		return false
+	var n := route.node(id)
+	current_node = id
+	visited.append(id)
+	stop_index = n.row
+	_map_stop = _stop_for_node(n)
+	return true
+
+
+## The stop type a map node plays as (bosses and elites are combats).
+static func stop_type_for_node(type: RouteMap.NodeType) -> StopType:
+	match type:
+		RouteMap.NodeType.REST:
+			return StopType.REST
+		RouteMap.NodeType.SHOP:
+			return StopType.VENDOR
+		RouteMap.NodeType.STORY:
+			return StopType.STORY
+	return StopType.COMBAT
+
+
+## The battle backdrop screen key for the current fight: the node's in map mode, the stop's place on the
+## line otherwise (&"" when it has none and the character's own is used).
+func battle_backdrop() -> StringName:
+	if route != null:
+		return _map_stop.backdrop if _map_stop != null else &""
+	return DestinationArt.battle_key(stop_index)
+
+
+## The place name for the current stop ("" when it has none).
+func destination_label() -> String:
+	if route != null:
+		return DestinationArt.label_for_stop(_map_stop) if _map_stop != null else ""
+	return DestinationArt.label_at(stop_index)
+
+
+func _stop_for_node(n: RouteMap.MapNode) -> Stop:
+	var stop: Stop
+	match n.type:
+		RouteMap.NodeType.REST:
+			stop = Stop.new(StopType.REST)
+		RouteMap.NodeType.SHOP:
+			stop = Stop.new(StopType.VENDOR)
+		RouteMap.NodeType.STORY:
+			stop = Stop.new(StopType.STORY, 0, n.beat_index)
+		RouteMap.NodeType.MID_BOSS:
+			stop = Stop.new(StopType.COMBAT, 1, 0, false, true)
+		RouteMap.NodeType.BOSS:
+			stop = Stop.new(StopType.COMBAT, 1, 0, true)
+		RouteMap.NodeType.ELITE:
+			# Placeholder until phase 5: a normal pack of at least two.
+			stop = Stop.new(StopType.COMBAT, maxi(n.enemy_count, 2))
+		_:
+			stop = Stop.new(StopType.COMBAT, n.enemy_count)
+	stop.tier = n.act
+	stop.fight = StarterContent.ramp_fight_for_row(n.row) if n.is_fight() and not n.is_boss() else 0
+	stop.node_id = n.id
+	stop.backdrop = n.backdrop
+	return stop
 
 
 func reward_pending() -> bool:
@@ -331,6 +441,11 @@ func rest_number() -> int:
 	if stop == null or stop.type != StopType.REST:
 		return 0
 	var count := 0
+	if route != null:
+		for id in visited:
+			if route.node(id).type == RouteMap.NodeType.REST:
+				count += 1
+		return count
 	for i in stop_index + 1:
 		if stops[i].type == StopType.REST:
 			count += 1
@@ -421,6 +536,13 @@ func _unowned_relics() -> Array[RelicData]:
 
 func _advance() -> void:
 	_vendor = null
+	if route != null:
+		_map_stop = null
+		if route.node(current_node).type == RouteMap.NodeType.BOSS:
+			stop_index = stops.size()
+			finished = true
+			escaped = true
+		return
 	stop_index += 1
 	if stop_index >= stops.size():
 		finished = true

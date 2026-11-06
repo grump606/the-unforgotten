@@ -471,6 +471,18 @@ static func varied_encounter(enemy_count: int, rng: RandomNumberGenerator, tier:
 	return enemies
 
 
+## Map mode ramp (placeholder until threat budgets): the run's 30 rows are spread linearly over the ramp
+## scale the line uses for its 8 regular fights, so depth sets difficulty on any path.
+const MAP_RAMP_FIGHTS := 8
+const MAP_RAMP_LAST_ROW := 28
+
+
+## The ramp number (what `varied_encounter` takes as `fight`) for a fight on run row `row` (0 to 29):
+## row * 8 / 28, so 0 at the start up to 8 on row 28. Never decreases with the row.
+static func ramp_fight_for_row(row: int) -> int:
+	return clampi(row, 0, MAP_RAMP_LAST_ROW + 1) * MAP_RAMP_FIGHTS / MAP_RAMP_LAST_ROW
+
+
 ## The stat multiplier for the regular fight numbered `fight` (0-based; below 0 counts as 0).
 static func ramp_factor(fight: int) -> float:
 	return 1.0 + RAMP_PER_FIGHT * maxi(fight, 0)
