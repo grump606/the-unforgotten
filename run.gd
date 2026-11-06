@@ -237,6 +237,8 @@ func _play_sfx(id: StringName) -> void:
 func _update_header() -> void:
 	var player := _run.player
 	var position := mini(_run.stop_index + 1, _run.stops.size())
+	if _run.uses_map() and not _run.finished and _run.current_stop() == null and _run.current_node >= 0:
+		position = mini(_run.stop_index + 2, _run.stops.size()) # choosing the next row: stop_index is the row just done
 	var prefix := _notice + "\n" if _notice != "" else ""
 	var stop := _run.current_stop()
 	var stop_text := stop.describe() if stop != null else ("Journey's end" if _run.finished else "Choose your way")
