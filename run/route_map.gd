@@ -22,7 +22,10 @@ const ROWS := ACTS * ACT_ROWS
 const BOSS_LOCAL_ROW := 14
 ## Local rows (within an act) holding a story beat. Beat indices run 0 to 3 in order across the acts.
 const STORY_LOCAL_ROWS := [[0, 13], [3, 13]]
-## `row_info()["type"]` for a free row (a row that holds fights, rests and shops).
+## The local row of the forced rest row: the free row just before the story beat that precedes the boss. Every
+## node in it is a rest, so every path rests before each boss. The row before it (local row 11) holds no rest.
+const FORCED_REST_ROW := 12
+## `row_info()["type"]` for a free row (a row that holds fights, rests and shops, or the forced rest row).
 const FREE_ROW := -1
 
 const MID_BOSS_BACKDROP := &"battle_bell_court"
@@ -45,8 +48,9 @@ const SEED_LIMIT := 9.0e18
 ## Tuning values in one place. Weights are relative (they need not add up to 100). `generate` merges the
 ## caller's config over this, key by key (and `type_weights` entry by entry).
 const CONFIG := {
-	# Per free node. Elite is 0 until the elite phase; it works whenever the weight is positive.
-	"type_weights": {"fight": 26.0, "rest": 42.0, "shop": 13.0, "elite": 0.0},
+	# Per free node (the forced rest row is all rests whatever these are). Elite is 0 until the elite phase;
+	# it works whenever the weight is positive.
+	"type_weights": {"fight": 26.0, "rest": 18.0, "shop": 7.0, "elite": 0.0},
 	# Enemy count weights (for counts 1, 2, 3 ...) by the node's row in the run; the first band whose
 	# max_row is not below the row applies.
 	"enemy_bands": [
@@ -60,7 +64,7 @@ const CONFIG := {
 	"safe_rows": 3,
 	# Map-level availability: every run of this many consecutive free rows (within an act, counting only
 	# rows at or after safe_rows) holds one. 0 turns a window off.
-	"rest_window": 4,
+	"rest_window": 6,
 	"shop_window": 8,
 	# Chance that a node with a single exit edge gets a second one.
 	"extra_edge_chance": 0.5,
@@ -109,24 +113,24 @@ var _rows: Array = []
 
 # --- Layout ---------------------------------------------------------------------------------------------
 
-## What row `row` (0 to 29) holds: {"act", "type", "free", "beat"}. `type` is a NodeType for a choke row
+## What row `row` (0 to 29) holds: {"act", "type", "free", "beat", "forced"}. `type` is a NodeType for a choke row
 ## (story, mid-boss, boss) or FREE_ROW; `free` is the index among the act's free rows (-1 for choke rows);
-## `beat` the story beat of a story row (-1 otherwise).
+## `beat` the story beat of a story row (-1 otherwise); `forced` is true for the forced rest row (a free row).
 @warning_ignore("integer_division")
 static func row_info(row: int) -> Dictionary:
 	var act := row / ACT_ROWS
 	var local := row % ACT_ROWS
 	if local == BOSS_LOCAL_ROW:
-		return {"act": act, "type": NodeType.MID_BOSS if act == 0 else NodeType.BOSS, "free": -1, "beat": -1}
+		return {"act": act, "type": NodeType.MID_BOSS if act == 0 else NodeType.BOSS, "free": -1, "beat": -1, "forced": false}
 	var stories: Array = STORY_LOCAL_ROWS[act]
 	var story_at := stories.find(local)
 	if story_at != -1:
-		return {"act": act, "type": NodeType.STORY, "free": -1, "beat": act * 2 + story_at}
+		return {"act": act, "type": NodeType.STORY, "free": -1, "beat": act * 2 + story_at, "forced": false}
 	var before := 0
 	for story_row in stories:
 		if story_row < local:
 			before += 1
-	return {"act": act, "type": FREE_ROW, "free": local - before, "beat": -1}
+	return {"act": act, "type": FREE_ROW, "free": local - before, "beat": -1, "forced": local == FORCED_REST_ROW}
 
 
 ## The row numbers of act `act`'s free rows, in order.
@@ -549,7 +553,8 @@ func _fights_in_row(row: int) -> int:
 	return count
 
 
-## Fills the free rows' types: the first `safe_rows` free rows of an act are fights; later nodes roll once by
+## Fills the free rows' types: the forced rest row is all rests; the first `safe_rows` free rows of an act are
+## fights; the row before the forced one holds no rest; later nodes roll once by
 ## weight over the types still allowed for them (a rest, shop or elite is not allowed after a node of the same
 ## type on an incoming edge, and the fight weight is always allowed, so the blocked weight is spread over the
 ## rest in proportion); every free row keeps at least one plain fight (a rest or shop takes a fight's place, it
@@ -562,6 +567,11 @@ func _assign_types(rng: RandomNumberGenerator) -> void:
 		if int(info["type"]) != FREE_ROW:
 			continue
 		var free_index: int = info["free"]
+		if bool(info["forced"]):
+			for id in _rows[row]:
+				nodes[id].type = NodeType.REST
+			continue
+		var rest_barred: bool = row % ACT_ROWS == FORCED_REST_ROW - 1
 		for id in _rows[row]:
 			var n := nodes[id]
 			n.type = NodeType.FIGHT
@@ -573,6 +583,8 @@ func _assign_types(rng: RandomNumberGenerator) -> void:
 				var type: int = _TYPE_OF_KEY[key]
 				var weight := float(weights.get(key, 0.0))
 				if type != NodeType.FIGHT and _neighbour_has(n, type as NodeType, true, false):
+					weight = 0.0
+				if type == NodeType.REST and rest_barred:
 					weight = 0.0
 				options.append(type)
 				rolls.append(weight)
@@ -591,6 +603,13 @@ func _window_of(type: NodeType) -> int:
 	return int(config["rest_window"]) if type == NodeType.REST else int(config["shop_window"])
 
 
+## The last free-row index (within an act's free rows) at which a window for `type` may end. The forced rest row
+## satisfies the rest need itself and the row before it cannot hold a rest, so rest windows stop two rows before
+## the end of the list; shop windows stop one row before (the forced row holds only rests).
+static func window_last_index(type: NodeType, free_count: int) -> int:
+	return free_count - (3 if type == NodeType.REST else 2)
+
+
 ## True if the `window` free rows ending at `free_index` (never reaching back into the safe rows) hold a node
 ## of `type`, ignoring the node `skip_id`.
 func _window_holds(act_rows: Array[int], free_index: int, window: int, type: NodeType, skip_id: int) -> bool:
@@ -603,7 +622,7 @@ func _window_holds(act_rows: Array[int], free_index: int, window: int, type: Nod
 
 ## Map-level availability, applied as each free row is finished: if the window of free rows ending at
 ## `free_index` holds no node of `target`, one node of this row becomes one. A window only spans free rows at
-## or after `safe_rows`, so nothing is forced inside the all-fight opening. Only the row just assigned can need
+## or after `safe_rows` and ends before the forced rest row (see `window_last_index`). Only the row just assigned can need
 ## it (the window's earlier rows are done), so its incoming neighbours are known to be free of `target` and no
 ## later row has been rolled yet; later rows then avoid the adjacency themselves. The converted node is never
 ## in a safe row and never the last plain fight of its row. Preferred: a plain fight (if the row has a spare
@@ -613,12 +632,12 @@ func _window_holds(act_rows: Array[int], free_index: int, window: int, type: Nod
 func _ensure_in_window(rng: RandomNumberGenerator, act_rows: Array[int], free_index: int, target: NodeType, other: NodeType) -> void:
 	var window := _window_of(target)
 	var safe := int(config["safe_rows"])
-	if window <= 0 or free_index < safe or free_index - window + 1 < safe:
+	if window <= 0 or free_index < safe or free_index - window + 1 < safe or free_index > window_last_index(target, act_rows.size()):
 		return
 	if _window_holds(act_rows, free_index, window, target, -1):
 		return
 	var other_window := _window_of(other)
-	var other_applies := other_window > 0 and free_index - other_window + 1 >= safe
+	var other_applies := other_window > 0 and free_index - other_window + 1 >= safe and free_index <= window_last_index(other, act_rows.size())
 	var fights := _fights_in_row(act_rows[free_index])
 	var tiers: Array = [[], [], []]
 	for id in _rows[act_rows[free_index]]:
@@ -746,6 +765,7 @@ func validate() -> Array[String]:
 		_check_edges(v, rows)
 		_check_types(v, rows, preds)
 		_check_availability(v, rows)
+		_check_rest_before_bosses(v, rows)
 		_check_backdrops(v)
 	_check_counts(v)
 	return v
@@ -860,6 +880,14 @@ func _check_layout(v: Array[String], rows: Array) -> void:
 		var ids: Array = rows[r]
 		var row_type: int = info["type"]
 		if row_type == FREE_ROW:
+			if bool(info["forced"]):
+				for id in ids:
+					if nodes[id].type != NodeType.REST:
+						v.append("%s is in the forced rest row and must be a rest" % _describe(nodes[id]))
+			elif r % ACT_ROWS == FORCED_REST_ROW - 1:
+				for id in ids:
+					if nodes[id].type == NodeType.REST:
+						v.append("%s is in the row before the forced rest row and may not be a rest" % _describe(nodes[id]))
 			if ids.size() < min_width or ids.size() > max_width:
 				v.append("free row %d has %d nodes, expected %d to %d" % [r, ids.size(), min_width, max_width])
 			for id in ids:
@@ -911,7 +939,7 @@ func _check_types(v: Array[String], rows: Array, preds: Array) -> void:
 	var safe := int(config["safe_rows"])
 	for r in rows.size():
 		var info := row_info(r)
-		if int(info["type"]) != FREE_ROW:
+		if int(info["type"]) != FREE_ROW or bool(info["forced"]):
 			continue
 		var plain_fights := 0
 		for id in rows[r]:
@@ -937,7 +965,7 @@ func _check_availability(v: Array[String], rows_by_number: Array) -> void:
 			continue
 		for act in ACTS:
 			var rows := free_rows(act)
-			for start in range(safe, rows.size() - window + 1):
+			for start in range(safe, window_last_index(pair[0], rows.size()) - window + 2):
 				var present := false
 				for i in range(start, start + window):
 					for id in rows_by_number[rows[i]]:
@@ -945,6 +973,26 @@ func _check_availability(v: Array[String], rows_by_number: Array) -> void:
 							present = true
 				if not present:
 					v.append("act %d: free rows %d to %d hold no %s" % [act + 1, start, start + window - 1, pair[2]])
+
+
+## Every path passes a rest between the start (or the previous boss) and each boss. The forced rest row makes
+## this true; the check is by path, so it also catches a rest row that some edge routes around.
+func _check_rest_before_bosses(v: Array[String], rows: Array) -> void:
+	var covered := {}
+	for row in rows:
+		for id in row:
+			var n := nodes[id]
+			var all_rest := not n.prev.is_empty()
+			for p in n.prev:
+				if not covered.get(p, false):
+					all_rest = false
+					break
+			if n.is_boss():
+				if not all_rest:
+					v.append("%s can be reached on a path with no rest since the start or the last boss" % _describe(n))
+				covered[id] = false
+			else:
+				covered[id] = n.type == NodeType.REST or all_rest
 
 
 func _check_counts(v: Array[String]) -> void:
