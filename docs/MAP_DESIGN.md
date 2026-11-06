@@ -80,3 +80,29 @@ arguments give an identical map. The map is plain data (`to_dict` / `from_dict`)
 5. Elites (new tougher packs, relic reward).
 6. Balance pass and docs.
 7. Later: event and treasure nodes.
+
+## Phase 1 (built)
+
+`run/route_map.gd` (`class_name RouteMap`) holds the node data (`RouteMap.MapNode`), the graph and queries
+(`node`, `next_ids`, `previous_ids`, `row_nodes`, `starts`, `finals`, `path_count`, `all_paths`), the tuning
+dictionary `RouteMap.CONFIG`, `generate(seed, character_id, config)`, `validate()` (a list of broken rules, empty
+when valid), `to_dict()` / `from_dict()` and `from_line(stops)`. `RouteMap.NodeType` is its own append-only enum.
+Nothing in the game uses it yet; `tests/route_map_tests.gd` covers determinism, structure, the type, availability,
+enemy-count and backdrop rules over many seeds, the validator against deliberately broken maps, the round trip and
+the line adapter.
+
+Choices where the spec left room:
+
+- "Consecutive free rows" are consecutive in the act's list of free rows, so the act 2 story row (row 3) does not
+  break a window. A window must be longer than the 3 safe rows, so the rest window of 4 puts a rest in the 4th free
+  row of every act.
+- Availability is applied as each row is rolled: a fight of the row that closes an empty window becomes the rest or
+  shop, so the choice is real. Every free row also keeps at least one plain fight.
+- Out-degree is 1 or 2 and in-degree is capped at 2 between free rows; a one-node row links to every node on either
+  side regardless of columns.
+- A story node after a 4-wide row passes all of that row's backdrops on to the fights behind it, which with a
+  neighbouring fight can leave the pool of 5 empty; the backdrop pass re-rolls (up to 60 times) before it would
+  accept a repeat, and the validator reports any repeat that remains.
+- `from_line` maps COMBAT stops to fights, the mid-boss and boss flags to MID_BOSS and BOSS, VENDOR to SHOP, and
+  validates only the graph shape and enemy counts (the 21-row line is not the generated layout).
+
