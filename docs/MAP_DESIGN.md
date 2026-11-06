@@ -188,7 +188,8 @@ a run), `tools/map_sheet.gd` (screenshots), `tests/ui_map_test.gd`.
   "Story: <beat title>", "Mid-boss", "Final boss").
 - `MapScreen` is a `RunScreen`: run.gd attaches it like the others and calls `show_map(run)`, which builds the view
   from `run.route`, `run.visited`, `run.current_node` and `run.reachable_nodes()`. `node_chosen(node_id)` is
-  re-emitted; run.gd calls `run.choose_node(id)`. `present(...)` does the same from plain data (used by the test and
+  re-emitted; run.gd calls `run.choose_node(id)`. The status line is left empty: run.gd's own header above the map shows the
+  character, HP, gold and deck, and its "Journey n/30" counts the row being chosen (matching the view's "Row n/15"). `present(...)` does the same from plain data (used by the test and
   the screenshot tool).
 - Controls: click a reachable node to choose it; Left/Right (or Up/Down) cycle the reachable choices and Enter or
   Space chooses the selected one (ringed while the view has focus). Unreachable, visited and current nodes cannot be

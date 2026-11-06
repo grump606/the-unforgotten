@@ -22,8 +22,8 @@ func show() -> void:
 	visited.assign(run.visited)
 	var reachable: Array[int] = run.reachable_nodes()
 	var character_id: StringName = run.character.id if run.character != null else &""
-	var status := "%s  ·  HP %d/%d  ·  Gold %d  ·  Deck %d" % [run.player.display_name, run.player.hp, run.player.max_hp, run.gold, run.deck.size()]
-	present(run.route, visited, run.current_node, reachable, character_id, status)
+	# No status line: run.gd's header above the map already shows the character, HP, gold and deck.
+	present(run.route, visited, run.current_node, reachable, character_id)
 
 
 ## Builds the view from plain data (the part of `show` that needs no RunState) and returns it.
@@ -35,8 +35,14 @@ func present(route: RouteMap, visited: Array[int], current: int, reachable: Arra
 	view.node_chosen.connect(_on_chosen)
 	body.add_child(view)
 	view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	view.grab_focus.call_deferred()
+	_focus.call_deferred(view)
 	return view
+
+
+## Keyboard focus for the view, unless the screen was redrawn (view freed or removed) before this ran.
+func _focus(target: MapView) -> void:
+	if is_instance_valid(target) and target.is_inside_tree():
+		target.grab_focus()
 
 
 func _on_chosen(id: int) -> void:

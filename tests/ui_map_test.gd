@@ -217,5 +217,33 @@ func _initialize() -> void:
 	check(chosen == ([reachable[0]] as Array[int]), "the screen re-emits node_chosen")
 	body.queue_free()
 
+	# The real run flow: the map shows after every stop, run.gd's header is the only status line (the view
+	# draws none) and its journey number counts the row being chosen, like the view's "Row n/15".
+	var scene: Control = load("res://run.tscn").instantiate()
+	scene.save_path = "user://ui_map_test_save_%d.json" % OS.get_process_id()
+	root.add_child(scene)
+	await process_frame
+	scene.start_debug_map(DebugLaunch.parse(PackedStringArray(["--map"]), {}))
+	var header: Label = scene.get_node("%HeaderLabel")
+	var run_body: Control = scene.get_node("%Body")
+	for step in 4:
+		await process_frame
+		var views := run_body.find_children("*", "MapView", true, false)
+		check(views.size() == 1, "step %d: the run shows one map" % step)
+		var run_state: RunState = scene._run
+		var next_row: int = run_state.route.node(run_state.reachable_nodes()[0]).row
+		check(header.text.contains("Journey %d/30" % (next_row + 1)), "step %d: the header counts the row being chosen (%s)" % [step, header.text.replace("
+", " | ")])
+		check(views.size() == 1 and (views[0] as MapView).progress_text() == "Row %d/15" % (next_row + 1), "step %d: the view and the header agree on the row" % step)
+		scene._on_node_chosen(run_state.reachable_nodes()[0])
+		check(run_body.find_children("*", "MapView", true, false).is_empty() and run_state.current_stop() != null, "step %d: choosing a node leaves the map for its stop" % step)
+		if run_state.reward_pending() or run_state.current_stop().type == RunState.StopType.COMBAT:
+			run_state.complete_combat(true)
+			run_state.resolve_reward(null)
+		elif run_state.current_stop().type == RunState.StopType.STORY:
+			run_state.read_story()
+		scene._show_stop()
+	scene.queue_free()
+
 	print("DONE fails=", fails)
 	quit(1 if fails > 0 else 0)
