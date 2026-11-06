@@ -9,8 +9,8 @@ Replaces the fixed 21-stop line with a branching map the player chooses a path t
 - A run is two acts of 15 rows each, 30 rows in all. The last row of each act is its boss (the Bellkeeper ends act 1,
   the Eraser ends act 2). A path through the map takes exactly one node per row, so every path is 30 stops.
 - Each row holds 1 to 4 nodes. Rows with one node are choke points that every path passes through.
-- Node types: fight, elite fight (supported by the data model; weight 0 until phase 5), rest, shop, story beat,
-  mid-boss, boss.
+- Node types: fight, elite fight (supported by the data model; weight 0 until phase 5), rest, shop, treasure, story
+  beat, mid-boss, boss.
 - A rest or shop takes the place of a fight in its row. They are ordinary branches: a path that never picks one never
   sees one. Only the story beats, the two bosses and the forced rest row before each boss are on every path.
 
@@ -19,17 +19,18 @@ Replaces the fixed 21-stop line with a branching map the player chooses a path t
 | Act | Row(s) | Content |
 |---|---|---|
 | 1 | 0 | Story beat 0 (boarding). One node. |
-| 1 | 1 to 11 | Free rows (3 to 4 nodes). Rows 1 to 3 are all fights. Row 11 holds no rest. |
+| 1 | 1 to 11 | Free rows (3 to 4 nodes). Rows 1 to 3 are all fights. Row 6 is the forced treasure row (every node a chest). Row 11 holds no rest. |
 | 1 | 12 | Forced rest row (3 to 4 nodes, every one a rest). |
 | 1 | 13 | Story beat 1 (the Bellkeeper's hall). One node. |
 | 1 | 14 | Mid-boss. One node. |
-| 2 | 0 to 11 except 3 | Free rows (3 to 4 nodes). Rows 0 to 2 are all fights. Row 11 holds no rest. |
+| 2 | 0 to 11 except 3 | Free rows (3 to 4 nodes). Rows 0 to 2 are all fights. Row 7 is the forced treasure row (every node a chest). Row 11 holds no rest. |
 | 2 | 3 | Story beat 2 (the garden). One node. |
 | 2 | 12 | Forced rest row (3 to 4 nodes, every one a rest). |
 | 2 | 13 | Story beat 3 (the Eraser). One node. |
 | 2 | 14 | Final boss. One node. |
 
-That is 4 story beats, 2 bosses, 22 free rows and 2 forced rest rows per run, the same story order as the line.
+That is 4 story beats, 2 bosses, 20 plain free rows, 2 forced treasure rows and 2 forced rest rows per run, the same story
+order as the line (phase 4b added the treasure rows by turning two of the free rows into chests; see "Phase 4b").
 The forced rest row (`RouteMap.FORCED_REST_ROW`, local row 12) is a fairness anchor: every path rests once before
 each boss, whatever else it skipped. It is built and connected like any other free row.
 
@@ -83,7 +84,8 @@ Regular fights reuse the existing battle backdrops, assigned at generation and s
   recently used key and the validator reports the repeat (the generator then retries the whole map).
 - A character id outside `BattleBackdrop.TINTS` (including an empty one) has no key of its own, so its pool is the
   three shared keys plus neutral. A boss key can never enter the pool.
-- Rest and shop nodes have no backdrop; they keep their one fixed painting.
+- Rest, shop and treasure nodes have no backdrop; they keep their one fixed painting. The walk back to the previous
+  fight passes through a treasure row like any other non-fight node.
 
 ## Determinism
 
@@ -99,7 +101,7 @@ arguments give an identical map. The map is plain data (`to_dict` / `from_dict`)
 4. Threat-budget packs for random counts, route-choosing bots, and a rebalance for the 30-stop length.
 5. Elites (new tougher packs, relic reward).
 6. Balance pass and docs.
-7. Later: event and treasure nodes.
+7. Treasure nodes (phase 4b, below), then event nodes.
 
 ## Phase 1 (built)
 
@@ -371,3 +373,94 @@ Choices where the spec left room: the forced row counts as a free row for width 
 last entry of the act's free-row list, so "free rows" in the availability windows and `RouteMap.free_rows()` still
 count 12 per act; the 22 free rows are the ones that are not forced. The path check requires a rest before each boss
 (and so before story beats 1 and 3); story beats 0 and 2 have no guarantee before them.
+
+## Phase 4b: treasure rows and relic chests
+
+A TREASURE node is a chest that gives the player one relic. Each act has a forced treasure row of chests (a guaranteed
+chest per act, two per run), built like the forced rest row: it is a free row for width and edges, and every node in it
+is a chest. No chest appears anywhere else.
+
+### Layout
+
+| Act | Local row | Free index | Notes |
+|---|---|---|---|
+| 1 | 6 | 5 | free rows run 1 to 12, so five free rows (1 to 5) come before it |
+| 2 | 7 | 6 | the story beat sits at row 3, so free rows run 0 to 2 and 4 to 12 |
+
+`RouteMap.TREASURE_LOCAL_ROWS := [6, 7]` (next to `FORCED_REST_ROW`), `row_info()["treasure"]`. Both rows come after the
+3 safe rows (the first 3 free rows of an act are fights), are 5 rows or more away from the forced rest row (local row 12)
+and from each other, so two forced rows are never neighbours. The rows next to a chest row follow the normal rules: a
+rest or shop can neighbour it, and the adjacency rule never links a chest to anything because only chests share its row.
+Act 2's row 7 sits mid-act (free index 6 of 12) where act 1's row 6 does (5 of 12): the same position counted from the
+act's free rows. The chest row is exempt from the plain-fight rule like the rest row, and it has no enemy count and no
+backdrop.
+
+`NodeType.TREASURE` (value 7, appended) plays as `RunState.StopType.TREASURE` (value 4, appended). The `type_weights`
+config has a reserved `"treasure": 0.0` key (accepted, validated, ignored by the generator: chests only fill the forced
+row).
+
+### Rules
+
+- `validate()` reports a node of the treasure row that is not a chest, and a chest anywhere else (a type that does not
+  belong in a free row). A chest has no enemies and no backdrop (the generic non-fight rules).
+- The availability windows count the rows of `RouteMap.window_rows(act)`: the act's free rows without the treasure row,
+  ending with the forced rest row (11 rows). The 3 safe rows still come first, so the rest window (6) covers window rows 3
+  to 8 and the shop window covers 3 to 9. The shop window was 8 and would no longer fit once the chest row left the list,
+  so it is now 7 (it had never fired at these weights, so the maps barely changed).
+- `from_dict` accepts type 7 (and still rejects 8 and above). `RunSave._check_map` re-validates through `validate()`, so it
+  needed no change: a map save made before this phase has no treasure row and is rejected as invalid (map runs are
+  debug-only, no player has one; the save version stays 5).
+
+### The stop
+
+Entering a treasure stop shows `TreasureScreen` (`run/screens/treasure_screen.gd`) over `TreasureScene`
+(`run/treasure_scene.gd`: the dimmed Name Vault painting and a code-drawn strongbox). Closed it offers "Open the chest";
+opened it shows the relic (a `RelicView` badge, its name and effect) and "Take it", which adds the relic and moves on.
+Taking plays the existing `reward` sound; the button click is the existing `click`. The header names the stop "The
+Sealed Strongbox".
+
+RunState API: `in_treasure_stop()`, `open_treasure()`, `treasure_opened()`, `treasure_relic()`, `treasure_gold()`,
+`take_treasure()`. The relic is rolled by `open_treasure()` with the run RNG (the arrival save is written before the stop
+is shown, so a save resumed there, opened again, rolls the same relic from the restored RNG). An open chest is not a stop
+boundary (`at_stop_boundary()` is false, like an open vendor visit), so Save & Exit inside it keeps the arrival save and
+the relic is never re-rolled differently. A MAX_HP relic raises max HP and HP once when taken, as when bought.
+
+Relic selection: the character's pool (`StarterContent.relic_pool`) minus the relics owned, restricted to relics with a
+vendor price of at least `RunState.TREASURE_MIN_RELIC_PRICE` (65) when any are left, else any of them; one is picked
+uniformly with the run RNG. The relic prices run 50 to 75: the rule drops the two cheapest relics (50 and 55), so a chest
+beats a shop's cheapest relic. If the character owns every relic of its pool (neutral relics are part of that pool, so no
+neutral fallback exists) the chest holds `TREASURE_FALLBACK_GOLD` (100) gold, the screen says so and "Take the gold" pays
+it.
+
+### UI
+
+A chest glyph (`MapView._glyph_chest`: a domed lid on a box with two straps and a lock plate, cream-gold `#f6d98e`),
+a "Treasure" legend entry and the tooltip "Treasure: a relic". `FallbackMapScreen` lists "Treasure".
+
+### Bots and debug
+
+`SimPolicy.treasure_stop(run)` opens and takes the chest (both policies); `SmartPolicy.choose_route` prefers a chest
+over a fight (after resting when hurt and shopping when rich). `tools/run_sim.gd --map` handles the stop. `--screen=treasure`
+(or `THE_UNFORGOTTEN_SCREEN=treasure`, `treasure:2` for the second act) opens a chest of a throwaway map run.
+`tools/treasure_sheet.gd` takes the screenshots.
+
+### Measured numbers
+
+2400 maps (600 per character), 8 random walks per map, exact dynamic programme for the extremes; 0 `validate()` failures,
+about 5.9 ms per map. Per act (act 1 / act 2), before is the Phase 4a table:
+
+| Per act | before | after |
+|---|---|---|
+| random path, fights | 8.27 / 8.29 | 7.52 / 7.53 |
+| random path, rests | 2.66 / 2.65 | 2.51 / 2.52 |
+| random path, shops | 1.07 / 1.06 | 0.97 / 0.95 |
+| random path, chests | 0 | 1.00 / 1.00 |
+| fewest rests on any path, mean | 1.30 / 1.36 | 1.28 / 1.26 |
+| most rests on any path, mean | 3.92 / 3.92 | 3.66 / 3.75 |
+| fewest shops on any path, mean | 0.09 / 0.08 | 0.06 / 0.05 |
+| most shops on any path, mean | 2.34 / 2.29 | 2.13 / 2.11 |
+| maps with a shop-free path | 91% / 92% | 94% / 95% |
+
+Free nodes (the chest rows included): 62.2% fights, 21.4% rests, 8.1% shops, 8.3% chests. A random path loses about 0.75
+fights per act (one free row became a chest row), as accepted; the rest and shop means stay in their 2.4 to 2.9 and 0.9 to
+1.2 targets, so the weights were not changed.

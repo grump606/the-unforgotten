@@ -186,6 +186,14 @@ func _test_screens() -> void:
 	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor", "--fight=eraser"]), {}).error != "", "a fight and a screen together is an error")
 	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor", "--gold=-5"]), {}).error != "", "negative gold is an error")
 	_check(DebugLaunch.screen_count("vendor") == 3 and DebugLaunch.screen_count("rest") >= 3, "the default line has three shops and several rests")
+	var chest := DebugLaunch.parse(PackedStringArray(["--screen=treasure", "--character=thief"]), {})
+	_check(chest.requested and chest.error == "" and chest.screen == "treasure" and chest.screen_index == 1 and chest.character_id == &"thief", "--screen=treasure opens the first act's chest")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=Treasure:2"]), {}).screen_index == 2, "treasure:2 is the second act's chest")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=treasure:3"]), {}).error != "", "a third act's chest does not exist")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=treasure:0"]), {}).error != "", "treasure:0 is an error")
+	_check(DebugLaunch.parse(PackedStringArray([]), {DebugLaunch.ENV_SCREEN: "treasure"}).screen == "treasure", "the environment can request the chest")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=treasure", "--fight=eraser"]), {}).error != "", "a chest and a fight together is an error")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=castle"]), {}).error.contains("treasure"), "the unknown-screen message lists the chest")
 
 
 func _test_proto() -> void:
