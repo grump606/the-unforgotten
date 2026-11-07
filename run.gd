@@ -572,11 +572,13 @@ func _place_at_treasure(act: int) -> void:
 ## regenerated from a new seed in the rare case it has no event node.
 func _place_at_event(wanted: StringName, character_id: StringName) -> void:
 	for _attempt in 40:
-		var target: RouteMap.MapNode = null
+		# Any event node of the map, picked at random, so the header's "Journey n/30" is the node's real row and
+		# not always the first event's.
+		var event_nodes: Array[RouteMap.MapNode] = []
 		for n in _run.route.nodes:
 			if n.type == RouteMap.NodeType.EVENT:
-				target = n
-				break
+				event_nodes.append(n)
+		var target: RouteMap.MapNode = event_nodes[randi() % event_nodes.size()] if not event_nodes.is_empty() else null
 		if target != null:
 			var path: Array[int] = [target.id]
 			while _run.route.node(path[0]).row > 0:

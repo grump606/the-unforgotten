@@ -62,6 +62,8 @@ Retuned from 108 HP to 96 HP (attacks unchanged at 19 and 13, Block 10, Expose 2
 
 Why such a small ramp: the combat numbers are on breakpoints (a Shove does 6, a Wisp has 16 HP, the small enemies hit for 3 to 9). The sim showed 7 percent per fight (fight 7 at x1.49) took the Deserter's escape rate to 0.2 percent, 3.5 percent to about 45 percent trio loss rates, and even 2 percent per fight (x1.14) pushed the fight-5 trio from 10 to 26 percent loss. Most of the felt difficulty comes from attrition (HP carried across eight fights) and the act-2 pools; the ramp is a gentle nudge on top.
 
+Map mode does not use this ramp: its fights are built to a threat budget by row (`StarterContent.budget_encounter`), calibrated to this line's average pack threat per fight. See `docs/MAP_DESIGN.md`, "Phase 4d".
+
 ## Balance changes (with reasons)
 
 | Change | Was | Now | Why |
