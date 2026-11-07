@@ -1,0 +1,73 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 8
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 13
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 12
+amount = 30
+win = Array[ExtResource("3_effect")]([SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_c4"]
+script = ExtResource("2_choice")
+label = "Cross out one of your own"
+outcome = "A line goes through a card in your mind. It is gone, easily. The chalk looks for more."
+not_for = &"stray"
+win_outcome = "The chalk takes one more."
+lose_outcome = "The chalk is satisfied."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e3")])
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 8
+
+[sub_resource type="Resource" id="Resource_c6"]
+script = ExtResource("2_choice")
+label = "Cross out one of your own"
+outcome = "A line goes through a card in your mind. It is gone, easily. The chalk finds nothing else to take."
+only_for = &"stray"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_e7"]
+script = ExtResource("3_effect")
+kind = 10
+
+[sub_resource type="Resource" id="Resource_e8"]
+script = ExtResource("3_effect")
+kind = 4
+amount = -4
+
+[sub_resource type="Resource" id="Resource_e9"]
+script = ExtResource("3_effect")
+kind = 11
+card_id = &"dread"
+
+[sub_resource type="Resource" id="Resource_c10"]
+script = ExtResource("2_choice")
+label = "Take the chalk"
+outcome = "It leaves a white mark on your palm that will not wash out."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e7"), SubResource("Resource_e8"), SubResource("Resource_e9")])
+
+[sub_resource type="Resource" id="Resource_c11"]
+script = ExtResource("2_choice")
+label = "Smudge the slate and go"
+outcome = "You rub out the empty space with your sleeve. Nothing answers."
+
+[resource]
+script = ExtResource("1_event")
+id = &"erasers_chalk"
+title = "The Eraser's Chalk"
+body = "A slate leans against a wall, a stub of white chalk on the sill. Down the wall there are tallies of crossed-out lines in a patient hand, and at the end a blank space the size of one name. The chalk is damp, as if just used."
+class_body = {"stray": "A smell of chalk and old fear. You have no name to cross out. A slate leans against a wall, a stub of white chalk on the sill. Down the wall there are tallies of crossed-out lines in a patient hand, and at the end a blank space the size of one name."}
+scene = &"battle_archive"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c4"), SubResource("Resource_c6"), SubResource("Resource_c10"), SubResource("Resource_c11")])

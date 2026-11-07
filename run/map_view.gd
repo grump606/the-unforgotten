@@ -28,6 +28,10 @@ const EDGE_TAKEN := Color("#e8b773")
 
 ## The warm amber of the rest armchair.
 const HEARTH := Color("#e8c07a")
+## The event glyph: a cream question mark with a violet diamond behind it and a teal dot.
+const EVENT_CREAM := Color("#efe6d0")
+const EVENT_VIOLET := Color("#8d96e6")
+const EVENT_TEAL := Color("#6fd0c4")
 
 const BOSS_NAMES := {RouteMap.NodeType.MID_BOSS: "The Bellkeeper", RouteMap.NodeType.BOSS: "The Eraser"}
 
@@ -191,6 +195,8 @@ func tooltip_for(id: int) -> String:
 			return "Final boss"
 		RouteMap.NodeType.TREASURE:
 			return "Treasure: a relic"
+		RouteMap.NodeType.EVENT:
+			return "Event: something unexpected"
 	return ""
 
 
@@ -496,6 +502,8 @@ func _glyph_color(type: RouteMap.NodeType) -> Color:
 			return Color("#e6c25a")
 		RouteMap.NodeType.TREASURE:
 			return Color("#f6d98e")
+		RouteMap.NodeType.EVENT:
+			return EVENT_CREAM
 	return Color("#f4eee0")
 
 
@@ -518,6 +526,8 @@ func _draw_glyph(type: RouteMap.NodeType, c: Vector2, g: float, col: Color) -> v
 			_glyph_eye(c, g, col)
 		RouteMap.NodeType.TREASURE:
 			_glyph_chest(c, g, col)
+		RouteMap.NodeType.EVENT:
+			_glyph_question(c, g, col)
 
 
 func _glyph_blades(c: Vector2, g: float, col: Color) -> void:
@@ -640,6 +650,22 @@ func _glyph_chest(c: Vector2, g: float, col: Color) -> void:
 	draw_line(c + Vector2(0, 0.06) * g, c + Vector2(0, 0.2) * g, dark, maxf(1.2, g * 0.08), true)
 
 
+## An event: a question mark inside a tilted violet diamond (a tall hooked line and a dot, unlike the wide chest, the
+## round coin and the high-backed armchair). The mark keeps `col`; the diamond and the dot take their own accent
+## colours at the same brightness and opacity as the rest of the node.
+func _glyph_question(c: Vector2, g: float, col: Color) -> void:
+	var w := maxf(2.6, g * 0.34)
+	var shade := Color(col.r / EVENT_CREAM.r, col.g / EVENT_CREAM.g, col.b / EVENT_CREAM.b, col.a)
+	var violet := Color(EVENT_VIOLET.r * minf(shade.r, 1.0), EVENT_VIOLET.g * minf(shade.g, 1.0), EVENT_VIOLET.b * minf(shade.b, 1.0), col.a)
+	var teal := Color(EVENT_TEAL.r * minf(shade.r, 1.0), EVENT_TEAL.g * minf(shade.g, 1.0), EVENT_TEAL.b * minf(shade.b, 1.0), col.a)
+	var diamond := _scaled([Vector2(0, -1.12), Vector2(1.12, 0), Vector2(0, 1.12), Vector2(-1.12, 0), Vector2(0, -1.12)], c, g)
+	draw_polyline(diamond, Color(violet, violet.a * 0.95), maxf(1.8, g * 0.17), true)
+	var hook := c + Vector2(0.0, -0.38) * g
+	draw_arc(hook, g * 0.5, PI * 0.92, PI * 2.45, 18, col, w, true)
+	draw_line(c + Vector2(0.08, 0.1) * g, c + Vector2(0.0, 0.36) * g, col, w, true)
+	draw_circle(c + Vector2(0.0, 0.76) * g, g * 0.2, teal)
+
+
 func _scaled(points: Array, c: Vector2, g: float) -> PackedVector2Array:
 	var out := PackedVector2Array()
 	for p in points:
@@ -654,7 +680,7 @@ func _draw_legend() -> void:
 		present[_route.node(id).type] = true
 	var items: Array = []
 	for pair in [[RouteMap.NodeType.FIGHT, "Fight"], [RouteMap.NodeType.ELITE, "Elite"], [RouteMap.NodeType.REST, "Rest"],
-			[RouteMap.NodeType.SHOP, "Shop"], [RouteMap.NodeType.TREASURE, "Treasure"], [RouteMap.NodeType.STORY, "Story"], [RouteMap.NodeType.MID_BOSS, "Mid-boss"],
+			[RouteMap.NodeType.SHOP, "Shop"], [RouteMap.NodeType.TREASURE, "Treasure"], [RouteMap.NodeType.EVENT, "Event"], [RouteMap.NodeType.STORY, "Story"], [RouteMap.NodeType.MID_BOSS, "Mid-boss"],
 			[RouteMap.NodeType.BOSS, "Boss"]]:
 		if present.has(pair[0]):
 			items.append(pair)

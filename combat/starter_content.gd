@@ -191,6 +191,14 @@ const RELIC_PATHS: Array[String] = [
 	"res://data/relics/iron_stakes.tres", "res://data/relics/pressed_flower.tres", "res://data/relics/candle_stub.tres",
 	"res://data/relics/hunters_whistle.tres", "res://data/relics/wolf_fang.tres", "res://data/relics/bloody_muzzle.tres",
 ]
+## Every event of the "?" stops (docs/EVENTS_DESIGN.md), in a fixed order. Add an event by putting its .tres in data/events
+## and listing it here (a test fails for a file that is not listed).
+const EVENT_PATHS: Array[String] = [
+	"res://data/events/rain_barrel.tres", "res://data/events/scraped_plaques.tres", "res://data/events/stopped_kitchen.tres",
+	"res://data/events/bell_in_the_well.tres", "res://data/events/unsent_letters.tres", "res://data/events/hound_at_the_fence.tres",
+	"res://data/events/window_that_is_lit.tres", "res://data/events/empty_sentry_box.tres", "res://data/events/quiet_choir.tres",
+	"res://data/events/name_broker.tres", "res://data/events/cracked_bell.tres", "res://data/events/erasers_chalk.tres",
+]
 ## Playable characters, in the order a selection screen lists them.
 const CHARACTER_PATHS := {
 	&"deserter": "res://data/characters/deserter.tres",
@@ -380,6 +388,45 @@ static func relic_pool(character_id: StringName) -> Array[RelicData]:
 		if relic.character == &"" or relic.character == character_id:
 			pool.append(relic)
 	return pool
+
+
+## Every event that loads, in EVENT_PATHS order. Empty (cause logged) if any fails to load.
+static func all_events() -> Array[EventData]:
+	var events: Array[EventData] = []
+	for path in EVENT_PATHS:
+		var event := _load_event(path)
+		if event == null:
+			var empty: Array[EventData] = []
+			return empty
+		events.append(event)
+	return events
+
+
+## The event with this id, or null (cause logged) when there is none.
+static func event_by_id(event_id: StringName) -> EventData:
+	for event in all_events():
+		if event.id == event_id:
+			return event
+	push_error("StarterContent.event_by_id: unknown event id %s" % event_id)
+	return null
+
+
+## A card of the normal pools (not a status or created card) by id, or null when there is none.
+static func card_by_id(card_id: StringName) -> CardData:
+	for card in all_cards():
+		if card.id == card_id:
+			return card
+	return null
+
+
+## Returns null (after logging an error) if the resource is missing or not an EventData.
+static func _load_event(path: String) -> EventData:
+	var event: EventData = null
+	if ResourceLoader.exists(path):
+		event = load(path) as EventData
+	if event == null:
+		push_error("StarterContent: missing or non-EventData resource: %s" % path)
+	return event
 
 
 static func character_ids() -> Array[StringName]:

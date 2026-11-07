@@ -15,6 +15,10 @@ To let a card be Remembered at a rest stop, give it a `remembered` block (a `Rem
 1. Add `data/relics/<name>.tres` with a unique `id` (and `character` if class-bound).
 2. Append its path to `RELIC_PATHS`. Implement the effect where the hook lives (see `docs/RELICS_DESIGN.md`), and add a badge in the relic art if it needs a new one.
 
+## An event
+1. Add `data/events/<id>.tres`: an `EventData` (title, scene text, optional `class_body` per character, the painted `scene` behind it) with two to four `EventChoice` buttons, each with its `effects` (`EventEffect`, `combat/event_effect.gd`). Fields and effect kinds are described in `docs/EVENTS_DESIGN.md`; the cost and reward line under a button is generated from the effects, so write the numbers only in the effects. Give every event a button that costs nothing, and do not use dashes in the text.
+2. Append its path to `EVENT_PATHS` in `starter_content.gd` (`tests/event_tests.gd` fails for a file that is not listed). A new effect kind is appended to `EventEffect.Kind`, given a `describe()` line, and applied in `RunState._apply_event_effect`.
+
 ## An enemy
 1. Add `data/enemies/<name>.tres`.
 2. Add a `<NAME>_PATH` constant. Regular enemy: append to `ALL_ENEMY_PATHS`, then put it in `SMALL_ENEMY_PATHS` (joins pairs and trios; also add to `TRIO_EXCLUDED_PATHS` to keep it out of trios), `PAIR_BIG_ENEMY_PATHS` or `SOLO_ONLY_ENEMY_PATHS`. Boss: add to `BOSS_ENEMY_PATHS` and give it its own encounter function.

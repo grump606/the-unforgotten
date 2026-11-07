@@ -1,0 +1,64 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 6
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 4
+amount = 4
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Share your food"
+outcome = "It eats slowly, and leans its head against your leg. You go hungry."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 4
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 7
+rarity = 1
+count = 3
+
+[sub_resource type="Resource" id="Resource_c6"]
+script = ExtResource("2_choice")
+label = "Cut the wire from its leg"
+outcome = "It does not flinch. When you are done it walks away before you can be thanked."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e4"), SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_e7"]
+script = ExtResource("3_effect")
+kind = 4
+amount = 6
+
+[sub_resource type="Resource" id="Resource_c8"]
+script = ExtResource("2_choice")
+label = "Press your nose to its nose"
+outcome = "Neither of you remembers the other. Both of you remember something."
+only_for = &"stray"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e7")])
+
+[sub_resource type="Resource" id="Resource_c9"]
+script = ExtResource("2_choice")
+label = "Leave it"
+outcome = "It watches you go."
+
+[resource]
+script = ExtResource("1_event")
+id = &"hound_at_the_fence"
+title = "The Hound at the Fence"
+body = "A memorial hound lies against an iron fence, one flank stiff with old rust. It watches you with the patience of something no one has called in a long time. It does not growl."
+class_body = {"stray": "It smells of your own kennel. Not your scent, but the scent of where you came from. A memorial hound lies against an iron fence, one flank stiff with old rust. It watches you with the patience of something no one has called in a long time. It does not growl."}
+scene = &"battle_garden"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c3"), SubResource("Resource_c6"), SubResource("Resource_c8"), SubResource("Resource_c9")])

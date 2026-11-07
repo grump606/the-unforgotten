@@ -117,6 +117,8 @@ func _initialize() -> void:
 		RunState.StopType.TREASURE:
 			run_state.open_treasure()
 			run_state.take_treasure()
+		RunState.StopType.EVENT:
+			SimPolicy.event_stop(run_state)
 	scene._show_stop()
 	await process_frame
 	loaded = RunSave.load_file(save_path)
@@ -245,6 +247,8 @@ func _initialize() -> void:
 			RunState.StopType.TREASURE:
 				sea_run.open_treasure()
 				sea_run.take_treasure()
+			RunState.StopType.EVENT:
+				SimPolicy.event_stop(sea_run)
 		sea_scene._show_stop()
 		await process_frame
 		check(sea_run.stop_index == 0 and sea_run.current_stop() == null and _ambience() == &"", "the sea stops once the first stop is left, though the row is still 0")
