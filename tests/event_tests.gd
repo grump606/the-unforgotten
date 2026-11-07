@@ -149,7 +149,8 @@ func _check_effect_bounds(event_id: StringName, effects: Array[EventEffect], nes
 		var where := "%s: %s" % [event_id, EventEffect.Kind.keys()[effect.kind]]
 		match effect.kind:
 			K.HEAL_PERCENT:
-				_check(effect.amount >= 1 and effect.amount <= 60, "%s %d is a sane percent" % [where, effect.amount])
+				# Phase 4f: map fights heal the player, so no event heals more than 30% of max HP.
+				_check(effect.amount >= 1 and effect.amount <= 30, "%s %d is a sane percent (at most 30 since phase 4f)" % [where, effect.amount])
 			K.HEAL_FLAT:
 				_check(effect.amount >= 1 and effect.amount <= 40, "%s %d is sane" % [where, effect.amount])
 			K.LOSE_HP:
