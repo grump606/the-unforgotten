@@ -540,9 +540,12 @@ const THREAT_STATUS_POINTS := {
 ## the act change like the line's second-act pools. The numbers are a straight-line fit of the line's average pack
 ## threat per regular fight number (fights 0 to 3 are act 1, 4 to 7 act 2; measured by tools/threat_table.gd).
 ## MAP_DIFFICULTY is the one knob for the overall difficulty of map fights.
-const BUDGET_ACT_START: Array[float] = [34.0, 57.0]
-const BUDGET_ACT_END: Array[float] = [54.0, 69.0]
-const MAP_DIFFICULTY := 1.0
+const BUDGET_ACT_START: Array[float] = [34.0, 46.0]
+const BUDGET_ACT_END: Array[float] = [50.0, 62.0]
+const MAP_DIFFICULTY := 1.9
+## Map mode only: each character's own multiplier on the budget (on top of MAP_DIFFICULTY), because the four
+## characters are not equally robust (Stray has the fewest HP). A character that is not listed uses 1.0.
+const MAP_CLASS_DIFFICULTY := {&"deserter": 1.03, &"thief": 1.04, &"medium": 1.02, &"stray": 0.9}
 ## The pack builder multiplies every enemy of a pack by the same HP factor and the same damage factor; each of the
 ## two stays inside these bounds.
 const PACK_SCALE_MIN := 0.6
@@ -603,6 +606,11 @@ static func fight_budget(row: int) -> float:
 	var act := r / MAP_ACT_ROWS
 	var local := float(r % MAP_ACT_ROWS) / float(MAP_ACT_ROWS - 1)
 	return MAP_DIFFICULTY * lerpf(BUDGET_ACT_START[act], BUDGET_ACT_END[act], local)
+
+
+## The map-mode budget multiplier of character `character_id` (see MAP_CLASS_DIFFICULTY).
+static func map_class_difficulty(character_id: StringName) -> float:
+	return MAP_CLASS_DIFFICULTY.get(character_id, 1.0)
 
 
 ## What the last `budget_encounter` call did, for the measuring tool and tests: `scale` (the total multiplier m),

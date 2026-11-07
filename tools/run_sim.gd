@@ -207,6 +207,8 @@ func _simulate(runs: int, base_seed: int, shard_index: int, shard_count: int) ->
 				if node.type == RouteMap.NodeType.FIGHT or node.type == RouteMap.NodeType.ELITE:
 					fights += 1
 					enemies += node.enemy_count
+					var count_key := "FIGHT_%d" % node.enemy_count
+					visits[count_key] = visits.get(count_key, 0) + 1
 		if run.escaped:
 			escapes += 1
 			escape_hp += run.player.hp
@@ -324,6 +326,7 @@ func _report_map(stats: Dictionary, runs: int) -> void:
 		float(visits.get("SHOP", 0)) / runs, float(visits.get("TREASURE", 0)) / runs, float(visits.get("EVENT", 0)) / runs])
 	print("Held at the end: gold %.2f, relics %.2f (averages per run)" % [float(stats["gold_end"]) / runs, float(stats["relics_end"]) / runs])
 	print("Enemies per fight: %s (over fights and elites visited)" % ("n/a" if stats["fights"] == 0 else "%.2f" % (float(stats["enemies"]) / stats["fights"])))
+	print("Fights visited by enemy count: 1 enemy %d, 2 enemies %d, 3 enemies %d (the last one of a lost run included)" % [visits.get("FIGHT_1", 0), visits.get("FIGHT_2", 0), visits.get("FIGHT_3", 0)])
 
 
 ## The 95% Wilson score interval [low, high] (shares, 0 to 1) of `successes` out of `trials`.

@@ -25,6 +25,21 @@ const SKIP_GOLD := 10
 const REWARD_HEAL := 12
 ## Extra gold for beating the mid-boss, on top of Vendor.gold_for_win.
 const MID_BOSS_GOLD_BONUS := 15
+## Map mode only (docs/MAP_DESIGN.md "Phase 4f"): HP recovered, as a share of max HP, after every won regular fight,
+## so a route with no rests still has some sustain. The line never uses it. 0 turns it off.
+const MAP_FIGHT_HEAL_FRACTION := 0.05
+## Map mode only: on top of that, the share of the HP the player is missing that comes back after every won regular
+## fight, so a player who is hurt recovers more than one who is not (this is what flattens the gap between routes).
+const MAP_FIGHT_HEAL_MISSING_FRACTION := 0.6
+## Map mode only: a rest stop's Rest choice heals this share of max HP (capped at max HP). The line's rest heals to full
+## and keeps doing so. Below 1.0 a route full of rests is worth less, which narrows the gap between routes.
+const MAP_REST_HEAL_FRACTION := 0.5
+## Map mode only: HP recovered, as a share of max HP, on beating the mid-boss (the act-1 boss), on top of the line's gold and card.
+const MAP_MID_BOSS_HEAL_FRACTION := 1.0
+## Map mode only: the share of the line's gold per won regular fight (Vendor.gold_for_win) that a map fight pays. A map run
+## has about 11 fights against the line's 8, so the same pay per fight would leave a lot of gold unspent. The mid-boss bonus,
+## the skip gold and relic gold are not scaled.
+const MAP_GOLD_FACTOR := 0.65
 ## A treasure chest holds a relic priced at least this much at a vendor (the cheapest tier, 50 and 55, is left out),
 ## so a chest beats a shop's cheapest item. If every relic left to this character is cheaper, one of those is given.
 const TREASURE_MIN_RELIC_PRICE := 65
@@ -122,6 +137,8 @@ var offered_ids: Array[StringName] = []
 ## Saved with the run.
 var reward_remove_used := false
 var reward_heal_used := false
+## Map mode: HP the last won fight restored (0 otherwise). Display only, not saved.
+var map_win_heal := 0
 ## Relics bought from vendors this run, in purchase order. Saved with the run (as ids).
 var relics: Array[RelicData] = []
 
@@ -333,7 +350,7 @@ func start_combat() -> Combat:
 	elif stop.mid_boss:
 		enemies = StarterContent.mid_boss_encounter()
 	elif route != null and stop.row >= 0:
-		enemies = StarterContent.budget_encounter(stop.enemy_count, _rng, stop.row)
+		enemies = StarterContent.budget_encounter(stop.enemy_count, _rng, stop.row, StarterContent.map_class_difficulty(character.id))
 	else:
 		enemies = StarterContent.varied_encounter(stop.enemy_count, _rng, stop.tier, stop.fight)
 	_active_combat = Combat.create(player, deck, enemies, _rng.randi(), relics)
@@ -374,15 +391,31 @@ func complete_combat(victory: bool) -> void:
 		# The boss ends the line: no gold (nothing left to spend it on), no card to pick.
 		_advance()
 		return
-	gold += Vendor.gold_for_win(stop.enemy_count) + (MID_BOSS_GOLD_BONUS if stop.mid_boss else 0)
+	var win_gold := map_win_gold(stop.enemy_count) if route != null else Vendor.gold_for_win(stop.enemy_count)
+	gold += win_gold + (MID_BOSS_GOLD_BONUS if stop.mid_boss else 0)
 	for relic in relics:
 		match relic.kind:
 			RelicData.Kind.WIN_GOLD:
 				gold += relic.amount
 			RelicData.Kind.WIN_HEAL:
 				player.heal(relic.amount)
+	map_win_heal = player.heal(_map_win_heal_amount(stop)) if route != null else 0
 	_roll_rewards()
 	_reward_pending = true
+
+
+## Map mode: the gold a won regular fight against `enemy_count` enemies pays (Vendor.gold_for_win times MAP_GOLD_FACTOR, rounded).
+static func map_win_gold(enemy_count: int) -> int:
+	return roundi(Vendor.gold_for_win(enemy_count) * MAP_GOLD_FACTOR)
+
+
+## Map mode: HP the player recovers for winning the fight at `stop` (see MAP_FIGHT_HEAL_FRACTION and
+## MAP_MID_BOSS_HEAL_FRACTION). Never negative; the heal itself is capped at max HP.
+func _map_win_heal_amount(stop: Stop) -> int:
+	if stop.mid_boss:
+		return roundi(player.max_hp * MAP_MID_BOSS_HEAL_FRACTION)
+	var missing := player.max_hp - player.hp
+	return roundi(player.max_hp * MAP_FIGHT_HEAL_FRACTION + missing * MAP_FIGHT_HEAL_MISSING_FRACTION)
 
 
 ## Up to REWARD_CHOICES distinct cards to pick from, stable until the reward is
@@ -460,7 +493,7 @@ func rest() -> int:
 	var stop := current_stop()
 	if stop == null or stop.type != StopType.REST:
 		return -1
-	var restored := player.heal(player.max_hp - player.hp)
+	var restored := player.heal(rest_heal_amount())
 	_advance()
 	return restored
 
@@ -499,6 +532,8 @@ func rest_heal_amount() -> int:
 	var stop := current_stop()
 	if stop == null or stop.type != StopType.REST:
 		return 0
+	if route != null:
+		return mini(player.max_hp - player.hp, roundi(player.max_hp * MAP_REST_HEAL_FRACTION))
 	return player.max_hp - player.hp
 
 

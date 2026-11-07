@@ -57,8 +57,8 @@ const CONFIG := {
 	# Elite is 0 until the elite phase; it works whenever the weight is positive. "treasure" is a reserved key:
 	# chests only ever appear in the forced treasure row, so the generator does not roll it. An event takes the
 	# place of a fight like a rest or shop does (docs/EVENTS_DESIGN.md); the weights are not shares, see
-	# docs/MAP_DESIGN.md "Phase 4c" for what they give per random path (about 2 events, 2.5 rests, 0.95 shops).
-	"type_weights": {"fight": 18.0, "rest": 33.0, "shop": 12.0, "elite": 0.0, "treasure": 0.0, "event": 40.0},
+	# docs/MAP_DESIGN.md "Phase 4c" for what they give per random path (about 2 events, 2.4 rests, 0.85 shops after phase 4f).
+	"type_weights": {"fight": 18.0, "rest": 27.0, "shop": 10.0, "elite": 0.0, "treasure": 0.0, "event": 40.0},
 	# Enemy count weights (for counts 1, 2, 3 ...) by the node's row in the run; the first band whose
 	# max_row is not below the row applies.
 	"enemy_bands": [
