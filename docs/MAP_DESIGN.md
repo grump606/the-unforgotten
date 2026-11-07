@@ -651,3 +651,139 @@ most HP-fragile class. No difficulty tuning was done beyond the calibration.
   "<place> — Combat (n enemies)".
 - The debug event placement (`--screen=event`) puts the run at a random event node of the throwaway map, so "Journey n/30" shows that node's
   real row instead of always the first event's.
+
+## Phase 4e: route strategies and a parallel sim harness
+
+The bots can now be measured per route strategy: a strategy only decides which reachable node to take next, so it pairs with either combat
+policy (`--policy greedy|smart` still decides combat, cards, shops and events).
+
+### Route strategies (`tools/route_policy.gd`, `RoutePolicy`)
+
+`SimPolicy.choose_route(run, route)` and `SmartPolicy.choose_route(run, route)` forward every name except the smart rules to
+`RoutePolicy.choose(run, route)`. Defaults are unchanged: the greedy bot uses `first`, the smart bot uses `smart` (its old rules: a rest under
+50% HP, a shop from 120 gold, a chest, an event from 70% HP, else a fight). `--map` without `--route` therefore behaves exactly as before.
+
+| name | behaviour |
+|---|---|
+| `first` | the first reachable node |
+| `fighter` | elite, then fight, over everything else; chests are taken; an event only when no fight is reachable; a shop or rest only when nothing else is reachable (the forced rest row) |
+| `cautious` | chest, rest, shop, event, then fights from fewest enemies up (1, 2, 3), an elite last |
+| `mixed` | a look-ahead of 3 rows: every path from each option is scored on projected HP and gold, and the best option wins. Rests are worth most under 55% HP, a shop is worth a visit from 100 gold, an event is worth it from 60% HP (else it costs), chests are always worth it, small fights are preferred when hurt. Later rows count 0.85 times the row before. Otherwise it fights |
+| `random` | uniform over the reachable nodes, seeded from the map seed, the current node and the number of nodes visited, so a route is reproducible and the run's own RNG is not touched |
+| `smart` | `SmartPolicy`'s original rules (see above); the greedy bot can use them too |
+
+`fighter` and `cautious` break ties among options of the same rank with the best rank sum over the next three rows, so they keep heading into
+fights or towards rests. Every strategy returns -1 only when nothing is reachable (a stop is open, the run is over, line mode) and never an
+unreachable id; a single reachable node is always taken.
+
+### The harness (`tools/run_sim.gd`)
+
+All earlier flags and output lines are unchanged (checked line for line, sorted, against main for every class). New flags:
+
+- `--route R` (needs `--map`): `first`, `fighter`, `cautious`, `mixed`, `random` or `smart`.
+- `--character all`: the four classes in one invocation, one report each.
+- `--jobs N`: N child processes, each playing the runs whose index mod N is its shard (`--shard i/N --shard-out file`, used internally), then
+  merging the raw tallies into the one report. The report equals the single-process report for the same seed (tested). Seeds depend only on
+  the run index, never on the shard.
+- With `--map` the report ends with extra lines: the route strategy, the escape rate with its 95% Wilson interval, deaths by act and by row
+  band (rows 0-4, 5-9 ... 25-29), mean HP on arrival at the mid-boss and the final boss, per-run visits (fights, elites, rests, shops, chests,
+  events), average gold and relics held at the end, and the mean enemies per fight (fights and elites visited).
+- Relic lines are now sorted as text (they sorted by StringName id, which differs from process to process), so merged and repeated reports
+  are stable.
+
+### The matrix script (`scripts/sim_matrix.ps1`)
+
+```
+.\scripts\sim_matrix.ps1 -OutDir .\sim_out -Runs 100 -Seed 1 -Jobs 4
+```
+
+Runs map mode for classes deserter, thief, medium, stray x policies greedy, smart x routes fighter, cautious, mixed, random (`-Characters`,
+`-Policies`, `-Routes` override, comma lists), at most `-Jobs` processes at a time, and writes `matrix.csv` (class, policy, route, runs,
+escapes, rate, ci_low, ci_high, deaths per row band, visits per run, HP at the bosses), `summary.md` (an escape-rate table with the best
+route, the worst route and the spread per class and policy, then the visits) and `raw\<class>_<policy>_<route>.txt`.
+
+### Baseline measurement (before the threat-budget packs of phase 4d)
+
+`scripts/sim_matrix.ps1 -Runs 100 -Seed 1 -Jobs 6 -Routes first,fighter,cautious,mixed,random`, 40 cells, 738 s on an 8-core machine that was
+also running other work. These are baseline numbers for the pre-4d game (the fight packs change in parallel); no tuning was done. Escape rate
+with the 95% Wilson interval; 100 runs per cell, so differences under about 15 points are within noise. One stall in 4000 runs (a fight abandoned at the turn cap, smart Deserter on `random`; a combat-policy stall, not a route one). Elites do not
+exist yet (their weight is 0), so the strategies differ on rests, shops, events and enemy counts only.
+
+| class | policy | first | fighter | cautious | mixed | random | best | worst | spread |
+|---|---|---|---|---|---|---|---|---|---|
+| deserter | greedy | 22.0% (15.0-31.1) | 21.0% (14.2-30.0) | 44.0% (34.7-53.8) | 40.0% (30.9-49.8) | 34.0% (25.5-43.7) | cautious | fighter | 23.0 pts |
+| deserter | smart | 51.0% (41.3-60.6) | 26.0% (18.4-35.4) | 56.0% (46.2-65.3) | 50.0% (40.4-59.6) | 49.0% (39.4-58.7) | cautious | fighter | 30.0 pts |
+| thief | greedy | 43.0% (33.7-52.8) | 25.0% (17.5-34.3) | 65.0% (55.3-73.6) | 49.0% (39.4-58.7) | 39.0% (30.0-48.8) | cautious | fighter | 40.0 pts |
+| thief | smart | 57.0% (47.2-66.3) | 40.0% (30.9-49.8) | 73.0% (63.6-80.7) | 70.0% (60.4-78.1) | 63.0% (53.2-71.8) | cautious | fighter | 33.0 pts |
+| medium | greedy | 12.0% (7.0-19.8) | 4.0% (1.6-9.8) | 26.0% (18.4-35.4) | 21.0% (14.2-30.0) | 12.0% (7.0-19.8) | cautious | fighter | 22.0 pts |
+| medium | smart | 31.0% (22.8-40.6) | 9.0% (4.8-16.2) | 51.0% (41.3-60.6) | 44.0% (34.7-53.8) | 31.0% (22.8-40.6) | cautious | fighter | 42.0 pts |
+| stray | greedy | 28.0% (20.1-37.5) | 15.0% (9.3-23.3) | 51.0% (41.3-60.6) | 42.0% (32.8-51.8) | 34.0% (25.5-43.7) | cautious | fighter | 36.0 pts |
+| stray | smart | 42.0% (32.8-51.8) | 14.0% (8.5-22.1) | 70.0% (60.4-78.1) | 62.0% (52.2-70.9) | 49.0% (39.4-58.7) | cautious | fighter | 56.0 pts |
+
+
+What it shows:
+
+- `cautious` is the best route for every class and policy, `fighter` the worst. The spread between them is 22 to 56 points (greatest for the
+  smart Stray, 70% against 14%; the Medium escapes only 4% to 9% of fighter runs).
+- `mixed` is second: within 6 points of `cautious` in four of the eight rows (greedy Deserter, smart Deserter, smart Thief, greedy Medium)
+  and 7 to 16 below it in the rest. Against `first` it gains 6 to 20 points in seven rows and loses one point for the smart Deserter
+  (50 against 51), so it is a sensible human-like route but not the best one.
+- `random` is close to `first` (within 12 points in every row, equal for the Medium) and below `mixed` in seven of eight rows.
+- The smart combat policy gains most when paired with a careful route (Stray +19, Medium +25 on `cautious`); `fighter` stays low for either
+  policy, so a route that avoids rests and shops costs more than the policy gains.
+- Route choice is worth as much as the combat policy: the best-route versus worst-route spread (22 to 56 points) is larger than the greedy to
+  smart gain on the same route (-1 to 29 points). Balance claims from a single route are therefore route-dependent.
+
+Visits per run (fights / rests / shops / chests / events) and the HP on arrival at the two bosses are in the CSV and in the table below.
+
+| class | policy | route | fights | rests | shops | chests | events | HP at mid-boss | HP at final boss |
+|---|---|---|---|---|---|---|---|---|---|
+| deserter | greedy | first | 6.42 | 2.10 | 0.68 | 0.84 | 1.80 | 48.61 | 51.91 |
+| deserter | greedy | fighter | 8.01 | 1.33 | 0.45 | 0.86 | 1.44 | 48.46 | 47.48 |
+| deserter | greedy | cautious | 6.19 | 3.85 | 1.47 | 1.17 | 2.53 | 50.26 | 52.16 |
+| deserter | greedy | mixed | 7.26 | 2.74 | 0.84 | 1.12 | 2.73 | 50.01 | 52.17 |
+| deserter | greedy | random | 7.18 | 2.54 | 0.90 | 1.01 | 1.92 | 49.06 | 50.74 |
+| deserter | smart | first | 8.08 | 3.15 | 1.14 | 1.27 | 2.56 | 46.91 | 48.80 |
+| deserter | smart | fighter | 8.85 | 1.55 | 0.52 | 1.03 | 1.62 | 46.46 | 47.38 |
+| deserter | smart | cautious | 6.79 | 4.51 | 1.67 | 1.35 | 2.93 | 46.79 | 49.39 |
+| deserter | smart | mixed | 7.81 | 3.23 | 1.04 | 1.28 | 2.95 | 46.76 | 49.50 |
+| deserter | smart | random | 8.07 | 3.07 | 1.09 | 1.22 | 2.36 | 47.14 | 49.94 |
+| thief | greedy | first | 8.19 | 3.17 | 1.11 | 1.28 | 2.63 | 34.25 | 35.58 |
+| thief | greedy | fighter | 9.27 | 1.66 | 0.55 | 1.10 | 1.76 | 34.00 | 32.04 |
+| thief | greedy | cautious | 7.40 | 5.32 | 1.89 | 1.57 | 3.39 | 34.60 | 36.02 |
+| thief | greedy | mixed | 8.32 | 3.33 | 0.94 | 1.35 | 3.39 | 34.28 | 36.24 |
+| thief | greedy | random | 8.37 | 3.17 | 1.11 | 1.27 | 2.40 | 34.66 | 36.77 |
+| thief | smart | first | 8.49 | 3.55 | 1.23 | 1.40 | 2.81 | 32.66 | 35.32 |
+| thief | smart | fighter | 9.98 | 2.02 | 0.64 | 1.24 | 2.01 | 31.75 | 35.20 |
+| thief | smart | cautious | 7.62 | 5.57 | 2.07 | 1.66 | 3.52 | 32.96 | 36.70 |
+| thief | smart | mixed | 9.07 | 3.92 | 1.45 | 1.60 | 3.86 | 32.49 | 35.75 |
+| thief | smart | random | 9.03 | 3.71 | 1.29 | 1.48 | 2.78 | 33.66 | 35.13 |
+| medium | greedy | first | 5.94 | 1.89 | 0.65 | 0.80 | 1.61 | 52.33 | 50.92 |
+| medium | greedy | fighter | 6.14 | 0.79 | 0.26 | 0.68 | 0.91 | 50.72 | 54.25 |
+| medium | greedy | cautious | 6.09 | 3.27 | 1.29 | 1.03 | 2.24 | 51.51 | 54.19 |
+| medium | greedy | mixed | 6.80 | 2.43 | 0.59 | 0.93 | 2.13 | 51.30 | 53.19 |
+| medium | greedy | random | 6.18 | 1.86 | 0.74 | 0.76 | 1.37 | 52.94 | 52.75 |
+| medium | smart | first | 7.14 | 2.58 | 0.98 | 1.07 | 2.16 | 49.31 | 53.39 |
+| medium | smart | fighter | 7.57 | 1.20 | 0.41 | 0.84 | 1.28 | 50.41 | 52.11 |
+| medium | smart | cautious | 6.67 | 4.31 | 1.64 | 1.33 | 2.88 | 49.39 | 55.96 |
+| medium | smart | mixed | 7.88 | 3.32 | 1.00 | 1.28 | 2.94 | 49.70 | 52.18 |
+| medium | smart | random | 7.72 | 2.67 | 0.97 | 1.10 | 2.05 | 49.52 | 53.23 |
+| stray | greedy | first | 7.43 | 2.63 | 0.85 | 1.10 | 2.36 | 36.37 | 38.50 |
+| stray | greedy | fighter | 8.45 | 1.43 | 0.49 | 1.00 | 1.51 | 35.78 | 39.33 |
+| stray | greedy | cautious | 6.74 | 4.37 | 1.65 | 1.33 | 2.90 | 37.38 | 39.88 |
+| stray | greedy | mixed | 7.65 | 2.96 | 0.96 | 1.21 | 2.91 | 36.64 | 39.44 |
+| stray | greedy | random | 7.87 | 2.82 | 0.96 | 1.16 | 2.14 | 35.88 | 37.44 |
+| stray | smart | first | 8.16 | 3.25 | 1.18 | 1.28 | 2.66 | 35.39 | 38.05 |
+| stray | smart | fighter | 8.78 | 1.43 | 0.51 | 1.03 | 1.69 | 33.65 | 38.64 |
+| stray | smart | cautious | 7.47 | 5.36 | 1.97 | 1.60 | 3.48 | 36.12 | 37.77 |
+| stray | smart | mixed | 8.65 | 3.66 | 1.30 | 1.52 | 3.75 | 35.81 | 38.71 |
+| stray | smart | random | 9.11 | 3.51 | 1.17 | 1.40 | 2.62 | 34.83 | 37.04 |
+
+Verification of the labels (same 100 runs per cell, every class and policy): `fighter` visits strictly fewer rests and shops than `cautious`
+in all eight class and policy rows (rests 0.8 to 2.0 against 3.3 to 5.6, shops 0.26 to 0.64 against 1.3 to 2.1), `cautious` has the most rests
+and shops of any route in every row, and `fighter` has the most fights in five of eight rows (both Deserter rows, both Thief rows, greedy Stray); in the others a route that
+survives longer plays more fights before the run ends (greedy Medium 6.14 against mixed 6.80, smart Medium 7.57 against 7.88, smart Stray
+8.78 against random 9.11), because the count is over the nodes visited before death or the escape. `mixed` rests 2.4 to 3.9 times per run, between `fighter` and `cautious`, and
+`tests/route_policy_tests.gd` checks that it rests when badly hurt, skips events while hurt and always takes chests. `random` gives the same
+whole route for the same map seed. Whole runs under all six route names finish for all four classes (also with a single reachable node, no
+reachable fight, the last row and an empty reachable list: see the tests).
