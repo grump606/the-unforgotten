@@ -787,3 +787,205 @@ survives longer plays more fights before the run ends (greedy Medium 6.14 agains
 `tests/route_policy_tests.gd` checks that it rests when badly hurt, skips events while hurt and always takes chests. `random` gives the same
 whole route for the same map seed. Whole runs under all six route names finish for all four classes (also with a single reachable node, no
 reachable fight, the last row and an empty reachable list: see the tests).
+
+## Phase 4f: map-mode balance pass
+
+Goal: tune the map game until the smart bot's `mixed` route escapes 60 to 72% for every class, the route choice matters less, the deaths are
+spread over the run and the economy is sane, without touching the line. Every knob below is read by map-mode code only (or is data only map
+mode reads), and the line's output is identical to main (see "The line is unchanged"). Measurements are `scripts/sim_matrix.ps1`, 200 runs
+per cell unless stated, escape rate in percent (95% interval about +/-7 points).
+
+### Diagnosis (baseline: the branch before any change, seed 1, 200 runs)
+
+| class | policy | mixed | fighter | cautious | spread (best - worst) |
+|---|---|---|---|---|---|
+| deserter | smart | 69.5 | 37.0 | 75.5 | 38.5 |
+| thief | smart | 76.5 | 55.5 | 81.5 | 26.0 |
+| medium | smart | 38.5 | 9.0 | 47.5 | 38.5 |
+| stray | smart | 58.0 | 24.5 | 71.5 | 47.0 |
+| deserter | greedy | 45.0 | 21.0 | 53.5 | 32.5 |
+| thief | greedy | 57.5 | 34.0 | 63.5 | 29.5 |
+| medium | greedy | 15.0 | 2.0 | 15.5 | 13.5 |
+| stray | greedy | 41.5 | 18.5 | 54.0 | 35.5 |
+
+Deaths by row (all 24 cells of that run, 2668 deaths): rows 15 to 17 took 1816 of them (68%), row 14 (mid-boss) 147 (6%), row 19 214 (8%); on
+the fighter route alone rows 15 to 17 took 46%. Findings: (1) the mid-boss fight is the biggest HP sink of act 1 (it leaves a class at 0 to 30
+HP) and nothing healed after it; (2) the fighter route fights about 11.6 times with 2 forced rests and 0.5 shops, the cautious route 8 times
+with 5 to 6 rests; (3) the budget step of +11 at the start of act 2 sat exactly on the three consecutive safe fights after the mid-boss.
+
+### The knobs (before -> after)
+
+| Knob | Before | After | Where |
+|---|---|---|---|
+| `MAP_FIGHT_HEAL_FRACTION` (new, map only): flat share of max HP healed after a won regular fight | none | 0.05 | `RunState` |
+| `MAP_FIGHT_HEAL_MISSING_FRACTION` (new): share of the missing HP healed after a won regular fight | none | 0.6 | `RunState` |
+| `MAP_MID_BOSS_HEAL_FRACTION` (new): share of max HP healed on beating the mid-boss | none | 1.0 (a full heal) | `RunState` |
+| `MAP_REST_HEAL_FRACTION` (new): what the Rest choice heals in map mode (the line still heals to full) | full | 0.5 of max HP, capped at the wound | `RunState` |
+| `MAP_GOLD_FACTOR` (new): share of `Vendor.gold_for_win` a map fight pays (mid-boss bonus, skip gold, relic gold are not scaled) | 1.0 | 0.65 | `RunState` |
+| `StarterContent.MAP_DIFFICULTY` | 1.0 | 1.9 | `StarterContent` |
+| `BUDGET_ACT_START` | 34, 57 | 34, 46 | `StarterContent` |
+| `BUDGET_ACT_END` | 54, 69 | 50, 62 | `StarterContent` |
+| `MAP_CLASS_DIFFICULTY` (new): per-character multiplier on the budget | none | deserter 1.03, thief 1.04, medium 1.02, stray 0.90 | `StarterContent` |
+| `RouteMap.CONFIG` type weights, rest / shop | 33 / 12 | 27 / 10 (event 40 and fight 18 unchanged) | `run/route_map.gd` |
+| Event heal percentages (data only map mode reads) | 25, 40, 15, 20, 15, 10, 5 | 16, 26, 10, 13, 10, 6, 3 (about a third less) | `data/events/*.tres` |
+
+Not changed: `THREAT_REF_DPS`, the threat weights, `PACK_HP_SHARE`, `PACK_SCALE_MIN/MAX`, the enemy-count bands, the backdrop rules, the forced
+rows and the layout, the vendor prices, the treasure price floor, the reward alternatives and every save format. A probe that changed
+`PACK_HP_SHARE` to 0.4 / 0.35 / 0.3 moved the escape rates by 5 to 10 points and nothing else, so it was left alone.
+
+How the knobs work:
+
+- **Win heal.** `RunState.complete_combat` heals `roundi(max_hp * 0.05 + missing_hp * 0.6)` after every won non-boss fight in map mode, never past
+  max HP. `RunState.map_win_heal` keeps the amount for the reward screen ("You recover N HP."); it is display only and not saved, the HP itself
+  is, so Continue restores it. The share of the missing HP is what matters: a hurt player recovers more, so a route that avoids rests stays
+  near the HP of a route full of rests. Beating the mid-boss heals fully. The final boss and a lost fight heal nothing, and the line never
+  calls any of this (`route != null` only).
+- **Rest.** `rest_heal_amount()` and `rest()` heal 50% of max HP in map mode. The bots take Remember over Rest above 60% HP, so rests are mostly
+  upgrades.
+- **Difficulty.** One flat curve: act 1 from 34 to 50, act 2 from 46 to 62, times 1.9 times the class multiplier. The act-2 start is no longer a
+  step of +11 (it is -4), so the three safe fights after the mid-boss are not a wall. Against the line's mean pack threat per act (before the
+  difficulty factor): act 1 is within 10%, act 2 about 15% under (the calibration test allows 10% and 20%).
+- **Class multipliers.** The classes are not equally robust: with one number the Thief ran 10 to 15 points above the Stray. The multipliers put
+  the smart `mixed` route in the same band for all four.
+- **Gold.** A mixed route has about 10 fights against the line's 8; at the line's pay it ended with more gold than it could spend.
+- **Node weights.** Rest 33 -> 27, shop 12 -> 10 (about 18% each). A random path (800 maps, 6 walks each) has per act 5.76 fights, 2.38 rests
+  (2.46 before), 0.83 shops (0.94), 1.00 chests, 2.03 events (1.95): the forced rows dominate, so the means moved by 3% and 12%. Every seed now
+  builds a different map. A map saved by an earlier build is still valid (`validate()` does not read the weights) but is not what `generate`
+  would build now; no player has map saves.
+
+### Iteration log
+
+100 runs per cell, seed 1, smart policy, routes mixed / fighter / cautious, escape in percent as Deserter / Thief / Medium / Stray (except
+the last two rows). In iteration 1 the heal was not wired in yet, so it is the unchanged game on 100 runs.
+
+| # | Change from the previous row | mixed | fighter | cautious | What it taught |
+|---|---|---|---|---|---|
+| 1 | nothing (heal not yet wired) | 65 / 76 / 48 / 66 | 41 / 47 / 5 / 25 | 72 / 81 / 50 / 73 | the 100-run reference |
+| 2 | win heal 12% of max, mid-boss full heal | 98 / 98 / 98 / 93 | 91 / 95 / 90 / 72 | 99 / 98 / 97 / 96 | sustain is the strongest lever: far too strong |
+| 3 | win heal 10%, MAP_DIFFICULTY 1.3 | 80 / 82 / 74 / 69 | 48 / 64 / 16 / 23 | 93 / 93 / 84 / 84 | a flat heal alone leaves a 45 to 68 point gap |
+| 4 | heal 4% + 25% of the missing HP | 90 / 90 / 91 / 74 | 68 / 85 / 52 / 43 | 97 / 96 / 93 / 89 | the missing-HP share compresses the gap |
+| 5 | difficulty 1.6 | 44 / 64 / 46 / 45 | 13 / 43 / 7 / 14 | 60 / 85 / 59 / 57 | the response to difficulty is steep (about 15 points per 0.1) |
+| 6 | act-2 curve 46 to 74, difficulty 1.5 | 78 / 81 / 77 / 65 | 49 / 67 / 37 / 28 | 93 / 93 / 95 / 82 | the rows 15 to 17 hump is gone (11% of deaths) |
+| 7 | rest heals 50%, difficulty 1.4 | 84 / 91 / 92 / 75 | 69 / 75 / 59 / 42 | 98 / 95 / 97 / 91 | the rest nerf alone does not close the gap |
+| 8 | 40% of the missing HP, difficulty 1.65 | 76 / 76 / 76 / 60 | 47 / 66 / 41 / 25 | 88 / 91 / 89 / 74 | |
+| 9 | 60% of the missing HP, difficulty 1.9 | 70 / 68 / 71 / 43 | 41 / 57 / 37 / 14 | 77 / 84 / 90 / 59 | arrival HP is equal across routes now (30 to 34 of 37 for the Stray) but the gap stays: it comes from deck and relic power |
+| 10 | gold factor 0.65, Stray multiplier 0.9 | 67 / 77 / 72 / 72 | 42 / 61 / 38 / 31 | 83 / 93 / 91 / 85 | gold does not move the gap |
+| 11 | curve 22 to 52 and 40 to 82 | 79 / 85 / 70 / 75 | 49 / 75 / 41 / 52 | 93 / 93 / 92 / 88 | an easy start helps the fighter but moves the deaths to rows 23 to 26 (32% of deaths) |
+| 12 | curve 24 to 50 and 44 to 76, difficulty 1.75, class multipliers | 71 / 68 / 66 / 68 | 41 / 52 / 40 / 35 | 91 / 90 / 90 / 92 | all classes in the band, gap 38 to 57 |
+| 13 | event heals cut by a third | 72 / 69 / 64 / 70 | 40 / 51 / 39 / 35 | 92 / 90 / 90 / 90 | no visible effect; kept so events do not out-heal the fights |
+| 14 | win heal 5% + 60% of the missing HP | 83 / 82 / 87 / 74 | 63 / 65 / 75 / 55 | 95 / 94 / 94 / 92 | the gap falls to 19 to 37 at a higher escape level |
+| 15 | difficulty 1.95 | 72 / 75 / 75 / 72 | 48 / 57 / 37 / 42 | 89 / 88 / 91 / 91 | more difficulty reopens the gap (31 to 54) |
+| 16 | rest weight 27, shop weight 10 | 73 / 65 / 69 / 60 | 42 / 53 / 34 / 44 | 82 / 85 / 87 / 82 | cautious loses 6 to 8 points |
+| 17 | flat curve 34 to 50 and 46 to 62, difficulty 1.9 | 81 / 67 / 78 / 69 | 61 / 55 / 60 / 66 | 83 / 79 / 87 / 88 | the flat curve closes the gap to 22 to 27 |
+| 18 | class multipliers 1.07 / 1.05 / 1.05 / 0.86 | 59 / 67 / 62 / 69 | 43 / 55 / 44 / 66 | 78 / 79 / 83 / 88 | Deserter too hard |
+| 19 | multipliers 1.04 / 1.05 / 1.03 / 0.9, 200 runs, smart and greedy | 63.5 / 63 / - / 65 | 54.5 / 50.5 / - / 55 | 80 / 75.5 / - / 83 | greedy `mixed` was 72 / 81 / - / 83.5: the greedy bot is as strong as the smart one in this regime |
+| 20 | probe: 30% of the missing HP, difficulty 1.6 | 76 / 73 / 77 / 75 | 46 / 71 / 35 / 50 | 82 / 82 / 88 / 87 | gap 36 to 53 again; greedy `mixed` 64 / 75 / 55 / 88, so a weaker heal does not pull the greedy bot down either |
+| final | multipliers 1.03 / 1.04 / 1.02 / 0.9, 200 runs, seeds 1 and 2 | 69.5 / 62.5 / 71 / 65 (seed 1), 71 / 75 / 71 / 71 (seed 2) | 56.5 / 51.5 / 59 / 55 (seed 1), 49.5 / 56 / 65 / 49.5 (seed 2) | 81.5 / 76 / 86 / 83 (seed 1), 84.5 / 80.5 / 87 / 85 (seed 2) | see the tables below |
+
+What the log says: the sustain after fights sets how much the route matters; the difficulty sets the level but also reopens the gap (the
+response to both is steep); a flat budget curve (equal danger on every fight, no wall at the act change, no steep end) is what keeps the
+fighter route alive. The gap that remains is not HP (arrival HP is equal across routes) but deck and relic power from the voluntary nodes: a
+cautious run ends with about 1 relic more and a deck of 15 against 20 cards (it removes cards at shops and Remembers at rests).
+
+### Final matrices (200 runs per cell)
+
+Seed 1 (`scripts/sim_matrix.ps1 -Runs 200 -Seed 1 -Policies smart,greedy -Routes mixed,fighter,cautious,random`, 32 cells), escape rate with the 95% Wilson interval:
+
+| class | policy | mixed | fighter | cautious | random | best | worst | spread |
+|---|---|---|---|---|---|---|---|---|
+| deserter | smart | 69.5% (62.8-75.5) | 56.5% (49.6-63.2) | 81.5% (75.5-86.3) | 72.5% (65.9-78.2) | cautious | fighter | 25.0 pts |
+| deserter | greedy | 74.0% (67.5-79.6) | 53.0% (46.1-59.8) | 82.0% (76.1-86.7) | 73.5% (67.0-79.1) | cautious | fighter | 29.0 pts |
+| thief | smart | 62.5% (55.6-68.9) | 51.5% (44.6-58.3) | 76.0% (69.6-81.4) | 59.0% (52.1-65.6) | cautious | fighter | 24.5 pts |
+| thief | greedy | 82.5% (76.6-87.1) | 60.5% (53.6-67.0) | 81.0% (75.0-85.8) | 72.0% (65.4-77.8) | mixed | fighter | 22.0 pts |
+| medium | smart | 71.0% (64.4-76.8) | 59.0% (52.1-65.6) | 86.0% (80.5-90.1) | 74.5% (68.0-80.0) | cautious | fighter | 27.0 pts |
+| medium | greedy | 73.5% (67.0-79.1) | 46.0% (39.2-52.9) | 86.5% (81.1-90.6) | 71.5% (64.9-77.3) | cautious | fighter | 40.5 pts |
+| stray | smart | 65.0% (58.2-71.3) | 55.0% (48.1-61.7) | 83.0% (77.2-87.6) | 77.5% (71.2-82.7) | cautious | fighter | 28.0 pts |
+| stray | greedy | 83.5% (77.7-88.0) | 68.5% (61.8-74.5) | 89.0% (83.9-92.6) | 83.5% (77.7-88.0) | cautious | fighter | 20.5 pts |
+
+Seed 2 (the same matrix, to guard against overfitting seed 1):
+
+| class | policy | mixed | fighter | cautious | random | best | worst | spread |
+|---|---|---|---|---|---|---|---|---|
+| deserter | smart | 71.0% (64.4-76.8) | 49.5% (42.6-56.4) | 84.5% (78.8-88.9) | 72.0% (65.4-77.8) | cautious | fighter | 35.0 pts |
+| deserter | greedy | 75.0% (68.6-80.5) | 55.0% (48.1-61.7) | 82.0% (76.1-86.7) | 70.5% (63.8-76.4) | cautious | fighter | 27.0 pts |
+| thief | smart | 75.0% (68.6-80.5) | 56.0% (49.1-62.7) | 80.5% (74.5-85.4) | 72.5% (65.9-78.2) | cautious | fighter | 24.5 pts |
+| thief | greedy | 73.5% (67.0-79.1) | 60.5% (53.6-67.0) | 80.5% (74.5-85.4) | 72.5% (65.9-78.2) | cautious | fighter | 20.0 pts |
+| medium | smart | 71.0% (64.4-76.8) | 65.0% (58.2-71.3) | 87.0% (81.6-91.0) | 74.5% (68.0-80.0) | cautious | fighter | 22.0 pts |
+| medium | greedy | 71.5% (64.9-77.3) | 46.5% (39.7-53.4) | 85.5% (80.0-89.7) | 68.5% (61.8-74.5) | cautious | fighter | 39.0 pts |
+| stray | smart | 71.0% (64.4-76.8) | 49.5% (42.6-56.4) | 85.0% (79.4-89.3) | 72.5% (65.9-78.2) | cautious | fighter | 35.5 pts |
+| stray | greedy | 86.0% (80.5-90.1) | 73.5% (67.0-79.1) | 88.5% (83.3-92.2) | 80.0% (73.9-85.0) | cautious | fighter | 15.0 pts |
+
+Visits per run and HP at the bosses, smart policy, seed 1 (seed 2 is within 0.3 of every number):
+
+| class | policy | route | fights | rests | shops | chests | events | HP at mid-boss | HP at final boss |
+|---|---|---|---|---|---|---|---|---|---|
+| deserter | smart | mixed | 9.44 | 3.41 | 1.22 | 1.71 | 4.85 | 44.35 | 49.91 |
+| deserter | smart | fighter | 12.04 | 2.36 | 0.80 | 1.60 | 2.51 | 44.52 | 46.56 |
+| deserter | smart | cautious | 8.27 | 5.63 | 2.23 | 1.81 | 3.96 | 46.25 | 50.77 |
+| thief | smart | mixed | 8.63 | 2.96 | 1.15 | 1.53 | 4.29 | 31.98 | 36.59 |
+| thief | smart | fighter | 10.75 | 2.13 | 0.71 | 1.43 | 2.29 | 32.55 | 35.81 |
+| thief | smart | cautious | 7.92 | 5.31 | 2.20 | 1.72 | 3.71 | 32.83 | 37.01 |
+| medium | smart | mixed | 9.73 | 3.48 | 1.31 | 1.75 | 4.95 | 46.68 | 52.80 |
+| medium | smart | fighter | 12.58 | 2.50 | 0.87 | 1.69 | 2.65 | 46.59 | 50.74 |
+| medium | smart | cautious | 8.46 | 5.83 | 2.31 | 1.89 | 4.11 | 48.87 | 56.14 |
+| stray | smart | mixed | 9.45 | 3.28 | 1.33 | 1.71 | 4.72 | 34.70 | 39.58 |
+| stray | smart | fighter | 12.45 | 2.50 | 0.84 | 1.64 | 2.67 | 33.54 | 36.44 |
+| stray | smart | cautious | 8.40 | 5.73 | 2.32 | 1.86 | 4.03 | 34.93 | 38.11 |
+
+Smart policy, `mixed` route, at the end of the run (both seeds): deck on escapes 18.5 to 18.7 (Deserter), 18.1 to 18.2 (Thief), 16.4 (Medium),
+16.4 to 16.8 (Stray); relics held 2.96 to 3.21 (mean over all runs, including the ones that died early); gold held 67 to 87.
+The greedy bot ends with a deck of 25 cards (it takes every reward).
+
+### Death profile before and after
+
+Deaths by row, summed over the cells of each run and shown as a share of all deaths. Before: 24 cells (smart and greedy, routes mixed, fighter,
+cautious), 2668 deaths. After: 32 cells (smart and greedy, mixed, fighter, cautious, random), seed 1: 1839 deaths, seed 2: 1782 deaths.
+
+| Rows | Before | After, seed 1 | After, seed 2 |
+|---|---|---|---|
+| 0 to 4 | 0% | 7% | 6% |
+| 5 to 9 | 7% | 16% | 13% |
+| 10 to 14 (mid-boss at 14) | 9% (row 14: 6%) | 22% (row 14: 10%) | 22% (row 14: 10%) |
+| 15 to 19 | 76% (rows 15 to 17: 68%) | 21% (rows 15 to 17: 15%) | 20% (rows 15 to 17: 14%) |
+| 20 to 24 | 6% | 23% | 25% |
+| 25 to 29 (final boss at 29) | 2% | 12% (row 29: 2%) | 14% (row 29: 2%) |
+
+The hump on rows 15 to 17 is gone. Smart `mixed` alone (264 and 224 deaths): 7 / 24 / 27 / 14 / 20 / 9% (seed 1) and 5 / 16 / 26 / 14 / 19 / 14%.
+
+### Targets
+
+| # | Target | Result |
+|---|---|---|
+| 1 | smart `mixed` 60 to 72% for every class | seed 1: 69.5 / 62.5 / 71 / 65 (met). Seed 2: 71 / 75 / 71 / 71 (Thief is 3 over the edge, its interval 68.6 to 80.5 covers the band) |
+| 2 | smart: fighter at least 40, cautious at most 80, gap at most 25 | fighter met (49.5 to 65). Cautious NOT met: 76 to 87 (Thief 76 and 80.5 only). Gap NOT met in general: 24.5 to 28 on seed 1 (Thief just inside), 22 to 35.5 on seed 2 |
+| 3 | greedy `mixed` 40 to 58 (Deserter, Thief, Stray), Medium at least 30 | NOT met: 74 / 82.5 / 83.5 and 75 / 73.5 / 86; Medium greedy 73.5 and 71.5 (met) |
+| 4 | class spread: smart `mixed` within 10, greedy within 15 (without Medium) | met: smart 8.5 and 4 points, greedy 9.5 and 12.5 points |
+| 5 | no band over 25% of deaths outside the boss rows, no spike over twice the neighbour; bosses up to 25% | met: largest band 23% and 25% (rows 20 to 24, the edge on seed 2), mid-boss 10%, final boss 2% |
+| 6 | deck 12 to 22, relics 3 to 7, gold at the end under 150 | deck 16 to 19 (met), relics 3.0 to 3.2 (at the floor, mean over all runs), gold 67 to 87 on `mixed` (met; the fighter route, which never shops, holds 135 to 178) |
+| 7 | line output unchanged | met (below) |
+
+Trades and why. The greedy target and the route-gap target are in conflict with the smart band. In this regime the greedy bot is as strong as
+the smart one: heals after every fight make the HP discipline that the greedy bot lacks (rest below 50%, buy a heal) matter much less, and the
+difficulty needed to push the smart `mixed` route down to 60 to 72% is not enough to push the greedy bot down to 40 to 58%. A probe with a
+weaker heal (iteration 20) did not bring the greedy bot down either, and a probe with a different HP/damage split (`PACK_HP_SHARE`) moved
+nothing. Pushing the difficulty up until greedy fits would take the smart bot to about 45%. The smart `mixed` band and the route spread were the
+priorities, so the greedy band is left unmet and reported, and Medium greedy is no longer at single digits (73%). The route gap sits at 22 to
+35 points (it was 26 to 47) instead of 25: what remains is deck and relic power from rests, shops and events, which a fight-only route never
+gets, and a smaller gap needs either more sustain (the escape rate rises) or weaker voluntary nodes. Cautious stays above 80 for the same reason.
+`cautious` and `fighter` are deliberately extreme bots; `mixed` and `random` (68 to 78) are the routes a player resembles.
+
+### The line is unchanged
+
+`tools/run_sim.gd --runs 40 --seed 1 --policy greedy --character <class>` for all four classes and `--policy smart --character deserter`, on
+this branch against main (D:\Projects	he-unforgotten): every line is identical, with the tied "relic ... held" lines sorted. Nothing the line
+runs reads a new constant: the heal, rest, gold and class numbers sit behind `route != null` and the pack builder is called with the same
+arguments in the line as before. The harness gained one line in map mode only ("Fights visited by enemy count").
+
+### Other changes in this phase
+
+- `RunState.map_win_gold(count)`, `map_win_heal`, `rest_heal_amount()` (map aware), the reward screen's "You recover N HP." line.
+- `StarterContent.map_class_difficulty(id)`; `RunState.start_combat` passes it to `budget_encounter`.
+- Tests: new `_test_win_heal` (win heal in map mode only, never above max HP, none after the final boss or a defeat, line mode unchanged),
+  `_test_win_heal_saves` (Continue restores the healed HP, nothing is saved mid-reward), `_test_class_difficulty`, map rest and mid-boss
+  expectations rewritten for the new numbers, the budget-curve and calibration tests describe the new curve, event heals are capped at 30%,
+  and two tests that depended on the particular maps of old seeds were made robust (a corrupted-edge fixture, the hurt-player event rule).

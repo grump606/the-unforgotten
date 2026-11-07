@@ -24,6 +24,7 @@ func run() -> int:
 	_test_choose_rejections()
 	_test_reachable_follows_edges()
 	_test_fight_node()
+	_test_win_heal()
 	_test_rest_shop_story()
 	_test_mid_boss_and_boss()
 	_test_defeat()
@@ -181,12 +182,59 @@ func _test_fight_node() -> void:
 		seen_counts[n.enemy_count] = true
 		var gold := run_state.gold
 		run_state.complete_combat(true)
-		_check(run_state.gold == gold + Vendor.gold_for_win(n.enemy_count), "a win pays for the node's enemy count")
+		_check(run_state.gold == gold + RunState.map_win_gold(n.enemy_count), "a win pays for the node's enemy count (map-mode share)")
 		_check(run_state.reward_pending() and run_state.reward_choices().size() > 0, "a won fight offers a reward")
 		run_state.resolve_reward(run_state.reward_choices()[0])
 		if run_state.visited.size() >= 12:
 			break
 	_check(seen_counts.size() >= 2, "fights with different pack sizes were played (%d kinds)" % seen_counts.size())
+
+
+## The map-mode win heal: a share of max HP plus a share of the missing HP after a regular win, only in map mode,
+## never above max HP, none after the final boss or a defeat.
+func _test_win_heal() -> void:
+	var run_state := RunState.new(31, &"thief", true)
+	_check(_walk_to(run_state, RouteMap.NodeType.FIGHT), "a fight node is found for the win heal")
+	run_state.start_combat()
+	var max_hp := run_state.player.max_hp
+	run_state.player.hp = 10
+	var expected := roundi(max_hp * RunState.MAP_FIGHT_HEAL_FRACTION + (max_hp - 10) * RunState.MAP_FIGHT_HEAL_MISSING_FRACTION)
+	run_state.complete_combat(true)
+	_check(expected > 0 and run_state.player.hp == 10 + expected and run_state.map_win_heal == expected, "a won map fight heals %d HP (flat share plus a share of the missing HP)" % expected)
+	run_state.resolve_reward(null)
+	_check(run_state.player.hp == 10 + expected and run_state.map_win_heal == expected, "taking the reward heals nothing more")
+	# Hurt players recover more than healthy ones, and nobody goes past max HP.
+	var healthy := RunState.new(31, &"thief", true)
+	_walk_to(healthy, RouteMap.NodeType.FIGHT)
+	healthy.start_combat()
+	healthy.complete_combat(true)
+	_check(healthy.player.hp == healthy.player.max_hp and healthy.map_win_heal == 0, "a full-HP player is not healed past max HP")
+	var nearly := RunState.new(31, &"thief", true)
+	_walk_to(nearly, RouteMap.NodeType.FIGHT)
+	nearly.start_combat()
+	nearly.player.hp = max_hp - 1
+	nearly.complete_combat(true)
+	_check(nearly.player.hp == max_hp and nearly.map_win_heal == 1, "a heal larger than the wound stops at max HP")
+	# A defeat heals nothing; the line never heals.
+	var lost := RunState.new(31, &"thief", true)
+	_walk_to(lost, RouteMap.NodeType.FIGHT)
+	lost.start_combat()
+	lost.player.hp = 7
+	lost.complete_combat(false)
+	_check(lost.finished and lost.player.hp == 7 and lost.map_win_heal == 0, "a lost fight heals nothing")
+	var line := RunState.new(31, &"thief")
+	line.read_story()
+	line.start_combat()
+	line.player.hp = 7
+	line.complete_combat(true)
+	_check(line.player.hp == 7 and line.map_win_heal == 0 and line.gold == Vendor.gold_for_win(1), "line mode: no win heal and the full gold")
+	# The final boss ends the run with no heal.
+	var boss := RunState.new(51, &"deserter", true)
+	_walk_to(boss, RouteMap.NodeType.BOSS)
+	boss.start_combat()
+	boss.player.hp = 9
+	boss.complete_combat(true)
+	_check(boss.escaped and boss.player.hp == 9 and boss.map_win_heal == 0, "the final boss gives no heal")
 
 
 func _test_rest_shop_story() -> void:
@@ -196,8 +244,13 @@ func _test_rest_shop_story() -> void:
 	var stop := run_state.current_stop()
 	_check(stop.type == RunState.StopType.REST and run_state.rest_number() >= 1, "a rest node is a REST stop")
 	run_state.player.hp = 10
-	_check(run_state.rest_heal_amount() == run_state.player.max_hp - 10, "the rest heals what is missing")
-	_check(run_state.rest() == run_state.player.max_hp - 10 and run_state.player.hp == run_state.player.max_hp, "resting heals to full")
+	var rest_amount := roundi(run_state.player.max_hp * RunState.MAP_REST_HEAL_FRACTION)
+	_check(run_state.rest_heal_amount() == mini(rest_amount, run_state.player.max_hp - 10), "the map rest heals its share of max HP (capped at what is missing)")
+	_check(run_state.rest() == rest_amount and run_state.player.hp == 10 + rest_amount, "resting in map mode heals MAP_REST_HEAL_FRACTION of max HP, not all of it")
+	var wound := RunState.new(41, &"deserter", true)
+	_walk_to(wound, RouteMap.NodeType.REST)
+	wound.player.hp = wound.player.max_hp - 3
+	_check(wound.rest_heal_amount() == 3 and wound.rest() == 3 and wound.player.hp == wound.player.max_hp, "a small wound is healed fully and never past max HP")
 	_check(run_state.current_stop() == null and not run_state.reachable_nodes().is_empty() and not run_state.finished, "after a rest the map is open")
 	# Remember is the other rest choice and also ends the stop.
 	var other := RunState.new(41, &"deserter", true)
@@ -237,8 +290,10 @@ func _test_mid_boss_and_boss() -> void:
 	var combat := run_state.start_combat()
 	_check(combat != null and combat.enemies.size() == 1 and combat.enemies[0].data.id == StarterContent.mid_boss_encounter()[0].id, "the mid-boss fight is the mid-boss encounter")
 	var gold := run_state.gold
+	run_state.player.hp = 5
 	run_state.complete_combat(true)
-	_check(run_state.gold == gold + Vendor.gold_for_win(1) + RunState.MID_BOSS_GOLD_BONUS, "the mid-boss pays gold and its bonus")
+	_check(run_state.gold == gold + RunState.map_win_gold(1) + RunState.MID_BOSS_GOLD_BONUS, "the mid-boss pays gold and its bonus")
+	_check(run_state.player.hp == mini(run_state.player.max_hp, 5 + roundi(run_state.player.max_hp * RunState.MAP_MID_BOSS_HEAL_FRACTION)) and run_state.map_win_heal == run_state.player.hp - 5, "the mid-boss heals MAP_MID_BOSS_HEAL_FRACTION of max HP")
 	_check(run_state.reward_pending() and not run_state.finished, "the mid-boss offers a reward and the run goes on")
 	run_state.resolve_reward(null)
 	_check(not run_state.finished and run_state.reachable_nodes().size() >= 1 and run_state.route.node(run_state.reachable_nodes()[0]).act == 1, "after the mid-boss the second act opens")
@@ -304,7 +359,7 @@ func _test_ramp() -> void:
 				var combat := run_state.start_combat()
 				var replay := RandomNumberGenerator.new()
 				replay.state = state
-				var expected := StarterContent.budget_encounter(stop.enemy_count, replay, n.row)
+				var expected := StarterContent.budget_encounter(stop.enemy_count, replay, n.row, StarterContent.map_class_difficulty(run_state.character.id))
 				var same := combat != null and combat.enemies.size() == expected.size()
 				if same:
 					for i in expected.size():

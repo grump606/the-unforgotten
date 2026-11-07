@@ -78,7 +78,7 @@ func _initialize() -> void:
 	var text := _all_text(body)
 	check(text.contains("The Rain Barrel") and text.contains("A barrel stands under a broken gutter"), "the title and the scene text are shown")
 	check(text.contains("Drink") and text.contains("Reach for the bright thing") and text.contains("Walk on"), "all three buttons are shown")
-	check(text.contains("Heal 25% max HP") and text.contains("Gain 20 gold. Lose 3 HP"), "each button prints its cost and reward")
+	check(text.contains("Heal 16% max HP") and text.contains("Gain 20 gold. Lose 3 HP"), "each button prints its cost and reward")
 	check(_find(body, "EventCard") != null and body.find_children("*", "EventScene", true, false).size() == 1, "the card sits over the dimmed scene")
 	check(not text.contains("Continue"), "no Continue before a choice")
 

@@ -41,7 +41,7 @@ effects = Array[ExtResource("3_effect")]([SubResource("Resource_e4"), SubResourc
 [sub_resource type="Resource" id="Resource_e7"]
 script = ExtResource("3_effect")
 kind = 0
-amount = 15
+amount = 10
 
 [sub_resource type="Resource" id="Resource_c8"]
 script = ExtResource("2_choice")

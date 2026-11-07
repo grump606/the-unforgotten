@@ -410,10 +410,15 @@ func _test_validate_catches_corruption() -> void:
 	_check(_any_violation(stale, "prev list"), "a stale prev list is reported")
 
 	var wide := _copy(map)
-	var far := wide.row_nodes(8)[2].id
-	wide.row_nodes(7)[0].next = [far]
+	var made_wide := false
+	for row in range(4, 11):
+		var upper := wide.row_nodes(row)
+		var lower := wide.row_nodes(row + 1)
+		if not made_wide and upper.size() >= 3 and upper.size() == lower.size():
+			upper[0].next = [upper[0].next[0], lower[2].id]
+			made_wide = true
 	wide.rebuild_links()
-	_check(_any_violation(wide, "more than one away"), "an edge more than one column away is reported")
+	_check(made_wide and _any_violation(wide, "more than one away"), "an edge more than one column away is reported")
 
 	var three_exits := _copy(map)
 	var hub := three_exits.row_nodes(9)[1]
