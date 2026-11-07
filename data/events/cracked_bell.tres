@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 14
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 10
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Strike it hard"
+outcome = "The sound is wrong, flat and enormous. Something far off turns its head."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 5
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 25
+
+[sub_resource type="Resource" id="Resource_c6"]
+script = ExtResource("2_choice")
+label = "Strike it softly"
+outcome = "A note comes out like a held breath. A few coins roll out of the crack."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e4"), SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_c7"]
+script = ExtResource("2_choice")
+label = "Leave it breathing"
+outcome = "You do not want to be heard."
+
+[resource]
+script = ExtResource("1_event")
+id = &"cracked_bell"
+title = "The Cracked Bell"
+body = "A bell lies on its side in the road, a long crack down its flank. It was cast for the Bellkeeper's court and never reached it. When the wind passes through the crack it does not ring. It breathes."
+class_body = {"deserter": "A bell lies on its side in the road, a long crack down its flank. A bell cast for a muster you missed. When the wind passes through the crack it does not ring. It breathes.", "medium": "A bell lies on its side in the road, a long crack down its flank. It was cast for the Bellkeeper's court and never reached it. When the wind passes through the crack it does not ring. It breathes. The dead press close to hear it."}
+scene = &"battle_bell_court"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c3"), SubResource("Resource_c6"), SubResource("Resource_c7")])

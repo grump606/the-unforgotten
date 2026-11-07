@@ -40,6 +40,134 @@ static func treasure_stop(run: RunState) -> bool:
 	return run.open_treasure() and run.take_treasure()
 
 
+## What an event button costs the player at worst, summed over its effects (a gamble counts its worse branch):
+## {"hp", "gold", "max_hp", "curses", "gamble", "gains"}. `gains` is true when it also gives something.
+static func event_costs(effects: Array[EventEffect]) -> Dictionary:
+	var costs := {"hp": 0, "gold": 0, "max_hp": 0, "curses": 0, "gamble": false, "gains": false}
+	_add_event_costs(effects, costs)
+	return costs
+
+
+static func _add_event_costs(effects: Array[EventEffect], costs: Dictionary) -> void:
+	for effect in effects:
+		match effect.kind:
+			EventEffect.Kind.LOSE_HP, EventEffect.Kind.LOSE_HP_PERCENT:
+				costs["hp"] += effect.amount
+			EventEffect.Kind.GOLD:
+				if effect.amount < 0:
+					costs["gold"] -= effect.amount
+				else:
+					costs["gains"] = true
+			EventEffect.Kind.MAX_HP:
+				if effect.amount < 0:
+					costs["max_hp"] -= effect.amount
+				else:
+					costs["gains"] = true
+			EventEffect.Kind.ADD_CURSE:
+				costs["curses"] += maxi(effect.count, 1)
+			EventEffect.Kind.GAMBLE:
+				costs["gamble"] = true
+				var worse := {"hp": 0, "gold": 0, "max_hp": 0, "curses": 0, "gamble": false, "gains": false}
+				_add_event_costs(effect.lose, worse)
+				costs["hp"] += worse["hp"]
+				costs["gold"] += worse["gold"]
+				costs["max_hp"] += worse["max_hp"]
+				costs["curses"] += worse["curses"]
+				costs["gains"] = true
+			_:
+				costs["gains"] = true
+
+
+## Event stop for the greedy bot: the first enabled button that costs no HP, gold, max HP or curse and is no
+## gamble; if there is none, the first enabled button that does nothing at all (a way to leave). Whatever pick the
+## choice owes is made by `finish_event_picks`. False on a RunState failure.
+static func event_stop(run: RunState) -> bool:
+	var choices := run.event_choices()
+	var pick := -1
+	var leave := -1
+	for i in choices.size():
+		if not bool(run.event_choice_state(i)["enabled"]):
+			continue
+		var costs := event_costs(choices[i].effects)
+		var costless: bool = costs["hp"] == 0 and costs["gold"] == 0 and costs["max_hp"] == 0 and costs["curses"] == 0 and not costs["gamble"]
+		if costless and costs["gains"] and pick == -1:
+			pick = i
+		if choices[i].effects.is_empty() and leave == -1:
+			leave = i
+	if pick == -1:
+		pick = leave
+	if pick == -1:
+		# No free button and no leave: the cheapest enabled one (fewest HP and gold lost).
+		var cheapest := INF
+		for i in choices.size():
+			if not bool(run.event_choice_state(i)["enabled"]):
+				continue
+			var costs := event_costs(choices[i].effects)
+			var price: float = costs["hp"] + costs["gold"] + 4.0 * costs["max_hp"] + 8.0 * costs["curses"]
+			if price < cheapest:
+				cheapest = price
+				pick = i
+	if pick == -1 and run.current_event() != null:
+		printerr("SimPolicy: an event offered no usable button")
+		return false
+	return finish_event_picks(run, false, pick)
+
+
+## Resolves button `pick` of the open event (when it has one), makes every pick it owes and leaves. `smart` chooses
+## the cards with SmartPolicy's scores, the greedy bot the first sensible one. False on a RunState failure.
+static func finish_event_picks(run: RunState, smart: bool, pick := -1) -> bool:
+	if pick >= 0 and not run.resolve_event_choice(pick).ok:
+		printerr("SimPolicy: the event refused an enabled button")
+		return false
+	var guard := 0
+	while run.event_followup() != &"" and guard < 8:
+		guard += 1
+		var ok := false
+		match run.event_followup():
+			&"remove":
+				ok = run.event_remove_card(event_remove_pick(run, smart))
+			&"remember":
+				var indices := run.event_remember_indices()
+				var chosen := indices[0]
+				if smart:
+					chosen = SmartPolicy.remember_pick(run, indices)
+				else:
+					for i in indices:
+						if is_damage_card(run.deck[i]):
+							chosen = i
+							break
+				ok = run.event_remember_card(chosen)
+			_:
+				var cards := run.event_pick_choices()
+				var best := cards[0]
+				if smart:
+					var weights := SmartPolicy._weights(run.deck)
+					for card in cards:
+						if SmartPolicy.card_score(card, weights) > SmartPolicy.card_score(best, weights):
+							best = card
+				ok = run.event_pick_card(best)
+		if not ok:
+			printerr("SimPolicy: an event pick was refused")
+			return false
+	return run.finish_event()
+
+
+## The deck position an event removal takes: a curse (Dread, Murmur) first, then for the smart bot the weakest card by
+## score and for the greedy bot the first card.
+static func event_remove_pick(run: RunState, smart: bool) -> int:
+	for i in run.deck.size():
+		if run.deck[i].dormant:
+			return i
+	if not smart:
+		return 0
+	var weights := SmartPolicy._weights(run.deck)
+	var weakest := 0
+	for i in run.deck.size():
+		if SmartPolicy.card_score(run.deck[i], weights) < SmartPolicy.card_score(run.deck[weakest], weights):
+			weakest = i
+	return weakest
+
+
 ## Rest stop for both bots: Rest (heal to full) while HP is under REST_BELOW of max or nothing can be
 ## Remembered, else Remember a card (no heal). `smart` picks the card by score gain (SmartPolicy.remember_pick),
 ## greedy takes the first attack that can be Remembered, else the first card. False on a RunState failure.

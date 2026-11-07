@@ -40,6 +40,7 @@ var _story := StoryScreen.new()
 var _vendor := VendorScreen.new()
 var _rest := RestScreen.new()
 var _treasure := TreasureScreen.new()
+var _event := EventScreen.new()
 var _end := EndScreen.new()
 ## The map seam (map mode only): a screen that is attached like the others, has `show_map(run: RunState)`
 ## and emits `node_chosen(node_id: int)`. MapScreen is the real one; FallbackMapScreen is a plain list of
@@ -171,6 +172,7 @@ func _reset_screens() -> void:
 	_reward.reset()
 	_rest.reset()
 	_treasure.reset()
+	_event.reset()
 
 
 func _show_stop() -> void:
@@ -209,6 +211,9 @@ func _show_stop() -> void:
 			RunState.StopType.TREASURE:
 				_open(_treasure)
 				_treasure.show()
+			RunState.StopType.EVENT:
+				_open(_event)
+				_event.show()
 			RunState.StopType.VENDOR:
 				_open(_vendor)
 				_vendor.stop_title = _stop_title
@@ -562,6 +567,29 @@ func _place_at_treasure(act: int) -> void:
 	_run.restore_map(_run.route, chest.id, path, true)
 
 
+## Map mode (debug): puts the run inside an event stop of a throwaway map run, on a path of the map that leads to it.
+## `wanted` forces that event (by marking every other event as seen), else the run RNG picks one. The map is
+## regenerated from a new seed in the rare case it has no event node.
+func _place_at_event(wanted: StringName, character_id: StringName) -> void:
+	for _attempt in 40:
+		var target: RouteMap.MapNode = null
+		for n in _run.route.nodes:
+			if n.type == RouteMap.NodeType.EVENT:
+				target = n
+				break
+		if target != null:
+			var path: Array[int] = [target.id]
+			while _run.route.node(path[0]).row > 0:
+				path.push_front(_run.route.node(path[0]).prev[0])
+			_run.restore_map(_run.route, target.id, path, true)
+			if wanted != &"":
+				for event in StarterContent.all_events():
+					if event.id != wanted and not _run.events_seen.has(event.id):
+						_run.events_seen.append(event.id)
+			return
+		_run = RunState.new(randi(), character_id, true)
+
+
 ## Opens a shop or rest stop of a throwaway run: the character's real deck, gold in hand (default 100)
 ## and the player already hurt (default 55% HP), so heals, purchases and removals can all be tried. The
 ## session never saves (see _debug_session); Pause > New Journey or Save & Exit leaves it.
@@ -570,9 +598,11 @@ func start_debug_screen(launch: DebugLaunch) -> void:
 		_new_run(_show_main_menu)
 		_debug_session = true # _new_run ends a session; a run started from here must stay unsaved
 		return
-	_run = RunState.new(randi(), launch.character_id, launch.screen == "treasure")
+	_run = RunState.new(randi(), launch.character_id, launch.screen == "treasure" or launch.screen == "event")
 	if launch.screen == "treasure":
 		_place_at_treasure(launch.screen_index - 1)
+	elif launch.screen == "event":
+		_place_at_event(launch.event_id, launch.character_id)
 	elif DebugLaunch.SCREENS.has(launch.screen):
 		var wanted: int = DebugLaunch.SCREENS[launch.screen]
 		var seen := 0

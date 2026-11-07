@@ -12,7 +12,7 @@ extends RefCounted
 ## picks a path through instead of the fixed line. Everything below that is not about the map behaves
 ## exactly as in line mode; `uses_map()` tells them apart.
 
-enum StopType { COMBAT, REST, STORY, VENDOR, TREASURE }
+enum StopType { COMBAT, REST, STORY, VENDOR, TREASURE, EVENT }
 
 const REWARD_CHOICES := 3
 ## How many of a reward's choices come from the character's own cards (the rest are neutral).
@@ -30,6 +30,8 @@ const MID_BOSS_GOLD_BONUS := 15
 const TREASURE_MIN_RELIC_PRICE := 65
 ## Gold a chest gives instead when the character owns every relic of its pool.
 const TREASURE_FALLBACK_GOLD := 100
+## Gold an event gives instead of a relic it cannot give because the character owns every relic it could draw.
+const EVENT_RELIC_FALLBACK_GOLD := 40
 
 ## One stop on the line. `enemy_count` only matters for COMBAT stops and
 ## `beat_index` (into StoryContent) only for STORY stops. A COMBAT stop with
@@ -78,6 +80,8 @@ class Stop:
 				return "Vendor"
 			StopType.TREASURE:
 				return "Treasure"
+			StopType.EVENT:
+				return "Event"
 		return "?"
 
 ## Who is playing: sets the starting HP and deck and which cards the run can offer.
@@ -124,6 +128,16 @@ var _vendor: Vendor = null
 ## relic (null when the character owned every relic and the chest holds gold instead).
 var _treasure_opened := false
 var _treasure_relic: RelicData = null
+## Ids of the events this run has shown at "?" stops (a draw without replacement: the pool is reshuffled once all
+## twelve were seen). Saved with a map run; an older save lacks it and starts empty.
+var events_seen: Array[StringName] = []
+## The event of the current EVENT stop, rolled by `current_event()` the first time it is asked for (null before that,
+## off an event stop and when event content failed to load). Once rolled the stop is open: not a stop boundary.
+var _event: EventData = null
+## Set once a choice of the open event was pressed: the outcome text, and the picks still owed to the player.
+var _event_resolved := false
+var _event_outcome := ""
+var _event_pending: Array[Dictionary] = []
 var _active_combat: Combat = null
 var _rng := RandomNumberGenerator.new()
 var _reward_choices: Array[CardData] = []
@@ -185,6 +199,7 @@ func restore_map(map: RouteMap, current: int, path: Array[int], inside_stop: boo
 	_map_stop = _stop_for_node(map.node(current)) if inside_stop and current >= 0 else null
 	_treasure_opened = false
 	_treasure_relic = null
+	_reset_event()
 
 
 ## Map mode: the node ids the player may pick next. The start nodes before any choice, else the successors
@@ -223,6 +238,8 @@ static func stop_type_for_node(type: RouteMap.NodeType) -> StopType:
 			return StopType.STORY
 		RouteMap.NodeType.TREASURE:
 			return StopType.TREASURE
+		RouteMap.NodeType.EVENT:
+			return StopType.EVENT
 	return StopType.COMBAT
 
 
@@ -252,6 +269,8 @@ func _stop_for_node(n: RouteMap.MapNode) -> Stop:
 			stop = Stop.new(StopType.STORY, 0, n.beat_index)
 		RouteMap.NodeType.TREASURE:
 			stop = Stop.new(StopType.TREASURE)
+		RouteMap.NodeType.EVENT:
+			stop = Stop.new(StopType.EVENT)
 		RouteMap.NodeType.MID_BOSS:
 			stop = Stop.new(StopType.COMBAT, 1, 0, false, true)
 		RouteMap.NodeType.BOSS:
@@ -273,9 +292,9 @@ func reward_pending() -> bool:
 
 
 ## True between stops: nothing is in flight (no fight, reward, vendor visit or opened chest), so
-## the run can be saved and restored exactly (see run/run_save.gd).
+## the run can be saved and restored exactly (see run/run_save.gd). An opened event counts as in flight too.
 func at_stop_boundary() -> bool:
-	return not finished and not _reward_pending and _vendor == null and _active_combat == null and not _treasure_opened
+	return not finished and not _reward_pending and _vendor == null and _active_combat == null and not _treasure_opened and _event == null
 
 
 ## The run RNG's position, for saving. Restoring it makes the future identical.
@@ -445,10 +464,16 @@ func rest() -> int:
 ## Deck positions of the cards the Remember choice can bring back stronger: those with a remembered
 ## block that are not yet Remembered. Empty off a rest stop.
 func rememberable_indices() -> Array[int]:
-	var indices: Array[int] = []
 	var stop := current_stop()
 	if stop == null or stop.type != StopType.REST:
-		return indices
+		var none: Array[int] = []
+		return none
+	return _rememberable_deck_indices()
+
+
+## Deck positions of the cards that can be Remembered, at any stop.
+func _rememberable_deck_indices() -> Array[int]:
+	var indices: Array[int] = []
 	for i in deck.size():
 		if deck[i].can_remember():
 			indices.append(i)
@@ -615,14 +640,19 @@ func take_treasure() -> bool:
 	if not treasure_opened():
 		return false
 	if _treasure_relic != null:
-		relics.append(_treasure_relic)
-		if _treasure_relic.kind == RelicData.Kind.MAX_HP:
-			player.max_hp += _treasure_relic.amount
-			player.hp += _treasure_relic.amount
+		_grant_relic(_treasure_relic)
 	else:
 		gold += TREASURE_FALLBACK_GOLD
 	_advance()
 	return true
+
+
+## Adds `relic` to the run; a MAX_HP relic raises max HP and HP once, here (a restored save already holds the raised max HP).
+func _grant_relic(relic: RelicData) -> void:
+	relics.append(relic)
+	if relic.kind == RelicData.Kind.MAX_HP:
+		player.max_hp += relic.amount
+		player.hp += relic.amount
 
 
 ## The character's relic pool minus the relics already owned.
@@ -634,10 +664,382 @@ func _unowned_relics() -> Array[RelicData]:
 	return left
 
 
+# --- Event stops ("?" nodes, docs/EVENTS_DESIGN.md) ---------------------------------------------------------
+
+## What pressing an event button did: the outcome text to show (the scene's reply plus a line per thing that
+## happened) and the pick the player now owes, if any (see `event_followup`).
+class EventResult:
+	var ok := false
+	var text := ""
+	var followup: StringName = &""
+
+	static func fail(why: String) -> EventResult:
+		var result := EventResult.new()
+		result.text = why
+		return result
+
+
+## True while the current stop is an EVENT stop.
+func in_event_stop() -> bool:
+	var stop := current_stop()
+	return stop != null and stop.type == StopType.EVENT
+
+
+## The event of the current EVENT stop (null elsewhere, or if event content failed to load: the stop can then be
+## passed with `finish_event`). It is rolled the first time it is asked for, from the run RNG, among the events not
+## yet in `events_seen` (all of them again once every event was seen), so a run resumed from the save made on
+## arrival rolls the same event. Asking again returns the same one. Rolling opens the stop: it is no longer a boundary.
+func current_event() -> EventData:
+	if not in_event_stop():
+		return null
+	if _event != null:
+		return _event
+	var all := StarterContent.all_events()
+	if all.is_empty():
+		return null
+	var unseen: Array[EventData] = []
+	for event in all:
+		if not events_seen.has(event.id):
+			unseen.append(event)
+	if unseen.is_empty():
+		events_seen.clear()
+		unseen = all
+	_event = unseen[_rng.randi_range(0, unseen.size() - 1)]
+	events_seen.append(_event.id)
+	return _event
+
+
+## The scene text of the open event for this character.
+func event_body() -> String:
+	var event := current_event()
+	return event.body_for(character.id) if event != null else ""
+
+
+## The buttons of the open event this character sees, in order (empty off an event stop).
+func event_choices() -> Array[EventChoice]:
+	var event := current_event()
+	if event == null:
+		var none: Array[EventChoice] = []
+		return none
+	return event.choices_for(character.id)
+
+
+## How button `index` (a position in `event_choices()`) looks now: {"label", "summary" (the printed cost and reward line
+## made from the effects), "enabled", "reason" (why not, "" when enabled)}. A gold payment the player cannot make, a
+## card pick the deck cannot supply and a relic nothing is left to give each disable it; an HP cost never does (HP
+## stops at 1). Everything is disabled once a choice was made.
+func event_choice_state(index: int) -> Dictionary:
+	var choices := event_choices()
+	if index < 0 or index >= choices.size():
+		return {"label": "", "summary": "", "enabled": false, "reason": "no such choice"}
+	var choice := choices[index]
+	var state := {"label": choice.label_for(character.id), "summary": choice.summary(), "enabled": true, "reason": ""}
+	if _event_resolved:
+		state["enabled"] = false
+		state["reason"] = "Already chosen."
+		return state
+	if choice.gold_cost() > gold:
+		state["enabled"] = false
+		state["reason"] = "Needs %d gold (you have %d)." % [choice.gold_cost(), gold]
+		return state
+	for effect in choice.effects:
+		var why := _event_blocked(effect)
+		if why != "":
+			state["enabled"] = false
+			state["reason"] = why
+			break
+	return state
+
+
+## Why a top-level effect cannot be done now ("" when it can).
+func _event_blocked(effect: EventEffect) -> String:
+	match effect.kind:
+		EventEffect.Kind.REMOVE_CARD:
+			if deck.size() <= 1:
+				return "Your deck has only one card."
+		EventEffect.Kind.REMEMBER_CARD:
+			if _rememberable_deck_indices().is_empty():
+				return "No card in your deck can be remembered yet."
+		EventEffect.Kind.GAIN_RELIC:
+			if _event_relic_candidates(effect.pool).is_empty():
+				return "There is nothing left to find."
+	return ""
+
+
+## Presses button `index`: applies its effects (a gamble is rolled here with the run RNG) and returns what happened.
+## Fails, changing nothing, off an event stop, for a bad index, a disabled button, or once a choice was made. Picks
+## the effects owe (remove, Remember, choose a card) are queued: see `event_followup`.
+func resolve_event_choice(index: int) -> EventResult:
+	if current_event() == null:
+		return EventResult.fail("no event")
+	var state := event_choice_state(index)
+	if not bool(state["enabled"]):
+		return EventResult.fail(String(state["reason"]))
+	var choice := event_choices()[index]
+	var lines: Array[String] = []
+	var gambles: Array[bool] = []
+	_event_pending.clear()
+	_apply_event_effects(choice.effects, lines, gambles)
+	var text := choice.outcome_for(character.id)
+	if not gambles.is_empty():
+		var flavour := choice.win_outcome if gambles[0] else choice.lose_outcome
+		if flavour != "":
+			text += " " + flavour
+	for line in lines:
+		text += " " + line
+	_event_resolved = true
+	_event_outcome = text
+	var result := EventResult.new()
+	result.ok = true
+	result.text = text
+	result.followup = event_followup()
+	return result
+
+
+## Whether a button was pressed at the open event.
+func event_resolved() -> bool:
+	return _event_resolved
+
+
+## The outcome text of the choice made ("" before one is).
+func event_outcome() -> String:
+	return _event_outcome
+
+
+## The pick the player owes now: &"remove", &"remember" or &"pick" (choose 1 of the offered cards), or &"" when none.
+func event_followup() -> StringName:
+	if _event_pending.is_empty():
+		return &""
+	match int(_event_pending[0]["kind"]):
+		EventEffect.Kind.REMOVE_CARD:
+			return &"remove"
+		EventEffect.Kind.REMEMBER_CARD:
+			return &"remember"
+	return &"pick"
+
+
+## The cards on offer for a pending &"pick" (stable until one is taken; empty otherwise).
+func event_pick_choices() -> Array[CardData]:
+	var offered: Array[CardData] = []
+	if event_followup() == &"pick":
+		offered.assign(_event_pending[0]["cards"])
+	return offered
+
+
+## Deck positions the pending &"remember" may pick (empty otherwise).
+func event_remember_indices() -> Array[int]:
+	if event_followup() != &"remember":
+		var none: Array[int] = []
+		return none
+	return _rememberable_deck_indices()
+
+
+## Completes the pending &"remove": the card at `deck_index` leaves the deck. False, changing nothing, if none is
+## pending, the index is bad or the deck would be emptied.
+func event_remove_card(deck_index: int) -> bool:
+	if event_followup() != &"remove" or deck_index < 0 or deck_index >= deck.size() or deck.size() <= 1:
+		return false
+	deck.remove_at(deck_index)
+	_event_pending.remove_at(0)
+	return true
+
+
+## Completes the pending &"remember": the card at `deck_index` becomes its Remembered form.
+func event_remember_card(deck_index: int) -> bool:
+	if not event_remember_indices().has(deck_index):
+		return false
+	deck[deck_index] = deck[deck_index].remembered_card()
+	_event_pending.remove_at(0)
+	return true
+
+
+## Completes the pending &"pick": `card` (one of `event_pick_choices()`) joins the deck.
+func event_pick_card(card: CardData) -> bool:
+	if not event_pick_choices().has(card):
+		return false
+	deck.append(card)
+	_event_pending.remove_at(0)
+	return true
+
+
+## Leaves the event and moves on. Needs a choice made and no pick owed (an event whose content failed to load can be
+## left at once). False, changing nothing, otherwise.
+func finish_event() -> bool:
+	if not in_event_stop():
+		return false
+	if _event == null:
+		# Nothing was shown yet: only a stop whose content failed to load may be passed.
+		if not StarterContent.all_events().is_empty():
+			return false
+	elif not _event_resolved or not _event_pending.is_empty():
+		return false
+	_advance()
+	return true
+
+
+func _reset_event() -> void:
+	_event = null
+	_event_resolved = false
+	_event_outcome = ""
+	_event_pending.clear()
+
+
+## The relics an event may hand out from `pool`: unowned ones of the pool; a NEUTRAL pool with none left falls back
+## to any unowned relic of the character, so a button is not dead while the character can still find something.
+func _event_relic_candidates(pool: EventEffect.Pool) -> Array[RelicData]:
+	var found: Array[RelicData] = []
+	var unowned := _unowned_relics()
+	for relic in unowned:
+		var neutral: bool = relic.character == &""
+		if pool == EventEffect.Pool.ANY or (pool == EventEffect.Pool.NEUTRAL and neutral) or (pool == EventEffect.Pool.CLASS and not neutral):
+			found.append(relic)
+	if found.is_empty() and pool == EventEffect.Pool.NEUTRAL:
+		found = unowned
+	return found
+
+
+## Applies a list of effects. `lines` collects what happened, `gambles` the result of each gamble rolled (true = won).
+func _apply_event_effects(effects: Array[EventEffect], lines: Array[String], gambles: Array[bool]) -> void:
+	for effect in effects:
+		_apply_event_effect(effect, lines, gambles)
+
+
+func _apply_event_effect(effect: EventEffect, lines: Array[String], gambles: Array[bool]) -> void:
+	match effect.kind:
+		EventEffect.Kind.HEAL_PERCENT, EventEffect.Kind.HEAL_FLAT:
+			var wanted: int = roundi(player.max_hp * effect.amount / 100.0) if effect.kind == EventEffect.Kind.HEAL_PERCENT else effect.amount
+			var healed := player.heal(wanted)
+			if healed > 0:
+				lines.append("You recover %d HP." % healed)
+		EventEffect.Kind.LOSE_HP, EventEffect.Kind.LOSE_HP_PERCENT:
+			var cost: int = roundi(player.max_hp * effect.amount / 100.0) if effect.kind == EventEffect.Kind.LOSE_HP_PERCENT else effect.amount
+			var lost := clampi(cost, 0, player.hp - 1)
+			player.hp -= lost
+			player.changed.emit()
+			if lost > 0:
+				lines.append("You lose %d HP." % lost)
+		EventEffect.Kind.GOLD:
+			if effect.amount >= 0:
+				gold += effect.amount
+				if effect.amount > 0:
+					lines.append("You gain %d gold." % effect.amount)
+			else:
+				var paid := mini(-effect.amount, gold)
+				gold -= paid
+				if paid > 0:
+					lines.append("You pay %d gold." % paid)
+		EventEffect.Kind.MAX_HP:
+			if effect.amount >= 0:
+				player.max_hp += effect.amount
+				player.hp += effect.amount
+			else:
+				player.max_hp = maxi(player.max_hp + effect.amount, 1)
+				player.hp = clampi(player.hp, 1, player.max_hp)
+			player.changed.emit()
+			lines.append("Your max HP %s by %d." % ["rises" if effect.amount >= 0 else "falls", absi(effect.amount)])
+		EventEffect.Kind.ADD_CARD:
+			var card := StarterContent.card_by_id(effect.card_id)
+			if card != null:
+				for _i in maxi(effect.count, 1):
+					deck.append(card)
+				lines.append("%s joins your deck." % card.display_name)
+		EventEffect.Kind.ADD_CURSE:
+			var curse := StarterContent.status_card(effect.card_id)
+			if curse != null:
+				for _i in maxi(effect.count, 1):
+					deck.append(curse)
+				lines.append("%s joins your deck." % ("A " + curse.display_name if effect.count <= 1 else "%d x %s" % [effect.count, curse.display_name]))
+		EventEffect.Kind.ADD_RANDOM_CARD:
+			var candidates := _event_card_candidates(effect)
+			for _i in maxi(effect.count, 1):
+				if candidates.is_empty():
+					break
+				var picked: CardData = candidates[_rng.randi_range(0, candidates.size() - 1)]
+				deck.append(picked)
+				lines.append("%s joins your deck." % picked.display_name)
+		EventEffect.Kind.PICK_CARD:
+			var offered := _event_draw_distinct(_event_card_candidates(effect), effect.count)
+			if not offered.is_empty():
+				_event_pending.append({"kind": effect.kind, "cards": offered})
+		EventEffect.Kind.REMOVE_CARD:
+			_event_pending.append({"kind": effect.kind})
+		EventEffect.Kind.REMEMBER_CARD:
+			if not _rememberable_deck_indices().is_empty():
+				_event_pending.append({"kind": effect.kind})
+		EventEffect.Kind.REMOVE_RANDOM_CARD:
+			for _i in maxi(effect.count, 1):
+				var owed := 0
+				for entry in _event_pending:
+					if int(entry["kind"]) == EventEffect.Kind.REMOVE_CARD:
+						owed += 1
+				if deck.size() - owed <= 1:
+					break
+				var gone := deck[_rng.randi_range(0, deck.size() - 1)]
+				deck.erase(gone) # drops the first copy, which is as good as any: copies are the same card
+				lines.append("%s is erased from your deck." % gone.display_name)
+		EventEffect.Kind.GAIN_RELIC:
+			var relics_left := _event_relic_candidates(effect.pool)
+			if relics_left.is_empty():
+				gold += EVENT_RELIC_FALLBACK_GOLD
+				lines.append("There is nothing left to give you but %d gold." % EVENT_RELIC_FALLBACK_GOLD)
+			else:
+				var relic: RelicData = relics_left[_rng.randi_range(0, relics_left.size() - 1)] if relics_left.size() > 1 else relics_left[0]
+				_grant_relic(relic)
+				lines.append("You gain the %s." % relic.display_name)
+		EventEffect.Kind.GAMBLE:
+			var won := _rng.randi_range(1, 100) <= effect.amount
+			gambles.append(won)
+			_apply_event_effects(effect.win if won else effect.lose, lines, gambles)
+
+
+## The cards an ADD_RANDOM_CARD or PICK_CARD draws from: the non-basic reward pool of this character, restricted by
+## pool (neutral, own class or both), rarity and an optional effect kind. PICK_CARD only ever offers the class's own.
+func _event_card_candidates(effect: EventEffect) -> Array[CardData]:
+	var found: Array[CardData] = []
+	var wanted_pool: EventEffect.Pool = EventEffect.Pool.CLASS if effect.kind == EventEffect.Kind.PICK_CARD else effect.pool
+	for card in _distinct_cards(StarterContent.reward_pool(character.id)):
+		var neutral: bool = card.character == &""
+		if wanted_pool == EventEffect.Pool.NEUTRAL and not neutral:
+			continue
+		if wanted_pool == EventEffect.Pool.CLASS and neutral:
+			continue
+		if effect.rarity >= 0 and int(card.rarity) != effect.rarity:
+			continue
+		if effect.has_effect >= 0:
+			var has := false
+			for card_effect in card.effects:
+				if int(card_effect.kind) == effect.has_effect:
+					has = true
+			if not has:
+				continue
+		found.append(card)
+	return found
+
+
+## Up to `count` distinct cards out of `pool` drawn with the run RNG, preferring cards the deck holds fewer than
+## COPY_CAP times when enough of those remain.
+func _event_draw_distinct(pool: Array[CardData], count: int) -> Array[CardData]:
+	var copies := {}
+	for card in deck:
+		copies[card.id] = int(copies.get(card.id, 0)) + 1
+	var fresh: Array[CardData] = []
+	for card in pool:
+		if int(copies.get(card.id, 0)) < COPY_CAP:
+			fresh.append(card)
+	var source: Array[CardData] = fresh if fresh.size() >= count else pool.duplicate()
+	var picks: Array[CardData] = []
+	while picks.size() < count and not source.is_empty():
+		var at := _rng.randi_range(0, source.size() - 1)
+		picks.append(source[at])
+		source.remove_at(at)
+	return picks
+
+
 func _advance() -> void:
 	_vendor = null
 	_treasure_opened = false
 	_treasure_relic = null
+	_reset_event()
 	if route != null:
 		_map_stop = null
 		if route.node(current_node).type == RouteMap.NodeType.BOSS:

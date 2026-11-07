@@ -59,7 +59,8 @@ func add_backdrop(scene: Control) -> void:
 ## vertical ScrollContainer (a big deck scrolls instead of running off the window); the Cancel
 ## button is outside it, so it is always visible. Returns the scroll container.
 ## `only` (deck positions) limits the picker to those cards; `on_pick` still receives the deck position.
-func add_remove_picker(box: VBoxContainer, on_pick: Callable, on_cancel: Callable, only: Array[int] = []) -> ScrollContainer:
+## `allow_cancel` false leaves the Cancel button out (an event that already took its price must finish the pick).
+func add_remove_picker(box: VBoxContainer, on_pick: Callable, on_cancel: Callable, only: Array[int] = [], allow_cancel := true) -> ScrollContainer:
 	var grid := GridContainer.new()
 	grid.columns = PICKER_COLUMNS
 	grid.add_theme_constant_override("h_separation", 6)
@@ -86,7 +87,8 @@ func add_remove_picker(box: VBoxContainer, on_pick: Callable, on_cancel: Callabl
 	var window_height := body.get_viewport_rect().size.y if body.is_inside_tree() else 648.0
 	scroll.custom_minimum_size = Vector2(content.x, minf(content.y + 2.0, maxf(window_height - PICKER_RESERVED_HEIGHT, 120.0)))
 	box.add_child(scroll)
-	add_button(box, "Cancel", on_cancel)
+	if allow_cancel:
+		add_button(box, "Cancel", on_cancel)
 	return scroll
 
 

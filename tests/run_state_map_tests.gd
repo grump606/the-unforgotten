@@ -35,6 +35,7 @@ func run() -> int:
 	_test_save_allowed()
 	_test_route_choice_policies()
 	_test_treasure()
+	_test_events_in_runs()
 	print("run_state_map_tests: %d checks" % _checks)
 	return _failures
 
@@ -58,6 +59,8 @@ func _resolve(run_state: RunState, victory := true) -> void:
 		RunState.StopType.TREASURE:
 			run_state.open_treasure()
 			run_state.take_treasure()
+		RunState.StopType.EVENT:
+			SimPolicy.event_stop(run_state)
 
 
 ## Chooses nodes (preferring `type` when offered) and resolves them until the run is at a node of `type`
@@ -421,10 +424,14 @@ func _test_route_choice_policies() -> void:
 			r.player.hp = r.player.max_hp
 			r.gold = 0
 			var plain := SmartPolicy.choose_route(r)
-			if types.has(RouteMap.NodeType.FIGHT):
+			if types.has(RouteMap.NodeType.EVENT):
+				_check(r.route.node(plain).type == RouteMap.NodeType.EVENT, "smart takes an event over a fight while healthy")
+			elif types.has(RouteMap.NodeType.FIGHT):
 				_check(r.route.node(plain).type == RouteMap.NodeType.FIGHT, "smart takes a fight by default")
 			r.player.hp = 1
 			var hurt := SmartPolicy.choose_route(r)
+			if types.has(RouteMap.NodeType.EVENT) and types.has(RouteMap.NodeType.FIGHT) and not types.has(RouteMap.NodeType.REST):
+				_check(r.route.node(hurt).type == RouteMap.NodeType.FIGHT, "smart leaves an event alone while hurt")
 			if types.has(RouteMap.NodeType.REST):
 				_check(r.route.node(hurt).type == RouteMap.NodeType.REST, "smart rests when hurt")
 			r.player.hp = r.player.max_hp
@@ -552,3 +559,42 @@ func _test_treasure() -> void:
 	for line_stop in line.stops:
 		line_chests += 1 if line_stop.type == RunState.StopType.TREASURE else 0
 	_check(line_chests == 0 and not line.open_treasure(), "the old line has no chest")
+
+
+## Whole runs that seek out every event they are offered: events never stall a run, a run never meets an event twice
+## before it has met all twelve, bots of both kinds settle every pick, and HP, gold and the deck stay sane.
+func _test_events_in_runs() -> void:
+	var played := 0
+	var most_in_a_run := 0
+	for seed_value in 8:
+		var character: StringName = CHARACTERS[seed_value % CHARACTERS.size()]
+		var smart := seed_value % 2 == 1
+		var run_state := RunState.new(seed_value + 400, character, true)
+		var chooser := RandomNumberGenerator.new()
+		chooser.seed = seed_value
+		var ids: Array[StringName] = []
+		var steps := 0
+		while not run_state.finished and steps < 200:
+			var options := run_state.reachable_nodes()
+			var pick: int = options[chooser.randi_range(0, options.size() - 1)]
+			for id in options:
+				if run_state.route.node(id).type == RouteMap.NodeType.EVENT:
+					pick = id
+					break
+			run_state.choose_node(pick)
+			steps += 1
+			if run_state.current_stop().type == RunState.StopType.EVENT:
+				ids.append(run_state.current_event().id)
+				_check(SmartPolicy.event_stop(run_state) if smart else SimPolicy.event_stop(run_state), "seed %d: the bot settles event %d" % [seed_value, ids.size()])
+				played += 1
+				_check(run_state.player.hp >= 1 and run_state.player.hp <= run_state.player.max_hp and run_state.gold >= 0 and run_state.deck.size() >= 1, "seed %d: HP, gold and the deck are sane after an event" % seed_value)
+				_check(run_state.at_stop_boundary() and run_state.current_stop() == null, "seed %d: an event leaves the run at the map" % seed_value)
+			else:
+				_resolve(run_state, chooser.randi_range(0, 99) >= 4)
+		_check(run_state.finished, "seed %d (%s, %s): a run full of events finishes" % [seed_value, character, "smart" if smart else "greedy"])
+		var distinct := {}
+		for id in ids:
+			distinct[id] = true
+		_check(distinct.size() == mini(ids.size(), 12) or ids.size() > 12, "seed %d: no event repeats within a run (%d events, %d distinct)" % [seed_value, ids.size(), distinct.size()])
+		most_in_a_run = maxi(most_in_a_run, ids.size())
+	_check(played >= 20 and most_in_a_run >= 3, "the runs played many events (%d, at most %d in one run)" % [played, most_in_a_run])

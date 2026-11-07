@@ -9,10 +9,10 @@ Replaces the fixed 21-stop line with a branching map the player chooses a path t
 - A run is two acts of 15 rows each, 30 rows in all. The last row of each act is its boss (the Bellkeeper ends act 1,
   the Eraser ends act 2). A path through the map takes exactly one node per row, so every path is 30 stops.
 - Each row holds 1 to 4 nodes. Rows with one node are choke points that every path passes through.
-- Node types: fight, elite fight (supported by the data model; weight 0 until phase 5), rest, shop, treasure, story
-  beat, mid-boss, boss.
-- A rest or shop takes the place of a fight in its row. They are ordinary branches: a path that never picks one never
-  sees one. Only the story beats, the two bosses and the forced rest row before each boss are on every path.
+- Node types: fight, elite fight (supported by the data model; weight 0 until phase 5), rest, shop, treasure, event
+  ("?" stops, phase 4c), story beat, mid-boss, boss.
+- A rest, shop or event takes the place of a fight in its row. They are ordinary branches: a path that never picks one
+  never sees one. Only the story beats, the two bosses and the forced rest row before each boss are on every path.
 
 ## Row layout
 
@@ -42,14 +42,15 @@ each boss, whatever else it skipped. It is built and connected like any other fr
 
 ## Node types in free rows
 
-- Weights per free node (tuning values, kept in one config dictionary `RouteMap.CONFIG`): fight 26, rest 18, shop 7,
-  elite 0 (until phase 5). The first 3 free rows of an act are all fights, and an elite never appears there. The
+- Weights per free node (tuning values, kept in one config dictionary `RouteMap.CONFIG`): fight 18, rest 33, shop 12,
+  event 40, elite 0 (until phase 5). (Phases 1 to 4b used fight 26, rest 18, shop 7 and no events; phase 4c raised the rest
+  and shop weights with the new event weight so a path keeps its rests and shops, see "Phase 4c".) The first 3 free rows of an act are all fights, and an elite never appears there. The
   forced rest row ignores the weights (all rests) and the row before it rolls with the rest weight at zero. Because
   the safe rows and the adjacency rule add fights, the weights are not the resulting mix: they give about 68% fights,
   23% rests (the forced rows included) and 9% shops of all free nodes, and a random path per act of about 8.3 fights,
   2.7 rests (one of them the forced one) and 1.1 shops. An elite config (weight 14) still validates and keeps elites out
   of the first 3 free rows and out of the forced row; it stays 0 by default.
-- Adjacency: a rest, shop or elite may not follow a node of the same type on any incoming edge. A blocked type is
+- Adjacency: a rest, shop, event or elite may not follow a node of the same type on any incoming edge. A blocked type is
   taken out of that node's roll and the remaining weights are used as they are (one roll), so a blocked rest
   turns into a fight, shop or elite in proportion to their weights, not always into a fight.
 - Apart from the forced rest row the generator guarantees nothing per path. It guarantees map-level availability: in
@@ -101,7 +102,7 @@ arguments give an identical map. The map is plain data (`to_dict` / `from_dict`)
 4. Threat-budget packs for random counts, route-choosing bots, and a rebalance for the 30-stop length.
 5. Elites (new tougher packs, relic reward).
 6. Balance pass and docs.
-7. Treasure nodes (phase 4b, below), then event nodes.
+7. Treasure nodes (phase 4b, below), then event nodes (phase 4c, below).
 
 ## Phase 1 (built)
 
@@ -197,7 +198,8 @@ a run), `tools/map_sheet.gd` (screenshots), `tests/ui_map_test.gd`.
   open book for story beats, bell for the mid-boss, eye for the final boss) and a legend. Visited nodes are dimmed with
   a tick, the
   current node is ringed, reachable ones pulse; hovering any node shows a label ("Fight: 2 enemies", "Rest", "Shop",
-  "Story: <beat title>", "Mid-boss", "Final boss").
+  "Story: <beat title>", "Mid-boss", "Final boss"; a chest says "Treasure: a relic" and an event "Event: something unexpected").
+  An event's glyph is a cream question mark inside a violet diamond with a teal dot (`MapView._glyph_question`).
 - `MapScreen` is a `RunScreen`: run.gd attaches it like the others and calls `show_map(run)`, which builds the view
   from `run.route`, `run.visited`, `run.current_node` and `run.reachable_nodes()`. `node_chosen(node_id)` is
   re-emitted; run.gd calls `run.choose_node(id)`. The status line is left empty: run.gd's own header above the map shows the
@@ -464,3 +466,72 @@ about 5.9 ms per map. Per act (act 1 / act 2), before is the Phase 4a table:
 Free nodes (the chest rows included): 62.2% fights, 21.4% rests, 8.1% shops, 8.3% chests. A random path loses about 0.75
 fights per act (one free row became a chest row), as accepted; the rest and shop means stay in their 2.4 to 2.9 and 0.9 to
 1.2 targets, so the weights were not changed.
+
+## Phase 4c: event nodes
+
+An EVENT node ("?") is a short story encounter with two to four buttons that trade HP, gold, cards and relics
+(`docs/EVENTS_DESIGN.md` has the stop, the data model and the twelve events). On the map it is an ordinary weighted node of the
+free rows that takes a fight's place, like a rest or a shop.
+
+### Layout and rules
+
+`RouteMap.NodeType.EVENT` (value 8, appended) plays as `RunState.StopType.EVENT` (value 5, appended). `CONFIG["type_weights"]` gains
+`"event": 40.0` and the other weights change (below). The rules:
+
+- Not in the first 3 free rows of an act (the safe rows, all fights), not in the forced rest row and not in the forced treasure row (those
+  rows are built from one type). The row before the forced rest row may hold events: it only bars rests, an event next to the forced rest
+  row causes no problem.
+- No event directly after an event on any incoming edge (the rest and shop rule). A blocked event is taken out of that node's roll, so the
+  weight goes to the other types in proportion.
+- Every free row keeps a plain fight, as before. Events do not count towards the rest and shop availability windows and the repairs never
+  convert an event.
+- An event has no enemies and no backdrop (the generic non-fight rules), and the backdrop walk-back passes through it like a rest or a story
+  node.
+- `validate()` reports an event in the safe rows (they must be fights), in the forced rest or treasure row, in a choke row, one that follows
+  an event, and one with enemies or a backdrop. `from_dict` accepts node type 8 and rejects 9 and above; `RunSave._check_map` needed no change
+  (it re-validates through `validate()`), so a map saved before this phase loads unchanged.
+
+### Weights and measured numbers
+
+The weights are not shares (adjacency, the safe rows and the forced rows move them). Events replace fights, so the rest and shop weights
+were raised together with the event weight to keep a random path at 2.3 to 2.9 rests and 0.8 to 1.2 shops per act while it sees about 2
+events per act. Weights tried (random path per act, 1600 maps): event 12 with the old weights gave 1.20 events, 2.30 rests, 0.79 shops;
+event 30 / rest 26 / shop 10 / fight 26 gave 1.74 events, 2.34 rests, 0.81 shops; event 40 / rest 33 / shop 12 / fight 18 was chosen.
+
+2400 maps (600 per character), 8 random walks per act per map, exact dynamic programme for the extremes, 0 `validate()` failures, about 8 ms
+per map (6 ms before). Per act (mean over both acts), before is the Phase 4b table:
+
+| Per act | before | after |
+|---|---|---|
+| random path, fights | 7.52 | 5.65 (min 3, p10 4, p90 7, max 10) |
+| random path, rests | 2.52 | 2.46 (min 1, p10 1, p90 4, max 5) |
+| random path, shops | 0.96 | 0.94 (min 0, p10 0, p90 2, max 4) |
+| random path, chests | 1.00 | 1.00 |
+| random path, events | 0 | 1.95 (min 0, p10 1, p90 3, max 4) |
+| fewest rests on any path, mean | 1.27 | 1.23 (p50 1, p90 2, max 3; none allow zero) |
+| most rests on any path, mean | 3.71 | 3.64 (p10 3, p50 4, p90 4, max 5) |
+| fewest shops on any path, mean | 0.06 | 0.06 (94% of acts allow a shop-free path) |
+| most shops on any path, mean | 2.12 | 2.08 (p10 1, p90 3, max 4) |
+| fewest events on any path, mean | 0 | 0.46 (58% of acts allow an event-free path) |
+| most events on any path, mean | 0 | 3.25 (p10 3, p90 4, max 4) |
+| fewest fights on any path, mean | | 3.73 (p10 3, p90 5, max 7) |
+| most fights on any path, mean | | 7.76 (p10 7, p90 9, max 10) |
+
+Free nodes (the chest rows included): 46.1% fights, 20.9% rests, 16.8% events, 7.8% shops, 8.4% chests (before: 62.2%, 21.4%, 0, 8.1%,
+8.3%). Over a whole run a random path sees about 11.3 fights, 4.9 rests, 3.9 events, 1.9 shops and 2 chests (before 15.0 fights, 5.0 rests,
+1.9 shops, 2 chests). The fights per path fall by about 1.9 per act, as accepted: events replace fights, and phase 4's rebalance will take
+the lighter route into account.
+
+### The stop, UI, bots and debug
+
+The stop (`RunState.current_event`, `event_choice_state`, `resolve_event_choice`, `finish_event`), the `EventScreen`, the persistent curses
+and the twelve events are described in `docs/EVENTS_DESIGN.md`. In short: the event is rolled when its screen is first shown, from the run
+RNG and among the events not yet seen in the run (`events_seen`, saved with a map run; an older v5 save loads with it empty), so a save made on
+arrival resumes into the same event; an open event is not a stop boundary. The map glyph, legend entry and tooltip are described under
+"Map screen". `SimPolicy.event_stop` and `SmartPolicy.event_stop` settle an event through the public API; `SmartPolicy.choose_route` prefers an
+event over a fight while HP is at least 70%. `--screen=event` and `--screen=event:<id>` (or `THE_UNFORGOTTEN_SCREEN`) open a throwaway map run
+inside an event, and `tools/event_sheet.gd` takes screenshots of the event screens.
+
+The full unit suite (`tests/run_tests.gd`) takes about 5 minutes on a slow machine and the `tests` step of `scripts/check.ps1` times out at
+300 s by default; set `CHECK_STEP_TIMEOUT_MS` higher if it does on yours (the suite before this phase already took 317 s on the machine the phase
+was built on).

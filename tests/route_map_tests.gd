@@ -11,6 +11,7 @@ const STORY := RouteMap.NodeType.STORY
 const MID_BOSS := RouteMap.NodeType.MID_BOSS
 const BOSS := RouteMap.NodeType.BOSS
 const TREASURE := RouteMap.NodeType.TREASURE
+const EVENT := RouteMap.NodeType.EVENT
 
 var _failures := 0
 var _checks := 0
@@ -42,6 +43,7 @@ func run() -> int:
 	_test_elite_config()
 	_test_forced_rest_row()
 	_test_forced_treasure_row()
+	_test_events()
 	_test_config_merge()
 	_test_config_shapes()
 	_test_hostile_data()
@@ -310,7 +312,7 @@ func _test_enemy_counts() -> void:
 					_check(n.enemy_count == 0, "seed %d: a non-fight has 0 enemies" % map_seed)
 	for b in bands.size():
 		var total: int = tallies[b][0] + tallies[b][1] + tallies[b][2]
-		_check(total > 2000, "band %d has plenty of samples (%d)" % [b, total])
+		_check(total > 1200, "band %d has plenty of samples (%d)" % [b, total])
 		for c in 3:
 			var share := float(tallies[b][c]) / float(maxi(total, 1))
 			_check(absf(share - float(bands[b][2 + c])) < 0.04, "band %d: share of %d-enemy fights is %.3f, expected %.2f" % [b, c + 1, share, bands[b][2 + c]])
@@ -824,15 +826,103 @@ func _test_forced_treasure_row() -> void:
 	json.parse(JSON.stringify(map.to_dict()))
 	var back := RouteMap.from_dict(json.data)
 	_check(back != null and back.validate().is_empty() and back.count_of(TREASURE) == map.count_of(TREASURE), "a map with chests round-trips through JSON")
-	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "type": 8}]}) == null, "the type after treasure is still unknown")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "type": 9}]}) == null, "the type after event is unknown")
+	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "type": 8}]}) != null, "the event type is accepted")
 	_check(RouteMap.from_dict({"nodes": [{"id": 0, "row": 0, "type": 7}]}) != null, "the treasure type is accepted")
 	# The weight key is reserved: positive does not put chests in free rows.
 	_check(RouteMap.config_problems({"type_weights": {"treasure": 5.0}}).is_empty(), "the treasure weight is an accepted config key")
 
 
+## Event nodes (docs/MAP_DESIGN.md "Phase 4c"): ordinary weighted nodes in the free rows that take a fight's place.
+func _test_events() -> void:
+	_check(int(RouteMap.NodeType.EVENT) == 8 and int(RouteMap.NodeType.TREASURE) == 7, "the event type is appended after the treasure type")
+	_check(float(RouteMap.CONFIG["type_weights"]["event"]) > 0.0, "events have a default weight")
+	var seen_per_act := [0, 0]
+	var first_free_row_with_event := 99
+	var before_forced := 0
+	for map_seed in 150:
+		var map := RouteMap.generate(map_seed, CHARACTERS[map_seed % 4])
+		_check(map.validate().is_empty(), "seed %d: a map with events validates" % map_seed)
+		for n in map.nodes:
+			if n.type != EVENT:
+				continue
+			var info := RouteMap.row_info(n.row)
+			seen_per_act[n.act] += 1
+			first_free_row_with_event = mini(first_free_row_with_event, int(info["free"]))
+			_check(int(info["type"]) == RouteMap.FREE_ROW and not bool(info["forced"]) and not bool(info["treasure"]), "seed %d: an event sits in an ordinary free row" % map_seed)
+			_check(int(info["free"]) >= 3, "seed %d: no event in the first 3 free rows of an act" % map_seed)
+			_check(n.enemy_count == 0 and n.backdrop == &"", "seed %d: an event has no enemies and no backdrop" % map_seed)
+			if n.row % RouteMap.ACT_ROWS == RouteMap.FORCED_REST_ROW - 1:
+				before_forced += 1
+			for p in n.prev:
+				_check(map.node(p).type != EVENT, "seed %d: no event directly after an event" % map_seed)
+		for row in range(map.row_count()):
+			var fights := 0
+			for n in map.row_nodes(row):
+				fights += 1 if n.type == FIGHT else 0
+			if int(RouteMap.row_info(row)["type"]) == RouteMap.FREE_ROW and not bool(RouteMap.row_info(row)["forced"]) and not bool(RouteMap.row_info(row)["treasure"]):
+				_check(fights >= 1, "seed %d: row %d keeps a plain fight beside its events" % [map_seed, row])
+	_check(seen_per_act[0] > 100 and seen_per_act[1] > 100, "events occur in both acts (%d, %d)" % [seen_per_act[0], seen_per_act[1]])
+	_check(first_free_row_with_event == 3, "the first free row that can hold an event is the fourth (%d)" % first_free_row_with_event)
+	_check(before_forced > 0, "the row before the forced rest row may hold events (%d)" % before_forced)
+	# Configs: no weight, no events; a huge weight still validates and never puts two events in a row.
+	for map_seed in 25:
+		var none := RouteMap.generate(map_seed, CHARACTERS[map_seed % 4], {"type_weights": {"event": 0.0}})
+		_check(none.count_of(EVENT) == 0 and none.validate().is_empty(), "seed %d: event weight 0 gives no events" % map_seed)
+		var heavy := RouteMap.generate(map_seed, CHARACTERS[map_seed % 4], {"type_weights": {"event": 500.0}})
+		_check(heavy.validate().is_empty() and heavy.count_of(EVENT) > 8, "seed %d: a huge event weight still validates (%d events)" % [map_seed, heavy.count_of(EVENT)])
+	_check(RouteMap.config_problems({"type_weights": {"event": 5.0}}).is_empty() and not RouteMap.config_problems({"type_weights": {"event": -1.0}}).is_empty(), "the event weight is an accepted config key, a negative one is not")
+	# Every path crosses events only in free rows and never two in a row (walked on small maps).
+	for map_seed in 20:
+		var map := RouteMap.generate(map_seed, CHARACTERS[map_seed % 4])
+		if map.path_count() > 3000:
+			continue
+		for path in map.all_paths():
+			var run_of_events := 0
+			for id in path:
+				run_of_events = run_of_events + 1 if map.node(id).type == EVENT else 0
+				_check(run_of_events <= 1, "seed %d: a path never has two events in a row" % map_seed)
+	# Negatives: each broken rule is reported.
+	var map := RouteMap.generate(8, &"thief")
+	var in_safe_rows := _copy(map)
+	in_safe_rows.row_nodes(2)[0].type = EVENT
+	_check(_any_violation(in_safe_rows, "must be a fight"), "an event in the first 3 free rows is reported")
+	var in_forced_rest := _copy(map)
+	in_forced_rest.row_nodes(12)[0].type = EVENT
+	_check(_any_violation(in_forced_rest, "must be a rest"), "an event in the forced rest row is reported")
+	var in_chests := _copy(map)
+	in_chests.row_nodes(6)[0].type = EVENT
+	_check(_any_violation(in_chests, "must be a treasure"), "an event in the treasure row is reported")
+	var doubled := _copy(map)
+	for row in [8, 9]:
+		for n in doubled.row_nodes(row):
+			n.type = EVENT
+	_check(_any_violation(doubled, "follows a node of the same type"), "an event after an event is reported")
+	var armed := _copy(map)
+	var spot := armed.row_nodes(8)[0]
+	spot.type = EVENT
+	spot.enemy_count = 2
+	_check(_any_violation(armed, "must have 0 enemies"), "an event with enemies is reported")
+	var painted := _copy(map)
+	var painted_spot := painted.row_nodes(8)[0]
+	painted_spot.type = EVENT
+	painted_spot.enemy_count = 0
+	painted_spot.backdrop = &"battle_street"
+	_check(_any_violation(painted, "no backdrop"), "an event with a backdrop is reported")
+	var in_story := _copy(map)
+	in_story.row_nodes(13)[0].type = EVENT
+	_check(not in_story.validate().is_empty(), "an event in a story row is reported")
+	# Plain data: events survive a JSON round trip.
+	var with_events := RouteMap.generate(3, &"medium")
+	var json := JSON.new()
+	json.parse(JSON.stringify(with_events.to_dict()))
+	var back := RouteMap.from_dict(json.data)
+	_check(back != null and back.validate().is_empty() and back.count_of(EVENT) == with_events.count_of(EVENT) and with_events.count_of(EVENT) > 0, "a map with events round-trips through JSON")
+
+
 func _test_config_merge() -> void:
 	var cfg := RouteMap.make_config({"type_weights": {"elite": 5.0}, "rest_window": 5})
-	_check(float(cfg["type_weights"]["elite"]) == 5.0 and float(cfg["type_weights"]["fight"]) == 26.0 and int(cfg["rest_window"]) == 5, "make_config merges over the defaults")
+	_check(float(cfg["type_weights"]["elite"]) == 5.0 and float(cfg["type_weights"]["fight"]) == 18.0 and int(cfg["rest_window"]) == 5, "make_config merges over the defaults")
 	_check(float(RouteMap.CONFIG["type_weights"]["elite"]) == 0.0, "the CONFIG constant is not changed by a merge")
 	var loose := RouteMap.generate(11, &"thief", {"rest_window": 5, "shop_window": 8})
 	_check(loose.validate().is_empty(), "a looser availability window still validates")
@@ -862,15 +952,13 @@ func _test_config_shapes() -> void:
 	_check(narrow.validate().is_empty(), "a narrower layout is valid")
 
 
-## The node mix over the free nodes of many maps (the forced rest rows included), with the default weights: about
-## 68% fights, 23% rests and 9% shops (docs/MAP_DESIGN.md has the measured numbers). A random path takes about 16.5
-## fights, 5.3 rests (2.7 per act, one of them the forced one) and 2.1 shops over the run.
+## The weights in CONFIG are not shares (adjacency, the safe rows and the forced rows move them): they give about 46%
+## fights, 21% rests, 17% events, 8% shops and 8% chests of all free nodes (docs/MAP_DESIGN.md "Phase 4c" has the
+## measured numbers). A random path takes about 11.3 fights, 4.9 rests, 3.9 events, 1.9 shops and 2 chests per run.
 func _test_node_mix() -> void:
-	var counts := {FIGHT: 0, REST: 0, SHOP: 0, ELITE: 0}
+	var counts := {FIGHT: 0, REST: 0, SHOP: 0, ELITE: 0, EVENT: 0, TREASURE: 0}
 	var free_total := 0
-	var path_rests := 0
-	var path_shops := 0
-	var path_fights := 0
+	var path := {FIGHT: 0, REST: 0, SHOP: 0, EVENT: 0}
 	var walks := 0
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5
@@ -880,29 +968,33 @@ func _test_node_mix() -> void:
 			if n.type in counts and RouteMap.row_info(n.row)["type"] == RouteMap.FREE_ROW:
 				counts[n.type] += 1
 				free_total += 1
-		var id: int = map.starts()[0]
-		while true:
-			var here := map.node(id)
-			path_fights += 1 if here.type == FIGHT else 0
-			path_rests += 1 if here.type == REST else 0
-			path_shops += 1 if here.type == SHOP else 0
-			if here.next.is_empty():
-				break
-			id = here.next[rng.randi_range(0, here.next.size() - 1)]
-		walks += 1
+		for _walk in 3:
+			var id: int = map.starts()[rng.randi_range(0, map.starts().size() - 1)]
+			while true:
+				var here := map.node(id)
+				if here.type in path:
+					path[here.type] += 1
+				if here.next.is_empty():
+					break
+				id = here.next[rng.randi_range(0, here.next.size() - 1)]
+			walks += 1
 	var fight_share := float(counts[FIGHT]) / free_total
 	var rest_share := float(counts[REST]) / free_total
 	var shop_share := float(counts[SHOP]) / free_total
-	_check(fight_share > 0.63 and fight_share < 0.73, "fights are about 68%% of free nodes (%.3f)" % fight_share)
-	_check(rest_share > 0.19 and rest_share < 0.27, "rests are about 23%% of free nodes (%.3f)" % rest_share)
-	_check(shop_share > 0.06 and shop_share < 0.12, "shops are about 9%% of free nodes (%.3f)" % shop_share)
+	var event_share := float(counts[EVENT]) / free_total
+	_check(fight_share > 0.42 and fight_share < 0.50, "fights are about 46%% of free nodes (%.3f)" % fight_share)
+	_check(rest_share > 0.18 and rest_share < 0.24, "rests are about 21%% of free nodes (%.3f)" % rest_share)
+	_check(shop_share > 0.06 and shop_share < 0.10, "shops are about 8%% of free nodes (%.3f)" % shop_share)
+	_check(event_share > 0.14 and event_share < 0.20, "events are about 17%% of free nodes (%.3f)" % event_share)
 	_check(counts[ELITE] == 0, "no elites by default")
-	var fights_per_path := float(path_fights) / walks
-	var rests_per_path := float(path_rests) / walks
-	var shops_per_path := float(path_shops) / walks
-	_check(fights_per_path > 13.8 and fights_per_path < 16.4, "a random path has about 15 fights (%.2f)" % fights_per_path)
-	_check(rests_per_path > 4.4 and rests_per_path < 5.8, "a random path has about 5 rests (%.2f)" % rests_per_path)
-	_check(shops_per_path > 1.5 and shops_per_path < 2.8, "a random path has about 2 shops (%.2f)" % shops_per_path)
+	var fights_per_path := float(path[FIGHT]) / walks
+	var rests_per_path := float(path[REST]) / walks
+	var shops_per_path := float(path[SHOP]) / walks
+	var events_per_path := float(path[EVENT]) / walks
+	_check(fights_per_path > 10.2 and fights_per_path < 12.4, "a random path has about 11 fights (%.2f)" % fights_per_path)
+	_check(rests_per_path > 4.4 and rests_per_path < 5.5, "a random path has about 5 rests (%.2f)" % rests_per_path)
+	_check(shops_per_path > 1.5 and shops_per_path < 2.4, "a random path has about 2 shops (%.2f)" % shops_per_path)
+	_check(events_per_path > 3.3 and events_per_path < 4.5, "a random path has about 4 events, 2 per act (%.2f)" % events_per_path)
 
 
 ## Rests and shops stay optional: per act, the route that avoids them sees only the forced rest (one rest in most

@@ -1,0 +1,90 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 10
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 12
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 3
+amount = -15
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 12
+amount = 60
+win = Array[ExtResource("3_effect")]([SubResource("Resource_e1")])
+lose = Array[ExtResource("3_effect")]([SubResource("Resource_e2"), SubResource("Resource_e3")])
+
+[sub_resource type="Resource" id="Resource_c5"]
+script = ExtResource("2_choice")
+label = "Pick the latch"
+outcome = "The mechanism is old and fussy."
+not_for = &"thief"
+win_outcome = "Inside, a small thing waits on a shelf."
+lose_outcome = "The lamp topples. You lose time and coin in the dark."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e4")])
+
+[sub_resource type="Resource" id="Resource_e6"]
+script = ExtResource("3_effect")
+kind = 10
+
+[sub_resource type="Resource" id="Resource_e7"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 12
+
+[sub_resource type="Resource" id="Resource_e8"]
+script = ExtResource("3_effect")
+kind = 3
+amount = -15
+
+[sub_resource type="Resource" id="Resource_e9"]
+script = ExtResource("3_effect")
+kind = 12
+amount = 80
+win = Array[ExtResource("3_effect")]([SubResource("Resource_e6")])
+lose = Array[ExtResource("3_effect")]([SubResource("Resource_e7"), SubResource("Resource_e8")])
+
+[sub_resource type="Resource" id="Resource_c10"]
+script = ExtResource("2_choice")
+label = "Pick the latch"
+outcome = "The mechanism is old and fussy, and it gives at once."
+only_for = &"thief"
+win_outcome = "Inside, a small thing waits on a shelf."
+lose_outcome = "The lamp topples. You lose time and coin in the dark."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e9")])
+
+[sub_resource type="Resource" id="Resource_e11"]
+script = ExtResource("3_effect")
+kind = 0
+amount = 10
+
+[sub_resource type="Resource" id="Resource_c12"]
+script = ExtResource("2_choice")
+label = "Watch the window a while"
+outcome = "Shapes cross the glass. None of them look at you."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e11")])
+
+[sub_resource type="Resource" id="Resource_c13"]
+script = ExtResource("2_choice")
+label = "Walk on"
+outcome = "Not your light."
+
+[resource]
+script = ExtResource("1_event")
+id = &"window_that_is_lit"
+title = "The Window That Is Lit"
+body = "One window glows in a row of dark houses. The shutter is latched from outside, which is wrong. A lamp has been left burning, and whatever is inside the room is worth being kept in."
+class_body = {"thief": "One window glows in a row of dark houses. The shutter is latched from outside, which is wrong. A lamp has been left burning, and whatever is inside the room is worth being kept in. Your hands know this latch before you do."}
+scene = &"battle_street"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c5"), SubResource("Resource_c10"), SubResource("Resource_c12"), SubResource("Resource_c13")])
