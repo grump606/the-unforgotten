@@ -113,19 +113,19 @@ pickers: `add_remove_picker` for removal and Remember (without Cancel, because t
 
 ## The twelve events
 
-Numbers are the shipped data. "%HP" is a percent of max HP. "Class" lists the class-only differences.
+Numbers are the shipped data (the heal percentages were cut by about a third in phase 4f, when map fights started to heal the player, see docs/MAP_DESIGN.md "Phase 4f"). "%HP" is a percent of max HP. "Class" lists the class-only differences.
 
 | Id | Title | Buttons (cost and reward) | Class |
 | --- | --- | --- | --- |
-| rain_barrel | The Rain Barrel | Drink: heal 25%HP. Reach: gain 20 gold, lose 3 HP. Walk on | Stray laps the water |
+| rain_barrel | The Rain Barrel | Drink: heal 16%HP. Reach: gain 20 gold, lose 3 HP. Walk on | Stray laps the water |
 | scraped_plaques | The Scraped Plaques | Finish the scraping: remove a card, lose 6 HP. Pry the plaque: gain 40 gold, a Murmur. Leave | Medium: the half-line is a whispered name; Thief: "Work the plaque loose" |
-| stopped_kitchen | The Stopped Kitchen | Eat: pay 20 gold, heal 40%HP. Wash the dishes: heal 15%HP, gain 2 max HP. Take the kettle: gain 30 gold, lose 5 HP. Leave | Deserter eats at a mess table |
+| stopped_kitchen | The Stopped Kitchen | Eat: pay 20 gold, heal 26%HP. Wash the dishes: heal 10%HP, gain 2 max HP. Take the kettle: gain 30 gold, lose 5 HP. Leave | Deserter eats at a mess table |
 | bell_in_the_well | The Bell in the Well | Drop in a coin: pay 30 gold, 40% a relic. Ring it: 50% gain 45 gold, else lose 10 HP. Leave | Thief pays 25; Medium scene line |
-| unsent_letters | The Unsent Letters | Read one aloud: lose 8 HP, Remember a card. Carry them: gain 15 gold, heal 5%HP. Leave | Medium: Answer the writers (lose 4 HP, Remember, a Murmur) |
+| unsent_letters | The Unsent Letters | Read one aloud: lose 8 HP, Remember a card. Carry them: gain 15 gold, heal 3%HP. Leave | Medium: Answer the writers (lose 4 HP, Remember, a Murmur) |
 | hound_at_the_fence | The Hound at the Fence | Share your food: lose 6 HP, gain 4 max HP. Cut the wire: lose 4 HP, choose 1 of 3 uncommon class cards. Leave | Stray: Press your nose to its nose (gain 6 max HP) |
-| window_that_is_lit | The Window That Is Lit | Pick the latch: 60% a neutral relic, else lose 12 HP and 15 gold. Watch the window: heal 10%HP. Walk on | Thief picks at 80% |
-| empty_sentry_box | The Empty Sentry Box | Stand the watch: lose 10 HP, choose 1 of 3 uncommon class cards. Take the coat: a random neutral Block card, gain 10 gold. Sleep: heal 15%HP | Deserter: Report in (lose 5 HP, Remember) |
-| quiet_choir | The Quiet Choir | Take the front place: a Dread, choose 1 of 3 rare class cards. Stand at the back: heal 20%HP. Leave | Medium is made room for |
+| window_that_is_lit | The Window That Is Lit | Pick the latch: 60% a neutral relic, else lose 12 HP and 15 gold. Watch the window: heal 6%HP. Walk on | Thief picks at 80% |
+| empty_sentry_box | The Empty Sentry Box | Stand the watch: lose 10 HP, choose 1 of 3 uncommon class cards. Take the coat: a random neutral Block card, gain 10 gold. Sleep: heal 10%HP | Deserter: Report in (lose 5 HP, Remember) |
+| quiet_choir | The Quiet Choir | Take the front place: a Dread, choose 1 of 3 rare class cards. Stand at the back: heal 13%HP. Leave | Medium is made room for |
 | name_broker | The Name Broker | Buy a keepsake: pay 70 gold, a neutral relic. Sell a name: gain 45 gold, lose 4 max HP. Walk away | none |
 | cracked_bell | The Cracked Bell | Strike it hard: lose 14 HP, a neutral relic. Strike it softly: lose 5 HP, gain 25 gold. Leave | Deserter and Medium scene lines |
 | erasers_chalk | The Eraser's Chalk | Cross out one of your own: remove a card, 30% a second random card goes too. Take the chalk: a neutral relic, lose 4 max HP, a Dread. Smudge the slate | Stray: no second removal; the Stray reads its own scene |

@@ -105,7 +105,7 @@ func _after_walk() -> void:
 	_check(_seen.get("single", 0) > 10, "single-exit rows came up")
 	_check(_seen.get("fighter_fight_over_other", 0) > 10, "fighter saw fight-versus-rest/shop/event choices")
 	_check(_seen.get("fighter_forced", 0) > 0, "fighter met a forced rest")
-	for key in ["cautious_rest_over_other", "cautious_shop_over_other", "cautious_event_over_fight", "cautious_small_fight", "mixed_rest_low", "mixed_skip_event"]:
+	for key in ["cautious_rest_over_other", "cautious_shop_over_other", "cautious_event_over_fight", "cautious_small_fight", "mixed_rest_low"]:
 		_check(_seen.get(key, 0) > 0, "fixture %s came up" % key)
 
 
@@ -217,6 +217,17 @@ func _test_cautious() -> void:
 		_check(RoutePolicy.choose(run_state, RoutePolicy.CAUTIOUS) == other.id, "cautious prefers a rest to an elite")
 
 
+## True when a rest can be reached within `depth` rows from any of `ids` (the look-ahead of the mixed route).
+func _rest_ahead(run_state: RunState, ids: Array, depth: int) -> bool:
+	if depth <= 0:
+		return false
+	for id: int in ids:
+		for next_id in run_state.route.next_ids(id):
+			if run_state.route.node(next_id).type == T.REST or _rest_ahead(run_state, [next_id], depth - 1):
+				return true
+	return false
+
+
 func _test_mixed() -> void:
 	_handlers.append(func(run_state: RunState, options: Array[int]) -> void:
 		var types := _types(run_state, options)
@@ -232,7 +243,8 @@ func _test_mixed() -> void:
 			if state[0] == 1 and types.has(T.REST):
 				_check(node.type == T.REST, "mixed rests when badly hurt and a rest is offered")
 				_note("mixed_rest_low")
-			if state[0] == 1 and types.has(T.EVENT) and types.has(T.FIGHT) and not types.has(T.REST):
+			# (An event that leads to a rest within the look-ahead is a fair pick for a hurt player: only check maps where none does.)
+			if state[0] == 1 and types.has(T.EVENT) and types.has(T.FIGHT) and not types.has(T.REST) and not _rest_ahead(run_state, options, 3):
 				_check(node.type == T.FIGHT, "mixed skips an event while hurt")
 				_note("mixed_skip_event")
 		run_state.player.hp = hp

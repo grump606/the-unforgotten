@@ -22,7 +22,8 @@ func show() -> void:
 		add_remove_picker(picker, _remove_card, _cancel_removing)
 		return
 	var beat_mid_boss := run.current_stop().mid_boss
-	var box := panel("The Bellkeeper falls. The way opens.\nChoose a keepsake for your deck, or skip." if beat_mid_boss else "A memory to carry onward.\nChoose a keepsake for your deck, or skip.", true)
+	var heal_note := "\nYou recover %d HP." % run.map_win_heal if run.map_win_heal > 0 else ""
+	var box := panel(("The Bellkeeper falls. The way opens.\nChoose a keepsake for your deck, or skip." if beat_mid_boss else "A memory to carry onward.\nChoose a keepsake for your deck, or skip.") + heal_note, true)
 	style_banner(box.get_child(0) as Label)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER

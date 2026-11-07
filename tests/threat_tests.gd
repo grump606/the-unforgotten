@@ -21,6 +21,7 @@ func run() -> int:
 	_test_budget_curve()
 	_test_calibration_against_the_line()
 	_test_pack_builder_meets_budget()
+	_test_class_difficulty()
 	_test_pack_builder_bounds()
 	_test_pack_builder_deterministic()
 	_test_pack_builder_does_not_mutate()
@@ -88,16 +89,18 @@ func _test_budget_curve() -> void:
 		_check(StarterContent.fight_budget(row + 1) >= StarterContent.fight_budget(row), "act 1 budget never drops (row %d)" % row)
 	for row in range(StarterContent.MAP_ACT_ROWS, StarterContent.MAP_ACT_ROWS * 2 - 1):
 		_check(StarterContent.fight_budget(row + 1) >= StarterContent.fight_budget(row), "act 2 budget never drops (row %d)" % row)
-	var act_step := StarterContent.fight_budget(15) - StarterContent.fight_budget(14)
-	_check(act_step > 0.0, "act 2 starts above where act 1 ends")
-	_check(StarterContent.fight_budget(15) > StarterContent.fight_budget(0) * 1.4, "act 2 is a clear step up from the first fight")
+	var act_step := StarterContent.fight_budget(15) / StarterContent.fight_budget(14)
+	_check(act_step > 0.9 and act_step < 1.1, "the act change is not a wall: act 2 starts within 10%% of where act 1 ends (%.2f)" % act_step)
+	_check(StarterContent.fight_budget(15) > StarterContent.fight_budget(0) * 1.3, "act 2 starts clearly above the first fight")
+	_check(StarterContent.fight_budget(29) > StarterContent.fight_budget(15) * 1.2, "act 2 keeps rising to the final boss")
 	_check(StarterContent.fight_budget(-5) == StarterContent.fight_budget(0) and StarterContent.fight_budget(400) == StarterContent.fight_budget(29), "the curve clamps its row")
 	_check(StarterContent.fight_budget(0) > 0.0, "every budget is positive")
 	_check(is_equal_approx(StarterContent.fight_budget(0), StarterContent.MAP_DIFFICULTY * StarterContent.BUDGET_ACT_START[0]), "row 0 is the act 1 start times the difficulty")
 	_check(is_equal_approx(StarterContent.fight_budget(29), StarterContent.MAP_DIFFICULTY * StarterContent.BUDGET_ACT_END[1]), "row 29 is the act 2 end times the difficulty")
 
 
-## The budget was fitted to the line's average pack threat per fight number: each act's mean budget stays near it.
+## The budget shape started as a fit of the line's average pack threat per fight number, and phase 4f flattened act 2 (a
+## smaller start-of-act-2 step, a lower end): act 1's mean stays within 10% of the line's, act 2's within 20%.
 func _test_calibration_against_the_line() -> void:
 	var counts: Array[int] = [1, 2, 2, 2, 2, 3, 2, 3]
 	var act_mean: Array[float] = [0.0, 0.0]
@@ -112,7 +115,8 @@ func _test_calibration_against_the_line() -> void:
 		var budget_mean := 0.0
 		for local in StarterContent.MAP_ACT_ROWS - 1:
 			budget_mean += StarterContent.fight_budget(act * StarterContent.MAP_ACT_ROWS + local) / float(StarterContent.MAP_ACT_ROWS - 1)
-		_check(absf(budget_mean / StarterContent.MAP_DIFFICULTY - act_mean[act]) < act_mean[act] * 0.1, "act %d mean budget (%.1f) is within 10%% of the line's mean pack threat (%.1f)" % [act + 1, budget_mean, act_mean[act]])
+		var tolerance := 0.1 if act == 0 else 0.2
+		_check(absf(budget_mean / StarterContent.MAP_DIFFICULTY - act_mean[act]) < act_mean[act] * tolerance, "act %d mean budget (%.1f) is within %d%% of the line's mean pack threat (%.1f)" % [act + 1, budget_mean / StarterContent.MAP_DIFFICULTY, tolerance * 100.0, act_mean[act]])
 
 
 func _pack(count: int, seed_value: int, row: int, multiplier: float = 1.0, elite: bool = false) -> Array[EnemyData]:
@@ -137,6 +141,18 @@ func _test_pack_builder_meets_budget() -> void:
 					continue
 				_check(absf(StarterContent.pack_threat(pack) - target) <= target * 0.08, "row %d count %d seed %d: threat %.1f within 8%% of the budget %.1f" % [row, count, s, StarterContent.pack_threat(pack), target])
 	_check(bound_hits * 100 <= packs, "the scale bounds bite in at most 1%% of packs (%d of %d)" % [bound_hits, packs])
+
+
+## Phase 4f: every character has a map-mode budget multiplier (a character that is not listed uses 1).
+func _test_class_difficulty() -> void:
+	for id in [&"deserter", &"thief", &"medium", &"stray"]:
+		var factor := StarterContent.map_class_difficulty(id)
+		_check(factor >= 0.7 and factor <= 1.3, "%s: the class multiplier %.2f is a modest correction" % [id, factor])
+	_check(StarterContent.map_class_difficulty(&"nobody") == 1.0 and StarterContent.map_class_difficulty(&"") == 1.0, "an unlisted character uses 1.0")
+	# The multiplier scales the pack the run builds: the same seed, row and count at a bigger multiplier is a harder pack.
+	var easy := StarterContent.pack_threat(_pack(2, 41, 10, 0.8))
+	var hard := StarterContent.pack_threat(_pack(2, 41, 10, 1.2))
+	_check(hard > easy * 1.3, "a bigger class multiplier builds a tougher pack (%.1f against %.1f)" % [hard, easy])
 
 
 func _test_pack_builder_bounds() -> void:
@@ -322,7 +338,7 @@ func _test_run_state_uses_it() -> void:
 			var combat := run_state.start_combat()
 			var replay := RandomNumberGenerator.new()
 			replay.state = state
-			var expected := StarterContent.budget_encounter(stop.enemy_count, replay, stop.row)
+			var expected := StarterContent.budget_encounter(stop.enemy_count, replay, stop.row, StarterContent.map_class_difficulty(run_state.character.id))
 			var hp_now: Array[int] = []
 			for unit in combat.enemies:
 				hp_now.append(unit.max_hp)

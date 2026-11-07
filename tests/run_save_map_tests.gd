@@ -38,6 +38,7 @@ func run() -> int:
 	_test_corrupted_never_crashes()
 	_test_cannot_rechoose()
 	_test_treasure_saves()
+	_test_win_heal_saves()
 	_cleanup()
 	print("run_save_map_tests: %d checks" % _checks)
 	return _failures
@@ -566,6 +567,30 @@ func _to_chest(seed_value: int, character: StringName) -> RunState:
 		_advance(run_state, step)
 		step += 1
 	return run_state
+
+
+## The map-mode win heal is plain HP: a save made at the next boundary (after the reward) holds the healed HP, the
+## resumed run is equal to the original, and the heal is never applied twice.
+func _test_win_heal_saves() -> void:
+	for character in CHARACTERS:
+		var run_state := RunState.new(23, character, true)
+		var step := 0
+		while not run_state.finished and (run_state.current_stop() == null or run_state.current_stop().type != RunState.StopType.COMBAT or run_state.current_stop().boss or run_state.current_stop().mid_boss) and step < 50:
+			_advance(run_state, step)
+			step += 1
+		_check(run_state.in_map_stop() and run_state.current_stop().type == RunState.StopType.COMBAT, "%s: reached a regular fight" % character)
+		run_state.start_combat()
+		run_state.player.hp = maxi(run_state.player.max_hp / 2, 1)
+		var before := run_state.player.hp
+		run_state.complete_combat(true)
+		var healed := run_state.player.hp
+		_check(healed > before and run_state.map_win_heal == healed - before, "%s: the win healed (%d to %d)" % [character, before, healed])
+		_check(not run_state.at_stop_boundary(), "%s: a pending reward is not a stop boundary (nothing is saved mid-reward)" % character)
+		run_state.resolve_reward(null)
+		_check(run_state.player.hp == healed, "%s: the reward does not heal again" % character)
+		var copy := _clone(run_state)
+		_check(copy != null and copy.player.hp == healed and copy.player.max_hp == run_state.player.max_hp and copy.gold == run_state.gold, "%s: Continue restores the healed HP and the gold" % character)
+		_check(copy != null and JSON.stringify(RunSave.to_dict(copy)) == JSON.stringify(RunSave.to_dict(run_state)), "%s: the resumed run saves the same bytes" % character)
 
 
 func _test_treasure_saves() -> void:
