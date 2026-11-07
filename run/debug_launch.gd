@@ -18,6 +18,13 @@ extends RefCounted
 ##   godot --path . -- --screen=treasure --character=thief
 ##   godot --path . -- --screen=treasure:2
 ##
+## An event stop (map mode only): `--screen=event` opens a random event of a throwaway map run, `--screen=event:<id>` a
+## chosen one (an id such as bell_in_the_well, or its number: event:e04). The run is placed inside an event node on a
+## connected path, gold and HP are set as for the other screens (default 100 gold, 55% HP).
+##
+##   godot --path . -- --screen=event
+##   godot --path . -- --screen=event:cracked_bell --character=deserter --gold=10
+##
 ## Try the keyword prototype cards (data/prototype, never in the normal card pool): `--proto` swaps the
 ## player's deck for two copies of each, in a fight (default enemy: the Colossus) or with `--fight=`:
 ##
@@ -90,8 +97,9 @@ const SCREENS := {"vendor": RunState.StopType.VENDOR, "rest": RunState.StopType.
 ## Screens that are not a stop on the line: the character select, and the end card after the last boss
 ## ("end" = escaped, "defeat" = the defeat card).
 const SPECIAL_SCREENS := ["select", "end", "defeat"]
-## Stops that exist only on the map: opened in a throwaway map run. The number after the colon is the act (1 or 2).
-const MAP_SCREENS := ["treasure"]
+## Stops that exist only on the map: opened in a throwaway map run. The number after the colon is the act (1 or 2) for
+## the chest, and an event id (or its number, e04) for "event".
+const MAP_SCREENS := ["treasure", "event"]
 ## Defaults for a screen launch: enough gold for a few purchases, and a player at this share of max HP.
 const DEFAULT_GOLD := 100
 const DEFAULT_HP_PERCENT := 55
@@ -114,6 +122,8 @@ var hp := -1
 ## Set for a screen launch ("vendor" or "rest"); `screen_index` picks the nth such stop on the line (1-based).
 var screen := ""
 var screen_index := 1
+## `--screen=event:<id>`: the event to open (&"" = a random one).
+var event_id: StringName = &""
 var gold := -1
 var list_only := false
 ## `--proto`: the fight uses the prototype card deck (see prototype_deck).
@@ -188,6 +198,14 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 	elif wants_screen:
 		# "vendor", "rest", or "vendor:2" for the second one on the line.
 		var parts := screen_text.strip_edges().to_lower().split(":")
+		var event_screen: bool = parts[0] == "event"
+		if event_screen:
+			if parts.size() > 2 or (parts.size() == 2 and resolve_event(parts[1]) == &""):
+				launch.error = "Unknown event '%s'. Choose from: %s (or e01 to e%02d)." % [screen_text.strip_edges().substr(6), ", ".join(event_ids()), StarterContent.EVENT_PATHS.size()]
+				return launch
+			if parts.size() == 2:
+				launch.event_id = resolve_event(parts[1])
+			parts = PackedStringArray(["event"])
 		var special: bool = SPECIAL_SCREENS.has(parts[0])
 		var on_map: bool = MAP_SCREENS.has(parts[0])
 		if not (SCREENS.has(parts[0]) or special or on_map) or parts.size() > 2 or (special and parts.size() > 1) \
@@ -197,7 +215,7 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 			return launch
 		launch.screen = parts[0]
 		launch.screen_index = int(parts[1]) if parts.size() == 2 else 1
-		if on_map and launch.screen_index > RouteMap.ACTS:
+		if on_map and not event_screen and launch.screen_index > RouteMap.ACTS:
 			launch.error = "The map has only %d acts, so there are only %d %s stops." % [RouteMap.ACTS, RouteMap.ACTS, launch.screen]
 			return launch
 		if not special and not on_map and launch.screen_index > screen_count(launch.screen):
@@ -244,6 +262,27 @@ static func prototype_enemy(enemy_id: StringName) -> EnemyData:
 		if template != null and template.id == enemy_id:
 			return template.duplicate(true) as EnemyData
 	return null
+
+
+## The ids of the events, in registry order (from the file names, so nothing is loaded).
+static func event_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for path in StarterContent.EVENT_PATHS:
+		ids.append(path.get_file().get_basename())
+	return ids
+
+
+## The event id a name refers to (the id itself, ignoring case and punctuation, or e01 to e12 for its place in the
+## registry), or &"" if none matches.
+static func resolve_event(name: String) -> StringName:
+	var wanted := _normalize(name)
+	if wanted == "":
+		return &""
+	var ids := event_ids()
+	for i in ids.size():
+		if _normalize(ids[i]) == wanted or "e%02d" % (i + 1) == wanted or "e%d" % (i + 1) == wanted:
+			return StringName(ids[i])
+	return &""
 
 
 ## The enemy id a name refers to (id, display name or alias), or &"" if none matches.

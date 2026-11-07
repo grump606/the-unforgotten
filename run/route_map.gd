@@ -10,7 +10,7 @@ extends RefCounted
 ##
 ## NodeType is append-only (it is stored as ints in the plain-data form).
 
-enum NodeType { FIGHT, ELITE, REST, SHOP, STORY, MID_BOSS, BOSS, TREASURE }
+enum NodeType { FIGHT, ELITE, REST, SHOP, STORY, MID_BOSS, BOSS, TREASURE, EVENT }
 
 const KIND_GENERATED := &"generated"
 const KIND_LINE := &"line"
@@ -55,8 +55,10 @@ const SEED_LIMIT := 9.0e18
 const CONFIG := {
 	# Per free node (the forced rest row is all rests and the forced treasure row all chests whatever these are).
 	# Elite is 0 until the elite phase; it works whenever the weight is positive. "treasure" is a reserved key:
-	# chests only ever appear in the forced treasure row, so the generator does not roll it.
-	"type_weights": {"fight": 26.0, "rest": 18.0, "shop": 7.0, "elite": 0.0, "treasure": 0.0},
+	# chests only ever appear in the forced treasure row, so the generator does not roll it. An event takes the
+	# place of a fight like a rest or shop does (docs/EVENTS_DESIGN.md); the weights are not shares, see
+	# docs/MAP_DESIGN.md "Phase 4c" for what they give per random path (about 2 events, 2.5 rests, 0.95 shops).
+	"type_weights": {"fight": 18.0, "rest": 33.0, "shop": 12.0, "elite": 0.0, "treasure": 0.0, "event": 40.0},
 	# Enemy count weights (for counts 1, 2, 3 ...) by the node's row in the run; the first band whose
 	# max_row is not below the row applies.
 	"enemy_bands": [
@@ -76,8 +78,8 @@ const CONFIG := {
 	"extra_edge_chance": 0.5,
 }
 
-const _TYPE_KEYS := ["fight", "rest", "shop", "elite", "treasure"]
-const _TYPE_OF_KEY := {"fight": NodeType.FIGHT, "rest": NodeType.REST, "shop": NodeType.SHOP, "elite": NodeType.ELITE, "treasure": NodeType.TREASURE}
+const _TYPE_KEYS := ["fight", "rest", "shop", "elite", "treasure", "event"]
+const _TYPE_OF_KEY := {"fight": NodeType.FIGHT, "rest": NodeType.REST, "shop": NodeType.SHOP, "elite": NodeType.ELITE, "treasure": NodeType.TREASURE, "event": NodeType.EVENT}
 
 
 ## One node. `enemy_count` is 0 for non-fights and 1 for bosses; `backdrop` is "" for non-fights;
@@ -924,7 +926,7 @@ func _check_layout(v: Array[String], rows: Array) -> void:
 				if bool(info["treasure"]):
 					if t != NodeType.TREASURE:
 						v.append("%s has type %d, but the treasure row holds only treasure" % [_describe(nodes[id]), t])
-				elif t != NodeType.FIGHT and t != NodeType.ELITE and t != NodeType.REST and t != NodeType.SHOP:
+				elif t != NodeType.FIGHT and t != NodeType.ELITE and t != NodeType.REST and t != NodeType.SHOP and t != NodeType.EVENT:
 					v.append("%s has type %d, which does not belong in a free row" % [_describe(nodes[id]), t])
 				if nodes[id].act != info["act"]:
 					v.append("%s is in the wrong act" % _describe(nodes[id]))
@@ -980,7 +982,7 @@ func _check_types(v: Array[String], rows: Array, preds: Array) -> void:
 				plain_fights += 1
 			if int(info["free"]) < safe and n.type != NodeType.FIGHT:
 				v.append("%s is within the first %d free rows of its act and must be a fight" % [_describe(n), safe])
-			if n.type == NodeType.REST or n.type == NodeType.SHOP or n.type == NodeType.ELITE:
+			if n.type == NodeType.REST or n.type == NodeType.SHOP or n.type == NodeType.ELITE or n.type == NodeType.EVENT:
 				for p in preds[id]:
 					if nodes[p].type == n.type:
 						v.append("%s follows a node of the same type (%d)" % [_describe(n), n.type])
@@ -1114,7 +1116,7 @@ static func from_dict(data: Dictionary) -> RouteMap:
 		if not raw[i] is Dictionary:
 			return null
 		var d: Dictionary = raw[i]
-		if not _is_whole(d.get("id", i), i, i) or not _is_whole(d.get("type"), 0, NodeType.TREASURE) or not _is_whole(d.get("row"), 0, last_row):
+		if not _is_whole(d.get("id", i), i, i) or not _is_whole(d.get("type"), 0, NodeType.EVENT) or not _is_whole(d.get("row"), 0, last_row):
 			return null
 		if not _is_whole(d.get("col", 0), 0, MAX_COLUMN) or not _is_whole(d.get("enemy_count", 0), 0, 99):
 			return null

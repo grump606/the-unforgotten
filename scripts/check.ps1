@@ -61,6 +61,7 @@ try {
     Invoke-Step 'ui map' @('--headless', '--path', '.', '-s', 'res://tests/ui_map_test.gd')
     Invoke-Step 'ui map save' @('--headless', '--path', '.', '-s', 'res://tests/ui_map_save_test.gd')
     Invoke-Step 'ui treasure' @('--headless', '--path', '.', '-s', 'res://tests/ui_treasure_test.gd')
+    Invoke-Step 'ui event' @('--headless', '--path', '.', '-s', 'res://tests/ui_event_test.gd')
     Invoke-Step 'ui update notice' @('--headless', '--path', '.', '-s', 'res://tests/ui_update_notice_test.gd')
     Invoke-Step 'reskin restoration' @('--headless', '--path', '.', '-s', 'res://tests/reskin_presentation_test.gd')
 } finally { Pop-Location }

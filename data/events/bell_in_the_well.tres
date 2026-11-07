@@ -1,0 +1,94 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 3
+amount = -30
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 10
+pool = 2
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 12
+amount = 40
+win = Array[ExtResource("3_effect")]([SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_c4"]
+script = ExtResource("2_choice")
+label = "Drop in a coin and ask"
+outcome = "The bell rings once."
+not_for = &"thief"
+win_outcome = "The well gives something back."
+lose_outcome = "Nothing comes back."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e3")])
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 3
+amount = -25
+
+[sub_resource type="Resource" id="Resource_e6"]
+script = ExtResource("3_effect")
+kind = 10
+pool = 2
+
+[sub_resource type="Resource" id="Resource_e7"]
+script = ExtResource("3_effect")
+kind = 12
+amount = 40
+win = Array[ExtResource("3_effect")]([SubResource("Resource_e6")])
+
+[sub_resource type="Resource" id="Resource_c8"]
+script = ExtResource("2_choice")
+label = "Weigh the odds and drop in a coin"
+outcome = "Your fingers know the weight of a coin. The bell rings once."
+only_for = &"thief"
+win_outcome = "The well gives something back."
+lose_outcome = "Nothing comes back."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e5"), SubResource("Resource_e7")])
+
+[sub_resource type="Resource" id="Resource_e9"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 45
+
+[sub_resource type="Resource" id="Resource_e10"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 10
+
+[sub_resource type="Resource" id="Resource_e11"]
+script = ExtResource("3_effect")
+kind = 12
+amount = 50
+win = Array[ExtResource("3_effect")]([SubResource("Resource_e9")])
+lose = Array[ExtResource("3_effect")]([SubResource("Resource_e10")])
+
+[sub_resource type="Resource" id="Resource_c12"]
+script = ExtResource("2_choice")
+label = "Ring it with your hands"
+outcome = "Cheap, loud, and it rings back."
+win_outcome = "Coins patter out of the dark."
+lose_outcome = "The sound comes back at you like a blow."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e11")])
+
+[sub_resource type="Resource" id="Resource_c13"]
+script = ExtResource("2_choice")
+label = "Leave it unrung"
+outcome = "Some bells are better left."
+
+[resource]
+script = ExtResource("1_event")
+id = &"bell_in_the_well"
+title = "The Bell in the Well"
+body = "A well with a bell hung in the shaft, the rope worn bright. A coin dropped in makes no splash. Far below, the bell stirs, and something listens for what you will ask."
+class_body = {"medium": "A well with a bell hung in the shaft, the rope worn bright. A coin dropped in makes no splash. Far below, the bell stirs, and something listens for what you will ask. The dead do not like it rung."}
+scene = &"battle_garden"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c4"), SubResource("Resource_c8"), SubResource("Resource_c12"), SubResource("Resource_c13")])

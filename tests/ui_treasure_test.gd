@@ -114,7 +114,9 @@ func _initialize() -> void:
 
 	# --- A real (saved) chest: Continue at the closed chest, open, quit, resume to the same relic ---
 	var real := RunState.new(41, &"medium", true)
-	while not real.in_treasure_stop():
+	var walk_guard := 0
+	while not real.in_treasure_stop() and walk_guard < 80:
+		walk_guard += 1
 		real.choose_node(real.reachable_nodes()[0])
 		match real.current_stop().type:
 			RunState.StopType.COMBAT:
@@ -127,6 +129,8 @@ func _initialize() -> void:
 				real.read_story()
 			RunState.StopType.VENDOR:
 				real.leave_vendor()
+			RunState.StopType.EVENT:
+				SimPolicy.event_stop(real)
 	scene._run = real
 	scene._debug_session = false
 	scene.exit_callable = func() -> void: pass

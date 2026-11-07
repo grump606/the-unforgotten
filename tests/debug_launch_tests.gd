@@ -194,6 +194,19 @@ func _test_screens() -> void:
 	_check(DebugLaunch.parse(PackedStringArray([]), {DebugLaunch.ENV_SCREEN: "treasure"}).screen == "treasure", "the environment can request the chest")
 	_check(DebugLaunch.parse(PackedStringArray(["--screen=treasure", "--fight=eraser"]), {}).error != "", "a chest and a fight together is an error")
 	_check(DebugLaunch.parse(PackedStringArray(["--screen=castle"]), {}).error.contains("treasure"), "the unknown-screen message lists the chest")
+	var any_event := DebugLaunch.parse(PackedStringArray(["--screen=event", "--character=medium"]), {})
+	_check(any_event.requested and any_event.error == "" and any_event.screen == "event" and any_event.event_id == &"" and any_event.character_id == &"medium", "--screen=event opens a random event")
+	var named := DebugLaunch.parse(PackedStringArray(["--screen=Event:Cracked_Bell", "--gold=5", "--hp=9"]), {})
+	_check(named.error == "" and named.screen == "event" and named.event_id == &"cracked_bell" and named.gold == 5 and named.hp == 9, "--screen=event:<id> names an event, ignoring case")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=event:e04"]), {}).event_id == &"bell_in_the_well" and DebugLaunch.parse(PackedStringArray(["--screen=event:E12"]), {}).event_id == &"erasers_chalk", "an event can be named by its number")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=event:nope"]), {}).error.contains("Unknown event"), "an unknown event is an error that says so")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=event:e13"]), {}).error != "" and DebugLaunch.parse(PackedStringArray(["--screen=event:rain_barrel:2"]), {}).error != "", "event:e13 and a second colon are errors")
+	_check(DebugLaunch.parse(PackedStringArray([]), {DebugLaunch.ENV_SCREEN: "event:name_broker"}).event_id == &"name_broker", "the environment can request an event")
+	_check(DebugLaunch.parse(PackedStringArray([]), {DebugLaunch.ENV_SCREEN: "event"}).screen == "event", "the environment can request a random event")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=event", "--fight=eraser"]), {}).error != "", "an event and a fight together is an error")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=castle"]), {}).error.contains("event"), "the unknown-screen message lists the event")
+	_check(DebugLaunch.event_ids().size() == 12 and DebugLaunch.resolve_event("Name Broker") == &"name_broker", "event names resolve ignoring spaces and case")
+	_check(FileAccess.get_file_as_string("res://run/debug_launch.gd").contains("--screen=event"), "the header documents --screen=event")
 
 
 func _test_proto() -> void:

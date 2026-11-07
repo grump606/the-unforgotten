@@ -43,6 +43,7 @@ func _initialize() -> void:
 	_character = StringName(opts["character"])
 	_card_stats = opts["card_stats"]
 
+	var events_played := 0
 	var escapes := 0
 	var heals_used := 0
 	var removes_used := 0
@@ -116,6 +117,12 @@ func _initialize() -> void:
 						printerr("run_sim: the chest could not be opened and taken at stop %d" % index)
 						quit(1)
 						return
+				RunState.StopType.EVENT:
+					if not (SmartPolicy.event_stop(run) if _smart else SimPolicy.event_stop(run)):
+						printerr("run_sim: the event could not be settled at stop %d" % index)
+						quit(1)
+						return
+					events_played += 1
 				_:
 					# RunState has no public way to pass a stop of another type.
 					printerr("run_sim: unsupported stop type %d at stop %d (%s)" % [stop.type, index, stop.describe()])
@@ -153,6 +160,8 @@ func _initialize() -> void:
 	for id: StringName in relic_ids:
 		print("  relic %-18s held at the end of %d runs" % [id, relics_bought[id]])
 	print("Stalls (fight abandoned at turn cap, run counted lost): %d" % stalls)
+	if _map:
+		print("Events played: %d (%.2f per run)" % [events_played, float(events_played) / runs])
 	if escapes > 0:
 		print("On escapes: avg final HP %.2f, avg deck size %.2f" % [float(escape_hp) / escapes, float(escape_deck) / escapes])
 	else:

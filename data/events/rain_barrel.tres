@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 0
+amount = 25
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Drink"
+outcome = "The water tastes of stone and old iron. It is cold all the way down."
+class_outcome = {"stray": "You lap from the rim. The cold is the cleanest thing you have tasted in a long time."}
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1")])
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 20
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 3
+
+[sub_resource type="Resource" id="Resource_c5"]
+script = ExtResource("2_choice")
+label = "Reach for the bright thing"
+outcome = "A brass button, then another. Someone paid a ferryman with these once. The cold bites your arm."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e3"), SubResource("Resource_e4")])
+
+[sub_resource type="Resource" id="Resource_c6"]
+script = ExtResource("2_choice")
+label = "Walk on"
+outcome = "The rain keeps its secret."
+
+[resource]
+script = ExtResource("1_event")
+id = &"rain_barrel"
+title = "The Rain Barrel"
+body = "A barrel stands under a broken gutter, full to the lip. The rain has been filling it since before the street had a name. At the bottom, under your own wavering face, something small and bright."
+scene = &"battle_street"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c2"), SubResource("Resource_c5"), SubResource("Resource_c6")])

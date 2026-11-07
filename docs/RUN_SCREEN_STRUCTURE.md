@@ -21,6 +21,8 @@
 | `story_screen.gd` | Story beat on a paper card over `StoryScene` |
 | `vendor_screen.gd` | Stall, card and relic offers, services (keeps `message`, `removing`) |
 | `rest_screen.gd` | Rest stop |
+| `treasure_screen.gd` | Treasure stop: a closed chest, then its relic |
+| `event_screen.gd` | Event stop ("?" node): scene text, buttons with their cost lines, the outcome, the pick flows |
 | `end_screen.gd` | End card and summary |
 | `pause_menu.gd` | Pause button, overlay, options, abandon confirmation |
 
