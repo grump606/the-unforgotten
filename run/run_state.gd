@@ -43,7 +43,8 @@ const EVENT_RELIC_FALLBACK_GOLD := 40
 ## regular COMBAT stop among the regular fights; both are set by RunState._default_line and
 ## drive the encounter pools and stat ramp (see StarterContent.varied_encounter).
 ## In map mode `choose_node` builds the stop: `node_id` is the map node (-1 on the line), `backdrop` the
-## node's battle screen key (&"" on the line and for non-fights) and `fight` the row-keyed ramp number.
+## node's battle screen key (&"" on the line and for non-fights) and `row` its run row (-1 on the line). A map
+## fight is built by StarterContent.budget_encounter from `enemy_count` and `row` (`tier` and `fight` are line-only).
 class Stop:
 	var type: StopType
 	var enemy_count: int
@@ -52,6 +53,7 @@ class Stop:
 	var mid_boss: bool
 	var tier: int
 	var fight: int
+	var row: int = -1
 	var node_id: int = -1
 	var backdrop: StringName = &""
 
@@ -281,7 +283,7 @@ func _stop_for_node(n: RouteMap.MapNode) -> Stop:
 		_:
 			stop = Stop.new(StopType.COMBAT, n.enemy_count)
 	stop.tier = n.act
-	stop.fight = StarterContent.ramp_fight_for_row(n.row) if n.is_fight() and not n.is_boss() else 0
+	stop.row = n.row
 	stop.node_id = n.id
 	stop.backdrop = n.backdrop
 	return stop
@@ -330,6 +332,8 @@ func start_combat() -> Combat:
 		enemies = StarterContent.boss_encounter()
 	elif stop.mid_boss:
 		enemies = StarterContent.mid_boss_encounter()
+	elif route != null and stop.row >= 0:
+		enemies = StarterContent.budget_encounter(stop.enemy_count, _rng, stop.row)
 	else:
 		enemies = StarterContent.varied_encounter(stop.enemy_count, _rng, stop.tier, stop.fight)
 	_active_combat = Combat.create(player, deck, enemies, _rng.randi(), relics)

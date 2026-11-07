@@ -1,6 +1,6 @@
 extends RefCounted
 ## Route map phase 2 (docs/MAP_DESIGN.md): RunState in map mode. Legacy mode stays untouched, the map API
-## (reachable_nodes, choose_node), every node type's stop, the row-keyed ramp, the backdrop plumbing, whole
+## (reachable_nodes, choose_node), every node type's stop, the budget packs of map fights, the backdrop plumbing, whole
 ## runs and determinism. Registered by run_tests.gd.
 
 const CHARACTERS: Array[StringName] = [&"deserter", &"thief", &"medium", &"stray"]
@@ -285,20 +285,12 @@ func _test_elite_placeholder() -> void:
 	_check(stop.type == RunState.StopType.COMBAT and stop.enemy_count >= 2 and not stop.boss and not stop.mid_boss, "an elite fights a pack of at least two for now")
 	var combat := run_state.start_combat()
 	_check(combat != null and combat.enemies.size() >= 2, "the elite pack has at least two enemies")
-	_check(stop.fight == StarterContent.ramp_fight_for_row(n.row), "the elite ramps by row")
+	_check(stop.row == n.row, "the elite stop carries its row")
 
 
 func _test_ramp() -> void:
-	var previous := -1
-	for row in RouteMap.ROWS:
-		var ramp := StarterContent.ramp_fight_for_row(row)
-		_check(ramp >= previous, "the ramp never drops (row %d)" % row)
-		previous = ramp
-	_check(StarterContent.ramp_fight_for_row(0) == 0, "the ramp starts at 0")
-	_check(StarterContent.ramp_fight_for_row(RouteMap.ROWS - 1) <= 9 and StarterContent.ramp_fight_for_row(28) == 8, "the ramp ends near 8")
-	_check(StarterContent.ramp_fight_for_row(-3) == 0 and StarterContent.ramp_fight_for_row(500) == StarterContent.ramp_fight_for_row(29), "the ramp clamps its row")
-	_check(StarterContent.ramp_factor(StarterContent.ramp_fight_for_row(25)) > StarterContent.ramp_factor(StarterContent.ramp_fight_for_row(2)), "deeper rows get a higher stat factor")
-	# The stop of a regular fight carries the ramp of its row, whichever path was taken.
+	# Every map fight is built by budget_encounter from the node's count and row: replaying the run RNG from just
+	# before start_combat reproduces the pack, and the stop carries the node's row.
 	for seed_value in 4:
 		var run_state := RunState.new(seed_value, &"deserter", true)
 		while not run_state.finished:
@@ -306,8 +298,20 @@ func _test_ramp() -> void:
 			run_state.choose_node(options[seed_value % options.size()])
 			var stop := run_state.current_stop()
 			var n := run_state.route.node(run_state.current_node)
+			_check(stop.row == n.row, "seed %d: the stop knows its row %d" % [seed_value, n.row])
 			if stop.type == RunState.StopType.COMBAT and not stop.boss and not stop.mid_boss:
-				_check(stop.fight == StarterContent.ramp_fight_for_row(n.row), "seed %d: fight ramp is keyed by row %d" % [seed_value, n.row])
+				var state := run_state.rng_state()
+				var combat := run_state.start_combat()
+				var replay := RandomNumberGenerator.new()
+				replay.state = state
+				var expected := StarterContent.budget_encounter(stop.enemy_count, replay, n.row)
+				var same := combat != null and combat.enemies.size() == expected.size()
+				if same:
+					for i in expected.size():
+						same = same and combat.enemies[i].max_hp == expected[i].max_hp and combat.enemies[i].display_name == expected[i].display_name
+				_check(same, "seed %d: the fight on row %d is the budget pack" % [seed_value, n.row])
+				combat.abandon()
+				run_state.restore_rng_state(state)
 			_resolve(run_state)
 
 
