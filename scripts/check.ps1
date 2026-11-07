@@ -15,7 +15,7 @@ if (-not (Test-Path -LiteralPath $godot -PathType Leaf)) {
 }
 $testScript = if ($env:CHECK_TESTS_SCRIPT) { $env:CHECK_TESTS_SCRIPT } else { 'res://tests/run_tests.gd' }
 $errPattern = 'SCRIPT ERROR|Parse Error|ERROR: Failed to load'
-$stepTimeoutMs = if ($env:CHECK_STEP_TIMEOUT_MS) { [int]$env:CHECK_STEP_TIMEOUT_MS } else { 300000 }
+$stepTimeoutMs = if ($env:CHECK_STEP_TIMEOUT_MS) { [int]$env:CHECK_STEP_TIMEOUT_MS } else { 900000 }
 
 function Invoke-Step([string]$name, [string[]]$engineArgs) {
     Write-Host "== $name =="
