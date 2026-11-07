@@ -85,6 +85,11 @@ static func to_dict(run: RunState) -> Dictionary:
 		data["visited"] = run.visited.duplicate()
 		# True when the player is inside the current node's stop (saved on arrival), false at the map.
 		data["at_node"] = run.in_map_stop()
+		# The events shown so far (docs/EVENTS_DESIGN.md). An older v5 save has no such key and loads as empty.
+		var seen_ids: Array = []
+		for id in run.events_seen:
+			seen_ids.append(String(id))
+		data["events_seen"] = seen_ids
 		data.erase("line") # the stop line does not exist in map mode (stops are placeholders)
 	return data
 
@@ -113,13 +118,14 @@ static func from_dict(data: Variant) -> Result:
 	var checks: Array[Callable] = [_check_numbers]
 	if got["is_map"]:
 		checks.append(_check_map)
-	for later in [_check_rng_state, _check_deck, _check_offered, _check_relics]:
+	for later in [_check_rng_state, _check_deck, _check_offered, _check_relics, _check_events_seen]:
 		checks.append(later)
 	for check in checks:
 		error = check.call(d, run, got)
 		if error != "":
 			return Result.fail(error)
 	run.relics = got["relics"]
+	run.events_seen.assign(got["events_seen"])
 	run.offered_ids = got["offered"]
 	run.reward_remove_used = d["reward_remove_used"]
 	run.reward_heal_used = d["reward_heal_used"]
@@ -260,6 +266,14 @@ static func _check_deck(d: Dictionary, run: RunState, got: Dictionary) -> String
 		known[String(card.id)] = card
 	if known.is_empty():
 		return "card content failed to load"
+	# The deck may also hold a status card (Dread, Murmur) an event put there as a curse. It is not in any pool, so
+	# it is kept apart from `known` (the offered list is checked against the pool only).
+	var deck_cards := known.duplicate()
+	for status_id in StarterContent.STATUS_CARD_PATHS:
+		var status := StarterContent.status_card(status_id)
+		if status == null:
+			return "card content failed to load"
+		deck_cards[String(status_id)] = status
 	var deck: Array[CardData] = []
 	for entry in raw_deck:
 		if typeof(entry) != TYPE_STRING:
@@ -268,9 +282,9 @@ static func _check_deck(d: Dictionary, run: RunState, got: Dictionary) -> String
 		var upgraded := entry_id.ends_with(REMEMBERED_SUFFIX)
 		if upgraded:
 			entry_id = entry_id.trim_suffix(REMEMBERED_SUFFIX)
-		if not known.has(entry_id):
+		if not deck_cards.has(entry_id):
 			return "this save contains a card that no longer exists"
-		var card: CardData = known[entry_id]
+		var card: CardData = deck_cards[entry_id]
 		if upgraded:
 			var variant := card.remembered_card()
 			if variant == null:
@@ -298,6 +312,26 @@ static func _check_offered(d: Dictionary, _run: RunState, got: Dictionary) -> St
 		if typeof(d.get(key)) != TYPE_BOOL:
 			return "bad %s" % key
 	got["offered"] = offered
+	return ""
+
+
+## The events already shown (map saves). Absent in a save from before events: empty. Entries must be strings; ones that
+## are not a known event id are dropped and repeats are kept once, so retiring an event never invalidates a save.
+static func _check_events_seen(d: Dictionary, _run: RunState, got: Dictionary) -> String:
+	var seen: Array[StringName] = []
+	if got["is_map"] and d.has("events_seen"):
+		var raw: Variant = d["events_seen"]
+		if typeof(raw) != TYPE_ARRAY or (raw as Array).size() > 200:
+			return "bad events_seen list"
+		var known_ids := {}
+		for event in StarterContent.all_events():
+			known_ids[String(event.id)] = true
+		for entry in raw:
+			if typeof(entry) != TYPE_STRING:
+				return "bad events_seen list"
+			if known_ids.has(entry) and not seen.has(StringName(entry)):
+				seen.append(StringName(entry))
+	got["events_seen"] = seen
 	return ""
 
 

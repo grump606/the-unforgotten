@@ -123,6 +123,9 @@ func _advance(run_state: RunState, step: int) -> Array:
 			run_state.open_treasure()
 			log.append(String(run_state.treasure_relic().id) if run_state.treasure_relic() != null else "gold")
 			run_state.take_treasure()
+		RunState.StopType.EVENT:
+			log.append(String(run_state.current_event().id))
+			SimPolicy.event_stop(run_state)
 		_:
 			run_state.read_story()
 	return log
@@ -609,5 +612,5 @@ func _test_treasure_saves() -> void:
 	stray["map"]["nodes"][plain_id]["type"] = int(RouteMap.NodeType.TREASURE)
 	_rejects(stray, "a chest in an ordinary row", "invalid")
 	var unknown := _json_copy(data)
-	unknown["map"]["nodes"][plain_id]["type"] = int(RouteMap.NodeType.TREASURE) + 1
+	unknown["map"]["nodes"][plain_id]["type"] = int(RouteMap.NodeType.EVENT) + 1
 	_rejects(unknown, "a node type past the last", "damaged")

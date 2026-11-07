@@ -140,6 +140,9 @@ static func warm_for_stop(stop_type: int, character_id: StringName = &"") -> voi
 			preload_paths(["res://art/layers/screens/vendor/keeper.png"])
 		4: # TREASURE
 			preload_screen(&"battle_archive")
+		5: # EVENT
+			preload_screen(&"battle_street")
+			preload_screen(&"battle_archive")
 
 
 ## Any texture under res:// through the shared cache (mipmapped), or null when it is missing.
