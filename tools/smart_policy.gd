@@ -770,14 +770,17 @@ static func event_score(run: RunState, effects: Array[EventEffect]) -> float:
 	return score
 
 
-## Map mode route choice: a rest when HP is under half, a shop when gold is at least SHOP_GOLD, else the first
-## plain fight, else the first node. Returns -1 when none is reachable.
+## Map mode route choice. `route` `smart` (the default): a rest when HP is under half, a shop when gold is at least
+## ROUTE_SHOP_GOLD, a chest, an event while healthy, else the first plain fight, else the first node. Any other
+## name is a RoutePolicy strategy. Returns -1 when none is reachable.
 const ROUTE_REST_BELOW := 0.5
 const ROUTE_SHOP_GOLD := 120
 const ROUTE_EVENT_ABOVE := 0.7
 
 
-static func choose_route(run: RunState) -> int:
+static func choose_route(run: RunState, route: String = RoutePolicy.SMART) -> int:
+	if route != RoutePolicy.SMART:
+		return RoutePolicy.choose(run, route)
 	var options := run.reachable_nodes()
 	if options.is_empty():
 		return -1

@@ -28,10 +28,10 @@ static func play_turn(combat: Combat) -> bool:
 	return combat.end_player_turn(discards_for(combat))
 
 
-## Map mode route choice for the greedy bot: the first reachable node. Returns -1 when none is reachable.
-static func choose_route(run: RunState) -> int:
-	var options := run.reachable_nodes()
-	return options[0] if not options.is_empty() else -1
+## Map mode route choice for the greedy bot: `route` is a RoutePolicy strategy (default `first`, the first
+## reachable node). Returns -1 when none is reachable.
+static func choose_route(run: RunState, route: String = RoutePolicy.FIRST) -> int:
+	return RoutePolicy.choose(run, route)
 
 
 ## Treasure stop for both bots: open the chest and take what is in it (a relic, or the fallback gold). False on a
