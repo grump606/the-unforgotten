@@ -309,67 +309,76 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 	var energy_left := combat.energy - _spent_energy(combat, card) + _energy_gain(card)
 	var value := 0.0
 	for effect in card.effects:
-		var amount := _scaled_amount(combat, card, effect)
-		match effect.kind:
-			CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, \
-			CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN, CardEffect.Kind.DAMAGE_PER_SCENT:
-				for enemy in hit:
-					var lost := _hits_hp_lost(combat.player, enemy, _effect_damage(combat, effect, enemy), _hit_count(combat, card, effect))
-					var threat := _threat(combat, enemy)
-					value += lost * (1.0 + float(threat) / maxi(enemy.hp, 1))
-					if lost >= enemy.hp:
-						value += 4.0 + 1.5 * threat
-					elif effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
-						value -= _spend_cost(combat, hand_index, enemy, energy_left)
-			CardEffect.Kind.HOLD:
-				# Block kept for next turn: worth about a third of useful Block.
-				value += 0.8 * amount
-			CardEffect.Kind.THORNS:
-				value += THORNS_VALUE * amount * _attackers(combat)
-			CardEffect.Kind.GAIN_ENERGY:
-				# Energy only matters while it is what stops me playing cards.
-				value += (2.0 if energy_left < 2 else 0.4) * amount
-			CardEffect.Kind.HAUNT:
-				for enemy in hit:
-					value += HAUNT_VALUE * mini(_haunt_total(amount), enemy.hp)
-			CardEffect.Kind.LOSE_HP:
-				# Dearer the lower the player already is.
-				value -= amount * (1.0 + 12.0 / maxi(combat.player.hp - amount, 1))
-			CardEffect.Kind.HEAL_PER_HAUNTED:
-				var healed := mini(amount * _haunted_count(combat), combat.player.max_hp - combat.player.hp)
-				value += HEAL_VALUE * healed
-			CardEffect.Kind.BLOCK:
-				var gained := combat.player.block_from_card(amount)
-				var useful := mini(gained, unblocked)
-				unblocked -= useful
-				value += 2.0 * useful + 0.1 * (gained - useful)
-			CardEffect.Kind.DRAW:
-				value += (1.5 if energy_left > 0 else 0.2) * amount
-			CardEffect.Kind.EXPOSE:
-				if card.target_mode == CardData.TargetMode.SELF:
-					value -= 5.0
-				else:
-					for enemy in hit:
-						if enemy.status_turns(Combatant.Status.EXPOSED) == 0:
-							var boosted := _other_damage(combat, hand_index, energy_left)
-							value += 0.5 * boosted + 0.3 * amount
-							if boosted > 0:
-								# It only pays if played before the damage, so rank it first.
-								value += EXPOSE_FIRST
-			CardEffect.Kind.SCENT:
-				value += _scent_value(combat, hand_index, effect, hit, energy_left)
-			CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
-				value += _stack_value(combat, hand_index, effect, hit, energy_left, incoming)
-			CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
-				value += _debuff_value(combat, card, hand_index, effect, hit, incoming)
-			CardEffect.Kind.GLIMPSE:
-				value += _glimpse_value(combat, effect)
-			CardEffect.Kind.RECALL:
-				value += _recall_value(combat, effect, energy_left)
-			CardEffect.Kind.ADD_CARD:
-				value += _added_value(combat, effect, energy_left)
+		# Block is the one effect that spends the running `unblocked` total, so it is priced here.
+		if effect.kind == CardEffect.Kind.BLOCK:
+			var gained := combat.player.block_from_card(_scaled_amount(combat, card, effect))
+			var useful := mini(gained, unblocked)
+			unblocked -= useful
+			value += 2.0 * useful + 0.1 * (gained - useful)
+			continue
+		value = _effect_value(combat, card, hand_index, effect, hit, incoming, energy_left, value)
 	if card.oath:
 		value += _oath_value(combat, card)
+	return value
+
+
+## `value` plus what one non-Block effect of `card` is worth when played now (see _play_value). Takes and
+## returns the running total so the floating-point additions keep their order.
+static func _effect_value(combat: Combat, card: CardData, hand_index: int, effect: CardEffect, hit: Array[EnemyUnit], incoming: int, energy_left: int, value: float) -> float:
+	var amount := _scaled_amount(combat, card, effect)
+	match effect.kind:
+		CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, \
+		CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN, CardEffect.Kind.DAMAGE_PER_SCENT:
+			for enemy in hit:
+				var lost := _hits_hp_lost(combat.player, enemy, _effect_damage(combat, effect, enemy), _hit_count(combat, card, effect))
+				var threat := _threat(combat, enemy)
+				value += lost * (1.0 + float(threat) / maxi(enemy.hp, 1))
+				if lost >= enemy.hp:
+					value += 4.0 + 1.5 * threat
+				elif effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
+					value -= _spend_cost(combat, hand_index, enemy, energy_left)
+		CardEffect.Kind.HOLD:
+			# Block kept for next turn: worth about a third of useful Block.
+			value += 0.8 * amount
+		CardEffect.Kind.THORNS:
+			value += THORNS_VALUE * amount * _attackers(combat)
+		CardEffect.Kind.GAIN_ENERGY:
+			# Energy only matters while it is what stops me playing cards.
+			value += (2.0 if energy_left < 2 else 0.4) * amount
+		CardEffect.Kind.HAUNT:
+			for enemy in hit:
+				value += HAUNT_VALUE * mini(_haunt_total(amount), enemy.hp)
+		CardEffect.Kind.LOSE_HP:
+			# Dearer the lower the player already is.
+			value -= amount * (1.0 + 12.0 / maxi(combat.player.hp - amount, 1))
+		CardEffect.Kind.HEAL_PER_HAUNTED:
+			var healed := mini(amount * _haunted_count(combat), combat.player.max_hp - combat.player.hp)
+			value += HEAL_VALUE * healed
+		CardEffect.Kind.DRAW:
+			value += (1.5 if energy_left > 0 else 0.2) * amount
+		CardEffect.Kind.EXPOSE:
+			if card.target_mode == CardData.TargetMode.SELF:
+				value -= 5.0
+			else:
+				for enemy in hit:
+					if enemy.status_turns(Combatant.Status.EXPOSED) == 0:
+						var boosted := _other_damage(combat, hand_index, energy_left)
+						value += 0.5 * boosted + 0.3 * amount
+						if boosted > 0:
+							# It only pays if played before the damage, so rank it first.
+							value += EXPOSE_FIRST
+		CardEffect.Kind.SCENT:
+			value += _scent_value(combat, hand_index, effect, hit, energy_left)
+		CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
+			value += _stack_value(combat, hand_index, effect, hit, energy_left, incoming)
+		CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
+			value += _debuff_value(combat, card, hand_index, effect, hit, incoming)
+		CardEffect.Kind.GLIMPSE:
+			value += _glimpse_value(combat, effect)
+		CardEffect.Kind.RECALL:
+			value += _recall_value(combat, effect, energy_left)
+		CardEffect.Kind.ADD_CARD:
+			value += _added_value(combat, effect, energy_left)
 	return value
 
 
@@ -617,21 +626,10 @@ static func _net_cost(card: CardData) -> int:
 
 ## The damage `effect` would deal to `enemy` if its card were played now (before Expose and Block).
 static func _effect_damage(combat: Combat, effect: CardEffect, enemy: EnemyUnit) -> int:
-	match effect.kind:
-		CardEffect.Kind.DAMAGE_PER_BLOCK:
-			return combat.player.block * effect.amount
-		CardEffect.Kind.DAMAGE_IF_BLOCK:
-			return effect.bonus if combat.player.block >= effect.threshold else effect.amount
-		CardEffect.Kind.DAMAGE_PER_PLAY:
-			# plays_this_turn counts the cards already played, which is what the bonus scales with.
-			return effect.amount + effect.bonus * combat.plays_this_turn
-		CardEffect.Kind.DAMAGE_PER_HAUNT:
-			return enemy.status_turns(Combatant.Status.HAUNTED) * effect.amount
-		CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
-			return combat.piles.forgotten.size() * effect.amount
-		CardEffect.Kind.DAMAGE_PER_SCENT:
-			return effect.amount + effect.bonus * enemy.stacks(Combatant.Status.SCENT)
-	return effect.amount
+	if not effect.is_damage():
+		return effect.amount
+	# The card is not played yet, so it would be play number plays_this_turn + 1.
+	return effect.raw_damage(combat.damage_context(combat.player, enemy, combat.plays_this_turn + 1))
 
 
 ## Total damage of a Haunt of `amount` over its life: amount + (amount - 1) + ... + 1.
@@ -648,11 +646,7 @@ static func _attackers(combat: Combat) -> int:
 
 
 static func _haunted_count(combat: Combat) -> int:
-	var count := 0
-	for enemy in combat.living_enemies():
-		if enemy.status_turns(Combatant.Status.HAUNTED) > 0:
-			count += 1
-	return count
+	return combat.haunted_count()
 
 
 ## HP `enemy` would lose to `hits` hits of raw damage `amount` each from `attacker`: every hit goes through
@@ -677,7 +671,7 @@ static func _threat(combat: Combat, enemy: EnemyUnit) -> int:
 
 
 static func _incoming_damage(combat: Combat) -> int:
-	return SimPolicy._incoming_damage(combat)
+	return combat.incoming_damage()
 
 
 ## Sum of damage amounts of the other cards in hand that `energy_left` can pay for

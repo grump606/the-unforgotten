@@ -79,7 +79,10 @@ enum Reach { SELF, ENEMIES, BOTH }
 
 ## True for the kinds that hit a target for `raw_damage`.
 func is_damage() -> bool:
-	return kind in [Kind.DAMAGE, Kind.DAMAGE_PER_BLOCK, Kind.DAMAGE_IF_BLOCK, Kind.DAMAGE_PER_PLAY, Kind.DAMAGE_PER_HAUNT, Kind.DAMAGE_PER_FORGOTTEN, Kind.DAMAGE_PER_SCENT]
+	match kind:
+		Kind.DAMAGE, Kind.DAMAGE_PER_BLOCK, Kind.DAMAGE_IF_BLOCK, Kind.DAMAGE_PER_PLAY, Kind.DAMAGE_PER_HAUNT, Kind.DAMAGE_PER_FORGOTTEN, Kind.DAMAGE_PER_SCENT:
+			return true
+	return false
 
 
 ## Where a played card applies this effect: the card's chosen enemies (ENEMIES), the player
@@ -87,13 +90,14 @@ func is_damage() -> bool:
 ## any other card exposes its targets). MALICE and WARD are SELF when positive and ENEMIES when
 ## negative. Enemy intents ignore this and always act on the player.
 func reach() -> Reach:
-	if is_damage() or kind in [Kind.HAUNT, Kind.SCENT]:
-		return Reach.ENEMIES
-	if kind in [Kind.EXPOSE, Kind.SHAKEN, Kind.FRAYED]:
-		return Reach.BOTH
-	if kind in [Kind.MALICE, Kind.WARD]:
-		return Reach.SELF if amount >= 0 else Reach.ENEMIES
-	return Reach.SELF
+	match kind:
+		Kind.HAUNT, Kind.SCENT:
+			return Reach.ENEMIES
+		Kind.EXPOSE, Kind.SHAKEN, Kind.FRAYED:
+			return Reach.BOTH
+		Kind.MALICE, Kind.WARD:
+			return Reach.SELF if amount >= 0 else Reach.ENEMIES
+	return Reach.ENEMIES if is_damage() else Reach.SELF
 
 
 ## Damage of one hit before Expose and Block (0 for a non-damage kind). Pure, so the
