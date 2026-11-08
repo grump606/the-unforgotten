@@ -35,8 +35,24 @@ enum TargetMode { SINGLE_ENEMY, ALL_ENEMIES, SELF }
 ## SELF and on every living enemy otherwise. A Dormant or Fading card cannot be an Oath.
 ## END_OF_TURN: as the player ends the turn, before the enemies act. ON_BLOCK_GAINED: after a card that gained Block.
 ## ON_HP_LOST: after a card that cost HP. EACH_PLAY: after every card played. ON_DISCARD: for each card thrown away at
-## the end-of-turn discard. (Appended after the first four: the .tres files store the number.)
+## the end-of-turn discard. Rules as implemented: ON_HP_LOST fires after a card the PLAYER played whose own
+## LOSE_HP effects cost HP (hp_cost() > 0); damage taken from enemies, Haunt-style losses and Oath effects never
+## trigger it. The Fading cards lost at end of turn count for ON_FORGOTTEN but are not "played", so they never
+## trigger the FIRST_FORGOTTEN_RETURN relic (only a played, Forgotten, non-Oath card does). (Appended after the first four: the .tres files store the number.)
 enum OathTrigger { TURN_START, FIRST_PLAY, ON_FORGOTTEN, ANCHOR_KEPT, END_OF_TURN, ON_BLOCK_GAINED, ON_HP_LOST, EACH_PLAY, ON_DISCARD, QUARRY_DIES }
+## Lead-in text per trigger, keyed by enum value so appending a trigger cannot index out of range.
+const OATH_TRIGGER_TEXT := {
+	OathTrigger.TURN_START: "At turn start",
+	OathTrigger.FIRST_PLAY: "First card each turn",
+	OathTrigger.ON_FORGOTTEN: "When a card is Forgotten",
+	OathTrigger.ANCHOR_KEPT: "For each Anchor card kept",
+	OathTrigger.END_OF_TURN: "At end of turn",
+	OathTrigger.ON_BLOCK_GAINED: "When you gain Block from a card",
+	OathTrigger.ON_HP_LOST: "When a card costs you HP",
+	OathTrigger.EACH_PLAY: "Each card played",
+	OathTrigger.ON_DISCARD: "When a card is discarded",
+	OathTrigger.QUARRY_DIES: "When the quarry dies",
+}
 @export var oath: bool = false
 @export var oath_trigger: OathTrigger = OathTrigger.TURN_START
 @export var oath_effects: Array[CardEffect] = []
@@ -69,12 +85,13 @@ static func make(card_id: StringName, card_name: String, card_cost: int, card_ef
 	return card
 
 
-## HP the card costs to play (the sum of its LOSE_HP effects).
-func hp_cost() -> int:
+## HP the card costs to play (the sum of its LOSE_HP effects). `energy_scale` is the energy a Surge card
+## would spend (1 otherwise); it multiplies per_energy LOSE_HP effects, as Combat._apply does.
+func hp_cost(energy_scale: int = 1) -> int:
 	var total := 0
 	for effect in effects:
 		if effect.kind == CardEffect.Kind.LOSE_HP:
-			total += maxi(effect.amount, 0)
+			total += maxi(effect.amount, 0) * (energy_scale if effect.per_energy else 1)
 	return total
 
 
@@ -107,25 +124,14 @@ func remembered_card() -> CardData:
 	if remembered == null or is_remembered:
 		return null
 	if _remembered_variant == null:
-		var variant := CardData.new()
-		variant.id = id
+		# Start from a full copy so an export added to CardData later is carried over, then apply the
+		# overrides (tests/engine_review_tests.gd lists the fields allowed to differ).
+		var variant: CardData = duplicate()
 		variant.display_name = display_name + "+"
 		variant.cost = cost if remembered.cost < 0 else remembered.cost
 		variant.effects = remembered.effects
-		variant.target_mode = target_mode
-		variant.oath = oath
-		variant.rarity = rarity
-		variant.basic = basic
-		variant.discard_effects = discard_effects
-		variant.oath_trigger = oath_trigger
 		variant.oath_effects = remembered.oath_effects if not remembered.oath_effects.is_empty() else oath_effects
-		variant.character = character
-		variant.forgotten = forgotten
-		variant.fading = fading
-		variant.ready = ready
-		variant.anchor = anchor
-		variant.dormant = dormant
-		variant.surge = surge
+		variant.remembered = null
 		for keyword in remembered.gain_keywords:
 			variant.set_keyword(keyword, true)
 		for keyword in remembered.lose_keywords:
@@ -169,7 +175,7 @@ func is_valid_oath() -> bool:
 
 ## Lead-in text for an Oath's trigger ("At turn start", ...).
 func oath_trigger_text() -> String:
-	return ["At turn start", "First card each turn", "When a card is Forgotten", "For each Anchor card kept", "At end of turn", "When you gain Block from a card", "When a card costs you HP", "Each card played", "When a card is discarded", "When the quarry dies"][oath_trigger]
+	return OATH_TRIGGER_TEXT.get(oath_trigger, "")
 
 
 func describe() -> String:

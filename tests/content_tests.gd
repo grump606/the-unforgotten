@@ -361,9 +361,9 @@ func _test_registry_entries_load() -> void:
 ## every enemy (regular or boss) needs stage art keyed by its id in Fighter.ART_KEYS.
 func _test_enemy_registry_wiring() -> void:
 	for path in StarterContent.ALL_ENEMY_PATHS:
-		var placed: bool = StarterContent.SMALL_ENEMY_PATHS.has(path) or StarterContent.PAIR_BIG_ENEMY_PATHS.has(path) or StarterContent.SOLO_ONLY_ENEMY_PATHS.has(path)
-		_check(placed, "regular enemy is in a pair/trio pool or SOLO_ONLY_ENEMY_PATHS: %s" % path)
-	for pool in [StarterContent.SMALL_ENEMY_PATHS, StarterContent.PAIR_BIG_ENEMY_PATHS, StarterContent.SOLO_ONLY_ENEMY_PATHS,StarterContent.TRIO_EXCLUDED_PATHS]:
+		var placed: bool = StarterContent.SMALL_ENEMY_PATHS.has(path) or StarterContent.PAIR_BIG_ENEMY_PATHS.has(path) or path == StarterContent.COLOSSUS_PATH
+		_check(placed, "regular enemy is in a pair/trio pool or the solo-only Colossus: %s" % path)
+	for pool in [StarterContent.SMALL_ENEMY_PATHS, StarterContent.PAIR_BIG_ENEMY_PATHS, StarterContent.TRIO_EXCLUDED_PATHS]:
 		for path in pool:
 			_check(StarterContent.ALL_ENEMY_PATHS.has(path), "encounter pool entry is a registered regular enemy: %s" % path)
 	var every: Array = StarterContent.ALL_ENEMY_PATHS.duplicate()
