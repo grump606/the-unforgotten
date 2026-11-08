@@ -15,7 +15,8 @@ if (-not (Test-Path -LiteralPath $godot -PathType Leaf)) {
     exit 2
 }
 $testScript = if ($env:CHECK_TESTS_SCRIPT) { $env:CHECK_TESTS_SCRIPT } else { 'res://tests/run_tests.gd' }
-$errPattern = 'SCRIPT ERROR|Parse Error|ERROR: Failed to load'
+# What counts as a script error in a step's output (scripts/check_log_patterns.ps1, proven by check_log_patterns_test.ps1).
+. (Join-Path $PSScriptRoot 'check_log_patterns.ps1')
 $stepTimeoutMs = if ($env:CHECK_STEP_TIMEOUT_MS) { [int]$env:CHECK_STEP_TIMEOUT_MS } else { 300000 }
 
 function Invoke-Step([string]$name, [string[]]$engineArgs) {
@@ -27,6 +28,12 @@ function Invoke-Step([string]$name, [string[]]$engineArgs) {
         $null = $proc.Handle  # Windows PowerShell 5.1 drops ExitCode unless the handle is cached
         if (-not $proc.WaitForExit($stepTimeoutMs)) {
             $proc.Kill()
+            Start-Sleep -Milliseconds 500  # let the killed process release its output files
+            # A hang is exactly when the log matters (locally and in CI): show the last of what it printed.
+            $partial = @(@(Get-Content -LiteralPath $outFile -ErrorAction SilentlyContinue) + @(Get-Content -LiteralPath $errFile -ErrorAction SilentlyContinue) | ForEach-Object { "$_" })
+            Write-Host "---- last of the output of '$name' before it was killed ($($partial.Count) lines in all) ----"
+            $partial | Select-Object -Last 60 | ForEach-Object { Write-Host $_ }
+            Write-Host '---- end of output ----'
             Write-Host "CHECK FAILED: $name (timed out after $($stepTimeoutMs / 1000) s)"
             exit 1
         }
@@ -38,7 +45,12 @@ function Invoke-Step([string]$name, [string[]]$engineArgs) {
     }
     $out | ForEach-Object { Write-Host $_ }
     if ($code -ne 0) { Write-Host "CHECK FAILED: $name (exit code $code)"; exit 1 }
-    if ($out -match $errPattern) { Write-Host "CHECK FAILED: $name (script errors in output)"; exit 1 }
+    $bad = @(Get-CheckLogFailures $out)
+    if ($bad.Count -gt 0) {
+        Write-Host "CHECK FAILED: $name (script errors in output; first of $($bad.Count) below)"
+        $bad | Select-Object -First 5 | ForEach-Object { Write-Host "  $_" }
+        exit 1
+    }
 }
 
 Push-Location $root
@@ -58,6 +70,10 @@ try {
         Invoke-Step $stepName @('--headless', '--path', '.', '-s', "res://tests/$($ui.Name)")
     }
     Invoke-Step 'reskin restoration' @('--headless', '--path', '.', '-s', 'res://tests/reskin_presentation_test.gd')
+    # The rules that decide what a clean log is: bad logs must fail, the suite's known noise must pass.
+    Write-Host '== check log patterns =='
+    powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_log_patterns_test.ps1')
+    if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: check log patterns'; exit 1 }
     # PowerShell side of the update manifest golden test (the GDScript side runs inside 'tests').
     Write-Host '== manifest golden =='
     powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_manifest_golden.ps1')
