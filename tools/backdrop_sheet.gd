@@ -26,9 +26,9 @@ func _initialize() -> void:
 	await _shot("boss.png", PACKS[0], true, &"", 2.0)
 	await _shot("boss_later.png", PACKS[0], true, &"", 5.3)
 	await _shot("neutral_2_later.png", PACKS[2], false, &"", 5.3)
-	for entry in [[1, "street"], [9, "bell_court"], [12, "garden"], [16, "archive"], [20, "threshold"]]:
-		var is_boss: bool = entry[0] == 9 or entry[0] == 20
-		var pack: Array = ["res://data/enemies/the_brakeman.tres"] if entry[0] == 9 else (PACKS[0] if entry[0] == 20 else PACKS[3])
+	for entry in [[1, "street"], [9, "bell_court"], [12, "garden"], [16, "archive"], [21, "threshold"]]:
+		var is_boss: bool = entry[0] == 9 or entry[0] == 21
+		var pack: Array = ["res://data/enemies/the_brakeman.tres"] if entry[0] == 9 else (PACKS[0] if entry[0] == 21 else PACKS[3])
 		await _shot("destination_%s.png" % entry[1], pack, is_boss, &"medium", 2.0, DestinationArt.battle_key(entry[0]))
 	quit()
 

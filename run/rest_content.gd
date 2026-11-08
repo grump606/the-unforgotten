@@ -1,7 +1,7 @@
 class_name RestContent
 extends RefCounted
 ## The short story card shown at a rest stop: it continues the voice from the opening beat
-## ("A Voice Beyond the Rain"). The line has four rests; each has a title, a passage everyone
+## ("A Voice Beyond the Rain"). The line has five rests; each has a title, a passage everyone
 ## reads and one closing line per character. `beat(rest_number, character_id)` returns a
 ## StoryBeat, so the rest screen can show it like any other story passage.
 
@@ -29,6 +29,13 @@ const BEATS: Array[Dictionary] = [
 		"deserter": "Someone once waited up for you, before you gave them reason to stop.",
 		"thief": "You almost remember a window left lit. You were always outside it.",
 		"medium": "Under the voice you hear a chair creak, a kettle. Home has a sound.",
+	},
+	{
+		"title": "What the Fire Remembers",
+		"text": "This fire burns low, and the ash holds shapes: a coat, a lantern, an open hand. The voice hums something you almost know.",
+		"deserter": "You count the faces in the embers and stop at the ones you can name.",
+		"thief": "You turn out your pockets by habit. Nothing is missing but the reason you came.",
+		"medium": "The ash settles into names. You read them aloud so they are not alone.",
 	},
 	{
 		"title": "Before the Door",

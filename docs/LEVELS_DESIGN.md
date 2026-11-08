@@ -2,7 +2,7 @@
 
 > **Naming note (v0.5.0):** the game was reskinned as "The Unforgotten". Enemy and relic display names changed (for example Brakeman = Bellkeeper, Conductor = Eraser, Gate Warden = Threshold Keeper). IDs, files and rules did not. This document still uses the original names; see [`docs/RESKIN.md`](RESKIN.md) for the full map.
 
-The run used to be 12 stops with four regular fights and the Conductor. It is now 21 stops in two acts: eight regular fights, a mid-boss (the Brakeman) exactly halfway, and the Conductor at the end. Later fights are measurably harder than earlier ones.
+The run used to be 12 stops with four regular fights and the Conductor. It is now 22 stops in two acts: eight regular fights, a mid-boss (the Brakeman) exactly halfway, and the Conductor at the end. Later fights are measurably harder than earlier ones.
 
 > **Hand-rule note:** every bot number in this document (per-stop curves, before/after tables) was measured with the old rule that discarded the whole hand each turn. The keep-up-to-5 rule (README, "Hand and discard rules") changed them; current figures are in the README sim sections and `docs/NEXT_STEPS.md`.
 
@@ -31,10 +31,11 @@ Defined in `RunState._default_line()`. Tier is the act (0 up to and including th
 | 16 | Combat, 2 | fight 6 |
 | 17 | Combat, 3 | fight 7 |
 | 18 | Vendor | |
-| 19 | Story, beat 3 | last light |
-| 20 | **Final boss: The Conductor** | |
+| 19 | Rest | the last heal before the finale |
+| 20 | Story, beat 3 | last light |
+| 21 | **Final boss: The Conductor** | |
 
-Eight regular fights, three vendors (up to three relics), four rests, beats 0 to 3 in order.
+Eight regular fights, three vendors (up to three relics), five rests, beats 0 to 3 in order.
 
 Deviation from the first sketch (rests at 8 and 13/17): the sim showed the Brakeman costs about 25 HP and, with no rest straight after it, the next pair (arriving at about 20 HP) lost 45 to 60 percent of runs. A rest at 11 fixes that. A rest at 17 (between the last trio and the Conductor) made the finale too soft and the second trio pair too punishing, so the second act's rest moved to 15, between the two fight pairs, and the vendor at 18 tops HP up before the Conductor.
 
@@ -197,3 +198,8 @@ Result against the acceptance criteria: Medium smart Brakeman loss 11.2% (target
 ## Tools
 
 `tools/run_sim.gd` prints a loss percentage column per stop in its per-stop table. Command used for the results: `godot --headless --path . -s res://tools/run_sim.gd -- --runs 600 --seed 1 --character <id> --policy <smart|greedy>`.
+
+
+## Pre-finale rest (after v0.8.0)
+
+A fifth rest was added at stop 19, between the last vendor and the Last Light beat. Earlier notes found a rest straight before the Conductor made the finale too soft; this one is a deliberate softening for newer players. Sim escape rates (400 runs, seed 1), before to after: smart bot Deserter 63.5 to 67.0, Thief 66.5 to 67.5, Medium 66.5 to 69.8, Stray 63.5 to 65.5; greedy bot Deserter 53.0 to 60.5, Thief 53.0 to 60.8, Medium 24.5 to 43.5, Stray 45.5 to 53.8. A save is stored by stop number, so a run saved at old stop 19 or later resumes one stop off (one free rest, or the Last Light beat replayed before the boss).
