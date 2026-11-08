@@ -57,7 +57,7 @@ jobs:
 
       - name: Cache Godot engine
         id: godot-cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/godot
           key: godot-${{ env.GODOT_VERSION }}-win64-${{ env.GODOT_ZIP_SHA512 }}
@@ -88,7 +88,7 @@ jobs:
       #    never writes one.
       # To force a cold run, bump IMPORT_CACHE_SALT at the top of this file.
       - name: Cache Godot import folder
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .godot
           key: godot-import-${{ env.IMPORT_CACHE_SALT }}-${{ env.GODOT_VERSION }}-${{ hashFiles('project.godot', 'export_presets.cfg', '**/*.import', '**/*.uid', '**/*.gd', '**/*.tscn', '**/*.tres', '**/*.gdshader', 'art/**', 'audio/**') }}
@@ -107,7 +107,7 @@ jobs:
       # away with the runner. Only the three Windows templates are kept (about 300 MB less than the full .tpz).
       - name: Cache Windows export templates
         id: templates-cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/godot_templates
           key: godot-templates-${{ env.GODOT_VERSION }}-${{ env.GODOT_TEMPLATES_SHA512 }}
