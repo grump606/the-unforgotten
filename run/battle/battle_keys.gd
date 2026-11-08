@@ -78,27 +78,27 @@ func _key_drag_cancel(key: InputEventKey, _combat: Combat) -> bool:
 func _key_boss_intro(key: InputEventKey, _combat: Combat) -> bool:
 	if _is_modifier(key.keycode):
 		return false # a bare Shift / Ctrl / Alt / Meta press is not "any key"
-	if _battle._fx.skip_intro():
+	if _battle.fx().skip_intro():
 		_handled()
 		return true
 	return false
 
 
 func _key_after_fight(key: InputEventKey, _combat: Combat) -> bool:
-	if not _battle._new_fight_button.visible:
+	if not _battle.new_fight_button().visible:
 		return false
 	if key.keycode == KEY_N or key.keycode == END_TURN_KEY or key.keycode == KEY_ENTER or key.keycode == KEY_KP_ENTER:
 		_handled()
-		_battle._on_continue_pressed()
+		_battle.continue_pressed()
 	return true
 
 
 func _key_pile_viewer(key: InputEventKey, _combat: Combat) -> bool:
-	if not _battle._overlays.pile_viewer_open():
+	if not _battle.overlays().pile_viewer_open():
 		return false
 	_handled()
 	if key.keycode == KEY_ESCAPE:
-		_battle._overlays.close_pile_viewer()
+		_battle.overlays().close_pile_viewer()
 	elif BattleOverlays.PILE_KEYS.has(key.keycode):
 		_battle.open_pile_viewer(BattleOverlays.PILE_KEYS.find(key.keycode) as PileViewer.Pile)
 	return true
@@ -109,7 +109,7 @@ func _key_pile_viewer(key: InputEventKey, _combat: Combat) -> bool:
 func _key_choice(key: InputEventKey, combat: Combat) -> bool:
 	if combat == null or combat.phase != Combat.Phase.CHOOSING:
 		return false
-	var overlay := _battle._overlays.choice
+	var overlay := _battle.overlays().choice
 	if key.keycode == KEY_ESCAPE or (overlay != null and overlay.handle_key(key.keycode)):
 		_handled()
 	return true
@@ -132,7 +132,7 @@ func _key_play_card(key: InputEventKey, _combat: Combat) -> bool:
 	if number < 0:
 		return false
 	_handled()
-	_battle._hand.play_card(number)
+	_battle.hand().play_card(number)
 	return true
 
 
@@ -140,7 +140,7 @@ func _key_back(key: InputEventKey, _combat: Combat) -> bool:
 	if key.keycode != KEY_BACKSPACE:
 		return false
 	_handled()
-	_battle._on_cancel_discard_pressed()
+	_battle.cancel_discard()
 	return true
 
 
@@ -148,16 +148,16 @@ func _key_turn(key: InputEventKey, _combat: Combat) -> bool:
 	match key.keycode:
 		END_TURN_KEY, KEY_ENTER, KEY_KP_ENTER:
 			_handled()
-			_battle._on_end_turn_pressed()
+			_battle.end_turn()
 		KEY_RIGHT:
 			_handled()
-			_battle._cycle_target(1)
+			_battle.cycle_target(1)
 		KEY_LEFT:
 			_handled()
-			_battle._cycle_target(-1)
+			_battle.cycle_target(-1)
 		KEY_TAB:
 			_handled()
-			_battle._cycle_target(-1 if key.shift_pressed else 1)
+			_battle.cycle_target(-1 if key.shift_pressed else 1)
 		_:
 			return false
 	return true

@@ -37,15 +37,15 @@ func sync_choice() -> void:
 		close_choice()
 	if wanted and choice == null:
 		close_pile_viewer()
-		choice = ChoiceOverlay.create(combat, _battle._stage.size, combat.player)
+		choice = ChoiceOverlay.create(combat, _battle.stage().size, combat.player)
 		choice.z_index = Z
 		choice.confirmed.connect(on_choice_confirmed)
-		_battle._stage.add_child(choice)
+		_battle.stage().add_child(choice)
 
 
 func close_choice() -> void:
 	if choice != null and is_instance_valid(choice):
-		_battle._discard_node(choice)
+		_battle.discard_node(choice)
 	choice = null
 
 
@@ -60,10 +60,10 @@ func on_choice_confirmed(indices: Array[int]) -> void:
 		return
 	close_choice()
 	RunScreen.sfx(&"card_select")
-	_battle._begin_batch()
+	_battle.begin_batch()
 	if not combat.resolve_choice(indices):
 		_battle.request_refresh() # the overlay was closed above: bring it back
-	_battle._end_batch()
+	_battle.end_batch()
 
 
 ## Opens the read-only viewer on a pile. Only during the player's turn and the discard step: not while a
@@ -75,7 +75,7 @@ func open_pile_viewer(which: PileViewer.Pile) -> bool:
 	if pile_viewer != null:
 		pile_viewer.show_pile(which)
 		return true
-	_battle._hand.hide_preview()
+	_battle.hand().hide_preview()
 	pile_viewer = PileViewer.create(combat, which, _battle.size, combat.player)
 	pile_viewer.z_index = Z
 	pile_viewer.closed.connect(close_pile_viewer)
@@ -85,7 +85,7 @@ func open_pile_viewer(which: PileViewer.Pile) -> bool:
 
 func close_pile_viewer() -> void:
 	if pile_viewer != null and is_instance_valid(pile_viewer):
-		_battle._discard_node(pile_viewer)
+		_battle.discard_node(pile_viewer)
 	pile_viewer = null
 
 

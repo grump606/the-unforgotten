@@ -34,6 +34,11 @@ func _initialize() -> void:
 	await process_frame
 	await process_frame
 
+	var views: Array[Fighter] = scene.enemy_views()
+	var count := views.size()
+	views.clear()
+	check(count > 0 and scene.enemy_views().size() == count, "enemy_views() hands out a copy of the list")
+
 	# A bare modifier key is not "any key".
 	check(scene.intro_visible(), "the boss entrance is up")
 	for modifier in [KEY_SHIFT, KEY_CTRL, KEY_ALT, KEY_META]:
@@ -51,7 +56,7 @@ func _initialize() -> void:
 	scene.open_pile_viewer(PileViewer.Pile.DISCARD)
 	await process_frame
 	await process_frame
-	var viewer: PileViewer = scene._overlays.pile_viewer
+	var viewer: PileViewer = scene.overlays().pile_viewer
 	var scroll: ScrollContainer = viewer._scroll
 	scroll.scroll_vertical = 120
 	await process_frame

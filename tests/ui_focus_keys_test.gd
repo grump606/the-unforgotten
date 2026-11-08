@@ -67,7 +67,7 @@ func _initialize() -> void:
 	await process_frame
 	await process_frame
 	check(scene.open_pile_viewer(PileViewer.Pile.DRAW), "the pile viewer opens")
-	var viewer: PileViewer = scene._overlays.pile_viewer
+	var viewer: PileViewer = scene.overlays().pile_viewer
 	for tab in viewer.tab_buttons:
 		check(tab.focus_mode == Control.FOCUS_ALL, "a pile tab can take focus")
 	check(viewer.close_button.focus_mode == Control.FOCUS_ALL, "the viewer's Close button can take focus")
