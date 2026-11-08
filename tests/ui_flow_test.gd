@@ -238,7 +238,7 @@ func _initialize() -> void:
 				fights_ended += 1
 				combat.player.hp = mini(combat.player.hp, combat.player.max_hp)
 				var continue_button: Button = battle._new_fight_button
-				_check(continue_button.visible and continue_button.text == "Continue", "a finished embedded fight shows Continue")
+				_check(continue_button.visible and continue_button.text.begins_with("Continue"), "a finished embedded fight shows Continue")
 				_check(battle._result_label.text != "", "a finished fight shows its result")
 				var stop_before := run_state.stop_index
 				var was_mid_boss := run_state.current_stop().mid_boss

@@ -168,12 +168,10 @@ var _dragging := false
 var _press_global := Vector2.ZERO
 var _hovered := false
 var _tilt := Vector2.ZERO
-## 0 (resting) to 1 (raised); eases over LIFT_TIME unless reduced_motion.
+## 0 (resting) to 1 (raised); eases over LIFT_TIME unless Motion.reduced (which also stops the tilt).
 var _lift := 0.0
 var _font: Font = ThemeDB.fallback_font
 
-## Skips the hover-lift easing (cards snap) and the confirm pulse when true. No UI sets it yet.
-static var reduced_motion := false
 ## Seconds for a card to rise or settle on hover.
 const LIFT_TIME := 0.12
 
@@ -406,7 +404,7 @@ func _process(delta: float) -> void:
 		_lift = move_toward(_lift, lift_goal, delta / LIFT_TIME)
 		queue_redraw()
 	var goal := Vector2.ZERO
-	if _hovered and state != State.UNPLAYABLE and size.x > 0.0 and size.y > 0.0:
+	if _hovered and not Motion.reduced and state != State.UNPLAYABLE and size.x > 0.0 and size.y > 0.0:
 		var mouse := get_local_mouse_position()
 		if Rect2(Vector2.ZERO, size).has_point(mouse):
 			goal = ((mouse / size) - Vector2(0.5, 0.5)) * 2.0
@@ -428,7 +426,7 @@ func _process(delta: float) -> void:
 ## Starts easing the lift toward its goal (snaps when the card does not hover by itself).
 func _chase_lift() -> void:
 	var goal := 1.0 if _raised() else 0.0
-	if reduced_motion or not auto_hover or not is_inside_tree():
+	if Motion.reduced or not auto_hover or not is_inside_tree():
 		_lift = goal
 	elif _lift != goal:
 		set_process(true)

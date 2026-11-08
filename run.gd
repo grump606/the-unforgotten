@@ -52,6 +52,7 @@ var _journey_text := ""
 func _ready() -> void:
 	get_window().title = "The Unforgotten"
 	MenuStyle.apply(self)
+	Motion.load_from(settings_path)
 	_header.add_theme_font_size_override("font_size", 14)
 	_header_row.custom_minimum_size.y = 48
 	_header_strip = RelicStrip.create([] as Array[RelicData])
@@ -129,12 +130,20 @@ func _close_tutorial() -> void:
 	if _tutorial != null:
 		_tutorial.queue_free()
 		_tutorial = null
+	_focus_menu_primary()
 	var settings := Settings.load_file(settings_path)  # keep every other field as it is
 	if not settings.tutorial_seen:
 		settings.tutorial_seen = true
 		var error := settings.save(settings_path)
 		if error != "":
 			push_warning("Could not save settings (%s)." % error)
+
+
+## Puts keyboard focus back on the menu's main button (Continue when there is a save, else New Journey).
+func _focus_menu_primary() -> void:
+	var button: Button = _main_menu.continue_button if _main_menu.continue_button != null else _main_menu.new_run_button
+	if button != null and is_instance_valid(button) and button.is_visible_in_tree():
+		button.grab_focus()
 
 
 ## The main menu's update-check toggle: flips the saved setting and returns the new value. Turning it
@@ -249,13 +258,13 @@ func _set_stop_audio() -> void:
 
 
 func _set_audio(music: StringName, ambience: StringName) -> void:
-	var audio := get_node_or_null("/root/AudioManager")
+	var audio := Audio.manager()
 	if audio != null:
 		audio.set_scene(music, ambience)
 
 
 func _play_sfx(id: StringName) -> void:
-	var audio := get_node_or_null("/root/AudioManager")
+	var audio := Audio.manager()
 	if audio != null:
 		audio.sfx(id)
 

@@ -72,7 +72,7 @@ func handle_key(event: InputEvent) -> void:
 func set_paused(on: bool) -> void:
 	_host.get_tree().paused = on
 	overlay.visible = on
-	var audio := _host.get_node_or_null("/root/AudioManager")
+	var audio := Audio.manager()
 	if audio != null:
 		audio.set_paused_duck(on)
 	if on:
@@ -93,11 +93,12 @@ func show_options(message: String) -> void:
 		var strip := RelicStrip.create(run.relics)
 		strip.alignment = BoxContainer.ALIGNMENT_CENTER
 		box.add_child(strip)
-	_plaque(RunScreen.add_button(box, "Continue", set_paused.bind(false)), true)
+	var first := _plaque(RunScreen.add_button(box, "Continue", set_paused.bind(false)), true)
 	_plaque(RunScreen.add_button(box, "Save & Exit", _try_save_and_exit))
 	_plaque(RunScreen.add_button(box, "Sound", _show_sound))
 	_plaque(RunScreen.add_button(box, "New Journey", _confirm_new_run))
 	_add_label("Your journey is saved on arrival at each destination.\nSave & Exit returns you to the start of this destination.")
+	first.grab_focus()
 
 
 func _show_sound() -> void:
@@ -111,7 +112,7 @@ func _confirm_new_run() -> void:
 	_add_label("Leave this journey behind?", 36)
 	_add_label("Your current journey will be replaced.")
 	_plaque(RunScreen.add_button(box, "Begin a new journey", _start_new_run))
-	_plaque(RunScreen.add_button(box, "Cancel", show_options.bind("")), true)
+	_plaque(RunScreen.add_button(box, "Cancel", show_options.bind("")), true).grab_focus()
 
 
 func _start_new_run() -> void:

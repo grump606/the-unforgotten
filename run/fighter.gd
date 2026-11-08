@@ -626,7 +626,7 @@ func _draw_figure(ground: Vector2, a: float) -> void:
 	var lunge := lunge_amount()
 	var stance := stance_motion()
 	var dx := facing * (lunge * 46.0) - facing * sin(_recoil * PI) * 16.0
-	var shake := sin(time * 70.0) * 2.5 * _flash + sin(time * 55.0) * 9.0 * _shake * (0.0 if CardView.reduced_motion else 1.0)
+	var shake := sin(time * 70.0) * 2.5 * _flash + sin(time * 55.0) * 9.0 * _shake * (0.0 if Motion.reduced else 1.0)
 	var squash := 1.0 + breath() * 0.008 - stance.z + lunge * 0.04
 	var stretch := 1.0 + lunge * 0.04
 	var sink := fade * 18.0
