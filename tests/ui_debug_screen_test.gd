@@ -3,6 +3,8 @@ extends SceneTree
 ## rest stop open with gold in hand and the player hurt, and a debug session never writes or removes a save.
 ## Run via scripts/check.ps1.
 
+const TestBase := preload("res://tests/test_base.gd")
+
 var fails := 0
 var test_save := "user://ui_debug_screen_test_save_%d.json" % OS.get_process_id()
 
@@ -90,4 +92,5 @@ func _initialize() -> void:
 
 	RunSave.delete(test_save)
 	print("\nFAILURES: %d" % fails)
+	TestBase.remove_scratch(test_save)
 	quit(1 if fails > 0 else 0)

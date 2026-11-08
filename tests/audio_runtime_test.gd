@@ -4,6 +4,8 @@ extends SceneTree
 ## saved preferences, pause ducking, and that the loops are set to repeat.
 ## Run: godot --headless --audio-driver Dummy --path . -s res://tests/audio_runtime_test.gd
 
+const TestBase := preload("res://tests/test_base.gd")
+
 var _failures := 0
 var _scratch := "user://audio_runtime_%d.json" % OS.get_process_id()
 
@@ -15,6 +17,7 @@ func _check(condition: bool, label: String) -> void:
 
 
 func _initialize() -> void:
+	TestBase.remove_scratch(_scratch)
 	_run.call_deferred()
 
 
@@ -106,8 +109,9 @@ func _run() -> void:
 		peak = maxf(peak, AudioServer.get_bus_peak_volume_left_db(master, 0))
 	_check(peak > -60.0, "sound reaches the master bus (peak %.1f dB)" % peak)
 
-	for p in [_scratch, _scratch + ".bak", _scratch + ".tmp"]:
-		if FileAccess.file_exists(p):
-			DirAccess.remove_absolute(p)
+	# Flush any pending prefs save first: the manager would otherwise write the scratch file again
+	# when it is freed at exit, after the cleanup below, and leave an orphan behind.
+	audio.save_now()
+	TestBase.remove_scratch(_scratch)
 	print("AUDIO RUNTIME %s" % ("FAILED" if _failures > 0 else "OK"))
 	quit(1 if _failures > 0 else 0)

@@ -4,6 +4,7 @@ extends SceneTree
 ## Run via scripts/check.ps1.
 
 const UpdateVerifierTests := preload("res://tests/update_verifier_tests.gd")
+const TestBase := preload("res://tests/test_base.gd")
 
 var test_save := "user://ui_update_notice_test_save_%d.json" % OS.get_process_id()
 
@@ -170,6 +171,8 @@ func _initialize() -> void:
 	DirAccess.remove_absolute(test_settings)
 
 	await _test_in_game_install()
+	TestBase.remove_scratch(test_settings)  # also the .bak/.tmp the settings saves leave behind
+	TestBase.remove_scratch(test_save)
 
 	print("FAILURES: %d" % _failures)
 	quit(1 if _failures > 0 else 0)

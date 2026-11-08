@@ -4,6 +4,8 @@ extends SceneTree
 ## unknown one) and both end variants build, and in a real run each stop type has exactly one scene
 ## beneath its panel with the buttons still working. Run via scripts/check.ps1.
 
+const TestBase := preload("res://tests/test_base.gd")
+
 var fails := 0
 var test_save := "user://ui_screen_scenes_test_save_%d.json" % OS.get_process_id()
 
@@ -237,6 +239,7 @@ func _initialize() -> void:
 	scene.queue_free()
 	RunSave.delete(test_save)
 	print("DONE fails=", fails)
+	TestBase.remove_scratch(test_save)
 	quit(1 if fails > 0 else 0)
 
 
