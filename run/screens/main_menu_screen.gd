@@ -12,6 +12,7 @@ var new_run_button: Button
 var exit_button: Button
 var updates_button: Button
 var sound_button: Button
+var how_to_play_button: Button
 ## The sound page while it replaces the menu's buttons (null otherwise).
 var sound_page: VBoxContainer
 ## Kept alive while the page is open: the sliders call back into it.
@@ -55,7 +56,7 @@ static func style_update_button(button: Button, enabled: bool, available: bool) 
 ## `saved` is the run found on disk, or null. `on_continue` is already bound to it by the caller.
 ## `on_toggle_updates` (when valid) adds the update-check toggle; it is called on each press and
 ## returns the new setting, which the button label then shows.
-func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit: Callable, update_check_on := true, on_toggle_updates := Callable(), update_notice: UpdateNotice = null) -> void:
+func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit: Callable, update_check_on := true, on_toggle_updates := Callable(), update_notice: UpdateNotice = null, on_how_to_play := Callable()) -> void:
 	add_backdrop(MenuScene.new())
 	var box := panel("The Unforgotten")
 	var title := box.get_child(0) as Label
@@ -131,6 +132,14 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 	sound_button.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
 	sound_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	sound_button.pressed.connect(_open_sound.bind(box))
+	if on_how_to_play.is_valid():
+		how_to_play_button = Button.new()
+		how_to_play_button.text = "How to Play"
+		how_to_play_button.theme_type_variation = MenuStyle.PLAQUE
+		box.add_child(how_to_play_button)
+		how_to_play_button.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
+		how_to_play_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		how_to_play_button.pressed.connect(on_how_to_play)
 	(continue_button if continue_button != null else new_run_button).grab_focus()
 
 
