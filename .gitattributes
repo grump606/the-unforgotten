@@ -1,2 +1,13 @@
 # Normalize EOL for all files that Git considers text files.
 * text=auto eol=lf
+
+# Binary assets: never converted, never diffed or merged as text (Git would detect most of these on
+# its own; stating it keeps `git diff` and merges from ever trying). See docs/REPO_SIZE.md.
+*.png binary
+*.mp3 binary
+*.ogg binary
+*.wav binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary

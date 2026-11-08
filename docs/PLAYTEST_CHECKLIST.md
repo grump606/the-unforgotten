@@ -26,7 +26,7 @@ The numbers are tuned against bots, not people. Play with a pen: note what felt 
 - [ ] The Conductor: is it the hardest fight? Does the Thief still breeze through it?
 
 ## Pacing and economy
-- [ ] 21 stops: where do you get bored, and where do you feel pressure?
+- [ ] The whole line (stop count in `docs/GAME_FACTS.md`): where do you get bored, and where do you feel pressure?
 - [ ] Rests (heal 36), vendor prices, relics (3 per run at most), card rewards, free Remove and Heal: any choice that was obviously right every time?
 - [ ] Relic badges and tooltips (never yet seen in a real run): readable?
 

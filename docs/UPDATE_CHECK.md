@@ -27,7 +27,7 @@ The running version is `application/config/version` in `project.godot`. Versions
 - `run/update_check.gd` (`UpdateCheck`): the pure logic (enable rules, tag validation, version compare, reply parsing, notice text).
 - `run/update_notice.gd` (`UpdateNotice`): the bar and the `HTTPRequest` (`reveal()` shows the bar, the `skipped` signal is Skip). `handle_response(code, body)` takes a reply directly, which is how tests and `tools/update_sheet.gd` (screenshots) work without a network.
 - `run/settings.gd` (`Settings`): load/save of `user://settings.json`. `run.gd` reads it at launch (`settings_path`, which tests point at a scratch file) and the menu toggle writes it.
-- Tests: `tests/update_check_tests.gd` (in `run_tests.gd`; it also runs `tests/settings_tests.gd`) and `tests/ui_update_notice_test.gd` (`scripts/check.ps1`).
+- Tests: `tests/update_check_tests.gd` (discovered by `run_tests.gd`, as are `tests/settings_tests.gd`, `tests/update_verifier_tests.gd` and `tests/update_installer_tests.gd`) and `tests/ui_update_notice_test.gd` (`scripts/check.ps1`).
 
 ## Updating in the game
 

@@ -2,7 +2,7 @@
 
 > **Naming note (v0.5.0):** the game was reskinned as "The Unforgotten". Enemy and relic display names changed (for example Brakeman = Bellkeeper, Conductor = Eraser, Gate Warden = Threshold Keeper). IDs, files and rules did not. This document still uses the original names; see [`docs/RESKIN.md`](RESKIN.md) for the full map.
 
-Decisions (from the user): relics are sold by vendors only, one relic per vendor visit (two vendors on the line, so at most two per run); first set is 12 relics, 3 per class plus 3 neutral.
+Decisions (from the user): relics are sold by vendors only, one relic per vendor visit; first set was 12 relics, 3 per class plus 3 neutral. This was the first decision; the line now has more vendors and the set has grown, so the current counts are in `docs/GAME_FACTS.md`.
 
 ## Model
 
