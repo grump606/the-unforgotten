@@ -51,7 +51,7 @@ var _journey_text := ""
 
 func _ready() -> void:
 	get_window().title = "The Unforgotten"
-	set_process(false) # only while art is decoding in the background (see _warm_next_stop)
+	set_process(false) # only while queued art is waiting to decode (see _warm_next_stop)
 	MenuStyle.apply(self)
 	Motion.load_from(settings_path)
 	_header.add_theme_font_size_override("font_size", 14)
@@ -468,18 +468,26 @@ func _save_and_exit() -> String:
 	return ""
 
 
-## Decodes the art of the stop after this one while the player is busy with the current stop, so
-## the next screen does not stutter on first use (PaintedArt.warm_for_stop).
+## Queues the art of the stop after this one so the next screen does not stutter on first use. _process decodes the
+## queue a little each frame (PaintedArt.pump), on the main thread; a screen that draws before its art is decoded
+## just decodes it then, as it always did.
 func _warm_next_stop() -> void:
 	var next_index := _run.stop_index + 1
 	if next_index >= _run.stops.size():
 		return
 	PaintedArt.advance_stop() # drops art not used for the last two stops
 	var next_stop := _run.stops[next_index]
-	PaintedArt.warm_for_stop(int(next_stop.type), _run.character.id, next_stop.beat_index)
+	PaintedArt.queue_for_stop(int(next_stop.type), _run.character.id, next_stop.beat_index)
 	var backdrop := DestinationArt.battle_key(next_index)
 	if backdrop != &"":
-		PaintedArt.preload_screen(backdrop)
+		PaintedArt.queue_screen(backdrop)
+	set_process(PaintedArt.pending() > 0)
+
+
+## Spends a few milliseconds a frame on the queued art, and stops processing once the queue is empty.
+func _process(_delta: float) -> void:
+	if PaintedArt.pump() == 0:
+		set_process(false)
 
 
 ## Where the debug defeat card is shown from: the mid-boss, the middle of the run.
