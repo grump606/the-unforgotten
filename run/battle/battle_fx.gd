@@ -101,7 +101,8 @@ func show_phase_banner(title: String) -> void:
 		banner.modulate.a = 0.0
 		_banner_tween.tween_property(banner, "modulate:a", 1.0, 0.2)
 	_banner_tween.tween_interval(PHASE_BANNER_TIME * (0.4 if reduced else 1.0) - 0.5)
-	_banner_tween.tween_property(banner, "modulate:a", 0.0, 0.3)
+	if not reduced:
+		_banner_tween.tween_property(banner, "modulate:a", 0.0, 0.3)
 	_banner_tween.tween_callback(banner.hide)
 
 
@@ -142,6 +143,10 @@ func show_pile_cue(text: String) -> void:
 	cue.position = Vector2(_battle._pile_box.get_global_rect().position.x - _battle.get_global_rect().position.x, origin.y - 30.0 - 22.0 * _live_cues)
 	_live_cues += 1
 	var tween := _battle.create_tween()
+	if Motion.reduced: # the cue stays where it is, at full strength, for the same time, then goes
+		tween.tween_interval(CUE_TIME)
+		tween.tween_callback(_end_pile_cue.bind(cue))
+		return
 	tween.set_parallel(true)
 	tween.tween_property(cue, "position:y", cue.position.y - CUE_RISE, CUE_TIME)
 	tween.tween_property(cue, "modulate:a", 0.0, CUE_TIME).set_delay(CUE_TIME * 0.5)

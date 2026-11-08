@@ -6,6 +6,9 @@ extends Control
 ##
 ## Animation (idle breath, lunge, hit recoil and flash, shield pop, floating numbers, defeat fade) runs
 ## only through advance(delta), so tests can step it deterministically (no global RNG, no wall clock).
+## Under Motion.reduced the figure holds still: no breathing or weight shift, no lunge, recoil, hit flash,
+## shield pop or entrance scale-in, and the defeat fade is instant. Damage and healing numbers still
+## appear (and HP and Block still change) but do not rise, pop or fade.
 ## The figure is the enemy's painted figure layer when there is one, else a code-drawn stand-in.
 
 const OVERHEAD := 58.0 ## room above the figure for the intent and the target marker
@@ -157,7 +160,7 @@ func _wake() -> void:
 ## True when nothing on this fighter can change its picture any more: it is fully faded out (defeated) and has no
 ## reaction, floating number or flash left. A living fighter always breathes, so it is never idle.
 func _is_idle() -> bool:
-	return unit != null and fade >= 1.0 and is_defeated() and _floats.is_empty() and _reactions.is_empty() \
+	return unit != null and (Motion.reduced or (fade >= 1.0 and is_defeated())) and _floats.is_empty() and _reactions.is_empty() \
 		and _flash <= 0.0 and _shake <= 0.0 and _recoil <= 0.0 and _pop <= 0.0 and _lunge <= 0.0
 
 
@@ -248,6 +251,8 @@ func fit_boss(max_total: float) -> void:
 
 ## A short sideways shake of the whole figure (a boss changing phase).
 func shake() -> void:
+	if Motion.reduced:
+		return
 	_shake = 1.0
 	_wake()
 
@@ -318,7 +323,7 @@ func refresh() -> void:
 	elif unit.hp > _last_hp:
 		_react(_last_hp - unit.hp, react_delay)
 	if unit.block > _last_block:
-		_pop = 1.0
+		_pop = 0.0 if Motion.reduced else 1.0
 	elif unit.block < _last_block and unit.hp >= _last_hp and not _scheduled_block:
 		_react(0, react_delay)
 	_last_hp = unit.hp
@@ -348,8 +353,9 @@ func _react(amount: int, delay: float, blocked := 0) -> void:
 
 func _play_reaction(amount: int, blocked := 0) -> void:
 	if amount > 0:
-		_flash = 1.0
-		_recoil = 1.0
+		if not Motion.reduced:
+			_flash = 1.0
+			_recoil = 1.0
 		_float("-%d" % amount, Color(1.0, 0.42, 0.38))
 		if blocked > 0:
 			_float("%d blocked" % blocked, BLOCKED_COLOR)
@@ -361,6 +367,8 @@ func _play_reaction(amount: int, blocked := 0) -> void:
 
 ## A lunge toward the opponent, starting after `delay` seconds (so a row of enemies attack one by one).
 func play_attack(delay := 0.0) -> void:
+	if Motion.reduced:
+		return
 	_lunge = 1.0
 	_lunge_delay = delay
 	_wake()
@@ -379,7 +387,8 @@ func float_count() -> int:
 func advance(delta: float) -> void:
 	if not is_visible_in_tree():
 		return
-	time += delta
+	if not Motion.reduced:
+		time += delta # breathing, weight shifts and the target marker's bob all run off this clock
 	if _lunge_delay > 0.0:
 		_lunge_delay -= delta
 	else:
@@ -402,7 +411,7 @@ func advance(delta: float) -> void:
 		_reactions.resize(kept)
 		for r in due:
 			_play_reaction(r.amount, r.get("blocked", 0))
-	fade = move_toward(fade, 1.0 if is_defeated() else 0.0, delta / FADE_TIME)
+	fade = move_toward(fade, 1.0 if is_defeated() else 0.0, 1.0 if Motion.reduced else delta / FADE_TIME)
 	var live := 0
 	for f in _floats:
 		f.age += delta
@@ -642,7 +651,7 @@ func _draw_figure(ground: Vector2, a: float) -> void:
 	var lunge := lunge_amount()
 	var stance := stance_motion()
 	var dx := facing * (lunge * 46.0) - facing * sin(_recoil * PI) * 16.0
-	var shake := sin(time * 70.0) * 2.5 * _flash + sin(time * 55.0) * 9.0 * _shake * (0.0 if Motion.reduced else 1.0)
+	var shake := sin(time * 70.0) * 2.5 * _flash + sin(time * 55.0) * 9.0 * _shake
 	var squash := 1.0 + breath() * 0.008 - stance.z + lunge * 0.04
 	var stretch := 1.0 + lunge * 0.04
 	var sink := fade * 18.0
@@ -652,7 +661,7 @@ func _draw_figure(ground: Vector2, a: float) -> void:
 	elif _hovered and not is_defeated() and not is_player:
 		tint = Color(1.12, 1.12, 1.12, a)
 	var flip := 1.0 if is_equal_approx(facing, _art_facing) else -1.0
-	draw_set_transform(ground + Vector2(dx + shake + stance.x, sink), stance.y, Vector2(stretch * flip, squash) * entrance)
+	draw_set_transform(ground + Vector2(dx + shake + stance.x, sink), stance.y, Vector2(stretch * flip, squash) * (1.0 if Motion.reduced else entrance))
 	if _tex != null:
 		var w := figure_width()
 		draw_texture_rect_region(_tex, Rect2(-w / 2.0, -figure_height, w, figure_height), _region, tint)
@@ -788,6 +797,10 @@ func _draw_floats() -> void:
 		var rise := 1.0 - pow(1.0 - t, 2.0)
 		var alpha := 1.0 - smoothstep(0.55, 1.0, t)
 		var pop := 1.0 + sin(minf(t * 5.0, 1.0) * PI) * 0.25
+		if Motion.reduced: # shown in place at full strength for the same time, then gone
+			rise = 0.5
+			alpha = 1.0
+			pop = 1.0
 		var fs := int(26.0 * pop)
 		var col: Color = f.color
 		HudIcons.text(self, f.text, Rect2(origin + Vector2(f.drift - 60.0, -rise * 60.0 - 14.0), Vector2(120, 28)), fs, Color(col, alpha), true, 5)
