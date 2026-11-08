@@ -46,6 +46,11 @@ func _installer(pem: String, probe: Probe) -> UpdateInstaller:
 	return installer
 
 
+## True if the work folder holds any subfolder (the launch copies live in run_<random> folders).
+func _has_stray_folder() -> bool:
+	return not DirAccess.get_directories_at(_dir).is_empty()
+
+
 func _installer_path() -> String:
 	return _dir.path_join(UpdateCheck.installer_name(TEST_TAG))
 
@@ -73,15 +78,15 @@ func _ready_installer(pem: String, probe: Probe, key: CryptoKey) -> UpdateInstal
 	return installer
 
 
-## Runs the installer's frame step until `done` is true (or 10 s pass): the worker thread reports back there.
+## Lets the worker thread report back: joins it (no timers, so a loaded machine cannot make this flaky), then
+## runs the installer's frame step like the real game would. A few rounds, because a result can start the next job.
 func _pump(installer: UpdateInstaller, done: Callable) -> bool:
-	var started := Time.get_ticks_msec()
-	while not done.call():
-		if Time.get_ticks_msec() - started > 10000:
-			return false
+	for _attempt in 20:
+		installer.finish_worker()
 		installer._process(0.0)
-		OS.delay_msec(2)
-	return true
+		if done.call():
+			return true
+	return false
 
 
 func _test_callbacks_in_the_wrong_state(key: CryptoKey, pem: String) -> void:
@@ -272,9 +277,9 @@ func _test_worker_path(key: CryptoKey, pem: String) -> void:
 	_feed_signature_and_manifest(installer, _stage("good installer", key))
 	installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
 	installer.cancel()
-	for i in 200:
-		installer._process(0.0)
-		OS.delay_msec(1)
+	_check(not _has_stray_folder(), "cancel waits for the background hash, so nothing is left in the work folder")
+	installer._process(0.0)
+	installer.finish_worker()
 	_check(installer.state == UpdateInstaller.State.IDLE and probe.launched.is_empty(), "cancel during the background hash: the late result does not revive the download")
 	installer.free()
 	UpdateInstaller.cleanup(_dir)
@@ -289,9 +294,11 @@ func _test_worker_path(key: CryptoKey, pem: String) -> void:
 	_pump(installer, func() -> bool: return installer.state != UpdateInstaller.State.DOWNLOADING)
 	installer.install_and_restart()
 	installer.discard()
-	for i in 200:
-		installer._process(0.0)
-		OS.delay_msec(1)
+	# discard() waits for the copy worker before it cleans up, so no run_* folder can be left behind (or appear later).
+	_check(not _has_stray_folder(), "discard waits for the background copy, so no run_* folder is left in the work folder")
+	installer._process(0.0)
+	installer.finish_worker()
+	_check(not _has_stray_folder(), "and none appears afterwards")
 	_check(installer.state == UpdateInstaller.State.IDLE and probe.launched.is_empty() and probe.quits == 0, "discard during the background copy: nothing is launched")
 	installer.free()
 	UpdateInstaller.cleanup(_dir)
