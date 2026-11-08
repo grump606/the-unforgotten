@@ -5,11 +5,11 @@ should link here instead of restating a number. When the game changes, change th
 "Source" column says where the number really lives, and the test that would catch a mismatch where
 there is one.
 
-Last checked against v0.8.1 (unreleased work on `main`).
+Last checked against v0.8.2 (version bumped, not yet released).
 
 | Fact | Value | Source |
 | --- | --- | --- |
-| Game version | 0.8.1 | `config/version` in `project.godot` (and `export_presets.cfg`, checked by `scripts/release.ps1`) |
+| Game version | 0.8.2 | `config/version` in `project.godot` (and `export_presets.cfg`, checked by `scripts/release.ps1`) |
 | Engine | Godot 4.7.2 stable | `scripts/engine_version.txt` |
 | Stops on the line | 22, in two acts | `RunState._default_line()` in `run/run_state.gd`; `docs/LEVELS_DESIGN.md` |
 | Stop mix | 4 story beats, 8 regular fights, 1 mid-boss (the Brakeman, shown as Bellkeeper), 1 final boss (the Conductor, shown as Eraser), 3 vendors, 5 rests | same; `tests/rest_content_tests.gd` checks the 5 rests |
