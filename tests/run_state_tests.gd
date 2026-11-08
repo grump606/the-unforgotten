@@ -69,7 +69,7 @@ func _test_fresh_state() -> void:
 
 func _test_default_line() -> void:
 	var state := RunState.new(1)
-	_check(state.stops.size() == 21, "default line has 21 stops")
+	_check(state.stops.size() == 22, "default line has 22 stops")
 	_check(state.stops[0].type == RunState.StopType.STORY and state.stops[0].describe() == "Story", "the line opens with a story beat")
 	_check(state.stops[1].type == RunState.StopType.COMBAT and state.stops[1].enemy_count == 1, "first fight is a solo fight")
 	var regular := 0
@@ -658,7 +658,8 @@ func _test_survivors_from_mutation_audit() -> void:
 		[combat, 1, 0, false, true, 0], [story, 0, 2, false, false, 1], [rest, 0, 0, false, false, 1],
 		[combat, 2, 0, false, false, 1], [combat, 3, 0, false, false, 1], [vendor, 0, 0, false, false, 1],
 		[rest, 0, 0, false, false, 1], [combat, 2, 0, false, false, 1], [combat, 3, 0, false, false, 1],
-		[vendor, 0, 0, false, false, 1], [story, 0, 3, false, false, 1], [combat, 1, 0, true, false, 1],
+		[vendor, 0, 0, false, false, 1], [rest, 0, 0, false, false, 1], [story, 0, 3, false, false, 1],
+		[combat, 1, 0, true, false, 1],
 	]
 	_check(shape == want, "the default line has the documented shape: %s" % str(shape))
 
