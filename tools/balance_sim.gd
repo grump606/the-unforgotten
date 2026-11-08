@@ -11,7 +11,7 @@ const DEFAULT_FIGHTS := 500
 const DEFAULT_SEED := 1
 var _player_hp := 0 # set from the chosen character in _initialize
 
-const USAGE := "Usage: godot --headless --path . -s res://tools/balance_sim.gd -- [--fights N] [--seed S] [--character ID] [--help]\n  --fights N      fights per encounter size, integer >= 1 (default 500)\n  --seed S        base random seed, integer (default 1)\n  --character ID  max HP and starting deck come from this character: deserter, thief or medium (default deserter)\n  --help     print this usage and exit 0"
+const USAGE := "Usage: godot --headless --path . -s res://tools/balance_sim.gd -- [--fights N] [--seed S] [--character ID] [--help]\n  --fights N      fights per encounter size, integer >= 1 (default 500)\n  --seed S        base random seed, integer (default 1)\n  --character ID  max HP and starting deck come from this character: deserter, thief, medium or stray (default deserter)\n  --help     print this usage and exit 0"
 
 
 func _initialize() -> void:

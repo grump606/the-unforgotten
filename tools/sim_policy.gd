@@ -438,10 +438,7 @@ static func _target_for(combat: Combat, card: CardData) -> int:
 
 ## Index of the living enemy holding Scent, or -1 if none does.
 static func _scent_target(combat: Combat) -> int:
-	for i in combat.enemies.size():
-		if not combat.enemies[i].is_dead() and combat.enemies[i].stacks(Combatant.Status.SCENT) > 0:
-			return i
-	return -1
+	return combat.scent_holder_index()
 
 
 ## Scent on the board, whichever enemy holds it.
@@ -551,18 +548,12 @@ static func _has_effect(card: CardData, kind: CardEffect.Kind) -> bool:
 ## HP-before-Block the player would take from the living enemies' next intents, through the shared
 ## damage pipeline (enemy Malice and Shaken, then the player's Expose).
 static func _incoming_damage(combat: Combat) -> int:
-	var total := 0
-	for enemy in combat.living_enemies():
-		total += intent_hit(combat, enemy)
-	return total
+	return combat.incoming_damage()
 
 
 ## Damage `enemy`'s next intent deals the player (all its hits, before Block), 0 for a non-damage intent.
 static func intent_hit(combat: Combat, enemy: EnemyUnit) -> int:
-	var intent := enemy.current_intent()
-	if intent == null or intent.kind != CardEffect.Kind.DAMAGE:
-		return 0
-	return Combatant.hit_damage(intent.amount, enemy, combat.player) * maxi(intent.hits, 1)
+	return combat.intent_hit(enemy)
 
 
 ## Index into combat.enemies of the living enemy with the least HP (first on ties).
