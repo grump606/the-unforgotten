@@ -545,9 +545,11 @@ static func is_block_card(card: CardData) -> bool:
 	return false
 
 
-## Greedy never pays HP that would leave it under a quarter of its max HP.
+## Greedy never pays HP that would leave it under a quarter of its max HP. The HP cost is the one the engine
+## charges (a Surge card's per_energy HP loss scales with the energy it would spend, as in Combat.can_play).
 static func _too_costly_in_hp(combat: Combat, card: CardData) -> bool:
-	return card.hp_cost() > 0 and combat.player.hp - card.hp_cost() < combat.player.max_hp / 4
+	var cost := card.hp_cost(combat.surge_scale(card))
+	return cost > 0 and combat.player.hp - cost < combat.player.max_hp / 4
 
 
 static func _has_effect(card: CardData, kind: CardEffect.Kind) -> bool:

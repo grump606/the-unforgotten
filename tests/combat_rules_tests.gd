@@ -79,9 +79,9 @@ func _test_shared_rule_helpers() -> void:
 	_check(fight.haunted_count() == 0 and fight.scent_holder_index() == -1 and fight.incoming_damage() == 12, "a dead enemy counts for none of them")
 	# The bots price a not-yet-played card as play number plays_this_turn + 1.
 	var per_play := CardEffect.make(CardEffect.Kind.DAMAGE_PER_PLAY, 2, 3)
-	_check(SmartPolicy._effect_damage(fight, per_play, fight.enemies[0]) == 2, "an unplayed per-play card does its base damage")
+	_check(fight.hit_amount(per_play, fight.player, fight.enemies[0], fight.plays_this_turn + 1) == 2, "an unplayed per-play card does its base damage")
 	fight.plays_this_turn = 2
-	_check(SmartPolicy._effect_damage(fight, per_play, fight.enemies[0]) == 8, "each earlier play adds the bonus")
+	_check(fight.hit_amount(per_play, fight.player, fight.enemies[0], fight.plays_this_turn + 1) == 8, "each earlier play adds the bonus")
 	_check(SimPolicy._incoming_damage(fight) == fight.incoming_damage() and SmartPolicy._haunted_count(fight) == fight.haunted_count(), "the bots read the engine's rules")
 
 

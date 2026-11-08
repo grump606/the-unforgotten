@@ -184,14 +184,24 @@ func can_play(hand_index: int) -> bool:
 		and (piles.hand[hand_index].surge or piles.hand[hand_index].cost <= energy)
 		# A card that costs HP cannot be the one that kills the player.
 		# A Surge card's HP cost scales with the energy it would spend, as _apply multiplies LOSE_HP per_energy.
-		and piles.hand[hand_index].hp_cost(_surge_scale(piles.hand[hand_index])) < player.hp
+		and piles.hand[hand_index].hp_cost(surge_scale(piles.hand[hand_index])) < player.hp
 		and plays_this_turn < MAX_PLAYS_PER_TURN
 	)
 
 
 ## The per_energy multiplier `card` would get if played now: all the energy for a Surge card, else 1.
-func _surge_scale(card: CardData) -> int:
+func surge_scale(card: CardData) -> int:
 	return energy if card.surge else 1
+
+
+## Energy playing `card` now spends: its cost, or everything there is for a Surge card.
+func spent_energy(card: CardData) -> int:
+	return energy if card.surge else card.cost
+
+
+## How many hits damage `effect` of `card` would land if the card were played now (see CardEffect.hit_count).
+func hit_count(card: CardData, effect: CardEffect) -> int:
+	return effect.hit_count(surge_scale(card))
 
 
 ## Plays a card. For SINGLE_ENEMY cards `target_index` indexes `enemies`:
@@ -217,11 +227,10 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 	var block_before := player.block
 	var card := piles.play(hand_index)
 	# Surge spends all the energy there is; other cards spend their cost.
-	var spent := energy if card.surge else card.cost
+	var spent := spent_energy(card)
+	var scale := surge_scale(card)
 	energy -= spent
 	plays_this_turn += 1
-	# Multiplier for per_energy effects: only a Surge card has one.
-	var scale := spent if card.surge else 1
 	_resolve_effects(card, targets, mode, scale)
 	if not _relics.is_empty():
 		_apply_play_relics(card, targets)
@@ -687,7 +696,7 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 	if effect.is_damage():
 		_apply_damage(effect, source, target, energy_scale)
 		return
-	var amount := effect.amount * energy_scale if effect.per_energy else effect.amount
+	var amount := effect.scaled_amount(energy_scale)
 	match effect.kind:
 		CardEffect.Kind.HOLD:
 			source.add_hold(amount)
@@ -714,12 +723,9 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 ## Damage family: every hit goes through hit_amount (the shared pipeline), then Block and HP. The hit
 ## amount is the same for every hit of one effect, so it is worked out once.
 func _apply_damage(effect: CardEffect, source: Combatant, target: Combatant, energy_scale: int) -> void:
-	var hit_count := maxi(effect.hits, 1)
-	if effect.per_energy:
-		hit_count *= energy_scale
 	# plays_this_turn already counts the card being played.
 	var dealt := hit_amount(effect, source, target, plays_this_turn)
-	for _hit in hit_count:
+	for _hit in effect.hit_count(energy_scale):
 		# An attacker killed part-way (by Thorns) stops there: a dead enemy must not finish its attack.
 		if source.is_dead():
 			break

@@ -175,7 +175,7 @@ static func play_turn(combat: Combat) -> bool:
 					value += FADING_URGENCY
 				elif card.forgotten and value > 0.0 and not _kills(combat, card, target):
 					value -= FORGOTTEN_PLAY_COST
-				var score := value / (_spent_energy(combat, card) + 1)
+				var score := value / (combat.spent_energy(card) + 1)
 				# A Surge spends whatever energy is left, so every other card goes first.
 				var surge := card.surge
 				if score > 0.0 and (best_hand == -1 or (best_surge and not surge) or (best_surge == surge and score > best_score)):
@@ -235,9 +235,12 @@ static func _kills(combat: Combat, card: CardData, target: int) -> bool:
 		return false
 	var enemy := combat.enemies[target]
 	var lost := 0
+	var block := enemy.block
 	for effect in card.effects:
 		if effect.is_damage():
-			lost += _hits_hp_lost(combat.player, enemy, _effect_damage(combat, effect, enemy), _hit_count(combat, card, effect))
+			var outcome := _damage_outcome(combat, card, effect, enemy, block)
+			block = outcome["block_left"]
+			lost += outcome["lost"]
 	return lost >= enemy.hp
 
 
@@ -311,29 +314,34 @@ static func _play_value(combat: Combat, hand_index: int, target: int, incoming: 
 	if incoming < 0:
 		incoming = _incoming_damage(combat)
 	var unblocked := maxi(incoming - combat.player.block, 0)
-	var energy_left := combat.energy - _spent_energy(combat, card) + _energy_gain(card)
+	var energy_left := combat.energy - combat.spent_energy(card) + _energy_gain(card)
 	var value := 0.0
+	# Each target's Block as the card's damage effects wear it down, in order (the engine's order too).
+	var blocks := {}
 	for effect in card.effects:
 		# Block is the one effect that spends the running `unblocked` total, so it is priced here.
 		if effect.kind == CardEffect.Kind.BLOCK:
-			var gained := combat.player.block_from_card(_scaled_amount(combat, card, effect))
+			var gained := combat.player.block_from_card(effect.scaled_amount(combat.surge_scale(card)))
 			var useful := mini(gained, unblocked)
 			unblocked -= useful
 			value += 2.0 * useful + 0.1 * (gained - useful)
 			continue
-		value = _effect_value(combat, card, hand_index, effect, hit, incoming, energy_left, value)
+		value = _effect_value(combat, card, hand_index, effect, hit, incoming, energy_left, value, blocks)
 	if card.oath:
 		value += _oath_value(combat, card)
 	return value
 
 
 ## `value` plus what one non-Block effect of `card` is worth when played now (see _play_value). Takes and
-## returns the running total so the floating-point additions keep their order.
-static func _effect_value(combat: Combat, card: CardData, hand_index: int, effect: CardEffect, hit: Array[EnemyUnit], incoming: int, energy_left: int, value: float) -> float:
-	var amount := _scaled_amount(combat, card, effect)
+## returns the running total so the floating-point additions keep their order. `blocks` maps each enemy to
+## the Block left after the card's earlier damage effects (absent: its current Block); damage updates it.
+static func _effect_value(combat: Combat, card: CardData, hand_index: int, effect: CardEffect, hit: Array[EnemyUnit], incoming: int, energy_left: int, value: float, blocks: Dictionary) -> float:
+	var amount := effect.scaled_amount(combat.surge_scale(card))
 	if effect.is_damage():
 		for enemy in hit:
-			var lost := _hits_hp_lost(combat.player, enemy, _effect_damage(combat, effect, enemy), _hit_count(combat, card, effect))
+			var outcome := _damage_outcome(combat, card, effect, enemy, blocks.get(enemy, enemy.block))
+			blocks[enemy] = outcome["block_left"]
+			var lost: int = outcome["lost"]
 			var threat := _threat(combat, enemy)
 			value += lost * (1.0 + float(threat) / maxi(enemy.hp, 1))
 			if lost >= enemy.hp:
@@ -597,27 +605,6 @@ static func _other_damage_total(combat: Combat, hand_index: int) -> int:
 	return total
 
 
-## Energy playing `card` now spends: its cost, or everything there is for a Surge.
-static func _spent_energy(combat: Combat, card: CardData) -> int:
-	return combat.energy if card.surge else card.cost
-
-
-## `effect.amount` as it would apply now: a per_energy effect on a Surge card is multiplied by the energy
-## spent (damage kinds scale their hits instead, see _hit_count).
-static func _scaled_amount(combat: Combat, card: CardData, effect: CardEffect) -> int:
-	if card.surge and effect.per_energy and not effect.is_damage():
-		return effect.amount * combat.energy
-	return effect.amount
-
-
-## Hits `effect` would land now: its hits (at least 1), times the energy spent for a per_energy Surge.
-static func _hit_count(combat: Combat, card: CardData, effect: CardEffect) -> int:
-	var hits := maxi(effect.hits, 1)
-	if card.surge and effect.per_energy:
-		hits *= combat.energy
-	return hits
-
-
 ## Energy a card gives back when played (Borrowed Time, Seance).
 static func _energy_gain(card: CardData) -> int:
 	var gained := 0
@@ -632,12 +619,12 @@ static func _net_cost(card: CardData) -> int:
 	return maxi(card.cost - _energy_gain(card), 0)
 
 
-## The damage `effect` would deal to `enemy` if its card were played now (before Expose and Block).
-static func _effect_damage(combat: Combat, effect: CardEffect, enemy: EnemyUnit) -> int:
-	if not effect.is_damage():
-		return effect.amount
-	# The card is not played yet, so it would be play number plays_this_turn + 1.
-	return effect.raw_damage(combat.damage_context(combat.player, enemy, combat.plays_this_turn + 1))
+## What damage `effect` of `card` would do to `enemy` if the card were played now (the engine's own preview:
+## Malice, Shaken, Expose, every hit, Block wearing down across the hits), with the enemy's Block taken as
+## `block` so the card's several damage effects can chain it. The card is not played yet, so it would be play
+## number plays_this_turn + 1. {damage, absorbed, through, lost, block_left}.
+static func _damage_outcome(combat: Combat, card: CardData, effect: CardEffect, enemy: EnemyUnit, block: int) -> Dictionary:
+	return combat.preview_hit(effect, combat.player, enemy, combat.plays_this_turn + 1, combat.hit_count(card, effect), block)
 
 
 ## Total damage of a Haunt of `amount` over its life: amount + (amount - 1) + ... + 1.
@@ -655,12 +642,6 @@ static func _attackers(combat: Combat) -> int:
 
 static func _haunted_count(combat: Combat) -> int:
 	return combat.haunted_count()
-
-
-## HP `enemy` would lose to `hits` hits of raw damage `amount` each from `attacker`: every hit goes through
-## the shared pipeline (attacker Malice and Shaken, then the enemy's Expose) and Block absorbs across the hits.
-static func _hits_hp_lost(attacker: Combatant, enemy: EnemyUnit, amount: int, hits: int) -> int:
-	return Combatant.hits_outcome(attacker, enemy, amount, hits)["lost"]
 
 
 ## Damage the enemy's next intent would deal to the player (shared pipeline), 0 for other intents.

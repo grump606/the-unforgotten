@@ -78,6 +78,19 @@ static func make(effect_kind: Kind, effect_amount: int, effect_bonus: int = 0, e
 	return effect
 
 
+## `amount` as it applies when a Surge card spent `energy_scale` energy (1 for every other card): a
+## per_energy effect is multiplied by it. Damage kinds scale their hits instead (see hit_count).
+func scaled_amount(energy_scale: int = 1) -> int:
+	return amount * energy_scale if per_energy else amount
+
+
+## How many times a damage effect lands: its hits (at least 1), times the energy a Surge card spent for a
+## per_energy effect. The one hit-count rule: Combat and the bots both use it.
+func hit_count(energy_scale: int = 1) -> int:
+	var count := maxi(hits, 1)
+	return count * energy_scale if per_energy else count
+
+
 ## Who a card effect lands on when played (see reach()).
 enum Reach { SELF, ENEMIES, BOTH }
 
