@@ -172,7 +172,7 @@ func _style_button(button: Button) -> void:
 	focus.draw_center = false
 	focus.set_corner_radius_all(7)
 	focus.set_border_width_all(3)
-	focus.border_color = CardView.SELECT_GOLD
+	focus.border_color = MenuStyle.AMBER
 	focus.set_expand_margin_all(3)
 	button.add_theme_stylebox_override("focus", focus)
 	for key in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
@@ -196,7 +196,7 @@ func _draw() -> void:
 	var frame := border_color()
 	var whole := Rect2(Vector2.ZERO, size)
 	if lit:
-		var glow: Color = CardView.SELECT_GOLD if play_button.has_focus() else frame
+		var glow: Color = MenuStyle.AMBER if play_button.has_focus() else frame
 		_box(whole.grow(3), Color(0, 0, 0, 0), 13, 2, Color(glow, 0.7))
 	# Same build as the card frame: a coloured rim round darker panel stock.
 	_box(whole, frame, 10)
