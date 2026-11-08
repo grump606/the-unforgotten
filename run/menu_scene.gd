@@ -1,7 +1,7 @@
 class_name MenuScene
 extends ScreenScene
 ## Key art behind the main menu: the painted ghost-train platform (art/layers/screens/menu/bg.png) with a
-## slow drift, drifting mist and embers, and the three classes standing on the platform on either side of
+## slow drift, drifting mist and embers, and the four classes standing on the platform on either side of
 ## the buttons (their painted stage sprites, breathing slowly). A soft dark column keeps the buttons
 ## readable. Without the painting it falls back to a plain night gradient with a warm glow.
 
@@ -10,6 +10,7 @@ const HEROES := [
 	[&"deserter", 0.13, 0.50, true],
 	[&"thief", 0.27, 0.43, true],
 	[&"medium", 0.87, 0.48, false],
+	[&"stray", 0.72, 0.48, false],
 ]
 const GROUND := 0.94
 
@@ -50,7 +51,8 @@ func _draw_hero(k: int, w: float, h: float) -> void:
 	if fig.is_empty():
 		return
 	var tex: Texture2D = fig.tex
-	var height: float = h * entry[2]
+	# The Stray is a broad four-legged mastiff, drawn smaller to stand as tall as the others look.
+	var height: float = h * entry[2] * float(Fighter.PLAYER_HEIGHT_FACTOR.get(entry[0], 1.0))
 	var width := height * tex.get_width() / tex.get_height()
 	var feet := Vector2(w * entry[1], h * GROUND)
 	# Mirror a hero whose art faces the other way from where it should look (see Fighter.PLAYER_ART_FACING).
