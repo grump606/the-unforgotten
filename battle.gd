@@ -663,7 +663,7 @@ func _unplayable_note(card: CardData) -> String:
 		return "DORMANT"
 	if card.cost > _combat.energy:
 		return "NEED %d ENERGY" % card.cost
-	if card.hp_cost() >= _combat.player.hp:
+	if card.hp_cost(_combat.energy if card.surge else 1) >= _combat.player.hp:
 		return "TOO LOW HP"
 	return "PLAY LIMIT"
 
@@ -819,7 +819,6 @@ func _damage_preview(card: CardData) -> String:
 			damage_effects.append(effect)
 	if damage_effects.is_empty() or card.dormant:
 		return ""
-	var block: int = _combat.player.block
 	# The card being played will count as one more play this turn.
 	var plays: int = _combat.plays_this_turn + 1
 	if card.target_mode == CardData.TargetMode.ALL_ENEMIES:
@@ -828,7 +827,7 @@ func _damage_preview(card: CardData) -> String:
 		for effect in damage_effects:
 			if effect.kind == CardEffect.Kind.DAMAGE_PER_HAUNT or effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
 				return ""
-			all_base += Combatant.hit_damage(effect.raw_damage(EffectContext.make(block, 0, plays, _combat.piles.forgotten.size())), _combat.player, _NEUTRAL) * _hit_count(card, effect)
+			all_base += _combat.hit_amount(effect, _combat.player, _NEUTRAL, plays) * _hit_count(card, effect)
 		return "\nDeals %d (x%d enemies)" % [all_base, _combat.living_enemies().size()]
 	var target := _combat.enemies[_target_index]
 	if card.target_mode != CardData.TargetMode.SINGLE_ENEMY or target.is_dead():
@@ -857,28 +856,26 @@ func _hit_count(card: CardData, effect: CardEffect) -> int:
 func _target_preview(card: CardData, target: EnemyUnit) -> Dictionary:
 	if target == null or target.is_dead() or card.dormant or not _has_damage(card):
 		return {}
-	var block: int = _combat.player.block
-	var plays: int = _combat.plays_this_turn + 1
-	var base := 0
+	# The card being played will count as one more play this turn. Raw damage per hit comes from the engine's
+	# own context rule; Block absorption and Expose from the shared hit helpers (Combatant.hits_outcome).
+	var context := _combat.damage_context(_combat.player, target, _combat.plays_this_turn + 1)
 	var hits: Array[int] = []
 	for effect in card.effects:
 		if effect.is_damage():
-			var raw := effect.raw_damage(EffectContext.make(block, target.status_turns(Combatant.Status.HAUNTED), plays, _combat.piles.forgotten.size(), target.stacks(Combatant.Status.SCENT)))
+			var raw := effect.raw_damage(context)
 			for _h in _hit_count(card, effect):
-				base += raw
 				hits.append(raw)
 	var exposed := target.status_turns(Combatant.Status.EXPOSED) > 0
-	var target_block := target.block
+	var block_left := target.block
+	var base := 0
 	var dealt := 0
 	var lost := 0
-	base = 0
 	for hit in hits:
 		base += Combatant.hit_damage(hit, _combat.player, _NEUTRAL)
-		var amount := Combatant.hit_damage(hit, _combat.player, target)
-		var absorbed := mini(target_block, amount)
-		target_block -= absorbed
-		dealt += amount
-		lost += amount - absorbed
+		var outcome := Combatant.hits_outcome(_combat.player, target, hit, 1, block_left)
+		block_left = outcome["block_left"]
+		dealt += outcome["damage"]
+		lost += outcome["through"]
 	var text := "\nDeals %d" % dealt
 	if exposed:
 		text = "\nDeals %d (%d vs Exposed)" % [base, dealt]

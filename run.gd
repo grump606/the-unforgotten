@@ -357,6 +357,7 @@ func start_debug_fight(launch: DebugLaunch) -> void:
 			_run.stop_index = index
 			break
 	_run.debug_encounter.assign(launch.enemy_ids)
+	_run.debug_enemy_resolver = DebugLaunch.prototype_enemy
 	if launch.proto:
 		_run.deck = DebugLaunch.prototype_deck()
 	if launch.hp > 0:
