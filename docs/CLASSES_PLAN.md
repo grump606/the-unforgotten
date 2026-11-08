@@ -78,7 +78,7 @@ Every phase ends with `scripts/check.ps1` passing and a commit. Combat mechanics
 - A `--character` option for `run_sim.gd` and `balance_sim.gd` (done).
 - Teach both policies the new effect kinds.
 - (Rules note: since the `hand-keep` change the hand is no longer discarded each turn; see README, "Hand and discard rules". Bot escape numbers in these older docs predate it.)
-- Tune each class: greedy bot 40 to 50% escape rate, and the three classes within about 10 points of each other. Smart bot reported for each.
+- Tune each class: greedy bot 40 to 50% escape rate, and the classes within about 10 points of each other. Smart bot reported for each.
 
 **Phase 7: Story.** Size: M. Edits `data/story/`, `run/story_content.gd`.
 - Per-character versions of the boarding, Conductor and Last Light beats (why this passenger is aboard, what the Conductor says to them). `StoryContent.beat(character, index)` with a neutral fallback.
