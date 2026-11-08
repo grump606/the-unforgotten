@@ -47,6 +47,9 @@ var discard_marks: Array[int] = []
 ## The run's relics for this fight (see RelicData); empty changes nothing.
 var relics: Array[RelicData] = []
 ## Once-per-fight relic triggers already spent (FIRST_FORGOTTEN_RETURN, FIRST_ATTACK_SHAKEN).
+# Relic amounts summed per kind, rebuilt when the relic list changes size (see _relic_total).
+var _totals: Dictionary = {}
+var _totals_for := -1
 var _forgotten_return_used := false
 var _first_attack_used := false
 ## The fight's seeded RNG (the same one the piles shuffle with); Scent uses it to pick an heir.
@@ -412,7 +415,22 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 		return false
 	phase = Phase.ENEMY_TURN
 	discard_marks.clear()
-	# Thrown-away cards: each one's own "when discarded" effects, then the Oaths that watch discards.
+	_throw_away(discard_indices)
+	_end_of_turn_effects()
+	# Haunt hurts first, so an enemy it kills never acts.
+	for enemy in living_enemies():
+		enemy.lose_hp(enemy.status_turns(Combatant.Status.HAUNTED))
+	_check_phases()
+	if _check_end():
+		return true
+	if _run_enemy_actions():
+		return true
+	_close_enemy_phase()
+	return true
+
+
+## Thrown-away cards: each one's own "when discarded" effects, then the Oaths that watch discards.
+func _throw_away(discard_indices: Array[int]) -> void:
 	var thrown: Array[CardData] = []
 	for i in discard_indices:
 		thrown.append(piles.hand[i])
@@ -421,6 +439,11 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 		for effect in card.discard_effects:
 			_apply_lasting(effect)
 		_fire_oaths(CardData.OathTrigger.ON_DISCARD)
+
+
+## What happens between the discard and the enemy phase: Fading cards are lost, kept Anchors shield the
+## player, and the Oaths that watch the end of the turn fire.
+func _end_of_turn_effects() -> void:
 	# Fading cards that were not played are lost before the enemies act; each one is a Forgotten card for
 	# the Oaths that care. A Glimpse or Recall from here opens at the start of the next turn.
 	var faded := piles.forget_fading_in_hand()
@@ -440,12 +463,10 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 			_fire_oaths(CardData.OathTrigger.ANCHOR_KEPT)
 	# Last, so Block it gives is not spent before the enemies act.
 	_fire_oaths(CardData.OathTrigger.END_OF_TURN)
-	# Haunt hurts first, so an enemy it kills never acts.
-	for enemy in living_enemies():
-		enemy.lose_hp(enemy.status_turns(Combatant.Status.HAUNTED))
-	_check_phases()
-	if _check_end():
-		return true
+
+
+## Each living enemy acts in order. True if the fight ended during the phase.
+func _run_enemy_actions() -> bool:
 	for enemy in living_enemies():
 		enemy.clear_block()
 		# Temporary stacks last until the owner's next turn, which for an enemy is its next action.
@@ -459,6 +480,11 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 		_check_phases()
 		if _check_end():
 			return true
+	return false
+
+
+## After the enemies act: the player's statuses tick, held-back statuses land, and the next turn begins.
+func _close_enemy_phase() -> void:
 	# After the enemies act, so a 1-turn status on the player still covers the
 	# enemy phase that follows the turn it was applied in.
 	player.tick_statuses()
@@ -468,24 +494,31 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 		player.apply_status(status, _pending_player_statuses[status])
 	_pending_player_statuses.clear()
 	_begin_player_turn()
-	return true
 
 
-func _haunted_count() -> int:
+## How many living enemies are Haunted. The engine and the bot policies share this one rule.
+func haunted_count() -> int:
 	var count := 0
-	for enemy in living_enemies():
-		if enemy.status_turns(Combatant.Status.HAUNTED) > 0:
+	for enemy in enemies:
+		if not enemy.is_dead() and enemy.status_turns(Combatant.Status.HAUNTED) > 0:
 			count += 1
 	return count
 
 
 func _resolve_target(target_index: int) -> EnemyUnit:
 	if target_index == -1:
-		var living := living_enemies()
-		return null if living.is_empty() else living[0]
+		return _first_living()
 	if target_index < 0 or target_index >= enemies.size() or enemies[target_index].is_dead():
 		return null
 	return enemies[target_index]
+
+
+## The first enemy still alive, or null.
+func _first_living() -> EnemyUnit:
+	for enemy in enemies:
+		if not enemy.is_dead():
+			return enemy
+	return null
 
 
 func _begin_player_turn() -> void:
@@ -543,11 +576,14 @@ func _apply_lasting(effect: CardEffect) -> void:
 
 ## Sum of `amount` over the owned relics of `kind` (0 with none).
 func _relic_total(kind: RelicData.Kind) -> int:
-	var total := 0
-	for relic in relics:
-		if relic.kind == kind:
-			total += relic.amount
-	return total
+	if relics.is_empty():
+		return 0
+	if _totals_for != relics.size():
+		_totals.clear()
+		for relic in relics:
+			_totals[relic.kind] = _totals.get(relic.kind, 0) + relic.amount
+		_totals_for = relics.size()
+	return _totals.get(kind, 0)
 
 
 ## Relic effects that fire after a card's own effects: the first play of a turn draws, every
@@ -558,7 +594,9 @@ func _apply_play_relics(card: CardData, targets: Array[EnemyUnit]) -> void:
 	if plays_this_turn % RelicData.PLAYS_BLOCK_EVERY == 0 and _relic_total(RelicData.Kind.PLAYS_BLOCK) > 0:
 		player.gain_block(_relic_total(RelicData.Kind.PLAYS_BLOCK))
 	# The first Forgotten card played this fight comes straight back from the Forgotten pile.
-	if card.forgotten and not _forgotten_return_used and _relic_total(RelicData.Kind.FIRST_FORGOTTEN_RETURN) > 0:
+	# Only a card that really landed in the pile counts: an Oath goes to the Sworn list instead.
+	if piles.last_play_destination == CardPiles.Destination.FORGOTTEN and not piles.forgotten.is_empty() \
+			and not _forgotten_return_used and _relic_total(RelicData.Kind.FIRST_FORGOTTEN_RETURN) > 0:
 		_forgotten_return_used = true
 		var last: Array[int] = [piles.forgotten.size() - 1]
 		piles.recall_from_forgotten(last, HAND_MAX)
@@ -590,8 +628,8 @@ func _apply_turn_start_relics() -> void:
 			player.apply_status(Combatant.Status.MALICE, malice)
 		# The first living enemy becomes the quarry from the first turn.
 		var scent := _relic_total(RelicData.Kind.FIGHT_START_SCENT)
-		if scent > 0 and not living_enemies().is_empty():
-			_give_scent(living_enemies()[0], scent)
+		if scent > 0 and _first_living() != null:
+			_give_scent(_first_living(), scent)
 		var ward := _relic_total(RelicData.Kind.FIGHT_START_WARD)
 		if ward > 0:
 			player.apply_status(Combatant.Status.WARD, ward)
@@ -600,7 +638,7 @@ func _apply_turn_start_relics() -> void:
 	var thorns := _relic_total(RelicData.Kind.TURN_START_THORNS)
 	if thorns > 0:
 		player.add_thorns(thorns)
-	var heal := _relic_total(RelicData.Kind.TURN_START_HEAL_PER_HAUNTED) * _haunted_count()
+	var heal := _relic_total(RelicData.Kind.TURN_START_HEAL_PER_HAUNTED) * haunted_count()
 	if heal > 0:
 		player.heal(heal)
 
@@ -620,7 +658,7 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 				break
 			# plays_this_turn already counts the card being played.
 			# Malice and Shaken of the source, Expose of the target, then Block.
-			var raw := effect.raw_damage(EffectContext.make(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_this_turn, piles.forgotten.size(), target.stacks(Combatant.Status.SCENT)))
+			var raw := effect.raw_damage(damage_context(source, target, plays_this_turn))
 			target.take_damage_final(Combatant.hit_damage(raw, source, target))
 			# Thorns: an enemy attack on the player also hurts the attacker, once per hit.
 			if effect.kind == CardEffect.Kind.DAMAGE and target == player and source != player and player.thorns > 0:
@@ -649,7 +687,7 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 		CardEffect.Kind.LOSE_HP:
 			source.lose_hp(amount)
 		CardEffect.Kind.HEAL_PER_HAUNTED:
-			source.heal(amount * _haunted_count())
+			source.heal(amount * haunted_count())
 		CardEffect.Kind.BLOCK:
 			source.gain_block(source.block_from_card(amount))
 		CardEffect.Kind.DRAW:
@@ -686,6 +724,31 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 			push_error("Combat._apply: no handler for CardEffect kind %d" % effect.kind)
 
 
+## The fight numbers a damage effect from `source` onto `target` reads (see CardEffect.raw_damage).
+## `plays_including_this` counts the card being played; a bot pricing a card not yet played passes
+## plays_this_turn + 1. The engine and the bot policies share this one rule.
+func damage_context(source: Combatant, target: Combatant, plays_including_this: int) -> EffectContext:
+	return EffectContext.make(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_including_this, piles.forgotten.size(), target.stacks(Combatant.Status.SCENT))
+
+
+## Damage `enemy`'s next intent deals the player (all its hits, before Block), 0 for a non-damage intent.
+func intent_hit(enemy: EnemyUnit) -> int:
+	var intent := enemy.current_intent()
+	if intent == null or intent.kind != CardEffect.Kind.DAMAGE:
+		return 0
+	return Combatant.hit_damage(intent.amount, enemy, player) * maxi(intent.hits, 1)
+
+
+## HP-before-Block the player would take from the living enemies' next intents, through the shared
+## damage pipeline (enemy Malice and Shaken, then the player's Expose).
+func incoming_damage() -> int:
+	var total := 0
+	for enemy in enemies:
+		if not enemy.is_dead():
+			total += intent_hit(enemy)
+	return total
+
+
 func _duration_status(kind: CardEffect.Kind) -> Combatant.Status:
 	match kind:
 		CardEffect.Kind.SHAKEN:
@@ -700,7 +763,7 @@ func _check_end() -> bool:
 		return true
 	# Thorns can kill the last enemy on the same enemy action that kills the player; a dead
 	# player has lost, so that is a defeat, never a victory.
-	var victory := living_enemies().is_empty() and not player.is_dead()
+	var victory := _first_living() == null and not player.is_dead()
 	if not (victory or player.is_dead()):
 		return false
 	phase = Phase.ENDED
@@ -722,11 +785,24 @@ func _scent_target(candidates: Array[EnemyUnit]) -> EnemyUnit:
 	for enemy in candidates:
 		if enemy.is_dead():
 			continue
-		if enemy.stacks(Combatant.Status.SCENT) > 0:
+		if holds_scent(enemy):
 			return enemy
 		if first == null:
 			first = enemy
 	return first
+
+
+## True for a living enemy holding Scent: the one rule for "this is the quarry".
+static func holds_scent(enemy: EnemyUnit) -> bool:
+	return not enemy.is_dead() and enemy.stacks(Combatant.Status.SCENT) > 0
+
+
+## Index into `enemies` of the living enemy holding Scent, or -1 if none does.
+func scent_holder_index() -> int:
+	for i in enemies.size():
+		if holds_scent(enemies[i]):
+			return i
+	return -1
 
 
 ## Makes `quarry` the one enemy holding Scent: any Scent held elsewhere moves to it, `amount` is added, and
