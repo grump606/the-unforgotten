@@ -664,23 +664,7 @@ func _apply_turn_start_relics() -> void:
 ## `energy_scale` is the energy a Surge card spent (1 otherwise); it multiplies per_energy effects.
 func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_scale: int = 1) -> void:
 	if effect.is_damage():
-		var hit_count := maxi(effect.hits, 1)
-		if effect.per_energy:
-			hit_count *= energy_scale
-		for _hit in hit_count:
-			# An attacker killed part-way (by Thorns) stops there: a dead enemy must not finish its attack.
-			if source.is_dead():
-				break
-			# plays_this_turn already counts the card being played.
-			# Malice and Shaken of the source, Expose of the target, then Block.
-			var raw := effect.raw_damage(damage_context(source, target, plays_this_turn))
-			target.take_damage_final(Combatant.hit_damage(raw, source, target))
-			# Thorns: an enemy attack on the player also hurts the attacker, once per hit.
-			if effect.kind == CardEffect.Kind.DAMAGE and target == player and source != player and player.thorns > 0:
-				source.take_damage(player.thorns)
-		# A spender uses up the Scent it hit with, after every hit of the effect.
-		if effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
-			target.remove_status(Combatant.Status.SCENT)
+		_apply_damage(effect, source, target, energy_scale)
 		return
 	var amount := effect.amount * energy_scale if effect.per_energy else effect.amount
 	match effect.kind:
@@ -691,6 +675,47 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 		CardEffect.Kind.GAIN_ENERGY:
 			if source == player:
 				energy += maxi(amount, 0)
+		CardEffect.Kind.LOSE_HP:
+			source.lose_hp(amount)
+		CardEffect.Kind.HEAL_PER_HAUNTED:
+			source.heal(amount * haunted_count())
+		CardEffect.Kind.BLOCK:
+			source.gain_block(source.block_from_card(amount))
+		CardEffect.Kind.SCENT, CardEffect.Kind.HAUNT, CardEffect.Kind.EXPOSE, CardEffect.Kind.SHAKEN, \
+		CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
+			_apply_status_effect(effect, source, target, amount)
+		CardEffect.Kind.DRAW, CardEffect.Kind.GLIMPSE, CardEffect.Kind.RECALL, CardEffect.Kind.ADD_CARD:
+			_apply_pile_effect(effect, source, amount)
+		_:
+			push_error("Combat._apply: no handler for CardEffect kind %d" % effect.kind)
+
+
+## Damage family: every hit goes through hit_amount (the shared pipeline), then Block and HP. The hit
+## amount is the same for every hit of one effect, so it is worked out once.
+func _apply_damage(effect: CardEffect, source: Combatant, target: Combatant, energy_scale: int) -> void:
+	var hit_count := maxi(effect.hits, 1)
+	if effect.per_energy:
+		hit_count *= energy_scale
+	# plays_this_turn already counts the card being played.
+	var dealt := hit_amount(effect, source, target, plays_this_turn)
+	for _hit in hit_count:
+		# An attacker killed part-way (by Thorns) stops there: a dead enemy must not finish its attack.
+		if source.is_dead():
+			break
+		target.take_damage_final(dealt)
+		# Thorns: an enemy attack on the player also hurts the attacker, once per hit.
+		if effect.kind == CardEffect.Kind.DAMAGE and target == player and source != player and player.thorns > 0:
+			source.take_damage(player.thorns)
+	# A spender uses up the Scent it hit with, after every hit of the effect.
+	if effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
+		target.remove_status(Combatant.Status.SCENT)
+
+
+## Status family. `target` receives statuses; `source` receives Malice and Ward when positive (target when
+## negative). An enemy intent with EXPOSE, SHAKEN or FRAYED affects the player, held back until the player's
+## statuses have ticked (see _pending_player_statuses).
+func _apply_status_effect(effect: CardEffect, source: Combatant, target: Combatant, amount: int) -> void:
+	match effect.kind:
 		CardEffect.Kind.SCENT:
 			# Only the player's cards mark a quarry; an enemy intent with SCENT does nothing.
 			if source == player and target != player:
@@ -699,12 +724,24 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 			if source == player:
 				# The Haunt bonus only boosts a Haunt that was going to be applied at all.
 				target.apply_status(Combatant.Status.HAUNTED, amount + (_relic_total(RelicData.Kind.HAUNT_BONUS) if amount > 0 else 0))
-		CardEffect.Kind.LOSE_HP:
-			source.lose_hp(amount)
-		CardEffect.Kind.HEAL_PER_HAUNTED:
-			source.heal(amount * haunted_count())
-		CardEffect.Kind.BLOCK:
-			source.gain_block(source.block_from_card(amount))
+		CardEffect.Kind.EXPOSE, CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
+			var status := _duration_status(effect.kind)
+			if source == player:
+				target.apply_status(status, amount)
+			elif target == player:
+				_pending_player_statuses[status] = _pending_player_statuses.get(status, 0) + maxi(amount, 0)
+		CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
+			var stack_status := Combatant.Status.MALICE if effect.kind == CardEffect.Kind.MALICE else Combatant.Status.WARD
+			var recipient := source if amount > 0 else target
+			if effect.temporary:
+				recipient.apply_temp_stack(stack_status, amount)
+			else:
+				recipient.apply_status(stack_status, amount)
+
+
+## Pile family: draws, the Glimpse / Recall picks and cards added to the player's piles.
+func _apply_pile_effect(effect: CardEffect, source: Combatant, amount: int) -> void:
+	match effect.kind:
 		CardEffect.Kind.DRAW:
 			# Only the player has a hand.
 			if source == player:
@@ -722,21 +759,25 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 			else:
 				for _copy in maxi(amount, 0):
 					piles.add_card(effect.card, effect.pile, HAND_MAX)
-		CardEffect.Kind.EXPOSE, CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
-			var status := _duration_status(effect.kind)
-			if source == player:
-				target.apply_status(status, amount)
-			elif target == player:
-				_pending_player_statuses[status] = _pending_player_statuses.get(status, 0) + maxi(amount, 0)
-		CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
-			var stack_status := Combatant.Status.MALICE if effect.kind == CardEffect.Kind.MALICE else Combatant.Status.WARD
-			var recipient := source if amount > 0 else target
-			if effect.temporary:
-				recipient.apply_temp_stack(stack_status, amount)
-			else:
-				recipient.apply_status(stack_status, amount)
-		_:
-			push_error("Combat._apply: no handler for CardEffect kind %d" % effect.kind)
+
+
+## One hit of damage `effect` from `source` onto `target` after the whole pipeline and before Block: the
+## raw damage (reading Block, Haunt, plays, the Forgotten pile and Scent), the source's Malice and Shaken,
+## the target's Scent and Expose. `plays_including_this` counts the card being played (a bot pricing a card
+## not yet played passes plays_this_turn + 1). The engine's _apply and every preview use this one rule.
+func hit_amount(effect: CardEffect, source: Combatant, target: Combatant, plays_including_this: int) -> int:
+	return Combatant.hit_damage(effect.raw_damage(damage_context(source, target, plays_including_this)), source, target)
+
+
+## What `hits` hits (default: the effect's own `hits`; a Surge card's per_energy scaling is the caller's to
+## pass) of damage `effect` would do to `target`, without changing anything: {damage, absorbed, through,
+## lost, block_left}. `damage` is the total after Malice/Shaken/Expose, `absorbed` what Block took,
+## `through` the rest (not capped by HP), `lost` the HP the target would really lose (capped), and
+## `block_left` its Block afterwards. `block` overrides the target's current Block (pass the previous
+## effect's block_left to chain several effects of one card); -1 uses the target's own.
+func preview_hit(effect: CardEffect, source: Combatant, target: Combatant, plays_including_this: int, hits: int = -1, block: int = -1) -> Dictionary:
+	var raw := effect.raw_damage(damage_context(source, target, plays_including_this))
+	return Combatant.hits_outcome(source, target, raw, maxi(effect.hits, 1) if hits < 0 else hits, block)
 
 
 ## The fight numbers a damage effect from `source` onto `target` reads (see CardEffect.raw_damage).
