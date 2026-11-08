@@ -9,7 +9,17 @@ func _init() -> void:
 	super(2033, 28)
 
 func mood() -> StringName:
-	match beat_index:
+	return mood_for(beat_index)
+
+
+## The painting key of a story beat (art/layers/screens/<key>/bg.png).
+static func key_for_beat(beat: int) -> StringName:
+	var mood_name := mood_for(beat)
+	return &"story_generic" if mood_name == &"tunnel" else StringName("story_" + String(mood_name))
+
+
+static func mood_for(beat: int) -> StringName:
+	match beat:
 		0:
 			return &"boarding"
 		1:
@@ -22,8 +32,7 @@ func mood() -> StringName:
 
 func _draw_scene(w: float, h: float) -> void:
 	var win := Rect2(0, BAR, w, h - 2.0 * BAR)
-	var mood_name := mood()
-	var key := &"story_generic" if mood_name == &"tunnel" else StringName("story_" + String(mood_name))
+	var key := key_for_beat(beat_index)
 	if not _draw_painted_bg(key, win, 1.08, 0.4):
 		_draw_destination(win)
 	draw_rect(Rect2(0, 0, w, BAR), Color.BLACK)

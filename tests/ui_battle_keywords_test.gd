@@ -94,15 +94,15 @@ func _check_keywords(node: Control) -> void:
 	check(CardView.find_all(node._hand_box)[0].is_clickable(), "a Surge card stays playable at 0 energy")
 
 	# Pile label shows the Forgotten count.
-	check(node._pile_label.text.contains("Forgotten 0"), "the pile label lists Forgotten: " + node._pile_label.text.replace("
+	check(node._pile_text().contains("Forgotten 0"), "the pile label lists Forgotten: " + node._pile_text().replace("
 ", " | "))
 	c.energy = 3
 	var discarded_before := c.piles.discard_pile.size()
 	c.piles.hand.assign([_proto("forgotten_strike")])
 	node._refresh()
 	c.play_card(0, 0)
-	check(node._pile_label.text.contains("Forgotten 1") and node._pile_label.text.contains("Discard %d
-" % discarded_before), "a played Forgotten card is counted under Forgotten, not Discard (discard was %d): " % discarded_before + node._pile_label.text.replace("
+	check(node._pile_text().contains("Forgotten 1") and node._pile_text().contains("Discard %d
+" % discarded_before), "a played Forgotten card is counted under Forgotten, not Discard (discard was %d): " % discarded_before + node._pile_text().replace("
 ", " | "))
 
 	# Discard step: Anchor and Fading cards cannot be marked and do not count toward the 5.

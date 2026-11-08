@@ -103,8 +103,7 @@ static func add_button(box: Container, text: String, on_pressed: Callable) -> Bu
 
 ## Asks the audio manager for an effect (nothing happens where there is none, as in some tests).
 static func sfx(id: StringName) -> void:
-	var tree := Engine.get_main_loop() as SceneTree
-	var audio := tree.root.get_node_or_null("AudioManager") if tree != null else null
+	var audio := Audio.manager()
 	if audio != null:
 		audio.sfx(id)
 

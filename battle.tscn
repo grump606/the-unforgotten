@@ -85,11 +85,10 @@ custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 alignment = 1
 
-[node name="PileLabel" type="Label" parent="Layout/Hud/HudColumn/BottomRow/LeftBox"]
+[node name="PileBox" type="VBoxContainer" parent="Layout/Hud/HudColumn/BottomRow/LeftBox"]
 unique_name_in_owner = true
 layout_mode = 2
-horizontal_alignment = 1
-autowrap_mode = 3
+theme_override_constants/separation = 1
 
 [node name="HandBox" type="HFlowContainer" parent="Layout/Hud/HudColumn/BottomRow"]
 unique_name_in_owner = true

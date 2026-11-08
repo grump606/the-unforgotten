@@ -41,7 +41,7 @@ func _key(node: Node, code: int) -> void:
 
 func _initialize() -> void:
 	await process_frame
-	CardView.reduced_motion = false
+	Motion.reduced = false
 
 	# Intro: shown for a boss fight, skipped by a key, never for a normal fight.
 	var boss := _battle(_boss_data(), true, true)
@@ -106,11 +106,11 @@ func _initialize() -> void:
 	check(boss3._banner.text == "ENRAGED", "an empty title falls back to Enraged")
 
 	# Reduced motion: no flash, a short intro.
-	CardView.reduced_motion = true
+	Motion.reduced = true
 	var calm := _battle(_boss_data(), true, true)
 	await process_frame
 	calm._combat.enemy_phase_changed.emit(calm._combat.enemies[0], 2)
 	check(calm._flash == null and calm.intro_visible(), "reduced motion skips the flash but keeps the intro")
-	CardView.reduced_motion = false
+	Motion.reduced = false
 	print("DONE fails=", fails)
 	quit(1 if fails > 0 else 0)

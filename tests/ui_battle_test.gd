@@ -52,13 +52,13 @@ func _check_preview(node: Control) -> void:
 	views[0].set_hovered(false)
 	check(not node.preview_visible(), "the preview hides when the pointer leaves")
 	views[0].set_hovered(true)
-	node._refresh()
+	node._rebuild_hand()
 	check(not node.preview_visible(), "a hand rebuild hides a stale preview")
-	CardView.reduced_motion = true
+	Motion.reduced = true
 	var v := CardView.find_all(node._hand_box)[0]
 	v.set_hovered(true)
 	check(v._lift == 1.0, "reduced motion snaps the hover lift")
-	CardView.reduced_motion = false
+	Motion.reduced = false
 
 
 ## The end-of-turn discard step on screen: marking, the confirm button's wording, Back, and a full
@@ -134,7 +134,7 @@ func _initialize() -> void:
 		tries += 1
 	check(node._combat.enemies.size() == 3, "3 enemies")
 	var c: Combat = node._combat
-	var before: String = node._pile_label.text
+	var before: String = node._pile_text()
 	check(before.begins_with("Draw "), "pile label " + before)
 	var idx := -1
 	for i in c.piles.hand.size():
@@ -150,7 +150,7 @@ func _initialize() -> void:
 	var disc := c.piles.discard_pile.size()
 	key(node, KEY_1 + idx)
 	check(c.piles.discard_pile.size() == disc + 1, "number key played (discard grew)")
-	check(node._pile_label.text != before, "pile label changed: " + node._pile_label.text)
+	check(node._pile_text() != before, "pile label changed: " + node._pile_text())
 	node._select_target(0)
 	# The card played above may itself have exposed the target, so start from a clean slate.
 	c.enemies[0].clear_statuses()
@@ -263,7 +263,7 @@ func _initialize() -> void:
 	check(hv.size() >= 2, "setup: a hand of two or more for the hover checks")
 	var over := hv[1].get_global_rect().get_center()
 	hv[1].set_hovered(true)
-	node._refresh() # rebuilds every view, all un-hovered
+	node._rebuild_hand() # rebuilds every view, all un-hovered
 	await process_frame
 	var nv := CardView.find_all(node._hand_box)
 	check(nv[1] != hv[1] and not nv[1]._hovered, "a rebuilt card starts un-hovered")
