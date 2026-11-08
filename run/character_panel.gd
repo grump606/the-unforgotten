@@ -142,7 +142,7 @@ func _deck_grid(cards: Array[CardData]) -> GridContainer:
 		var view := CardView.new()
 		view.view_scale = DECK_CARD_SCALE
 		view.set_card(card)
-		view.tooltip_text = "%s (%d)\n%s" % [card.display_name, card.cost, card.describe()]
+		view.tooltip_text = CardGlossary.full_text(card)
 		view.mouse_filter = Control.MOUSE_FILTER_PASS # still shows its tooltip
 		cell.add_child(view)
 		var count := _label("%d %s" % [counts[card.display_name], card.display_name], 11, _p.ink)

@@ -122,7 +122,7 @@ static func card_view(card: CardData, view_scale: float, on_pressed := Callable(
 	var view := CardView.new()
 	view.view_scale = view_scale
 	view.set_card(card)
-	view.tooltip_text = "%s (%d)\n%s" % [card.display_name, card.cost, card.describe()]
+	view.tooltip_text = CardGlossary.full_text(card)
 	if on_pressed.is_valid():
 		view.clickable = true
 		view.auto_hover = true
