@@ -200,6 +200,6 @@ Result against the acceptance criteria: Medium smart Brakeman loss 11.2% (target
 `tools/run_sim.gd` prints a loss percentage column per stop in its per-stop table. Command used for the results: `godot --headless --path . -s res://tools/run_sim.gd -- --runs 600 --seed 1 --character <id> --policy <smart|greedy>`.
 
 
-## Pre-finale rest (v0.8.2)
+## Pre-finale rest (after v0.8.0)
 
 A fifth rest was added at stop 19, between the last vendor and the Last Light beat. Earlier notes found a rest straight before the Conductor made the finale too soft; this one is a deliberate softening for newer players. Sim escape rates (400 runs, seed 1), before to after: smart bot Deserter 63.5 to 67.0, Thief 66.5 to 67.5, Medium 66.5 to 69.8, Stray 63.5 to 65.5; greedy bot Deserter 53.0 to 60.5, Thief 53.0 to 60.8, Medium 24.5 to 43.5, Stray 45.5 to 53.8. A save is stored by stop number, so a run saved at old stop 19 or later resumes one stop off (one free rest, or the Last Light beat replayed before the boss).
