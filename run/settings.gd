@@ -17,6 +17,10 @@ var update_check_enabled := true
 ## audio existed is unchanged by a save that does not touch audio.
 var audio := {}
 
+## True once the first-launch tutorial has been shown (finished or skipped); it then only opens from the
+## main menu's How to Play button.
+var tutorial_seen := false
+
 ## Keys this version does not know, carried through load and save untouched.
 var extras := {}
 
@@ -30,10 +34,12 @@ static func from_dict(data: Variant) -> Settings:
 		var value: Variant = dict.get("update_check_enabled")
 		if typeof(value) == TYPE_BOOL:
 			settings.update_check_enabled = value
+		if typeof(dict.get("tutorial_seen")) == TYPE_BOOL:
+			settings.tutorial_seen = dict["tutorial_seen"]
 		if typeof(dict.get("audio")) == TYPE_DICTIONARY:
 			settings.audio = (dict["audio"] as Dictionary).duplicate(true)
 		for key in dict:
-			if key != "update_check_enabled" and key != "audio":
+			if key != "update_check_enabled" and key != "audio" and key != "tutorial_seen":
 				settings.extras[key] = dict[key]
 	return settings
 
@@ -41,6 +47,8 @@ static func from_dict(data: Variant) -> Settings:
 static func to_dict(settings: Settings) -> Dictionary:
 	var data := settings.extras.duplicate(true)
 	data["update_check_enabled"] = settings.update_check_enabled
+	if settings.tutorial_seen:
+		data["tutorial_seen"] = true
 	if not settings.audio.is_empty():
 		data["audio"] = settings.audio
 	return data

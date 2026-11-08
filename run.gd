@@ -66,6 +66,7 @@ func _ready() -> void:
 	resized.connect(_select.recenter)
 	_show_main_menu()
 	_maybe_start_debug_fight()
+	_maybe_show_tutorial()
 
 
 ## Points a screen at the current run and the body before it is shown.
@@ -99,7 +100,41 @@ func _show_main_menu() -> void:
 	_set_edge_margin(0.0)
 	_main_menu.attach(loaded.run, _body, _show_stop)
 	_main_menu.show(loaded.run, _continue_run.bind(loaded.run), _new_run.bind(_show_main_menu), func() -> void: exit_callable.call(),
-		_update_notice.user_enabled, _toggle_update_check, _update_notice)
+		_update_notice.user_enabled, _toggle_update_check, _update_notice, _open_tutorial)
+
+
+## The how-to-play pages over whatever screen is up; null while closed.
+var _tutorial: TutorialOverlay
+
+
+## Shows the tutorial by itself on the first real launch after install (never headless, never in a debug launch).
+func _maybe_show_tutorial() -> void:
+	if _debug_session:
+		return
+	var seen := Settings.load_file(settings_path).tutorial_seen
+	if TutorialContent.should_show_on_launch(DisplayServer.get_name(), OS.get_environment(TutorialContent.DISABLE_ENV), seen):
+		_open_tutorial()
+
+
+## Opens the tutorial (also the main menu's How to Play button). Finishing or skipping it records it as seen.
+func _open_tutorial() -> void:
+	if _tutorial != null:
+		return
+	_tutorial = TutorialOverlay.new()
+	_tutorial.closed.connect(_close_tutorial)
+	add_child(_tutorial)
+
+
+func _close_tutorial() -> void:
+	if _tutorial != null:
+		_tutorial.queue_free()
+		_tutorial = null
+	var settings := Settings.load_file(settings_path)  # keep every other field as it is
+	if not settings.tutorial_seen:
+		settings.tutorial_seen = true
+		var error := settings.save(settings_path)
+		if error != "":
+			push_warning("Could not save settings (%s)." % error)
 
 
 ## The main menu's update-check toggle: flips the saved setting and returns the new value. Turning it
