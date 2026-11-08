@@ -5,7 +5,7 @@ should link here instead of restating a number. When the game changes, change th
 "Source" column says where the number really lives, and the test that would catch a mismatch where
 there is one.
 
-Last checked against v0.8.2 (version bumped, not yet released).
+Last checked against v0.8.2 (released 2026-11-08).
 
 | Fact | Value | Source |
 | --- | --- | --- |
