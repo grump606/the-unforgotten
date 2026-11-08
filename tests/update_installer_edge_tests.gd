@@ -28,6 +28,8 @@ func run() -> int:
 	_test_cancel_then_late_callback(key, pem)
 	_test_self_update_gate()
 	_test_worker_path(key, pem)
+	_test_retire_never_blocks(key, pem)
+	_test_cancel_mid_copy_then_install(key, pem)
 	_test_notice_hand_off(key, pem)
 	_cleanup()
 	return _failures
@@ -87,6 +89,86 @@ func _pump(installer: UpdateInstaller, done: Callable) -> bool:
 		if done.call():
 			return true
 	return false
+
+
+## Polls the way the game does (only _process, never finish_worker) until every worker has been joined.
+func _reap_in_background(installer: UpdateInstaller) -> bool:
+	for _attempt in 2000:
+		installer._process(0.0)
+		if installer.pending_workers() == 0:
+			return true
+		OS.delay_msec(5)
+	return false
+
+
+## Stages, downloads and verifies a release so the installer is READY on the worker path.
+func _verified_installer(key: CryptoKey, pem: String, probe: Probe, content: String) -> UpdateInstaller:
+	var installer := _installer(pem, probe)
+	installer.force_worker = true
+	installer.start(TEST_TAG)
+	_feed_signature_and_manifest(installer, _stage(content, key))
+	installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
+	_pump(installer, func() -> bool: return installer.state != UpdateInstaller.State.DOWNLOADING)
+	return installer
+
+
+## cancel(), discard() and a new job abandon a running worker without waiting for it: the call returns while the
+## worker is still running, and the reaper joins it (and removes its run_* folder) only after it has finished.
+func _test_retire_never_blocks(key: CryptoKey, pem: String) -> void:
+	for how in ["cancel", "discard"]:
+		var probe := Probe.new()
+		var installer := _verified_installer(key, pem, probe, "slow worker")
+		var gate := Semaphore.new()
+		var run_dir := ProjectSettings.globalize_path(_dir.path_join("run_gate"))
+		installer._installing = true
+		installer._start_job(installer._job_serial + 1, func() -> Dictionary:
+			gate.wait()
+			return {"serial": 0, "kind": "copy", "copied": true, "why": "", "copy_abs": ""}, run_dir)
+		DirAccess.make_dir_recursive_absolute(run_dir)
+		var started := Time.get_ticks_msec()
+		installer.call(how)
+		_check(Time.get_ticks_msec() - started < 1000, "%s returns while the worker is still blocked (it does not join it)" % how)
+		installer._process(0.0)
+		_check(installer.pending_workers() == 1, "%s: a worker that is still running stays unjoined in the reaper's list" % how)
+		_check(not installer._installing, "%s clears the installing flag" % how)
+		gate.post()
+		_check(_reap_in_background(installer), "%s: once the worker finishes, _process joins it" % how)
+		_check(not _has_stray_folder(), "%s: its run_* folder is gone after the reaper ran" % how)
+		_check(probe.launched.is_empty() and probe.quits == 0, "%s: the abandoned result launches nothing" % how)
+		installer.free()
+		UpdateInstaller.cleanup(_dir)
+
+	# A second install after a discard works: download again, install, and exactly one launch happens.
+	var probe2 := Probe.new()
+	var again := _verified_installer(key, pem, probe2, "first")
+	again.install_and_restart()
+	again.discard()
+	_check(again.state == UpdateInstaller.State.IDLE and _reap_in_background(again) and not _has_stray_folder(), "discard during the copy returns to IDLE and leaves no run_* folder")
+	again.start(TEST_TAG)
+	_feed_signature_and_manifest(again, _stage("second", key))
+	again.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
+	_pump(again, func() -> bool: return again.state != UpdateInstaller.State.DOWNLOADING)
+	_check(again.state == UpdateInstaller.State.READY and again.install_and_restart(), "a download and install after a discard starts normally")
+	_check(_pump(again, func() -> bool: return probe2.quits > 0) and probe2.launched.size() == 1, "and launches once")
+	again.free()
+	UpdateInstaller.cleanup(_dir)
+
+
+## Turning update checks off while the launch copy is being made calls cancel(); turning them back on must leave
+## "Update & restart" working (the old code left the installing flag set and a stray run_* folder behind).
+func _test_cancel_mid_copy_then_install(key: CryptoKey, pem: String) -> void:
+	var probe := Probe.new()
+	var installer := _verified_installer(key, pem, probe, "cancelled copy")
+	_check(installer.install_and_restart(), "the copy starts")
+	installer.cancel()
+	_check(installer.state == UpdateInstaller.State.READY and FileAccess.file_exists(_installer_path()), "cancel keeps a verified installer the player has not discarded")
+	_check(_reap_in_background(installer), "the abandoned copy worker is reaped")
+	_check(not _has_stray_folder(), "cancel mid-copy leaves no run_* folder")
+	_check(probe.launched.is_empty() and probe.quits == 0, "the cancelled copy launches nothing")
+	_check(installer.install_and_restart(), "install_and_restart works again after cancel")
+	_check(_pump(installer, func() -> bool: return probe.quits > 0) and probe.launched.size() == 1, "and the second attempt launches exactly once")
+	installer.free()
+	UpdateInstaller.cleanup(_dir)
 
 
 func _test_callbacks_in_the_wrong_state(key: CryptoKey, pem: String) -> void:
@@ -277,7 +359,7 @@ func _test_worker_path(key: CryptoKey, pem: String) -> void:
 	_feed_signature_and_manifest(installer, _stage("good installer", key))
 	installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
 	installer.cancel()
-	_check(not _has_stray_folder(), "cancel waits for the background hash, so nothing is left in the work folder")
+	_check(_reap_in_background(installer) and not _has_stray_folder(), "cancel abandons the background hash, and nothing is left in the work folder once it is reaped")
 	installer._process(0.0)
 	installer.finish_worker()
 	_check(installer.state == UpdateInstaller.State.IDLE and probe.launched.is_empty(), "cancel during the background hash: the late result does not revive the download")
@@ -294,11 +376,12 @@ func _test_worker_path(key: CryptoKey, pem: String) -> void:
 	_pump(installer, func() -> bool: return installer.state != UpdateInstaller.State.DOWNLOADING)
 	installer.install_and_restart()
 	installer.discard()
-	# discard() waits for the copy worker before it cleans up, so no run_* folder can be left behind (or appear later).
-	_check(not _has_stray_folder(), "discard waits for the background copy, so no run_* folder is left in the work folder")
+	# discard() does not wait for the copy worker: the reaper joins it and removes its run_* folder.
+	_check(_reap_in_background(installer), "the reaper joins the abandoned copy worker")
+	_check(not _has_stray_folder(), "and no run_* folder is left in the work folder")
 	installer._process(0.0)
 	installer.finish_worker()
-	_check(not _has_stray_folder(), "and none appears afterwards")
+	_check(not _has_stray_folder(), "none appears afterwards")
 	_check(installer.state == UpdateInstaller.State.IDLE and probe.launched.is_empty() and probe.quits == 0, "discard during the background copy: nothing is launched")
 	installer.free()
 	UpdateInstaller.cleanup(_dir)
