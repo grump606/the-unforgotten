@@ -1,11 +1,9 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## The damage and Block pipeline and the status table (Phase 2a): Malice, Ward, Shaken, Frayed,
 ## temporary stacks and enemy-applied statuses. Discovered by run_tests.gd. Fixtures are built in code.
 
 const K := CardEffect.Kind
 const S := Combatant.Status
-
-var _failures := 0
 
 
 func run() -> int:
@@ -29,12 +27,6 @@ func run() -> int:
 	_test_temp_stack_expiry()
 	_test_shipped_enemy_omens()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _fx(kind: CardEffect.Kind, amount: int, bonus: int = 0, threshold: int = 0, hits: int = 1, per_energy: bool = false, temporary: bool = false) -> CardEffect:

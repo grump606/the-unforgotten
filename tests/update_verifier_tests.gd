@@ -1,16 +1,9 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Tests for UpdateVerifier: a detached RSA signature must match the exact bytes it signs and the
 ## embedded key, and a signed manifest must describe exactly the release being installed. Keys are
 ## generated in-process; nothing here touches the network or a real key.
 
-var _failures := 0
 var _dir := "user://update_verifier_test_%d" % OS.get_process_id()
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func run() -> int:

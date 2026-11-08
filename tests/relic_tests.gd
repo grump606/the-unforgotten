@@ -1,8 +1,6 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Tests for relics (combat/relic_data.gd and its hooks in Combat, Vendor, RunState and
 ## RunSave). Returns the failure count; the suite in run_tests.gd adds it to its own.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -30,12 +28,6 @@ func run() -> int:
 	_test_save_round_trip()
 	_test_save_rejects_bad_relics()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _relic(kind: RelicData.Kind, amount: int) -> RelicData:

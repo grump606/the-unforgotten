@@ -1,4 +1,4 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Pins every destination label and battle backdrop of the 22-stop line, and that they live on the Stop
 ## objects (DestinationArt is only a lookup). Registered by run_tests.gd.
 
@@ -14,8 +14,6 @@ const BACKDROPS := {
 	9: &"battle_bell_court", 12: &"battle_garden", 13: &"battle_garden",
 	16: &"battle_archive", 17: &"battle_archive", 21: &"battle_threshold",
 }
-
-var _failures := 0
 
 
 func run() -> int:
@@ -34,7 +32,3 @@ func run() -> int:
 	return _failures
 
 
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		_failures += 1
-		print("FAIL: ", what)

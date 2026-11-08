@@ -1,8 +1,6 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Content tests for the extra balance-testing cards and enemies.
 ## run() returns the failure count and prints a "FAIL: ..." line per failure.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -22,12 +20,6 @@ func run() -> int:
 	_test_registry_entries_load()
 	_test_enemy_registry_wiring()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _test_new_cards_load() -> void:

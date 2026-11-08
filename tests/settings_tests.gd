@@ -1,15 +1,8 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Tests for run/settings.gd: defaults, round trip, and an untrusted settings file that must never
 ## fail. Uses scratch paths only, never the real user://settings.json. Returns the failure count.
 
-var _failures := 0
 var _path := "user://settings_tests_%d.json" % OS.get_process_id()
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _write(text: String) -> void:

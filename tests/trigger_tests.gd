@@ -1,12 +1,10 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## The five new Oath triggers (end of turn, Block gained, HP paid, each card played, a card discarded) and the
 ## "when discarded" card effects, plus the five Oaths and three Thief cards that use them (cards step 3).
 ## Discovered by run_tests.gd.
 
 const K := CardEffect.Kind
 const T := CardData.OathTrigger
-
-var _failures := 0
 
 
 func run() -> int:
@@ -23,12 +21,6 @@ func run() -> int:
 	_test_shipped_cards()
 	_test_bots()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _fx(kind: K, amount: int) -> CardEffect:

@@ -1,8 +1,6 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Keyword rules: Forgotten, Fading, Ready, Anchor, Dormant, Surge and multi-hit.
 ## Fixtures build CardData in code. Discovered by run_tests.gd.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -28,12 +26,6 @@ func run() -> int:
 	_test_enemy_multi_hit_barbs()
 	_test_dead_attacker_stops_hitting()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _dmg(amount: int, hits: int = 1, per_energy: bool = false) -> CardEffect:

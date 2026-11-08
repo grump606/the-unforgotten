@@ -1,9 +1,7 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Phase 5a: Remembered (upgraded) cards. The variant model on CardData, the shipped remembered blocks,
 ## the rest stop's Remember choice in RunState, a Remembered card in a fight, and the vendor. Saves are
 ## covered in run_save_tests.gd and the rest screen in ui_screen_scenes_test.gd. Discovered by run_tests.gd.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -16,12 +14,6 @@ func run() -> int:
 	_test_combat_uses_remembered()
 	_test_vendor_and_rewards()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _card(card_id: String) -> CardData:

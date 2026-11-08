@@ -19,9 +19,12 @@ const NOT_SUITES: Array[String] = ["run_tests.gd"]
 const PROTECTED_USER_FILES: Array[String] = ["settings.json", "run_save.json"]
 
 var _failures := 0
+## How many checks ran (passed or failed); run_tests.gd prints the total so a lost check shows up.
+var _checks := 0
 
 
 func _check(condition: bool, label: String) -> void:
+	_checks += 1
 	if not condition:
 		_failures += 1
 		printerr("FAIL: %s [%s]" % [label, _source_name()])

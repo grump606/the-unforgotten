@@ -1,9 +1,7 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## The Medium's mechanics: paying HP, Haunt, healing per Haunted enemy and damage from Haunt,
 ## then the real Medium cards. Discovered by run_tests.gd. Tiny hand-made cards test the rules;
 ## the last test loads the shipped cards.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -14,12 +12,6 @@ func run() -> int:
 	_test_heal_and_haunt_damage()
 	_test_medium_cards()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _fx(kind: CardEffect.Kind, amount: int) -> CardEffect:

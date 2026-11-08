@@ -1,12 +1,10 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Deck cycling (Phase 3a): the EffectContext refactor, Glimpse, Add card, Recall, damage per Forgotten
 ## card, the CHOOSING step, pile helpers and the status cards. Discovered by run_tests.gd. Fixtures are
 ## built in code; only the status cards come from their .tres files (through the loader).
 
 const K := CardEffect.Kind
 const P := CardEffect.Pile
-
-var _failures := 0
 
 
 func run() -> int:
@@ -29,12 +27,6 @@ func run() -> int:
 	_test_status_cards_content()
 	_test_vendor_values()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _fx(kind: CardEffect.Kind, amount: int, card: CardData = null, pile: CardEffect.Pile = P.HAND) -> CardEffect:
