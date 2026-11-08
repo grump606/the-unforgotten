@@ -89,7 +89,7 @@ func _build_cancel_button() -> void:
 ## nothing is marked and at most Combat.HAND_SIZE cards are held, "Discard N" otherwise, or a disabled
 ## "Discard N more" while too many would stay) and Back returns to playing cards.
 func sync_turn_controls() -> void:
-	var combat := _battle._combat
+	var combat := _battle.combat()
 	var end_turn := _battle._end_turn_button
 	var phase := combat.phase
 	var discarding := phase == Combat.Phase.DISCARDING
@@ -145,7 +145,7 @@ func _pulse_confirm(available: bool) -> void:
 
 ## Updates the four counters (and the deck line when the run supplied one).
 func sync_piles() -> void:
-	var piles := _battle._combat.piles
+	var piles := _battle.combat().piles
 	var counts := [piles.draw_pile.size(), piles.discard_pile.size(), piles.forgotten.size(), piles.sworn.size()]
 	for i in pile_buttons.size():
 		pile_buttons[i].text = "%s %d" % [PileViewer.PILE_NAMES[i], counts[i]]
@@ -199,5 +199,5 @@ func set_journey(stop_title: String, journey: String, character_title: String, d
 	_deck_size = deck_size
 	# Below the two lines of text, the relic badges keep the left edge.
 	_battle._relic_strip.position = Vector2(4, _stage_info.position.y + 20 + 14 + 14)
-	if _battle._combat != null:
+	if _battle.combat() != null:
 		sync_piles()

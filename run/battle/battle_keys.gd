@@ -47,8 +47,8 @@ func handle(event: InputEvent) -> void:
 	if key == null or not key.pressed or key.echo or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
 		return
 	var b := _battle
-	var combat := b._combat
-	if key.keycode == KEY_ESCAPE and b._drag.cancel_with_key():
+	var combat := b.combat()
+	if key.keycode == KEY_ESCAPE and b.drag().cancel_with_key():
 		_handled()
 		return
 	if b._fx.skip_intro():

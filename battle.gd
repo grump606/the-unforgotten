@@ -266,6 +266,28 @@ func _discard_node(node: Node) -> void:
 	node.queue_free()
 
 
+# --- the screen's public face for its helper classes (run/battle/) ---------------------------------
+
+## The fight on screen (null before the first fight is attached).
+func combat() -> Combat:
+	return _combat
+
+
+## The enemies' figures on the stage, in the order of combat().enemies.
+func enemy_views() -> Array[Fighter]:
+	return _enemy_views
+
+
+## The card-drag handler.
+func drag() -> BattleDrag:
+	return _drag
+
+
+## Asks for a refresh: it runs when the current batch ends, or at once outside one.
+func request_refresh() -> void:
+	_on_state_changed()
+
+
 # --- forwarders for the pieces other scripts and tests call -----------------------------------
 
 ## Opens the read-only viewer on a pile (see BattleOverlays). True when it opened.

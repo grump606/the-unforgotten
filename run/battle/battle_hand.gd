@@ -36,7 +36,7 @@ func _init(battle: Battle, box: HFlowContainer) -> void:
 ## preview survive) and only their state, note, preview and marks are updated; the row is rebuilt from scratch
 ## only when the hand size or a card at some index changed.
 func sync() -> void:
-	var combat := _battle._combat
+	var combat := _battle.combat()
 	var hand := combat.piles.hand
 	var views := views_in_order()
 	var same := views.size() == hand.size()
@@ -67,11 +67,11 @@ func views_in_order() -> Array[CardView]:
 
 
 func rebuild() -> void:
-	_battle._drag.end()
+	_battle.drag().end()
 	hide_preview()
 	for child in _box.get_children():
 		_battle._discard_node(child)
-	var combat := _battle._combat
+	var combat := _battle.combat()
 	var discarding := combat.phase == Combat.Phase.DISCARDING
 	var hand_scale := fit()
 	for i in combat.piles.hand.size():
@@ -82,10 +82,10 @@ func rebuild() -> void:
 		# The handlers look the index up when they fire (the view's place in the row), so they stay right
 		# however the row changes around the view.
 		view.pressed.connect(func() -> void: play_card(view.get_index()))
-		view.drag_started.connect(_battle._drag.started.bind(view))
-		view.drag_moved.connect(_battle._drag.moved)
-		view.drag_ended.connect(func(pos: Vector2) -> void: _battle._drag.ended(pos, view.get_index()))
-		view.drag_cancelled.connect(_battle._drag.end)
+		view.drag_started.connect(_battle.drag().started.bind(view))
+		view.drag_moved.connect(_battle.drag().moved)
+		view.drag_ended.connect(func(pos: Vector2) -> void: _battle.drag().ended(pos, view.get_index()))
+		view.drag_cancelled.connect(_battle.drag().end)
 		view.hover_changed.connect(_on_card_hover.bind(view))
 		_apply_view(view, i, discarding, hand_scale)
 		_box.add_child(view)
@@ -96,7 +96,7 @@ func rebuild() -> void:
 ## Sets everything about hand view `i` that follows from the fight: its card, size, state and note, damage
 ## preview, discard mark and hotkey. Writes only what differs, so an unchanged card is not redrawn.
 func _apply_view(view: CardView, i: int, discarding: bool, hand_scale: float) -> void:
-	var combat := _battle._combat
+	var combat := _battle.combat()
 	var card := combat.piles.hand[i]
 	if view.card != card:
 		view.set_card(card)
@@ -129,7 +129,7 @@ func _apply_view(view: CardView, i: int, discarding: bool, hand_scale: float) ->
 ## Sizes the hand row so every card fits on one line: normal scale and gap when it fits, then
 ## smaller cards, then overlap. Sets the box's horizontal separation and returns the card scale.
 func fit() -> float:
-	var count := _battle._combat.piles.hand.size()
+	var count := _battle.combat().piles.hand.size()
 	var avail := _box.size.x if _box.size.x > 100.0 else WIDTH_FALLBACK
 	var scale := CARD_SCALE
 	var gap := float(GAP)
@@ -152,7 +152,7 @@ func _undiscardable_note(card: CardData) -> String:
 ## Why a hand card cannot be played right now, as a short warning for the card ("" when the
 ## fight is not on the player's turn, where nothing is playable and no card needs a warning).
 func _unplayable_note(card: CardData) -> String:
-	var combat := _battle._combat
+	var combat := _battle.combat()
 	if combat.phase != Combat.Phase.PLAYER_TURN:
 		return ""
 	if card.dormant:
@@ -166,7 +166,7 @@ func _unplayable_note(card: CardData) -> String:
 
 ## Plays (or, in the discard step, marks) the hand card at `hand_index` on the selected enemy.
 func play_card(hand_index: int) -> void:
-	var combat := _battle._combat
+	var combat := _battle.combat()
 	if combat == null or combat.phase == Combat.Phase.CHOOSING or _battle._overlays.pile_viewer_open():
 		return # a Glimpse / Recall pick must be finished first; the pile viewer sits over the hand
 	_battle._begin_batch()
@@ -241,7 +241,7 @@ func preview_visible() -> bool:
 ## How many cards in hand satisfy `test`.
 func count_where(test: Callable) -> int:
 	var count := 0
-	for card in _battle._combat.piles.hand:
+	for card in _battle.combat().piles.hand:
 		if test.call(card):
 			count += 1
 	return count

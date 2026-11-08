@@ -44,7 +44,7 @@ func skip_intro() -> bool:
 
 
 func start_boss_intro() -> void:
-	var combat := _battle._combat
+	var combat := _battle.combat()
 	if combat.enemies.is_empty():
 		return
 	var boss := combat.enemies[0]
@@ -52,7 +52,7 @@ func start_boss_intro() -> void:
 	intro.setup("MID-BOSS" if _battle.boss_label == "Mid-boss" else "FINAL BOSS", boss.display_name)
 	intro.finished.connect(_on_intro_finished)
 	_battle.add_child(intro)
-	var views := _battle._enemy_views
+	var views := _battle.enemy_views()
 	if not Motion.reduced and not views.is_empty():
 		var view := views[0]
 		view.entrance = ENTRANCE_START_SCALE
@@ -63,7 +63,7 @@ func start_boss_intro() -> void:
 func _on_intro_finished() -> void:
 	if _entrance_tween != null:
 		_entrance_tween.kill()
-	for view in _battle._enemy_views:
+	for view in _battle.enemy_views():
 		view.entrance = 1.0
 	intro = null
 

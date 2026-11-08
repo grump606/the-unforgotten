@@ -28,7 +28,7 @@ func close_all() -> void:
 ## Shows the Glimpse / Recall overlay exactly while Combat is CHOOSING. A refresh with the same choice
 ## keeps the overlay (and the player's marks); a new choice (a second queued pick) gets a fresh one.
 func sync_choice() -> void:
-	var combat := _battle._combat
+	var combat := _battle.combat()
 	var wanted := combat.phase == Combat.Phase.CHOOSING and combat.has_choice()
 	if choice != null and (not wanted or not choice.matches(combat)):
 		close_choice()
@@ -52,21 +52,21 @@ func choice_visible() -> bool:
 
 
 func on_choice_confirmed(indices: Array[int]) -> void:
-	var combat := _battle._combat
+	var combat := _battle.combat()
 	if combat == null or combat.phase != Combat.Phase.CHOOSING:
 		return
 	close_choice()
 	RunScreen.sfx(&"card_select")
 	_battle._begin_batch()
 	if not combat.resolve_choice(indices):
-		_battle._refresh_pending = true # the overlay was closed above: bring it back
+		_battle.request_refresh() # the overlay was closed above: bring it back
 	_battle._end_batch()
 
 
 ## Opens the read-only viewer on a pile. Only during the player's turn and the discard step: not while a
 ## Glimpse / Recall pick is open, in the enemy phase or after the fight. True when it opened.
 func open_pile_viewer(which: PileViewer.Pile) -> bool:
-	var combat := _battle._combat
+	var combat := _battle.combat()
 	if combat == null or combat.phase not in [Combat.Phase.PLAYER_TURN, Combat.Phase.DISCARDING]:
 		return false
 	if pile_viewer != null:
@@ -95,7 +95,7 @@ func pile_viewer_open() -> bool:
 func sync_pile_viewer() -> void:
 	if pile_viewer == null:
 		return
-	if _battle._combat.phase not in [Combat.Phase.PLAYER_TURN, Combat.Phase.DISCARDING]:
+	if _battle.combat().phase not in [Combat.Phase.PLAYER_TURN, Combat.Phase.DISCARDING]:
 		close_pile_viewer()
 	else:
 		pile_viewer.refresh()
