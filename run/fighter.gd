@@ -134,6 +134,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	add_to_group(Motion.FOLLOWERS)
 	_drop_layer = Control.new()
 	_drop_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_drop_layer.z_index = DROP_LABEL_Z
@@ -148,6 +149,13 @@ func _ready() -> void:
 
 func _on_visibility_changed() -> void:
 	set_process(is_visible_in_tree()) # no cost while hidden
+
+
+## The Reduce motion setting flipped while this fighter is on screen: wake it so it follows the new value
+## (breathing comes back, or advance() sees there is nothing left to animate and stops it again).
+func _on_motion_changed() -> void:
+	_idle_accum = 0.0
+	_wake()
 
 
 ## Turns the per-frame animation back on after the fighter went idle (see _is_idle).

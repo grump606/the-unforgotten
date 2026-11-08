@@ -75,7 +75,9 @@ func _key_drag_cancel(key: InputEventKey, _combat: Combat) -> bool:
 	return false
 
 
-func _key_boss_intro(_key: InputEventKey, _combat: Combat) -> bool:
+func _key_boss_intro(key: InputEventKey, _combat: Combat) -> bool:
+	if _is_modifier(key.keycode):
+		return false # a bare Shift / Ctrl / Alt / Meta press is not "any key"
 	if _battle._fx.skip_intro():
 		_handled()
 		return true
@@ -159,6 +161,10 @@ func _key_turn(key: InputEventKey, _combat: Combat) -> bool:
 		_:
 			return false
 	return true
+
+
+static func _is_modifier(keycode: Key) -> bool:
+	return keycode == KEY_SHIFT or keycode == KEY_CTRL or keycode == KEY_ALT or keycode == KEY_META
 
 
 func _handled() -> void:

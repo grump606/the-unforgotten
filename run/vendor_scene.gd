@@ -99,7 +99,8 @@ func advance(delta: float) -> void:
 	time += delta
 	_redraw_accum += delta
 	if _redraw_accum >= 1.0 / ANIMATION_HZ:
-		_redraw_accum = 0.0
+		# Subtract the interval so the rate stays 30 Hz on average; a long frame catches up by one redraw at most.
+		_redraw_accum = minf(_redraw_accum - 1.0 / ANIMATION_HZ, 1.0 / ANIMATION_HZ)
 		queue_redraw()
 
 
