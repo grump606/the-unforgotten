@@ -1,9 +1,7 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Phase 4a groundwork: the fight-only created-card loader, per-class starter decks, the saves of runs
 ## started with an older deck, and the retuned neutral cards (Glimpse the Exit, Flurry). Registered by
 ## run_tests.gd. Fixtures are built in code; cards come through StarterContent.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -18,12 +16,6 @@ func run() -> int:
 	_test_flurry_is_two_hits()
 	_test_glimpse_exit_order()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _ids(cards: Array) -> Array:

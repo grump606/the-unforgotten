@@ -1,8 +1,6 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Boss phases: the switch to an enemy's second intent cycle. Discovered by run_tests.gd.
 ## Run on hand-made enemies (100 HP, switch at 50%), so the numbers are the rules, not the tuning.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -15,12 +13,6 @@ func run() -> int:
 	_test_switch_by_thorns()
 	_test_bosses_define_phase_two()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _fx(kind: CardEffect.Kind, amount: int) -> CardEffect:

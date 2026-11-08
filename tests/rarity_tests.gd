@@ -1,8 +1,6 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Rarity (Common, Uncommon, Rare): every card has one, rewards and vendor stock roll a rarity first with odds that
 ## shift towards the rarer cards deeper into the run. Discovered by run_tests.gd.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -15,12 +13,6 @@ func run() -> int:
 	_test_vendor_stock()
 	_test_variant_and_gem()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _test_assignments() -> void:

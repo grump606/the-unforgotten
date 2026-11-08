@@ -1,10 +1,8 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## How the two bots play Oaths (docs/MECHANICS_PLAN.md, phase 6c): swear early, not late, never twice, and only
 ## when the lasting effect beats the cost. Fixtures are hand-made cards. Discovered by run_tests.gd.
 
 const K := CardEffect.Kind
-
-var _failures := 0
 
 
 func run() -> int:
@@ -16,12 +14,6 @@ func run() -> int:
 	_test_smart_turns_left()
 	_test_deck_scores_are_positive_and_discounted()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _oath(cost: int, trigger: CardData.OathTrigger, sworn_effects: Array[CardEffect], now: Array[CardEffect] = []) -> CardData:

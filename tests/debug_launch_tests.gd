@@ -1,8 +1,6 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Debug launch: parsing of --fight / --character / --hp and the run-state side of a debug fight.
 ## Discovered by run_tests.gd.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -20,12 +18,6 @@ func run() -> int:
 	_test_proto_statuses()
 	_test_proto_cycling()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _test_nothing_requested() -> void:

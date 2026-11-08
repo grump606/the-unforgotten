@@ -1,16 +1,8 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Tests for the pure update-check logic (run/update_check.gd): version comparison, tag
 ## validation, reply parsing, the notice text and when the check may run. No network.
 ## Returns the failure count; the suite in run_tests.gd adds it to its own. The settings, verifier
 ## and installer test files are discovered on their own, not chained from here.
-
-var _failures := 0
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func run() -> int:

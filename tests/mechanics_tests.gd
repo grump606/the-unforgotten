@@ -1,9 +1,7 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Card mechanics beyond plain damage and block: Hold, damage from Block, thorns.
 ## Discovered by run_tests.gd. Each test builds tiny hand-made cards so the numbers
 ## checked here are the rules themselves, not the tuning of any real card.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -20,12 +18,6 @@ func run() -> int:
 	_test_every_kind_is_covered()
 	_test_player_listener_lifecycle()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _fx(kind: CardEffect.Kind, amount: int, bonus: int = 0, threshold: int = 0) -> CardEffect:

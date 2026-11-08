@@ -1,8 +1,6 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## The hand rules: keep up to HAND_SIZE cards at end of turn (the rest are chosen for discard),
 ## draw back up to HAND_SIZE, and never hold more than HAND_MAX. Discovered by run_tests.gd.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -23,12 +21,6 @@ func run() -> int:
 	_test_bots_finish_a_fight_won_mid_turn()
 	_test_bot_discards()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _fx(kind: CardEffect.Kind, amount: int) -> CardEffect:

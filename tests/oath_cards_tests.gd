@@ -1,4 +1,4 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## The six shipped Oaths (docs/MECHANICS_PLAN.md, phase 6b): two per class, each valid, readable and playable.
 ## Numbers are provisional, so these check shape and behaviour, not tuning. Discovered by run_tests.gd.
 
@@ -7,8 +7,6 @@ const EXPECTED := {
 	&"deserter": [&"unbroken_vow", &"standing_guard"],
 	&"medium": [&"open_grave", &"quiet_debt"],
 }
-
-var _failures := 0
 
 
 func run() -> int:
@@ -20,12 +18,6 @@ func run() -> int:
 	_test_pile_viewer_lists_sworn()
 	_test_not_in_starting_decks()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _load(id: StringName) -> CardData:
