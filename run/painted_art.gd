@@ -13,8 +13,6 @@ const ENEMY_LAYERS: Array[StringName] = [&"bg", &"mid", &"figure", &"fg"]
 const ENEMY_DEPTHS := [0.1, 0.4, 0.8, 1.6]
 
 static var _cache := {}
-## Paths being decoded on a worker thread: path -> {"task": id, "image": Image or null}.
-static var _pending := {}
 ## Stops entered so far, and the stop each cache key was last used in; entries unused for EVICT_AFTER_STOPS
 ## stops are dropped by advance_stop() (a screen that needs one again simply decodes it again).
 static var _stop_serial := 0
@@ -152,52 +150,26 @@ static func preload_paths(paths: Array) -> void:
 		_load(String(path))
 
 
-## Like preload_screen, but the decode runs on a worker thread; the texture is made later by poll() (or at once
-## by the first draw that asks for it). Nothing happens for a path that is already cached or being decoded.
-static func warm_screen_async(screen_name: StringName) -> void:
-	warm_path_async(SCREEN_DIR % screen_name)
-
-
-static func warm_path_async(path: String) -> void:
-	if _cache.has(path) or _pending.has(path) or not ResourceLoader.exists(path):
-		return
-	var holder := {"image": null}
-	holder["task"] = WorkerThreadPool.add_task(_decode_in_thread.bind(path, holder), false, "PaintedArt " + path.get_file())
-	_pending[path] = holder
-
-
-## True while any warm-up is still decoding or waiting for poll().
-static func has_pending() -> bool:
-	return not _pending.is_empty()
-
-
-## Turns every finished worker-thread decode into a cached texture (cheap; the upload happens here on the main
-## thread). Returns how many are still decoding.
-static func poll() -> int:
-	for path in _pending.keys():
-		if WorkerThreadPool.is_task_completed(_pending[path].task):
-			_finish_pending(path)
-	return _pending.size()
-
-
 ## Warms what the screen after a run stop will draw. `stop_type` is a RunState.StopType value; `character_id`
 ## picks the class backdrops and `story_beat` (a STORY stop's beat_index, else -1) its own window painting. Call it
-## when the previous screen is shown, so the decode cost is paid off the main thread before the player moves on.
+## when the previous screen is shown, so the decode cost is paid there and not when the next screen first draws.
+## The decode stays on the main thread: Texture2D.get_image() goes through the RenderingServer, and decoding the same
+## art from a worker thread and the main thread at once crashed intermittently (access violation).
 static func warm_for_stop(stop_type: int, character_id: StringName = &"", story_beat := -1) -> void:
 	match stop_type:
 		RunState.StopType.COMBAT:
-			warm_screen_async(StringName("battle_" + String(character_id)) if character_id != &"" else &"battle_neutral")
-			warm_screen_async(&"battle_neutral")
-			warm_screen_async(&"battle_boss")
+			preload_screen(StringName("battle_" + String(character_id)) if character_id != &"" else &"battle_neutral")
+			preload_screen(&"battle_neutral")
+			preload_screen(&"battle_boss")
 		RunState.StopType.REST:
-			warm_screen_async(StringName("rest_" + String(character_id)) if character_id != &"" else &"rest")
-			warm_screen_async(&"rest")
+			preload_screen(StringName("rest_" + String(character_id)) if character_id != &"" else &"rest")
+			preload_screen(&"rest")
 		RunState.StopType.STORY:
 			if story_beat >= 0:
-				warm_screen_async(StoryScene.key_for_beat(story_beat))
+				preload_screen(StoryScene.key_for_beat(story_beat))
 		RunState.StopType.VENDOR:
-			warm_screen_async(&"vendor")
-			warm_path_async("res://art/layers/screens/vendor/keeper.png")
+			preload_screen(&"vendor")
+			preload_paths(["res://art/layers/screens/vendor/keeper.png"])
 
 
 ## Any texture under res:// through the shared cache (mipmapped), or null when it is missing.
@@ -209,17 +181,10 @@ static func _load(path: String) -> Texture2D:
 	_touch(path)
 	if _cache.has(path):
 		return _cache[path]
-	if _pending.has(path):
-		if WorkerThreadPool.is_task_completed(_pending[path].task):
-			_finish_pending(path)
-			return _cache[path]
-		# Still decoding: never block the main thread on the worker (the worker's resource load can need
-		# the main thread). Decode here instead; poll() discards the worker's copy when it finishes.
-	var img := _decode(path)
-	return _store(path, img)
+	return _store(path, _decode(path))
 
 
-## Reads, decompresses and mipmaps an image off disk. Touches no scene state, so it may run on any thread.
+## Reads, decompresses and mipmaps an image off disk (main thread only, see warm_for_stop).
 static func _decode(path: String) -> Image:
 	if not ResourceLoader.exists(path):
 		return null
@@ -237,21 +202,10 @@ static func _decode(path: String) -> Image:
 	return img
 
 
-static func _decode_in_thread(path: String, holder: Dictionary) -> void:
-	holder["image"] = _decode(path)
-
-
-## Makes the texture from a decoded image (main thread) and caches it; a missing file caches null.
+## Makes the texture from a decoded image and caches it; a missing file caches null.
 static func _store(path: String, img: Image) -> Texture2D:
 	var tex: Texture2D = ImageTexture.create_from_image(img) if img != null else null
 	_cache[path] = tex
 	return tex
 
 
-static func _finish_pending(path: String) -> void:
-	var holder: Dictionary = _pending[path]
-	_pending.erase(path)
-	WorkerThreadPool.wait_for_task_completion(holder.task) # only called once the task is complete
-	if not _cache.has(path):
-		_touch(path)
-		_store(path, holder.image)

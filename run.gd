@@ -472,13 +472,7 @@ func _warm_next_stop() -> void:
 	PaintedArt.warm_for_stop(int(next_stop.type), _run.character.id, next_stop.beat_index)
 	var backdrop := DestinationArt.battle_key(next_index)
 	if backdrop != &"":
-		PaintedArt.warm_screen_async(backdrop)
-	set_process(PaintedArt.has_pending()) # poll() turns the finished decodes into textures
-
-
-func _process(_delta: float) -> void:
-	if PaintedArt.poll() == 0:
-		set_process(false)
+		PaintedArt.preload_screen(backdrop)
 
 
 ## Where the debug defeat card is shown from: the mid-boss, the middle of the run.
