@@ -86,6 +86,10 @@ var stops: Array[Stop] = []
 var stop_index: int = 0
 ## Debug launch (run/debug_launch.gd): when non-empty, the next fight uses these enemy ids instead of the stop's encounter.
 var debug_encounter: Array[StringName] = []
+## Resolves a debug_encounter id that is not shipped content (enemy_by_id returned null) to an EnemyData, or
+## null. Injected by the launcher (run.gd sets it to DebugLaunch.prototype_enemy) so this rules class does not
+## depend on debug code. Empty by default: unknown ids are then skipped.
+var debug_enemy_resolver: Callable = Callable()
 ## True once the line is finished, by reaching the end or by losing a fight.
 var finished: bool = false
 ## Only meaningful when `finished`: true if the player reached the last stop alive.
@@ -168,8 +172,8 @@ func start_combat() -> Combat:
 	if not debug_encounter.is_empty():
 		for enemy_id in debug_encounter:
 			var enemy := StarterContent.enemy_by_id(enemy_id)
-			if enemy == null:
-				enemy = DebugLaunch.prototype_enemy(enemy_id) # debug-only prototype enemies
+			if enemy == null and debug_enemy_resolver.is_valid():
+				enemy = debug_enemy_resolver.call(enemy_id)
 			if enemy != null:
 				enemies.append(enemy)
 	elif stop.boss:

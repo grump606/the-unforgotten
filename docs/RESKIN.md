@@ -30,7 +30,7 @@ Display names changed; the file and ID on the left did not.
 - A stance animation in `run/fighter.gd` (`stance_motion()`): small weight shifts and a forward lean, with its own pace per class and enemy type. It uses the presentation clock only, no RNG.
 - `tests/reskin_presentation_test.gd`, run by `scripts/check.ps1` as "reskin restoration".
 
-All sprites now face left in the source art, so `PLAYER_ART_FACING` is right for all three classes and `SPRITE_FACES_RIGHT` is empty.
+All sprites now face left in the source art, so `PLAYER_ART_FACING` is right for every class and `SPRITE_FACES_RIGHT` is empty.
 
 ## Still open
 

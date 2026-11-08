@@ -13,6 +13,30 @@ const ENEMY_LAYERS: Array[StringName] = [&"bg", &"mid", &"figure", &"fg"]
 const ENEMY_DEPTHS := [0.1, 0.4, 0.8, 1.6]
 
 static var _cache := {}
+## Stops entered so far, and the stop each cache key was last used in; entries unused for EVICT_AFTER_STOPS
+## stops are dropped by advance_stop() (a screen that needs one again simply decodes it again).
+static var _stop_serial := 0
+static var _last_used := {}
+const EVICT_AFTER_STOPS := 2
+
+
+## Marks a cache key as used in the current stop.
+static func _touch(key: String) -> void:
+	_last_used[key] = _stop_serial
+
+
+## Call once per stop entered: drops every cache entry not used during the last EVICT_AFTER_STOPS stops.
+## Returns how many entries were dropped.
+static func advance_stop() -> int:
+	_stop_serial += 1
+	var stale: Array = []
+	for key in _cache:
+		if _stop_serial - int(_last_used.get(key, 0)) >= EVICT_AFTER_STOPS:
+			stale.append(key)
+	for key in stale:
+		_cache.erase(key)
+		_last_used.erase(key)
+	return stale.size()
 
 
 static func card_texture(card_id: StringName) -> Texture2D:
@@ -23,7 +47,9 @@ static func card_texture(card_id: StringName) -> Texture2D:
 static func enemy_layers(key: StringName) -> Array:
 	var ck := "enemy:" + String(key)
 	if _cache.has(ck):
+		_touch(ck)
 		return _cache[ck]
+	_touch(ck)
 	var layers: Array = []
 	for layer in ENEMY_LAYERS:
 		var tex := _load(ENEMY_DIR % [key, layer])
@@ -40,7 +66,9 @@ static func enemy_layers(key: StringName) -> Array:
 static func enemy_figure(key: StringName) -> Dictionary:
 	var ck := "figure:" + String(key)
 	if _cache.has(ck):
+		_touch(ck)
 		return _cache[ck]
+	_touch(ck)
 	var out := {}
 	var sprite := _load(ENEMY_DIR % [key, "sprite"])
 	if sprite != null:
@@ -61,7 +89,9 @@ static func enemy_figure(key: StringName) -> Dictionary:
 static func player_figure(id: StringName) -> Dictionary:
 	var ck := "player:" + String(id)
 	if _cache.has(ck):
+		_touch(ck)
 		return _cache[ck]
+	_touch(ck)
 	var out := {}
 	var tex := _load(PLAYER_DIR % id)
 	if tex != null:
@@ -74,7 +104,9 @@ static func player_figure(id: StringName) -> Dictionary:
 ## as {tex, region}, or {} when the file is missing (the stall then draws its code-drawn keeper).
 static func keeper_figure() -> Dictionary:
 	if _cache.has("keeper"):
+		_touch("keeper")
 		return _cache["keeper"]
+	_touch("keeper")
 	var out := {}
 	var tex := _load("res://art/layers/screens/vendor/keeper.png")
 	if tex != null:
@@ -118,24 +150,24 @@ static func preload_paths(paths: Array) -> void:
 		_load(String(path))
 
 
-## Warms what the screen after a run stop will draw. `stop_type` is a RunState.StopType value (an int
-## here so this helper has no dependency on the run); `character_id` picks the class battle backdrop.
-## Call it when the previous screen is shown, e.g. when the map arrives at a stop, so the decode cost
-## is paid before the player moves on instead of as a stutter on the next screen.
-static func warm_for_stop(stop_type: int, character_id: StringName = &"") -> void:
+## Warms what the screen after a run stop will draw. `stop_type` is a RunState.StopType value; `character_id`
+## picks the class backdrops and `story_beat` (a STORY stop's beat_index, else -1) its own window painting. Call it
+## when the previous screen is shown, so the decode cost is paid there and not when the next screen first draws.
+## The decode stays on the main thread: Texture2D.get_image() goes through the RenderingServer, and decoding the same
+## art from a worker thread and the main thread at once crashed intermittently (access violation).
+static func warm_for_stop(stop_type: int, character_id: StringName = &"", story_beat := -1) -> void:
 	match stop_type:
-		0: # RunState.StopType.COMBAT
+		RunState.StopType.COMBAT:
 			preload_screen(StringName("battle_" + String(character_id)) if character_id != &"" else &"battle_neutral")
 			preload_screen(&"battle_neutral")
 			preload_screen(&"battle_boss")
-		1: # REST
+		RunState.StopType.REST:
 			preload_screen(StringName("rest_" + String(character_id)) if character_id != &"" else &"rest")
 			preload_screen(&"rest")
-		2: # STORY
-			for dir in DirAccess.get_directories_at("res://art/layers/screens"):
-				if dir.begins_with("story_"):
-					preload_screen(StringName(dir))
-		3: # VENDOR
+		RunState.StopType.STORY:
+			if story_beat >= 0:
+				preload_screen(StoryScene.key_for_beat(story_beat))
+		RunState.StopType.VENDOR:
 			preload_screen(&"vendor")
 			preload_paths(["res://art/layers/screens/vendor/keeper.png"])
 
@@ -146,21 +178,34 @@ static func texture(path: String) -> Texture2D:
 
 
 static func _load(path: String) -> Texture2D:
+	_touch(path)
 	if _cache.has(path):
 		return _cache[path]
-	var tex: Texture2D = null
-	if ResourceLoader.exists(path):
-		# CACHE_MODE_IGNORE: the imported (compressed) texture is not kept by the loader's cache, so
-		# only the mipmapped ImageTexture below stays resident once `src` and `img` go out of scope.
-		var src := ResourceLoader.load(path, "Texture2D", ResourceLoader.CACHE_MODE_IGNORE) as Texture2D
-		if src != null:
-			var img := src.get_image()
-			src = null
-			if img != null:
-				if img.is_compressed():
-					img.decompress()
-				img.generate_mipmaps()
-				tex = ImageTexture.create_from_image(img)
-				img = null # the texture owns its own copy; do not hold the full-size image
+	return _store(path, _decode(path))
+
+
+## Reads, decompresses and mipmaps an image off disk (main thread only, see warm_for_stop).
+static func _decode(path: String) -> Image:
+	if not ResourceLoader.exists(path):
+		return null
+	# CACHE_MODE_IGNORE: the imported (compressed) texture is not kept by the loader's cache, so
+	# only the mipmapped ImageTexture made in _store stays resident once `src` and `img` go out of scope.
+	var src := ResourceLoader.load(path, "Texture2D", ResourceLoader.CACHE_MODE_IGNORE) as Texture2D
+	if src == null:
+		return null
+	var img := src.get_image()
+	if img == null:
+		return null
+	if img.is_compressed():
+		img.decompress()
+	img.generate_mipmaps()
+	return img
+
+
+## Makes the texture from a decoded image and caches it; a missing file caches null.
+static func _store(path: String, img: Image) -> Texture2D:
+	var tex: Texture2D = ImageTexture.create_from_image(img) if img != null else null
 	_cache[path] = tex
 	return tex
+
+

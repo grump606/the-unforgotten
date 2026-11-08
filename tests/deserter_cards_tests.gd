@@ -1,10 +1,8 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Phase 4c: the Deserter retunes (Last Stand, Heavy Blow, Iron Resolve) and Dig Deep, played through the
 ## real engine from the shipped data files. Discovered by run_tests.gd.
 
 const S := Combatant.Status
-
-var _failures := 0
 
 
 func run() -> int:
@@ -18,12 +16,6 @@ func run() -> int:
 	_test_reward_pool()
 	_test_describe()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _load(id: String) -> CardData:

@@ -1,8 +1,6 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Debug launch: parsing of --fight / --character / --hp and the run-state side of a debug fight.
 ## Discovered by run_tests.gd.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -20,12 +18,6 @@ func run() -> int:
 	_test_proto_statuses()
 	_test_proto_cycling()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _test_nothing_requested() -> void:
@@ -160,6 +152,7 @@ func _test_proto_statuses() -> void:
 		if run_state.stops[index].type == RunState.StopType.COMBAT:
 			run_state.stop_index = index
 			break
+	run_state.debug_enemy_resolver = DebugLaunch.prototype_enemy
 	run_state.debug_encounter.assign([&"proto_pest"])
 	var combat := run_state.start_combat()
 	_check(combat != null and combat.enemies.size() == 1 and combat.enemies[0].data.id == &"proto_pest", "the run fights the Pest")
@@ -246,6 +239,7 @@ func _test_proto_cycling() -> void:
 		if run_state.stops[index].type == RunState.StopType.COMBAT:
 			run_state.stop_index = index
 			break
+	run_state.debug_enemy_resolver = DebugLaunch.prototype_enemy
 	run_state.debug_encounter.assign([&"proto_dreadkeeper"])
 	run_state.deck = deck
 	var combat := run_state.start_combat()

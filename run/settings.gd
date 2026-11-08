@@ -25,6 +25,10 @@ var audio := {}
 ## main menu's How to Play button.
 var tutorial_seen := false
 
+## True when the player asked for less animation (see run/motion.gd). Only written when true, so a file from
+## before this setting existed is unchanged by a save.
+var reduced_motion := false
+
 ## Keys this version does not know, carried through load and save untouched.
 var extras := {}
 
@@ -40,12 +44,14 @@ static func from_dict(data: Variant) -> Settings:
 			settings.update_check_enabled = value
 		if typeof(dict.get("tutorial_seen")) == TYPE_BOOL:
 			settings.tutorial_seen = dict["tutorial_seen"]
+		if typeof(dict.get("reduced_motion")) == TYPE_BOOL:
+			settings.reduced_motion = dict["reduced_motion"]
 		if typeof(dict.get("audio")) == TYPE_DICTIONARY:
 			settings.audio = (dict["audio"] as Dictionary).duplicate(true)
 			if _json_size(settings.audio) > MAX_AUDIO_BYTES:
 				settings.audio = {}
 		for key in dict:
-			if key != "update_check_enabled" and key != "audio" and key != "tutorial_seen":
+			if key != "update_check_enabled" and key != "audio" and key != "tutorial_seen" and key != "reduced_motion":
 				settings.extras[key] = dict[key]
 		if _json_size(settings.extras) > MAX_EXTRAS_BYTES:
 			settings.extras = {}
@@ -61,6 +67,8 @@ static func to_dict(settings: Settings) -> Dictionary:
 	data["update_check_enabled"] = settings.update_check_enabled
 	if settings.tutorial_seen:
 		data["tutorial_seen"] = true
+	if settings.reduced_motion:
+		data["reduced_motion"] = true
 	if not settings.audio.is_empty():
 		data["audio"] = settings.audio
 	return data

@@ -331,9 +331,10 @@ func _test_characters() -> void:
 		_check(state.character.id == id, "%s: the run knows its character" % id)
 		_check(state.player.max_hp == character.max_hp and state.player.hp == character.max_hp, "%s starts at its own full HP" % id)
 		_check(state.player.display_name == character.display_name, "%s: the player is named after the character" % id)
-		_check(state.deck.size() == 10, "%s starts with 10 cards" % id)
+		_check(state.deck.size() == StarterContent.deck().size(), "%s starts with the standard deck size" % id)
+		var size_before := character.starting_deck.size()
 		state.deck.append(character.starting_deck[0])
-		_check(character.starting_deck.size() == 10, "%s: editing the run deck leaves the character resource alone" % id)
+		_check(character.starting_deck.size() == size_before, "%s: editing the run deck leaves the character resource alone" % id)
 		# Every reward offer, over many seeds and wins, holds only neutral or own cards.
 		var class_seen := 0
 		for seed_value in 40:

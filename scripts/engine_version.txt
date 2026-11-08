@@ -10,6 +10,10 @@ GODOT_VERSION=4.7.2-stable
 # to run an engine whose download does not match, so a swapped or corrupted download cannot pass.
 GODOT_ZIP_SHA512=83decd58fdf67b9d657958a1ae6bf1929c20785315a81effe245874cdc57acb709bf868e00778a96984338c1b29dafdb453c6847747694621c6ecf5da2259993
 
+# SHA512 of Godot_v<GODOT_VERSION>_export_templates.tpz (same SHA512-SUMS.txt). CI downloads the templates to
+# export the Windows build before release day, and refuses a download that does not match.
+GODOT_TEMPLATES_SHA512=ca4d71c4d7b81dfc15d1a98baa07534aa95b03fdda78a0075b06672e1648d2e5f40980c9adc28d23e1b92e732ee7bf3461997aa804af74ec2fcd7a93ccb84079
+
 # Inno Setup used to build the installer (winget package JRSoftware.InnoSetup). Only the installer build
 # needs it. Install exactly this version: winget install JRSoftware.InnoSetup --version <this>.
 INNO_SETUP_VERSION=6.7.3

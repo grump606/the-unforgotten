@@ -86,8 +86,8 @@ func set_variant(is_boss: bool, id: StringName, location: StringName = &"") -> v
 
 ## Steps the animation. Does nothing unless the backdrop is on screen.
 func advance(delta: float) -> void:
-	if not is_visible_in_tree():
-		return
+	if not is_visible_in_tree() or Motion.reduced:
+		return # reduced motion: the picture holds still
 	time += delta
 	queue_redraw()
 

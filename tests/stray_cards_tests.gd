@@ -1,4 +1,4 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## The Stray's fifteen cards (docs/CLASSES_PLAN.md, the Stray, phase 3): data shape, pools, text and what each
 ## one does in a fight. Numbers are provisional, so these pin the rules each card was built on. Registered by
 ## run_tests.gd.
@@ -10,8 +10,6 @@ const IDS: Array[StringName] = [
 ]
 const STARTERS: Array[StringName] = [&"catch_the_scent", &"snap", &"bristle", &"run_down"]
 
-var _failures := 0
-
 
 func run() -> int:
 	_failures = 0
@@ -22,12 +20,6 @@ func run() -> int:
 	_test_malice_engine()
 	_test_the_two_pillars_combine()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _load(id: StringName) -> CardData:

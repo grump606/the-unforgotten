@@ -1,8 +1,7 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## UserDataMigration: the one-time move from the "Card Battle Prototype" user folder to the new one.
 ## Runs on throwaway folders under the user-data folder, never on the real ones. Discovered by run_tests.gd.
 
-var _failures := 0
 var _base := ""
 
 
@@ -17,12 +16,6 @@ func run() -> int:
 	_test_old_dir_for()
 	_remove_all(_base)
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _write(path: String, text: String) -> void:

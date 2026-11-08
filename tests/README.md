@@ -34,8 +34,23 @@ func run() -> int:
 
 `test_base.gd` provides `_check(condition, label)` (counts the failure and prints
 `FAIL: <label> [<file>]`) and the `_failures` counter. It is a path-based base, not a global class,
-so it needs no import step. New files should use it; older files still carry their own copy of
-`_check` and are migrated when they are next touched, not in bulk.
+so it needs no import step. Every suite uses it (the old per-file copies of `_check` were removed). `_checks` counts the checks that ran, and
+`run_tests.gd` prints `CHECKS: <n>` at the end, so a suite that silently stops checking shows up as a smaller total.
+
+## Content totals and balance pins
+
+Suites compare totals with the registries (`StarterContent.ALL_CARD_PATHS`, `RELIC_PATHS`, `ALL_ENEMY_PATHS`,
+`character_ids()`), so adding a card or relic touches no test. The intentional numbers (112 cards, 21 relics,
+starting HP, deck sizes, class card counts) live in `tests/pinned_balance_tests.gd`; update them there and in
+`docs/GAME_FACTS.md` when content changes on purpose. Card-text pins such as `describe() == "Deal 16"` in the
+per-class card suites are balance pins too and change only when a card is rebalanced.
+
+## Signing fixture
+
+`tests/golden/` holds `update_manifest.txt`, its signature `update_manifest.txt.sig` and `signing_test_key.pub.txt`,
+made with a throwaway key through the real PowerShell signer. How is in the header of
+`tests/signing_compat_tests.gd`. Never commit a private key; only the public key and signature belong here.
+`tests/update_support.gd` has the shared signing helpers for the update tests.
 
 ## Scratch files
 

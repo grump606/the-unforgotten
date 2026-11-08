@@ -59,6 +59,7 @@ func _ready() -> void:
 	column.add_child(_content)
 	column.add_child(_footer())
 	show_page(0)
+	_trap_focus()
 	next_button.grab_focus()
 
 
@@ -111,6 +112,7 @@ func finish() -> void:
 	if _finished:
 		return
 	_finished = true
+	release_focus_trap()
 	closed.emit()
 
 
@@ -144,7 +146,13 @@ func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree() or not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	match (event as InputEventKey).keycode:
-		KEY_RIGHT, KEY_ENTER, KEY_KP_ENTER:
+		KEY_RIGHT:
+			next()
+		KEY_ENTER, KEY_KP_ENTER:
+			# A focused button (Skip, Back, Next) answers Enter itself; anywhere else Enter means Next.
+			var owner_control := get_viewport().gui_get_focus_owner()
+			if owner_control is Button and is_ancestor_of(owner_control):
+				return
 			next()
 		KEY_LEFT:
 			back()
@@ -153,6 +161,41 @@ func _input(event: InputEvent) -> void:
 		_:
 			return
 	get_viewport().set_input_as_handled()
+
+
+## Controls outside the overlay that were focusable when it opened, with the mode to give back.
+var _trapped: Dictionary = {}
+
+
+## Makes the overlay modal for the keyboard: nothing behind it can take Tab, Space or Enter while it is open.
+func _trap_focus() -> void:
+	var anchor: Node = get_parent()
+	if anchor == null:
+		return
+	var behind := get_viewport().gui_get_focus_owner()
+	if behind != null and not is_ancestor_of(behind):
+		behind.release_focus()
+	var stack: Array[Node] = [anchor]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		if node == self:
+			continue
+		if node is Control and (node as Control).focus_mode != Control.FOCUS_NONE:
+			_trapped[node] = (node as Control).focus_mode
+			(node as Control).focus_mode = Control.FOCUS_NONE
+		stack.append_array(node.get_children())
+
+
+## Gives back the focus modes taken by _trap_focus (also done when the overlay leaves the tree).
+func release_focus_trap() -> void:
+	for node in _trapped:
+		if is_instance_valid(node):
+			(node as Control).focus_mode = _trapped[node]
+	_trapped.clear()
+
+
+func _exit_tree() -> void:
+	release_focus_trap()
 
 
 # --- page builders -----------------------------------------------------------------------------
@@ -289,48 +332,3 @@ func _term_text(term: String, text: String) -> Control:
 	column.add_child(_label(term, LEGEND_SIZE + 1, TERM_COLOR))
 	column.add_child(_label(text, LEGEND_SIZE))
 	return column
-
-
-## Numbered gold discs drawn over a picture (or, alone, the number badge beside an explanation).
-class TutorialMarkers:
-	extends Control
-
-	var points: Array = []
-	## The number on the first disc; the next ones count up.
-	var first_number := 1
-
-	func _init() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	func _draw() -> void:
-		var font: Font = ThemeDB.fallback_font
-		for i in points.size():
-			var c: Vector2 = points[i]
-			draw_circle(c, MARKER_RADIUS + 1.5, Color(0, 0, 0, 0.7))
-			draw_circle(c, MARKER_RADIUS, MARKER_FILL)
-			var number := str(first_number + i)
-			draw_string(font, c + Vector2(-20, 5), number, HORIZONTAL_ALIGNMENT_CENTER, 40, 14, MARKER_INK)
-
-
-## An Omen badge or status pill icon, drawn with the same code the fight screen uses.
-class TutorialIcon:
-	extends Control
-
-	var icon: StringName = &"intent"
-	var color_kind: int = CardEffect.Kind.DAMAGE
-
-	func _init() -> void:
-		custom_minimum_size = Vector2(34, 34)
-		size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	func _draw() -> void:
-		var col := CardView.kind_color(color_kind)
-		var c := size / 2.0
-		draw_circle(c, 16.0, Color(0, 0, 0, 0.6))
-		draw_circle(c, 14.5, Color(col.darkened(0.5), 0.95))
-		draw_arc(c, 14.5, 0, TAU, 28, col, 1.8, true)
-		if icon == &"intent":
-			HudIcons.intent(self, color_kind, c, col)
-		else:
-			HudIcons.status(self, icon, c, col.lightened(0.3), 2.2)

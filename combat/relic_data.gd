@@ -28,6 +28,9 @@ enum Kind {
 	QUARRY_KILL_HEAL,
 }
 
+## Rules as implemented (Combat): FIRST_FORGOTTEN_RETURN fires only for a card the player PLAYED that landed
+## in the Forgotten pile (not an Oath, which goes Sworn, and not a Fading card lost at end of turn); the
+## per-kind amounts are summed over all owned relics, so duplicates stack.
 ## PLAYS_BLOCK pays out on every Nth card played in a turn.
 const PLAYS_BLOCK_EVERY := 3
 

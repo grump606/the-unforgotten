@@ -1,10 +1,14 @@
 # Exports the Windows build and wraps it in an Inno Setup installer.
 # Output: build/TheUnforgotten-Setup-<version>.exe, its .sha256 and, when a signing key is configured, its .manifest and .manifest.sig
 # Needs the Godot export templates and the Inno Setup version named in scripts/engine_version.txt (see docs/INSTALLER.md).
+# -NoSign builds everything except the signature (no private key needed; CI uses it to prove the export and the
+# installer still build). Its output must never be released: release.ps1 never passes it.
+param([switch]$NoSign)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 . (Join-Path $PSScriptRoot 'engine_version.ps1')
+. (Join-Path $PSScriptRoot 'update_signing.ps1')
 
 $godot = if ($env:GODOT_EXE) { $env:GODOT_EXE } else { Join-Path $root (Join-Path $GodotFolder $GodotConsole) }
 if (-not (Test-Path $godot)) { throw "Godot console exe not found: $godot" }
@@ -21,13 +25,14 @@ if (-not $version) { throw 'config/version not found in project.godot' }
 Write-Host "Building version $version"
 
 # Fail before the long build if a signing key is configured but cannot be used (docs/UPDATE_SIGNING.md).
-$publicPems = @([regex]::Matches((Get-Content -Raw -LiteralPath 'run\update_verifier.gd'), '-----BEGIN PUBLIC KEY-----[\s\S]*?-----END PUBLIC KEY-----') | ForEach-Object { $_.Value -replace '\n', "`n" -replace "`r", '' })
+$publicPems = @(Get-EmbeddedPublicKeyPems)
+$signing = $publicPems.Count -gt 0 -and -not $NoSign
 $openssl = $null
-if ($publicPems.Count -gt 0) {
+if ($signing) {
     if (-not $env:UPDATE_SIGNING_KEY -or -not (Test-Path -LiteralPath $env:UPDATE_SIGNING_KEY)) {
         throw 'run/update_verifier.gd has a public key, so set $env:UPDATE_SIGNING_KEY to the path of the private key file (.pfx or .pem). See docs/UPDATE_SIGNING.md.'
     }
-    $openssl = @((Get-Command openssl -ErrorAction SilentlyContinue).Source, "$env:ProgramFiles\Git\usr\bin\openssl.exe") | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+    $openssl = Get-OpenSslPath
     if (-not $openssl) { throw 'openssl not found (it ships with Git for Windows: Program Files\Git\usr\bin).' }
 }
 
@@ -35,15 +40,34 @@ New-Item -ItemType Directory -Force build | Out-Null
 $exe = Join-Path $root 'build\TheUnforgotten.exe'
 if (Test-Path $exe) { Remove-Item $exe }
 
-& $godot --headless --path . --import | Out-Null
+# A failed import means the export below would package stale or missing resources, so it stops the build. The
+# output is shown only when it fails. One retry: a first import in a fresh checkout has been seen to crash once.
+$imported = $false
+foreach ($attempt in 1, 2) {
+    $importLog = & $godot --headless --path . --import
+    if ($LASTEXITCODE -eq 0) { $imported = $true; break }
+    Write-Warning "Godot --import exited with code $LASTEXITCODE (attempt $attempt of 2)."
+    $importLog | Select-Object -Last 20 | ForEach-Object { Write-Host "  $_" }
+}
+if (-not $imported) { throw 'Godot --import failed: fix the project before building an installer.' }
 & $godot --headless --path . --export-release 'Windows Desktop' $exe
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path $exe)) { throw 'Godot export failed' }
+
+# The exported exe must carry this version (export_presets.cfg file_version/product_version), or the installer
+# would ship a game that reports an old version in its properties.
+$exeInfo = (Get-Item -LiteralPath $exe).VersionInfo
+foreach ($pair in @(@('FileVersion', $exeInfo.FileVersion), @('ProductVersion', $exeInfo.ProductVersion))) {
+    if ($pair[1] -ne "$version.0") { throw "The exported exe has $($pair[0]) '$($pair[1])' but project.godot has config/version $version (expected '$version.0'): update export_presets.cfg." }
+}
+Write-Host "Exported exe version $($exeInfo.FileVersion)"
 
 & $iscc "/DAppVersion=$version" 'installer\setup.iss'
 if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compile failed' }
 
 $setup = Join-Path $root "build\TheUnforgotten-Setup-$version.exe"
 if (-not (Test-Path $setup)) { throw "Installer not found: $setup" }
+$setupVersion = ([string](Get-Item -LiteralPath $setup).VersionInfo.FileVersion).Trim()
+if ($setupVersion -ne $version -and $setupVersion -ne "$version.0") { throw "The installer reports FileVersion '$setupVersion' but project.godot has config/version $version." }
 # Standard "<hash>  <filename>" format (two spaces), readable by sha256sum -c; ASCII, no BOM.
 $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $setup).Hash.ToLowerInvariant()
 $sumFile = "$setup.sha256"
@@ -57,51 +81,38 @@ Write-Host "SHA-256 $hash"
 # With no public key embedded there is nothing to sign for and the game just offers the download page.
 $manifestFile = "$setup.manifest"
 $manifestSigFile = "$setup.manifest.sig"
-. (Join-Path $PSScriptRoot 'update_signing.ps1')
-if ($publicPems.Count -gt 0) {
+if ($signing) {
     # New-UpdateManifestText (scripts/update_signing.ps1) must match UpdateCheck.make_manifest in run/update_check.gd
     # byte for byte: LF endings, UTF-8 without BOM. tests/golden/update_manifest.txt pins both; check.ps1 runs the test.
     $manifest = New-UpdateManifestText -Name (Split-Path -Leaf $setup) -Version $version -Sha256 $hash
     [System.IO.File]::WriteAllText($manifestFile, $manifest, (New-Object System.Text.UTF8Encoding($false)))
 
-    # Every trusted key the game ships with (run/update_verifier.gd): a signature must verify against at least one.
-    $pubFiles = @()
-    try {
-        for ($i = 0; $i -lt $publicPems.Count; $i++) {
-            $f = Join-Path ([IO.Path]::GetTempPath()) "update_pub_${PID}_$i.pem"
-            [System.IO.File]::WriteAllText($f, $publicPems[$i] + "`n", (New-Object System.Text.UTF8Encoding($false)))
-            $pubFiles += $f
+    # The passphrase comes from UPDATE_SIGNING_PASS when set (the interactive prompt does not work in every
+    # PowerShell host); otherwise openssl asks for it.
+    $passArgs = if ($env:UPDATE_SIGNING_PASS) { @("-passin", "env:UPDATE_SIGNING_PASS") } else { @() }
+    $signKey = $env:UPDATE_SIGNING_KEY
+    # Signs $file into $sig, then checks it against every trusted key the game ships with (run/update_verifier.gd):
+    # the signature must verify against at least one.
+    function Sign-AndVerify([string]$file, [string]$sig) {
+        if ($signKey -match '\.(pfx|p12)$') {
+            # SigningKeyMaker output: sign in memory with .NET (scripts/update_signing.ps1); the private key is never written to disk.
+            Sign-FileWithPfx -PfxPath $signKey -Passphrase $env:UPDATE_SIGNING_PASS -FilePath $file -SigPath $sig
+        } else {
+            & $openssl dgst -sha256 -sign $signKey @passArgs -out $sig $file
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $sig)) { throw 'Signing failed (wrong passphrase or key?)' }
         }
-        # The passphrase comes from UPDATE_SIGNING_PASS when set (the interactive prompt does not work in every
-        # PowerShell host); otherwise openssl asks for it.
-        $passArgs = if ($env:UPDATE_SIGNING_PASS) { @("-passin", "env:UPDATE_SIGNING_PASS") } else { @() }
-        $signKey = $env:UPDATE_SIGNING_KEY
-        # Signs $file into $sig, then checks it against the public key the game ships with.
-        function Sign-AndVerify([string]$file, [string]$sig) {
-            if ($signKey -match '\.(pfx|p12)$') {
-                # SigningKeyMaker output: sign in memory with .NET (scripts/update_signing.ps1); the private key is never written to disk.
-                Sign-FileWithPfx -PfxPath $signKey -Passphrase $env:UPDATE_SIGNING_PASS -FilePath $file -SigPath $sig
-            } else {
-                & $openssl dgst -sha256 -sign $signKey @passArgs -out $sig $file
-                if ($LASTEXITCODE -ne 0 -or -not (Test-Path $sig)) { throw 'Signing failed (wrong passphrase or key?)' }
-            }
-            $matched = -1
-            for ($i = 0; $i -lt $pubFiles.Count -and $matched -lt 0; $i++) {
-                & $openssl dgst -sha256 -verify $pubFiles[$i] -signature $sig $file | Out-Null
-                if ($LASTEXITCODE -eq 0) { $matched = $i }
-            }
-            if ($matched -lt 0) { throw "The signature for $(Split-Path -Leaf $file) does not verify against any public key in run/update_verifier.gd: wrong private key?" }
-            Write-Host "$(Split-Path -Leaf $sig): verified against embedded key #$($matched + 1) of $($pubFiles.Count)"
-        }
-        Sign-AndVerify $manifestFile $manifestSigFile
-    } finally {
-        foreach ($f in $pubFiles) { Remove-Item -LiteralPath $f -ErrorAction SilentlyContinue }
+        $matched = Find-MatchingPublicKey -OpenSsl $openssl -PublicPems $publicPems -FilePath $file -SigPath $sig
+        if ($matched -lt 0) { throw "The signature for $(Split-Path -Leaf $file) does not verify against any public key in run/update_verifier.gd: wrong private key?" }
+        Write-Host "$(Split-Path -Leaf $sig): verified against embedded key #$($matched + 1) of $($publicPems.Count)"
     }
+    Sign-AndVerify $manifestFile $manifestSigFile
     Write-Host "Signed: $manifestSigFile"
+} elseif ($NoSign) {
+    Write-Warning '-NoSign: nothing signed. This build must not be released.'
 } else {
     Write-Warning 'No public keys in run/update_verifier.gd: nothing signed, so in-game updates stay off (see docs/UPDATE_SIGNING.md).'
 }
 
 $outputs = @($setup, $sumFile)
-if ($publicPems.Count -gt 0) { $outputs += @($manifestFile, $manifestSigFile) }
+if ($signing) { $outputs += @($manifestFile, $manifestSigFile) }
 Get-Item $outputs | Select-Object Name, Length

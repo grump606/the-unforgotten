@@ -62,6 +62,10 @@ try {
     Write-Host '== manifest golden =='
     powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_manifest_golden.ps1')
     if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: manifest golden'; exit 1 }
+    # verify_release.ps1 against the committed signing fixture (good set passes, every kind of damage fails).
+    Write-Host '== verify release =='
+    powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_verify_release.ps1')
+    if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: verify release'; exit 1 }
 } finally { Pop-Location }
 Write-Host 'CHECK PASSED'
 exit 0

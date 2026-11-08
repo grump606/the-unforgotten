@@ -17,18 +17,18 @@ Numbers (stops, characters, relics, cards per class) are stated in one place: [`
 | [`NEXT_STEPS.md`](NEXT_STEPS.md) | Current | Released vs unreleased work, and what to do next |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Current | Code layout |
 | [`RULES.md`](RULES.md) | Current | Hand, discard, target modes, statuses and keywords |
-| [`CARDS.md`](CARDS.md) | Current, Stray cards missing | Card list by class |
-| [`SIM.md`](SIM.md) | Current usage; results are dated | The simulators and their last results |
-| [`../tests/README.md`](../tests/README.md) | Current | How tests are found and written |
+| [`CARDS.md`](CARDS.md) | Current | Card list by class |
+| [`SIM.md`](SIM.md) | Current usage; results are dated and exclude the Stray | The simulators and their last results |
+| [`../tests/README.md`](../tests/README.md) | Current | How tests are found and written, the balance pins and the signing fixture |
 
 ## Building, shipping, tooling
 
 | Doc | Status | What it is |
 | --- | --- | --- |
-| [`CI.md`](CI.md) | Current | The GitHub Actions check, the pinned engine, the import cache |
+| [`CI.md`](CI.md) | Current | The GitHub Actions check, the pinned engine and runner, the import cache, the unsigned export and installer build |
 | [`INSTALLER.md`](INSTALLER.md) | Current | Building and what the Windows installer does |
 | [`UPDATE_CHECK.md`](UPDATE_CHECK.md) | Current | How the game finds and installs updates |
-| [`UPDATE_SIGNING.md`](UPDATE_SIGNING.md) | Current | The signing key and per-release steps |
+| [`UPDATE_SIGNING.md`](UPDATE_SIGNING.md) | Current | The signing key, per-release steps, `verify_release.ps1`, and what to do when a release fails halfway |
 | [`MACOS.md`](MACOS.md) | Current | The macOS export (untested on a Mac, not part of releases) |
 | [`MACOS_INSTALL.md`](MACOS_INSTALL.md) | Current | Instructions to hand a Mac tester |
 | [`REPO_SIZE.md`](REPO_SIZE.md) | Current | What takes space in the repo, and options |
