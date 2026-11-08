@@ -221,8 +221,8 @@ func _test_medium_cards() -> void:
 		_check(cards.has(id) and (cards[id] as CardData).character == &"medium", "%s is a Medium card" % id)
 	_check(cards[&"confess"].describe() == "Lose 4 HP, Deal 12" and cards[&"confess"].hp_cost() == 4, "Confess text and HP cost")
 	_check(cards[&"seance"].describe() == "Lose 3 HP, Draw 3, Gain 1 energy", "Seance text")
-	_check(cards[&"spirit_tithe"].describe() == "Heal 3 per Haunted enemy", "Spirit Tithe text")
-	_check(cards[&"reckoning"].describe() == "Deal 2x the target's Haunt", "Reckoning text")
+	_check(cards[&"spirit_tithe"].describe() == "Heal 4 per Haunted enemy", "Spirit Tithe text")
+	_check(cards[&"reckoning"].describe() == "Deal 3x the target's Haunt", "Reckoning text")
 	_check(cards[&"bleed_the_veil"].target_mode == CardData.TargetMode.ALL_ENEMIES and cards[&"bleed_the_veil"].hp_cost() == 6, "Bleed the Veil hits all enemies and costs 6 HP")
 
 	var bleed: CardData = cards[&"bleed_the_veil"]
@@ -252,10 +252,10 @@ func _test_medium_cards() -> void:
 		draw_fight.play_card(draw_fight.piles.hand.find(seance))
 		_check(draw_fight.player.hp == 37 and draw_fight.piles.hand.size() == hand_before - 1 + 3 and draw_fight.energy == Combat.ENERGY_PER_TURN, "Seance: -3 HP, +3 cards, net energy unchanged")
 
-	# A short chain: Lingering Dread then Reckoning deals double the Haunt.
+	# A short chain: Lingering Dread then Reckoning deals triple the Haunt.
 	var dread: CardData = cards[&"lingering_dread"]
 	var reckoning: CardData = cards[&"reckoning"]
 	var chain := _fight([dread, reckoning], 100)
 	_play(chain, dread)
 	_play(chain, reckoning)
-	_check(chain.enemies[0].hp == 92, "Lingering Dread then Reckoning deals 8")
+	_check(chain.enemies[0].hp == 88, "Lingering Dread then Reckoning deals 12")
