@@ -74,6 +74,10 @@ try {
     Write-Host '== check log patterns =='
     powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_log_patterns_test.ps1')
     if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: check log patterns'; exit 1 }
+    # The choice of the Inno Setup compiler (newest 6.x; any other major version stops the build).
+    Write-Host '== inno setup choice =='
+    powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'inno_setup_test.ps1')
+    if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: inno setup choice'; exit 1 }
     # PowerShell side of the update manifest golden test (the GDScript side runs inside 'tests').
     Write-Host '== manifest golden =='
     powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_manifest_golden.ps1')
