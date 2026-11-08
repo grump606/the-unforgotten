@@ -33,6 +33,8 @@ const NUMBER_RAISED := Color("#5fd16b")
 const NUMBER_LOWERED := Color("#ff6a5e")
 const NUMBER_RAISED_PAPER := Color("#1f7a2c")
 const NUMBER_LOWERED_PAPER := Color("#b3261e")
+## Half-size of the up / down triangle beside a live number, as a share of the text size.
+const DELTA_MARKER_HALF := 0.3
 const KEYWORDS := {
 	CardEffect.Kind.EXPOSE: "EXPOSE", CardEffect.Kind.HOLD: "HOLD",
 	CardEffect.Kind.THORNS: "THORNS", CardEffect.Kind.HAUNT: "HAUNT",
@@ -673,7 +675,33 @@ func _draw_body(body: Rect2, ink: Color) -> void:
 		if line.delta != 0:
 			col = _number_color(line.delta)
 		draw_multiline_string(_font, Vector2(body.position.x, y), line.text, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size, -1, col)
+		if line.delta != 0:
+			_draw_delta_marker(line.delta, body, y, size, line.text, col)
 		y += _font.get_multiline_string_size(line.text, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, size).y
+
+
+## A small filled triangle just left of a live line whose number a status changed: pointing up when raised, down when
+## lowered. A second cue beside the green / red colour, drawn with a polygon (not a font glyph) and placed in the
+## margin of the centered text so the layout does not move. `baseline` is the first row's baseline.
+func _draw_delta_marker(delta: int, body: Rect2, baseline: float, font_size: int, text: String, col: Color) -> void:
+	var half := font_size * DELTA_MARKER_HALF
+	var text_w := _font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, body.size.x, font_size).x
+	var left := body.position.x + (body.size.x - text_w) / 2.0
+	var center := Vector2(maxf(left - half - 2.0, body.position.x + half), baseline - _font.get_ascent(font_size) * 0.45)
+	draw_colored_polygon(delta_marker_points(delta, center, half), col)
+
+
+## Corner points of the delta triangle centred on `center` with half-size `half` (empty for delta 0): the apex is
+## above the base for a raised number and below it for a lowered one.
+static func delta_marker_points(delta: int, center: Vector2, half: float) -> PackedVector2Array:
+	if delta == 0:
+		return PackedVector2Array()
+	var dir := -1.0 if delta > 0 else 1.0
+	return PackedVector2Array([
+		center + Vector2(0.0, dir * half),
+		center + Vector2(half, -dir * half * 0.7),
+		center + Vector2(-half, -dir * half * 0.7),
+	])
 
 
 func _joined(lines: Array[Dictionary]) -> String:
