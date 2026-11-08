@@ -384,6 +384,9 @@ static func _effect_value(combat: Combat, card: CardData, hand_index: int, effec
 			value += _recall_value(combat, effect, energy_left)
 		CardEffect.Kind.ADD_CARD:
 			value += _added_value(combat, effect, energy_left)
+		_:
+			# BLOCK is priced by _play_value and never reaches here, so any kind landing here is new.
+			push_error("SmartPolicy._effect_value: no valuation for CardEffect.Kind %d" % effect.kind)
 	return value
 
 
@@ -861,6 +864,10 @@ static func _effect_score(card: CardData, effect: CardEffect, weights: Dictionar
 			total += amount * float(weights.get("recall", RECALL_SCORE_PER_CARD))
 		CardEffect.Kind.ADD_CARD:
 			total += _added_score(effect, weights, depth)
+		_:
+			# Damage kinds (and Haunt) were priced above by _nominal_damage; a zero-damage one lands here.
+			if not effect.is_damage() and effect.kind != CardEffect.Kind.HAUNT:
+				push_error("SmartPolicy._effect_score: no valuation for CardEffect.Kind %d" % effect.kind)
 	return total
 
 
@@ -936,6 +943,9 @@ static func _nominal_damage_once(effect: CardEffect, forgotten: int) -> float:
 			return float(effect.amount + effect.bonus * TYPICAL_SCENT)
 		CardEffect.Kind.HAUNT:
 			return HAUNT_VALUE * _haunt_total(effect.amount)
+	# Every other kind is no damage at all; a new damage kind must be priced above.
+	if effect.is_damage():
+		push_error("SmartPolicy._nominal_damage_once: no estimate for damage CardEffect.Kind %d" % effect.kind)
 	return 0.0
 
 

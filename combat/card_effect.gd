@@ -33,9 +33,12 @@ extends Resource
 ## new holder takes the old holder's whole stack too. A card that targets several enemies marks the current
 ## quarry if it is among them, else the first. Enemy intents cannot apply it.
 ## DAMAGE_PER_SCENT: `amount` plus `bonus` per Scent on the target, after which that Scent is spent (removed).
-## ADDING A KIND: append it to Kind (never reorder), then touch only: is_damage()/reach() and
-## describe() here, the handler in Combat._apply, and Vendor.effect_value. tests/mechanics_tests.gd
-## walks every Kind and fails if any of those is missing.
+## ADDING A KIND: append it to Kind (never reorder), then update every place that switches on it:
+## here is_damage() and raw_damage() (damage kinds), reach() and describe(); the handler in
+## Combat._apply; Vendor.effect_value; CardGlossary if the kind has a keyword; and the bots in
+## tools/smart_policy.gd (_effect_value for a fight, _effect_score for a deck, _nominal_damage_once for a
+## damage kind; each logs an error for a kind it does not know). tests/mechanics_tests.gd walks every
+## Kind for describe, vendor value, reach and a Combat handler; tests/bot_kind_tests.gd checks the bots.
 enum Kind { DAMAGE, BLOCK, DRAW, EXPOSE, HOLD, DAMAGE_PER_BLOCK, DAMAGE_IF_BLOCK, THORNS, GAIN_ENERGY, DAMAGE_PER_PLAY, HAUNT, LOSE_HP, HEAL_PER_HAUNTED, DAMAGE_PER_HAUNT, SHAKEN, FRAYED, MALICE, WARD, GLIMPSE, ADD_CARD, RECALL, DAMAGE_PER_FORGOTTEN, SCENT, DAMAGE_PER_SCENT }
 
 @export var kind: Kind = Kind.DAMAGE
