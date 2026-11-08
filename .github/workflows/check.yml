@@ -154,6 +154,16 @@ jobs:
             choco install innosetup --yes --no-progress
             if ($LASTEXITCODE -ne 0) { throw "choco could not install Inno Setup" }
           }
+          # The newest package may be a different major version (an Inno Setup 7 could break installer/setup.iss
+          # in ways that say nothing about this repo): refuse anything but 6.x, and print what was installed.
+          # (Read from the uninstaller in the install folder: ISCC.exe itself has no version resource, and the
+          # flags of `choco list` differ between Chocolatey 1.x and 2.x.)
+          $unins = @(Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup*", "$env:ProgramFiles\Inno Setup*" -Directory -ErrorAction SilentlyContinue |
+            ForEach-Object { Join-Path $_.FullName 'unins000.exe' } | Where-Object { Test-Path -LiteralPath $_ })
+          if ($unins.Count -eq 0) { throw "No Inno Setup install folder with an uninstaller found after choco install" }
+          $innoVersion = ($unins | ForEach-Object { [string](Get-Item -LiteralPath $_).VersionInfo.ProductVersion } | Sort-Object { [version]$_ } -Descending | Select-Object -First 1)
+          Write-Host "Inno Setup $innoVersion installed (pinned: $env:INNO_SETUP_VERSION)"
+          if ($innoVersion -notmatch '^6\.') { throw "Inno Setup $innoVersion installed, but the installer script targets 6.x: pin a 6.x version in scripts/engine_version.txt or update installer/setup.iss and scripts/build_installer.ps1." }
 
       - name: Build the installer (unsigned)
         shell: pwsh

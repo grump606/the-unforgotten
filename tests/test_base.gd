@@ -35,6 +35,11 @@ func _source_name() -> String:
 	return script.resource_path.get_file() if script != null else "?"
 
 
+## True when a run executed fewer checks than the recorded floor (run_tests.gd MIN_CHECKS).
+static func below_check_floor(checks: int, minimum: int) -> bool:
+	return checks < minimum
+
+
 ## Names of the tests/*_tests.gd files that run_tests.gd runs: every such file with a run() method,
 ## minus NOT_SUITES, in name order.
 static func discover_unit_test_files() -> Array[String]:

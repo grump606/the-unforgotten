@@ -109,6 +109,9 @@ try {
 $files = @("build\TheUnforgotten-Setup-$version.exe", "build\TheUnforgotten-Setup-$version.exe.sha256", "build\TheUnforgotten-Setup-$version.exe.manifest", "build\TheUnforgotten-Setup-$version.exe.manifest.sig")
 foreach ($f in $files) { if (-not (Test-Path -LiteralPath $f)) { throw "Missing build output: $f" } }
 
+$installerBytes = (Get-Item -LiteralPath $files[0]).Length
+Write-Host "Installer size: $installerBytes bytes. Put this number in tests/golden/latest_installer_size.txt in the next commit (a test keeps the in-game download cap at least 1.5x of it)."
+
 if (-not $Publish) {
     Write-Host "`nBuilt and signed $tag. To publish:"
     Write-Host "  gh release create $tag $($files -join ' ') --title `"$tag`" --generate-notes --draft"

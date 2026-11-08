@@ -60,4 +60,3 @@ Numbers (stops, characters, relics, cards per class) are stated in one place: [`
 | [`SCREEN_ART_DESIGN.md`](SCREEN_ART_DESIGN.md) | Shipped | Rest, story and end-card scenes |
 | [`PAUSE_SCREEN_DESIGN.md`](PAUSE_SCREEN_DESIGN.md) | Shipped | The pause backdrop (carriage theme from before the reskin) |
 | [`VENDOR_ART_DESIGN.md`](VENDOR_ART_DESIGN.md) | Shipped, partly superseded | The vendor scene; the wall and keeper are painted since v0.5.0 |
-| [`reference/`](reference/README.md) | Check before relying on this | Generated screen reference sheets (web pages); regenerate when screens change |
