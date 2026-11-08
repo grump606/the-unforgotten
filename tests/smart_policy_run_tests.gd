@@ -17,9 +17,16 @@ func run() -> int:
 
 
 func _test_plays_whole_runs_without_illegal_moves() -> void:
-	for seed_value in 6:
-		# Every character, so each class's new effects get played through.
-		var character: StringName = StarterContent.character_ids()[seed_value % 3]
+	# Every character from the registry (not a hard-coded three), two seeds each, so each class's
+	# effects get played through.
+	var cases: Array = []
+	for character in StarterContent.character_ids():
+		for seed_value in 2:
+			cases.append([character, seed_value])
+	_check(cases.size() >= 2 * StarterContent.character_ids().size(), "every character is played")
+	for case in cases:
+		var character: StringName = case[0]
+		var seed_value: int = case[1]
 		var run := RunState.new(seed_value, character)
 		while not run.finished:
 			match run.current_stop().type:
