@@ -1,6 +1,6 @@
 extends RefCounted
 ## Deck cycling (Phase 3a): the EffectContext refactor, Glimpse, Add card, Recall, damage per Forgotten
-## card, the CHOOSING step, pile helpers and the status cards. Registered by run_tests.gd. Fixtures are
+## card, the CHOOSING step, pile helpers and the status cards. Discovered by run_tests.gd. Fixtures are
 ## built in code; only the status cards come from their .tres files (through the loader).
 
 const K := CardEffect.Kind

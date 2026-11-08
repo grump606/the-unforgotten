@@ -1,6 +1,6 @@
 extends RefCounted
 ## Keyword rules: Forgotten, Fading, Ready, Anchor, Dormant, Surge and multi-hit.
-## Fixtures build CardData in code. Registered by run_tests.gd.
+## Fixtures build CardData in code. Discovered by run_tests.gd.
 
 var _failures := 0
 

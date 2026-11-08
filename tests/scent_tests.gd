@@ -1,6 +1,6 @@
 extends RefCounted
 ## Scent, the Stray's mark (docs/CLASSES_PLAN.md, the Stray, phase 2): a stack of at most 8 on one enemy that
-## adds to every hit the player's cards land on it. Fixtures are hand-made cards. Registered by run_tests.gd.
+## adds to every hit the player's cards land on it. Fixtures are hand-made cards. Discovered by run_tests.gd.
 
 const K := CardEffect.Kind
 const SCENT := Combatant.Status.SCENT

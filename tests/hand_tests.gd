@@ -1,6 +1,6 @@
 extends RefCounted
 ## The hand rules: keep up to HAND_SIZE cards at end of turn (the rest are chosen for discard),
-## draw back up to HAND_SIZE, and never hold more than HAND_MAX. Registered by run_tests.gd.
+## draw back up to HAND_SIZE, and never hold more than HAND_MAX. Discovered by run_tests.gd.
 
 var _failures := 0
 

@@ -1,6 +1,6 @@
 extends RefCounted
 ## UserDataMigration: the one-time move from the "Card Battle Prototype" user folder to the new one.
-## Runs on throwaway folders under the user-data folder, never on the real ones. Registered by run_tests.gd.
+## Runs on throwaway folders under the user-data folder, never on the real ones. Discovered by run_tests.gd.
 
 var _failures := 0
 var _base := ""

@@ -1,10 +1,15 @@
 extends SceneTree
 ## Headless tests. Run: godot --headless --path . -s res://tests/run_tests.gd
+## The inline tests below run first, then every tests/*_tests.gd that has a run() method, in name
+## order. Adding such a file needs no registration here. See tests/README.md.
+
+const TestBase := preload("res://tests/test_base.gd")
 
 var _failures := 0
 
 
 func _initialize() -> void:
+	TestBase.sweep_stale_scratch()
 	_test_damage_and_block()
 	_test_draw_reshuffles_discard()
 	_test_play_card_costs_energy()
@@ -49,44 +54,20 @@ func _initialize() -> void:
 	_test_turn_start_resets_energy_and_hand()
 	_test_all_enemies_payload_skips_the_dead()
 	_test_shuffle_reaches_every_position()
-	_failures += load("res://tests/content_tests.gd").new().run()
-	_failures += load("res://tests/run_state_tests.gd").new().run()
-	_failures += load("res://tests/vendor_tests.gd").new().run()
-	_failures += load("res://tests/smart_policy_tests.gd").new().run()
-	_failures += load("res://tests/run_save_tests.gd").new().run()
-	_failures += load("res://tests/hand_tests.gd").new().run()
-	_failures += load("res://tests/mechanics_tests.gd").new().run()
-	_failures += load("res://tests/keyword_tests.gd").new().run()
-	_failures += load("res://tests/card_glossary_tests.gd").new().run()
-	_failures += load("res://tests/tutorial_tests.gd").new().run()
-	_failures += load("res://tests/oath_tests.gd").new().run()
-	_failures += load("res://tests/oath_cards_tests.gd").new().run()
-	_failures += load("res://tests/oath_bot_tests.gd").new().run()
-	_failures += load("res://tests/scent_tests.gd").new().run()
-	_failures += load("res://tests/stray_cards_tests.gd").new().run()
-	_failures += load("res://tests/scent_bot_tests.gd").new().run()
-	_failures += load("res://tests/neutral_pool_tests.gd").new().run()
-	_failures += load("res://tests/pool_tests.gd").new().run()
-	_failures += load("res://tests/rarity_tests.gd").new().run()
-	_failures += load("res://tests/trigger_tests.gd").new().run()
-	_failures += load("res://tests/deserter_cards_tests.gd").new().run()
-	_failures += load("res://tests/remembered_tests.gd").new().run()
-	_failures += load("res://tests/pipeline_tests.gd").new().run()
-	_failures += load("res://tests/cycling_tests.gd").new().run()
-	_failures += load("res://tests/starter_tests.gd").new().run()
-	_failures += load("res://tests/medium_tests.gd").new().run()
-	_failures += load("res://tests/thief_cards_tests.gd").new().run()
-	_failures += load("res://tests/medium_cards_tests.gd").new().run()
-	_failures += load("res://tests/identity_tests.gd").new().run()
-	_failures += load("res://tests/relic_tests.gd").new().run()
-	_failures += load("res://tests/rest_content_tests.gd").new().run()
-	_failures += load("res://tests/phase_tests.gd").new().run()
-	_failures += load("res://tests/migration_tests.gd").new().run()
-	_failures += load("res://tests/debug_launch_tests.gd").new().run()
-	_failures += load("res://tests/audio_tests.gd").new().run()
-	_failures += load("res://tests/update_check_tests.gd").new().run()
+	_failures += _run_discovered_files()
 	print("FAILURES: %d" % _failures)
 	quit(1 if _failures > 0 else 0)
+
+
+## Runs every discovered tests/*_tests.gd once and returns the total failure count. Each file is
+## announced on stdout so a log shows exactly which files ran.
+func _run_discovered_files() -> int:
+	var total := 0
+	for file_name in TestBase.discover_unit_test_files():
+		print("TEST FILE: ", file_name)
+		var suite: Object = load("res://tests/" + file_name).new()
+		total += int(suite.run())
+	return total
 
 
 func _check(condition: bool, label: String) -> void:
