@@ -10,19 +10,19 @@ func _initialize() -> void:
 	c.piles.hand.assign([_card("shove"), _card("bash"), _card("brace"), _card("sweep")])
 	node._refresh()
 	await process_frame
-	var views: Array[CardView] = node._hand_views()
+	var views: Array[CardView] = node._hand.views_in_order()
 	check(views.size() == 4, "the hand shows four views")
 	node._refresh()
 	node._refresh()
-	check(node._hand_views() == views, "a refresh keeps the same view instances")
+	check(node._hand.views_in_order() == views, "a refresh keeps the same view instances")
 	# Hover a card, then change the target: the same view stays hovered with its tooltip and the preview survives.
 	var hovered: CardView = views[1]
 	hovered.set_hovered(true)
 	check(node.preview_visible(), "hovering a hand card shows the preview")
 	var tip := hovered.tooltip_text
 	node._select_target(1)
-	check(node._hand_views() == views and hovered.tooltip_text == tip and hovered.tooltip_text != "", "a target change keeps the views and the hovered tooltip")
-	check(node.preview_visible() and node._preview.card == hovered.card, "the preview survives a target change")
+	check(node._hand.views_in_order() == views and hovered.tooltip_text == tip and hovered.tooltip_text != "", "a target change keeps the views and the hovered tooltip")
+	check(node.preview_visible() and node._hand.preview.card == hovered.card, "the preview survives a target change")
 	hovered.set_hovered(false)
 	# A preview follows the target.
 	c.enemies[0].apply_status(Combatant.Status.EXPOSED, 2)
@@ -35,30 +35,30 @@ func _initialize() -> void:
 	c.energy = 9
 	views[0].pressed.emit()
 	check(c.piles.hand.size() == 3 and _ids(c.piles.hand) == before_ids.slice(1), "pressing the first view plays the first card")
-	var after: Array[CardView] = node._hand_views()
+	var after: Array[CardView] = node._hand.views_in_order()
 	after[0].pressed.emit()
 	check(c.piles.hand.size() == 2 and c.piles.hand[0].id == &"brace", "the rebuilt first view plays the new first card")
 	# Energy loss updates the surviving views in place.
 	c.piles.hand.assign([_card("bash"), _card("brace")])
 	node._refresh()
-	var kept: Array[CardView] = node._hand_views()
+	var kept: Array[CardView] = node._hand.views_in_order()
 	c.energy = 0
 	node._refresh()
-	check(node._hand_views() == kept and kept[0].state == CardView.State.UNPLAYABLE, "losing energy updates the same views in place")
+	check(node._hand.views_in_order() == kept and kept[0].state == CardView.State.UNPLAYABLE, "losing energy updates the same views in place")
 
 	# Pile keys.
 	c.energy = 9
 	key(node, KEY_D)
-	check(node.pile_viewer_open() and node._pile_viewer.pile == PileViewer.Pile.DRAW, "D opens the Draw pile")
+	check(node.pile_viewer_open() and node._overlays.pile_viewer.pile == PileViewer.Pile.DRAW, "D opens the Draw pile")
 	key(node, KEY_C)
-	check(node._pile_viewer.pile == PileViewer.Pile.DISCARD, "C switches to the Discard pile")
+	check(node._overlays.pile_viewer.pile == PileViewer.Pile.DISCARD, "C switches to the Discard pile")
 	key(node, KEY_F)
-	check(node._pile_viewer.pile == PileViewer.Pile.FORGOTTEN, "F switches to the Forgotten pile")
+	check(node._overlays.pile_viewer.pile == PileViewer.Pile.FORGOTTEN, "F switches to the Forgotten pile")
 	key(node, KEY_W)
-	check(node._pile_viewer.pile == PileViewer.Pile.SWORN, "W switches to the Sworn pile")
+	check(node._overlays.pile_viewer.pile == PileViewer.Pile.SWORN, "W switches to the Sworn pile")
 	key(node, KEY_ESCAPE)
 	check(not node.pile_viewer_open(), "Esc closes it")
-	check(node._pile_text().begins_with("Draw "), "the counters read Draw, Discard, Forgotten, Sworn")
+	check(node._hud.pile_text().begins_with("Draw "), "the counters read Draw, Discard, Forgotten, Sworn")
 
 	# After the fight: Enter, E and N all continue.
 	for code in [KEY_ENTER, KEY_E, KEY_N]:

@@ -237,7 +237,7 @@ func _initialize() -> void:
 	for i in combat.piles.hand.size():
 		var card := combat.piles.hand[i]
 		if combat.can_play(i) and card.effects.any(func(e: CardEffect) -> bool: return e.is_damage()):
-			duel._play_hand_card(i)
+			duel._hand.play_card(i)
 			break
 	check(player_view.lunge_amount() >= 0.0 and player_view._lunge > 0.9, "playing an attack lunges the player")
 	duel._on_end_turn_pressed() # opens the discard step

@@ -20,7 +20,7 @@ const POP_TIME := 0.35
 const FADE_TIME := 0.7
 const FLOAT_TIME := 1.1
 const BAR_H := 16.0
-## z_index of the drop label layer: above the dragged card's ghost (battle.gd DRAG_GHOST_Z), so the
+## z_index of the drop label layer: above the dragged card's ghost (battle_drag.gd GHOST_Z), so the
 ## result is never covered by the card.
 const DROP_LABEL_Z := 30
 

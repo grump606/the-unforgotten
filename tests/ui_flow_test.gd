@@ -219,7 +219,7 @@ func _initialize() -> void:
 				var played := false
 				for i in combat.piles.hand.size():
 					if combat.can_play(i):
-						battle._play_hand_card(i)
+						battle._hand.play_card(i)
 						played = true
 						break
 				if not played:
@@ -228,12 +228,12 @@ func _initialize() -> void:
 				# Mark the surplus (the first cards) and confirm.
 				var mark := 0
 				while not combat.can_confirm_discard() and mark < combat.piles.hand.size():
-					battle._play_hand_card(mark)
+					battle._hand.play_card(mark)
 					mark += 1
 				battle._on_end_turn_pressed()
 			elif combat.phase == Combat.Phase.CHOOSING:
 				# Glimpse the Exit opens a pick: keep every card (discard none) through the overlay's handler.
-				battle._on_choice_confirmed([] as Array[int])
+				battle._overlays.on_choice_confirmed([] as Array[int])
 			elif combat.phase == Combat.Phase.ENDED:
 				fights_ended += 1
 				combat.player.hp = mini(combat.player.hp, combat.player.max_hp)

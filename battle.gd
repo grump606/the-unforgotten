@@ -1,51 +1,15 @@
+class_name Battle
 extends Control
-## Thin view over Combat: renders state and forwards button presses. All rules
-## live in res://combat/.
+## Thin view over Combat: renders state and forwards button presses. All rules live in res://combat/.
+## This script is the coordinator (attach, Combat signal handlers, fighter sync, turn flow); the pieces of the
+## screen live in helper objects under res://run/battle/, each holding a reference back to this node:
+## BattleHand (hand row, preview, play), BattleDrag (drag a card onto an enemy), BattleHud (pile buttons, turn
+## controls, journey info), BattleOverlays (Glimpse / Recall pick, pile viewer), BattleFx (boss entrance, phase
+## banner, flash, pile cues), BattleKeys (keyboard), BattleDamagePreview and BattleTooltips (display text).
 
 const PLAYER_START_HP := 40
-## Keys 1-9 pick hand cards 1-9 and 0 picks the 10th.
-const MAX_HAND_KEYS := 10
-## Hand cards are drawn smaller than full size so a hand fits beside the enemy row and log.
-const HAND_CARD_SCALE := 0.7
-## A hand too wide for one row first shrinks its cards down to this scale, then overlaps them
-## (the left edge with the cost stamp and hotkey stays visible; a hovered card comes to the front).
-const HAND_CARD_SCALE_MIN := 0.6
-## Gap between hand cards when they do not need to overlap.
-const HAND_GAP := 4
-## Used for the fit calculation before the hand box has been laid out (headless / first frame).
-const HAND_WIDTH_FALLBACK := 820.0
-## Most the cards may overlap, as a share of one card's width (with 10 cards this never binds at 1152 px).
-const HAND_MAX_OVERLAP := 0.55
 ## Relic badges beside the HP line are drawn a little smaller than full size.
 const BADGE_SCALE := 0.85
-## Scale of the inspection preview shown above the hand for the hovered card.
-const PREVIEW_SCALE := 1.6
-## The card ghost that follows the pointer during a drag: a little smaller than the hand card and
-## see-through, with the hovered enemy's result label drawn above it (Fighter.DROP_LABEL_Z).
-const DRAG_GHOST_SCALE := 0.85
-const DRAG_GHOST_ALPHA := 0.7
-const DRAG_GHOST_Z := 20
-## Seconds per beat of the amber pulse (two beats) when the discard-step confirm button becomes available.
-const CONFIRM_PULSE_TIME := 0.35
-## The floating "+Dread" cue when cards are added to the player's piles: how long it takes, how far it
-## rises, and the tint of the pile counters while the pointer is over them.
-const CUE_TIME := 1.4
-const CUE_RISE := 46.0
-## Keys that open the Draw, Discard, Forgotten and Sworn piles (D, C, F and W; the letters are free of the
-## other hotkeys).
-const PILE_KEYS := [KEY_D, KEY_C, KEY_F, KEY_W]
-## Layer of the choice overlay and the pile viewer (above the figures, below the phase banner).
-const OVERLAY_Z := 22
-
-# Derived from the rules constants so the text cannot drift from them.
-const EXPOSED_MULTIPLIER_TEXT := "%.1fx" % (float(Combatant.EXPOSED_NUM) / Combatant.EXPOSED_DEN)
-const EXPOSED_TOOLTIP := "Takes " + EXPOSED_MULTIPLIER_TEXT + " damage, rounded down, for %d more turns."
-## Shaken and Frayed take 25% off (Combatant.REDUCED_NUM / REDUCED_DEN = 3/4); the tests pin the wording.
-const SHAKEN_TOOLTIP := "Shaken %d: deals 25%% less damage (rounded down) for %d more turns."
-const FRAYED_TOOLTIP := "Frayed %d: gains 25%% less Block from cards (rounded down) for %d more turns."
-const MALICE_TOOLTIP := "Malice %+d: %+d damage on every hit, for the rest of the fight."
-const WARD_TOOLTIP := "Ward %+d: %+d Block from every card, for the rest of the fight."
-const SCENT_TOOLTIP := "Scent %d: every hit your cards land here deals %d more. Only one enemy holds Scent (up to %d). Marking another enemy moves it."
 
 ## Gap between enemies on the stage, and the share of the stage width the player stands in.
 const ENEMY_GAP := 16.0
@@ -57,21 +21,12 @@ const ENEMY_STAGGER := 0.4
 ## The boss HP bar: its horizontal span (fractions of the stage width) and the gap above it.
 const BOSS_BAR_X := Vector2(0.35, 0.65)
 const BOSS_BAR_TOP := 6.0
-## Seconds the phase banner stays up in total, and the boss entrance scale-in start.
-const PHASE_BANNER_TIME := 1.8
-const ENTRANCE_START_SCALE := 0.8
 
 @onready var _backdrop: BattleBackdrop = %Backdrop
 @onready var _stage: Control = %Stage
 @onready var _left_box: VBoxContainer = %LeftBox
 @onready var _pile_box: VBoxContainer = %PileBox
-## The four pile counters (Draw, Discard, Forgotten, Sworn), each a button that opens that pile, and the deck line.
-var _pile_buttons: Array[Button] = []
-var _deck_label: Label
-@onready var _hud: PanelContainer = %Hud
-
-
-
+@onready var _hud_panel: PanelContainer = %Hud
 @onready var _hand_box: HFlowContainer = %HandBox
 @onready var _end_turn_button: Button = %EndTurnButton
 @onready var _result_label: Label = %ResultLabel
@@ -103,17 +58,17 @@ var destination_key: StringName = &""
 ## The run's relics, shown as badges beside the player's HP (the strip hides when there are none).
 var relics: Array[RelicData] = []
 
+## The pieces of the screen (see the header); created in _ready.
+var _hand: BattleHand
+var _drag: BattleDrag
+var _hud: BattleHud
+var _overlays: BattleOverlays
+var _fx: BattleFx
+var _keys: BattleKeys
+var _damage: BattleDamagePreview
+
 var _combat: Combat
-## "Back" button shown during the end-of-turn discard step (created in code).
-var _cancel_button: Button
-var _hint_shown := false
 var _relic_strip: RelicStrip
-## Journey info (see set_journey): top-left stage text, the character title above the orb, the deck count.
-var _stage_info: VBoxContainer
-var _stage_title: Label
-var _stage_journey: Label
-var _character_label: Label
-var _deck_size := -1
 var _victory := false
 var _batch_depth := 0
 var _refresh_pending := false
@@ -125,45 +80,35 @@ var _target_index: int = 0
 var _enemy_views: Array[Fighter] = []
 var _player_view: Fighter
 var _energy_orb: EnergyOrb
+var _boss_bar: BossBar
 ## Enemy attacks seen in the current batch; each lunges a little after the previous one.
 var _attacks_this_batch := 0
 ## The player's HP when the last enemy attack was handled, so each attack's share of the damage is known.
 var _seen_player_hp := 0
 ## The player's Block at the same moment, so each attack's share absorbed by Block is known.
 var _seen_player_block := 0
-## Full-size look at the hovered hand card (created on first use), and the pulse on the confirm button.
-var _preview: CardView
-var _preview_view: CardView
-var _confirm_ready := false
-var _confirm_tween: Tween
-## A drag in progress: the dragged hand card, the ghost that follows the pointer, the enemy index under it.
-var _drag_view: CardView
-var _drag_ghost: CardView
-var _drag_hover := -1
-## Boss presentation: the entrance overlay, the wide HP bar on top of the stage, the phase banner and flash.
-var _intro: BossIntro
-var _boss_bar: BossBar
-var _entrance_tween: Tween
-var _banner: Label
-var _banner_tween: Tween
-var _flash: ColorRect
-var _flash_tween: Tween
-## The Glimpse / Recall pick while Combat is CHOOSING, and the read-only pile viewer (both created on demand).
-var _choice_overlay: ChoiceOverlay
-var _pile_viewer: PileViewer
-## Floating "+Dread" cues showing now, the text of the latest one (read by tests), and how many were shown.
-var _live_cues := 0
-var last_cue_text := ""
-var cue_count := 0
+
+## The latest floating pile cue's text and how many have been shown (read by tests).
+var last_cue_text: String:
+	get:
+		return _fx.last_cue_text
+var cue_count: int:
+	get:
+		return _fx.cue_count
 
 
 func _ready() -> void:
 	# Embedded in the run screen the theme is inherited; run on its own (F6) it needs its own.
 	if get_parent() == get_tree().root:
 		MenuStyle.apply_theme_only(self)
-	_style_hud()
+	_hand = BattleHand.new(self, _hand_box)
+	_drag = BattleDrag.new(self)
+	_hud = BattleHud.new(self)
+	_overlays = BattleOverlays.new(self)
+	_fx = BattleFx.new(self)
+	_keys = BattleKeys.new(self)
+	_damage = BattleDamagePreview.new(self)
 	_left_box.add_theme_constant_override("separation", 2)
-	_build_pile_buttons()
 	_end_turn_button.theme_type_variation = MenuStyle.PRIMARY
 	_log_button.theme_type_variation = MenuStyle.QUIET
 	_backdrop.set_variant(boss_fight, character_id, destination_key)
@@ -183,16 +128,7 @@ func _ready() -> void:
 	# Tab/Enter/Space move focus or re-press a button instead.
 	_end_turn_button.focus_mode = Control.FOCUS_NONE
 	_new_fight_button.focus_mode = Control.FOCUS_NONE
-	_cancel_button = Button.new()
-	_cancel_button.text = "Back"
-	_cancel_button.theme_type_variation = MenuStyle.QUIET
-	_cancel_button.tooltip_text = "Back to playing cards (Backspace)"
-	_cancel_button.custom_minimum_size = Vector2(0, 36)
-	_cancel_button.focus_mode = Control.FOCUS_NONE
-	_cancel_button.visible = false
-	_cancel_button.pressed.connect(_on_cancel_discard_pressed)
-	_end_turn_button.get_parent().add_child(_cancel_button)
-	_end_turn_button.get_parent().move_child(_cancel_button, _end_turn_button.get_index() + 1)
+	_hud.build()
 	if external_combat != null:
 		_new_fight_button.text = "Continue  [Enter]"
 		_attach(external_combat)
@@ -251,8 +187,7 @@ func _attach(combat: Combat) -> void:
 	_combat.enemy_acted.connect(_on_enemy_acted)
 	_combat.enemy_phase_changed.connect(_on_enemy_phase_changed)
 	_target_index = 0
-	_close_pile_viewer()
-	_close_choice_overlay()
+	_overlays.close_all()
 	_result_label.text = ""
 	_log_label.clear()
 	_backdrop.set_harsh(false)
@@ -263,7 +198,7 @@ func _attach(combat: Combat) -> void:
 	_combat.start()
 	_end_batch()
 	if boss_fight and show_boss_intro:
-		_start_boss_intro()
+		_fx.start_boss_intro()
 
 
 ## Combat emits state_changed on every mutation, so one action (a card play, the whole enemy
@@ -296,154 +231,69 @@ func _refresh() -> void:
 	refresh_count += 1
 	_sync_player()
 	_energy_orb.set_energy(_combat.energy, Combat.ENERGY_PER_TURN)
-	_sync_piles()
+	_hud.sync_piles()
 	_keep_target_alive()
 	_sync_enemies()
-	_sync_hand()
-	_sync_turn_controls()
-	_sync_choice_overlay()
-	_sync_pile_viewer()
+	_hand.sync()
+	_hud.sync_turn_controls()
+	_overlays.sync_choice()
+	_overlays.sync_pile_viewer()
 
 
-## Shows the Glimpse / Recall overlay exactly while Combat is CHOOSING. A refresh with the same choice
-## keeps the overlay (and the player's marks); a new choice (a second queued pick) gets a fresh one.
-func _sync_choice_overlay() -> void:
-	var wanted := _combat.phase == Combat.Phase.CHOOSING and _combat.has_choice()
-	if _choice_overlay != null and (not wanted or not _choice_overlay.matches(_combat)):
-		_close_choice_overlay()
-	if wanted and _choice_overlay == null:
-		_close_pile_viewer()
-		_choice_overlay = ChoiceOverlay.create(_combat, _stage.size, _combat.player)
-		_choice_overlay.z_index = OVERLAY_Z
-		_choice_overlay.confirmed.connect(_on_choice_confirmed)
-		_stage.add_child(_choice_overlay)
+## Removes a stale child immediately (not just queue_free) so it can no longer
+## receive a click in the same frame, which would act on an outdated index.
+func _discard_node(node: Node) -> void:
+	node.get_parent().remove_child(node)
+	node.queue_free()
 
 
-func _close_choice_overlay() -> void:
-	if _choice_overlay != null and is_instance_valid(_choice_overlay):
-		_discard_node(_choice_overlay)
-	_choice_overlay = null
+# --- forwarders for the pieces other scripts and tests call -----------------------------------
 
-
-## True while the Glimpse / Recall overlay is up (read by tests).
-func choice_overlay_visible() -> bool:
-	return _choice_overlay != null and is_instance_valid(_choice_overlay)
-
-
-func _on_choice_confirmed(indices: Array[int]) -> void:
-	if _combat == null or _combat.phase != Combat.Phase.CHOOSING:
-		return
-	_close_choice_overlay()
-	RunScreen.sfx(&"card_select")
-	_begin_batch()
-	if not _combat.resolve_choice(indices):
-		_refresh_pending = true # the overlay was closed above: bring it back
-	_end_batch()
-
-
-## --- the pile viewer --------------------------------------------------------------------------
-
-## One small button per pile, so each has its own target, hover and key (see PILE_KEYS).
-func _build_pile_buttons() -> void:
-	for which in PileViewer.PILE_NAMES.size():
-		var button := Button.new()
-		button.theme_type_variation = MenuStyle.QUIET
-		button.add_theme_font_size_override("font_size", 13)
-		button.custom_minimum_size = Vector2(0, 22)
-		button.focus_mode = Control.FOCUS_NONE
-		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		button.tooltip_text = "Look at your %s pile (key %s)" % [String(PileViewer.PILE_NAMES[which]).to_lower(), OS.get_keycode_string(PILE_KEYS[which])]
-		button.pressed.connect(open_pile_viewer.bind(which as PileViewer.Pile))
-		_pile_box.add_child(button)
-		_pile_buttons.append(button)
-	_deck_label = Label.new()
-	_deck_label.add_theme_font_size_override("font_size", 13)
-	_deck_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_deck_label.visible = false
-	_pile_box.add_child(_deck_label)
-
-
-## Opens the read-only viewer on a pile. Only during the player's turn and the discard step: not while a
-## Glimpse / Recall pick is open, in the enemy phase or after the fight. True when it opened.
+## Opens the read-only viewer on a pile (see BattleOverlays). True when it opened.
 func open_pile_viewer(which: PileViewer.Pile) -> bool:
-	if _combat == null or _combat.phase not in [Combat.Phase.PLAYER_TURN, Combat.Phase.DISCARDING]:
-		return false
-	if _pile_viewer != null:
-		_pile_viewer.show_pile(which)
-		return true
-	_hide_preview()
-	_pile_viewer = PileViewer.create(_combat, which, size, _combat.player)
-	_pile_viewer.z_index = OVERLAY_Z
-	_pile_viewer.closed.connect(_close_pile_viewer)
-	add_child(_pile_viewer)
-	return true
-
-
-func _close_pile_viewer() -> void:
-	if _pile_viewer != null and is_instance_valid(_pile_viewer):
-		_discard_node(_pile_viewer)
-	_pile_viewer = null
+	return _overlays.open_pile_viewer(which)
 
 
 ## True while the pile viewer is open (read by tests).
 func pile_viewer_open() -> bool:
-	return _pile_viewer != null and is_instance_valid(_pile_viewer)
+	return _overlays.pile_viewer_open()
 
 
-## Keeps an open viewer in step with the piles, and closes it when the phase no longer allows one.
-func _sync_pile_viewer() -> void:
-	if _pile_viewer == null:
-		return
-	if _combat.phase not in [Combat.Phase.PLAYER_TURN, Combat.Phase.DISCARDING]:
-		_close_pile_viewer()
-	else:
-		_pile_viewer.refresh()
+## True while the Glimpse / Recall overlay is up (read by tests).
+func choice_overlay_visible() -> bool:
+	return _overlays.choice_visible()
 
 
-## End Turn / discard-step controls. In the discard step the main button confirms ("Keep all" when
-## nothing is marked and at most Combat.HAND_SIZE cards are held, "Discard N" otherwise, or a disabled
-## "Discard N more" while too many would stay) and Back returns to playing cards.
-func _sync_turn_controls() -> void:
-	var phase := _combat.phase
-	var discarding := phase == Combat.Phase.DISCARDING
-	_cancel_button.visible = discarding
-	if discarding:
-		var marked := _combat.discard_marks.size()
-		var need := _combat.discard_required()
-		_end_turn_button.disabled = need > 0
-		_pulse_confirm(need == 0)
-		if need > 0:
-			_end_turn_button.text = "Discard %d more" % need
-		elif marked == 0:
-			_end_turn_button.text = "Keep all"
-		else:
-			_end_turn_button.text = "Discard %d" % marked
-		# Anchor and Fading cards are not part of the 5: they cannot be marked and are not counted.
-		var keep := _combat.piles.counted_in_hand() - marked
-		var text := "Choose cards to discard. You keep %d of up to %d." % [keep, Combat.HAND_SIZE]
-		if _count_hand(func(c: CardData) -> bool: return c.anchor) > 0:
-			text += " Anchor cards stay."
-		if _count_hand(func(c: CardData) -> bool: return c.fading) > 0:
-			text += " Fading cards left in hand will be Forgotten."
-		_result_label.text = text
-		_hint_shown = true
-		return
-	_pulse_confirm(false)
-	_end_turn_button.text = "End Turn"
-	_end_turn_button.disabled = phase != Combat.Phase.PLAYER_TURN
-	if _hint_shown and phase != Combat.Phase.ENDED:
-		_result_label.text = ""
-	_hint_shown = false
+## True while the inspection preview is on screen (read by tests).
+func preview_visible() -> bool:
+	return _hand.preview_visible()
 
 
-## How many cards in hand satisfy `test`.
-func _count_hand(test: Callable) -> int:
-	var count := 0
-	for card in _combat.piles.hand:
-		if test.call(card):
-			count += 1
-	return count
+## True while a card is being dragged (read by tests).
+func is_dragging_card() -> bool:
+	return _drag.is_dragging()
 
+
+## True while the boss entrance overlay is up (read by tests).
+func intro_visible() -> bool:
+	return _fx.intro_visible()
+
+
+## True while the phase banner is showing (read by tests).
+func phase_banner_visible() -> bool:
+	return _fx.phase_banner_visible()
+
+
+## Journey info for a fight inside a run (see BattleHud.set_journey). Standalone fights never call this.
+func set_journey(stop_title: String, journey: String, character_title: String, deck_size: int) -> void:
+	_hud.set_journey(stop_title, journey, character_title, deck_size)
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	_keys.handle(event)
+
+
+# --- target and stage --------------------------------------------------------------------------
 
 ## Moves the selection to the first living enemy if the current one is defeated.
 func _keep_target_alive() -> void:
@@ -464,7 +314,7 @@ func _sync_player() -> void:
 		_player_view.set_player(player, character_id)
 		_stage.add_child(_player_view)
 		_layout_stage()
-	_player_view.tooltip_text = "%s\n%s" % [player.display_name, _status_tooltip(player)]
+	_player_view.tooltip_text = "%s\n%s" % [player.display_name, BattleTooltips.status(player)]
 	_player_view.refresh()
 
 
@@ -495,7 +345,7 @@ func _sync_enemies() -> void:
 		var enemy := _combat.enemies[i]
 		var view := _enemy_views[i]
 		view.set_targeted(i == _target_index and not enemy.is_dead())
-		view.tooltip_text = "" if enemy.is_dead() else _enemy_tooltip(enemy)
+		view.tooltip_text = "" if enemy.is_dead() else BattleTooltips.enemy(enemy, _combat.player)
 		view.refresh()
 
 
@@ -528,377 +378,17 @@ func _toggle_log() -> void:
 	_log_panel.visible = not _log_panel.visible
 
 
-## Tooltip of an enemy: its Omen (what it will do next), then its statuses.
-func _enemy_tooltip(enemy: EnemyUnit) -> String:
-	var lines: Array[String] = [enemy.display_name]
-	var intent := Fighter.effective_intent(enemy, _combat.player)
-	if intent != null:
-		lines.append("Omen: " + intent.describe())
-	var status := _status_tooltip(enemy)
-	if status != "":
-		lines.append(status)
-	return "\n".join(lines)
-
-
-## Brings the hand row up to date after a state change. The views are kept (so hover, drag, the tooltip and the
-## preview survive) and only their state, note, preview and marks are updated; the row is rebuilt from scratch
-## only when the hand size or a card at some index changed.
-func _sync_hand() -> void:
-	var hand := _combat.piles.hand
-	var views := _hand_views()
-	var same := views.size() == hand.size()
-	if same:
-		for i in views.size():
-			if views[i].card != hand[i]:
-				same = false
-				break
-	if not same:
-		_rebuild_hand()
-		return
-	var discarding := _combat.phase == Combat.Phase.DISCARDING
-	var hand_scale := _fit_hand()
-	for i in views.size():
-		_apply_hand_view(views[i], i, discarding, hand_scale)
-	if _preview != null and _preview.visible and _preview_view != null and is_instance_valid(_preview_view) and views.has(_preview_view):
-		_show_preview(_preview_view)
-
-
-## The hand row's card views in order.
-func _hand_views() -> Array[CardView]:
-	var out: Array[CardView] = []
-	for child in _hand_box.get_children():
-		var view := child as CardView
-		if view != null:
-			out.append(view)
-	return out
-
-
-func _rebuild_hand() -> void:
-	_end_drag()
-	_hide_preview()
-	for child in _hand_box.get_children():
-		_discard_node(child)
-	var discarding := _combat.phase == Combat.Phase.DISCARDING
-	var hand_scale := _fit_hand()
-	for i in _combat.piles.hand.size():
-		var view := CardView.new()
-		view.auto_hover = true
-		view.clickable = true
-		view.live = _combat.player
-		# The handlers look the index up when they fire (the view's place in the row), so they stay right
-		# however the row changes around the view.
-		view.pressed.connect(func() -> void: _play_hand_card(view.get_index()))
-		view.drag_started.connect(_on_drag_started.bind(view))
-		view.drag_moved.connect(_on_drag_moved)
-		view.drag_ended.connect(func(pos: Vector2) -> void: _on_drag_ended(pos, view.get_index()))
-		view.drag_cancelled.connect(_end_drag)
-		view.hover_changed.connect(_on_card_hover.bind(view))
-		_apply_hand_view(view, i, discarding, hand_scale)
-		_hand_box.add_child(view)
-	# The new views start un-hovered; once laid out, light the one under the pointer.
-	_restore_hover.call_deferred()
-
-
-## Sets everything about hand view `i` that follows from the fight: its card, size, state and note, damage
-## preview, discard mark and hotkey. Writes only what differs, so an unchanged card is not redrawn.
-func _apply_hand_view(view: CardView, i: int, discarding: bool, hand_scale: float) -> void:
-	var card := _combat.piles.hand[i]
-	if view.card != card:
-		view.set_card(card)
-	if view.view_scale != hand_scale:
-		view.view_scale = hand_scale
-	var hotkey := i + 1 if i < MAX_HAND_KEYS else 0
-	if view.hotkey != hotkey:
-		view.hotkey = hotkey
-	var preview := _damage_preview(card).strip_edges() if not discarding else ""
-	if view.preview != preview:
-		view.preview = preview
-	var marked := discarding and _combat.discard_marks.has(i)
-	if view.discard_marked != marked:
-		view.discard_marked = marked
-	var new_state := CardView.State.NORMAL
-	var note := ""
-	if discarding:
-		# Cards that can be discarded toggle; marked ones are dimmed and stamped. Anchor and Fading
-		# cards cannot be marked, and say what happens to them instead.
-		note = "" if _combat.can_discard_card(i) else _undiscardable_note(card)
-	elif not _combat.can_play(i):
-		new_state = CardView.State.UNPLAYABLE
-		note = _unplayable_note(card)
-	if view.state != new_state or view.note != note:
-		view.set_state(new_state, note)
-	# Only cards that target enemies can be dragged (to an enemy, whether or not it is selected).
-	view.draggable = not discarding and card.target_mode != CardData.TargetMode.SELF
-
-
-## Sizes the hand row so every card fits on one line: normal scale and gap when it fits, then
-## smaller cards, then overlap. Sets the box's horizontal separation and returns the card scale.
-func _fit_hand() -> float:
-	var count := _combat.piles.hand.size()
-	var avail := _hand_box.size.x if _hand_box.size.x > 100.0 else HAND_WIDTH_FALLBACK
-	var scale := HAND_CARD_SCALE
-	var gap := float(HAND_GAP)
-	if count > 1:
-		var width := CardView.BASE.x * scale
-		if count * width + (count - 1) * gap > avail:
-			scale = clampf((avail - (count - 1) * gap) / (count * CardView.BASE.x), HAND_CARD_SCALE_MIN, HAND_CARD_SCALE)
-			width = CardView.BASE.x * scale
-			if count * width + (count - 1) * gap > avail:
-				gap = maxf((avail - count * width) / (count - 1), -HAND_MAX_OVERLAP * width)
-	_hand_box.add_theme_constant_override("h_separation", int(floorf(gap)))
-	return scale
-
-
-## What happens to a card the discard step will not let the player mark.
-func _undiscardable_note(card: CardData) -> String:
-	return "FORGOTTEN AT END" if card.fading else "ANCHOR: STAYS"
-
-
-## Why a hand card cannot be played right now, as a short warning for the card ("" when the
-## fight is not on the player's turn, where nothing is playable and no card needs a warning).
-func _unplayable_note(card: CardData) -> String:
-	if _combat.phase != Combat.Phase.PLAYER_TURN:
-		return ""
-	if card.dormant:
-		return "DORMANT"
-	if card.cost > _combat.energy:
-		return "NEED %d ENERGY" % card.cost
-	if card.hp_cost(_combat.energy if card.surge else 1) >= _combat.player.hp:
-		return "TOO LOW HP"
-	return "PLAY LIMIT"
-
-
-## Removes a stale child immediately (not just queue_free) so it can no longer
-## receive a click in the same frame, which would act on an outdated index.
-func _discard_node(node: Node) -> void:
-	node.get_parent().remove_child(node)
-	node.queue_free()
-
-
-func _play_hand_card(hand_index: int) -> void:
-	if _combat == null or _combat.phase == Combat.Phase.CHOOSING or pile_viewer_open():
-		return # a Glimpse / Recall pick must be finished first; the pile viewer sits over the hand
-	_begin_batch()
-	if _combat.phase == Combat.Phase.DISCARDING:
-		if _combat.toggle_discard(hand_index):
-			RunScreen.sfx(&"card_select")
-	elif not _combat.play_card(hand_index, _target_index) and _combat.phase == Combat.Phase.PLAYER_TURN and hand_index < _combat.piles.hand.size():
-		RunScreen.sfx(&"unavailable")  # a card that cannot be played right now
-	_end_batch()
-
-
-## --- dragging a card onto an enemy ------------------------------------------------------------
-## The card is lifted out of the hand as a ghost that follows the pointer; the enemy under it lights up
-## with what the card would do to THAT enemy (the same "Deals 15 (6 vs Exposed), 2 after Block" line the
-## card face shows for the selected one). Releasing over a living enemy plays the card on it, leaving the
-## selected target alone; releasing anywhere else, Esc or right-click cancels. Clicking still plays on
-## the selected enemy.
-
-func _on_drag_started(view: CardView) -> void:
-	_end_drag()
-	if _combat == null or _combat.phase != Combat.Phase.PLAYER_TURN:
-		view.cancel_drag()
-		return
-	_hide_preview()
-	_drag_view = view
-	view.modulate.a = 0.35
-	_drag_ghost = CardView.new()
-	_drag_ghost.view_scale = view.view_scale * DRAG_GHOST_SCALE
-	_drag_ghost.modulate.a = DRAG_GHOST_ALPHA
-	_drag_ghost.z_index = DRAG_GHOST_Z
-	_drag_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_drag_ghost.live = _combat.player
-	_drag_ghost.set_card(view.card)
-	_drag_ghost.set_state(CardView.State.NORMAL)
-	_drag_ghost.preview = view.preview
-	_drag_ghost.hotkey = view.hotkey
-	add_child(_drag_ghost)
-	_on_drag_moved(view.get_global_rect().get_center())
-
-
-func _on_drag_moved(pos: Vector2) -> void:
-	if _drag_ghost == null or _drag_view == null:
-		return
-	_drag_ghost.global_position = pos - _drag_ghost.size / 2.0
-	var index := _enemy_at(pos)
-	if index != _drag_hover:
-		_clear_drag_hover()
-		_drag_hover = index
-	if index >= 0:
-		var info := _target_preview(_drag_view.card, _combat.enemies[index])
-		_enemy_views[index].set_drop_hover(true, info.get("text", ""), info.get("lost", -1))
-		# A boss has no HP bar of its own, so its ghost goes on the wide bar at the top.
-		if _boss_bar != null and _boss_bar.unit == _combat.enemies[index]:
-			_boss_bar.set_drop_lost(info.get("lost", -1))
-
-
-func _on_drag_ended(pos: Vector2, hand_index: int) -> void:
-	var index := _enemy_at(pos)
-	_end_drag()
-	if index < 0 or _combat == null:
-		return
-	_begin_batch()
-	if not _combat.play_card(hand_index, index):
-		RunScreen.sfx(&"unavailable")
-	_end_batch()
-
-
-## Index of the living enemy whose figure is under `pos` (viewport coordinates), or -1.
-func _enemy_at(pos: Vector2) -> int:
-	if _combat == null:
-		return -1
-	for i in _enemy_views.size():
-		if i < _combat.enemies.size() and not _combat.enemies[i].is_dead() and _enemy_views[i].get_global_rect().has_point(pos):
-			return i
-	return -1
-
-
-func _clear_drag_hover() -> void:
-	if _drag_hover >= 0 and _drag_hover < _enemy_views.size():
-		_enemy_views[_drag_hover].set_drop_hover(false)
+## Creates the wide boss HP bar on the stage for a boss fight (once per fight).
+func _sync_boss_bar() -> void:
 	if _boss_bar != null:
-		_boss_bar.set_drop_lost(-1)
-	_drag_hover = -1
-
-
-## Puts everything a drag changed back: the ghost, the enemy highlight and the dimmed hand card.
-func _end_drag() -> void:
-	_clear_drag_hover()
-	if _drag_ghost != null:
-		_drag_ghost.queue_free()
-		_drag_ghost = null
-	if _drag_view != null and is_instance_valid(_drag_view):
-		_drag_view.modulate.a = 1.0
-	_drag_view = null
-
-
-## True while a card is being dragged (read by tests).
-func is_dragging_card() -> bool:
-	return _drag_view != null
-
-
-func _status_tooltip(combatant: Combatant) -> String:
-	var lines: Array[String] = []
-	var exposed := combatant.status_turns(Combatant.Status.EXPOSED)
-	if exposed > 0:
-		lines.append(EXPOSED_TOOLTIP % exposed)
-	var haunted := combatant.status_turns(Combatant.Status.HAUNTED)
-	if haunted > 0:
-		lines.append("Haunt %d: takes %d damage at the start of the enemy phase (ignoring Block), then Haunt falls by 1." % [haunted, haunted])
-	if combatant.max_haunt > 0:
-		lines.append("Haunt capped at %d." % combatant.max_haunt)
-	var shaken := combatant.stacks(Combatant.Status.SHAKEN)
-	if shaken > 0:
-		lines.append(SHAKEN_TOOLTIP % [shaken, shaken])
-	var frayed := combatant.stacks(Combatant.Status.FRAYED)
-	if frayed > 0:
-		lines.append(FRAYED_TOOLTIP % [frayed, frayed])
-	var malice := combatant.stacks(Combatant.Status.MALICE)
-	if malice != 0:
-		lines.append(MALICE_TOOLTIP % [malice, malice])
-	var ward := combatant.stacks(Combatant.Status.WARD)
-	if ward != 0:
-		lines.append(WARD_TOOLTIP % [ward, ward])
-	var scent := combatant.stacks(Combatant.Status.SCENT)
-	if scent > 0:
-		lines.append(SCENT_TOOLTIP % [scent, scent, Combatant.SCENT_CAP])
-	if combatant.hold > 0:
-		lines.append("Hold %d: up to %d of the Block you have left is kept for your next turn." % [combatant.hold, combatant.hold])
-	if combatant.thorns > 0:
-		lines.append("Thorns %d: each enemy attack on you also deals %d to the attacker this turn." % [combatant.thorns, combatant.thorns])
-	return "\n".join(lines)
-
-
-## DISPLAY-ONLY preview of damage on the selected enemy: every hit goes through Combatant.hit_damage (the
-## player's Malice and Shaken, then the target's Exposed), then block is subtracted per hit as take_damage_final
-## does. The result of an actual play is authoritative.
-func _damage_preview(card: CardData) -> String:
-	var damage_effects: Array[CardEffect] = []
-	for effect in card.effects:
-		if effect.is_damage():
-			damage_effects.append(effect)
-	if damage_effects.is_empty() or card.dormant:
-		return ""
-	# The card being played will count as one more play this turn.
-	var plays: int = _combat.plays_this_turn + 1
-	if card.target_mode == CardData.TargetMode.ALL_ENEMIES:
-		# Haunt differs per enemy, so a per-Haunt hit has no single number.
-		var all_base := 0
-		for effect in damage_effects:
-			if effect.kind == CardEffect.Kind.DAMAGE_PER_HAUNT or effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
-				return ""
-			all_base += _combat.hit_amount(effect, _combat.player, _NEUTRAL, plays) * _hit_count(card, effect)
-		return "\nDeals %d (x%d enemies)" % [all_base, _combat.living_enemies().size()]
-	var target := _combat.enemies[_target_index]
-	if card.target_mode != CardData.TargetMode.SINGLE_ENEMY or target.is_dead():
-		return ""
-	return _target_preview(card, target).get("text", "")
-
-
-## A defender with no statuses: hit_damage against it is the player's side of a hit only (Malice, Shaken).
-static var _NEUTRAL := Combatant.new("Neutral", 1)
-
-
-## How many times `effect` of `card` would hit if played now. A Surge card's per_energy damage hits
-## once per point of the energy it WOULD spend (all the current energy).
-func _hit_count(card: CardData, effect: CardEffect) -> int:
-	var count := maxi(effect.hits, 1)
-	if card.surge and effect.per_energy:
-		count *= _combat.energy
-	return count
-
-
-## DISPLAY-ONLY: what `card` would do to this one enemy (works for single-target and all-enemies
-## cards alike, so a drag can compare enemies). Returns {} when the card deals no damage, is Dormant, or
-## the enemy is dead, else {text, dealt, lost}: `dealt` is the damage after Exposed summed over every
-## hit, `lost` what is left after Block (hit by hit), and `text` is the card-face line
-## ("\nDeals 15 (10 vs Exposed), 6 after Block", or "\nDeals 12 (3 x4)" for a multi-hit).
-func _target_preview(card: CardData, target: EnemyUnit) -> Dictionary:
-	if target == null or target.is_dead() or card.dormant or not _has_damage(card):
-		return {}
-	# The card being played will count as one more play this turn. Raw damage per hit comes from the engine's
-	# own context rule; Block absorption and Expose from the shared hit helpers (Combatant.hits_outcome).
-	var context := _combat.damage_context(_combat.player, target, _combat.plays_this_turn + 1)
-	var hits: Array[int] = []
-	for effect in card.effects:
-		if effect.is_damage():
-			var raw := effect.raw_damage(context)
-			for _h in _hit_count(card, effect):
-				hits.append(raw)
-	var exposed := target.status_turns(Combatant.Status.EXPOSED) > 0
-	var block_left := target.block
-	var base := 0
-	var dealt := 0
-	var lost := 0
-	for hit in hits:
-		base += Combatant.hit_damage(hit, _combat.player, _NEUTRAL)
-		var outcome := Combatant.hits_outcome(_combat.player, target, hit, 1, block_left)
-		block_left = outcome["block_left"]
-		dealt += outcome["damage"]
-		lost += outcome["through"]
-	var text := "\nDeals %d" % dealt
-	if exposed:
-		text = "\nDeals %d (%d vs Exposed)" % [base, dealt]
-	elif hits.size() > 1 and _uniform(hits):
-		text = "\nDeals %d (%d x%d)" % [dealt, Combatant.hit_damage(hits[0], _combat.player, _NEUTRAL), hits.size()]
-	if target.block > 0:
-		text += ", %d after Block" % lost
-	return {"text": text, "dealt": dealt, "lost": mini(lost, target.hp)}
-
-
-func _has_damage(card: CardData) -> bool:
-	for effect in card.effects:
-		if effect.is_damage():
-			return true
-	return false
-
-
-## True when every hit in `hits` is the same size.
-func _uniform(hits: Array[int]) -> bool:
-	for hit in hits:
-		if hit != hits[0]:
-			return false
-	return true
+		_discard_node(_boss_bar)
+		_boss_bar = null
+	if not boss_fight or _combat.enemies.is_empty():
+		return
+	_boss_bar = BossBar.new()
+	_boss_bar.setup(_combat.enemies[0], boss_label)
+	_boss_bar.label_text = ("MID-BOSS" if boss_label == "Mid-boss" else "FINAL BOSS")
+	_stage.add_child(_boss_bar)
 
 
 func _select_target(index: int) -> void:
@@ -908,8 +398,20 @@ func _select_target(index: int) -> void:
 	_refresh()
 
 
+## Moves the selection to the next living enemy in `direction` (+1 or -1).
+func _cycle_target(direction: int) -> void:
+	var count := _combat.enemies.size()
+	for step in range(1, count):
+		var index := posmod(_target_index + direction * step, count)
+		if not _combat.enemies[index].is_dead():
+			_select_target(index)
+			return
+
+
+# --- turn flow ---------------------------------------------------------------------------------
+
 func _on_end_turn_pressed() -> void:
-	if _combat == null or _combat.phase == Combat.Phase.CHOOSING or pile_viewer_open():
+	if _combat == null or _combat.phase == Combat.Phase.CHOOSING or _overlays.pile_viewer_open():
 		return
 	RunScreen.sfx(&"click")
 	_begin_batch()
@@ -926,86 +428,11 @@ func _on_end_turn_pressed() -> void:
 
 
 func _on_cancel_discard_pressed() -> void:
-	if _combat == null or _combat.phase == Combat.Phase.CHOOSING or pile_viewer_open():
+	if _combat == null or _combat.phase == Combat.Phase.CHOOSING or _overlays.pile_viewer_open():
 		return
 	_begin_batch()
 	_combat.cancel_discard()
 	_end_batch()
-
-
-## Moves the selection to the next living enemy in `direction` (+1 or -1).
-func _cycle_target(direction: int) -> void:
-	var count := _combat.enemies.size()
-	for step in range(1, count):
-		var index := posmod(_target_index + direction * step, count)
-		if not _combat.enemies[index].is_dead():
-			_select_target(index)
-			return
-
-
-func _unhandled_key_input(event: InputEvent) -> void:
-	var key := event as InputEventKey
-	if key == null or not key.pressed or key.echo or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
-		return
-	if key.keycode == KEY_ESCAPE and _drag_view != null and is_instance_valid(_drag_view):
-		get_viewport().set_input_as_handled()
-		_drag_view.cancel_drag()
-		return
-	if _intro != null and is_instance_valid(_intro) and not _intro.is_done():
-		get_viewport().set_input_as_handled()
-		_intro.skip()
-		return
-	if _new_fight_button.visible:
-		if key.keycode == KEY_N or key.keycode == KEY_E or key.keycode == KEY_ENTER or key.keycode == KEY_KP_ENTER:
-			get_viewport().set_input_as_handled()
-			_on_continue_pressed()
-		return
-	# The pile viewer is read-only and modal: Esc closes it, the pile keys switch piles, other keys do nothing.
-	if pile_viewer_open():
-		get_viewport().set_input_as_handled()
-		if key.keycode == KEY_ESCAPE:
-			_close_pile_viewer()
-		elif PILE_KEYS.has(key.keycode):
-			open_pile_viewer(PILE_KEYS.find(key.keycode) as PileViewer.Pile)
-		return
-	# A Glimpse / Recall pick: number keys mark cards, Enter confirms, and every other key does nothing.
-	# Esc is swallowed here so it cannot fall through to the run's pause menu; the player's turn controls
-	# stay locked until the pick is resolved.
-	if _combat != null and _combat.phase == Combat.Phase.CHOOSING:
-		if key.keycode == KEY_ESCAPE or (_choice_overlay != null and _choice_overlay.handle_key(key.keycode)):
-			get_viewport().set_input_as_handled()
-		return
-	# Same gate as the buttons: nothing happens outside the player's turn.
-	if _combat == null or (_combat.phase != Combat.Phase.PLAYER_TURN and _combat.phase != Combat.Phase.DISCARDING):
-		return
-	if PILE_KEYS.has(key.keycode):
-		get_viewport().set_input_as_handled()
-		open_pile_viewer(PILE_KEYS.find(key.keycode) as PileViewer.Pile)
-		return
-	var number := key.keycode - KEY_1
-	if key.keycode == KEY_0:
-		number = 9
-	if number >= 0 and number < MAX_HAND_KEYS:
-		get_viewport().set_input_as_handled()
-		_play_hand_card(number)
-		return
-	if key.keycode == KEY_BACKSPACE:
-		get_viewport().set_input_as_handled()
-		_on_cancel_discard_pressed()
-		return
-	match key.keycode:
-		KEY_E, KEY_ENTER, KEY_KP_ENTER:
-			get_viewport().set_input_as_handled()
-			_on_end_turn_pressed()
-		KEY_RIGHT:
-			get_viewport().set_input_as_handled()
-			_cycle_target(1)
-		KEY_LEFT:
-			get_viewport().set_input_as_handled()
-			_cycle_target(-1)
-		KEY_TAB:
-			get_viewport().set_input_as_handled()
-			_cycle_target(-1 if key.shift_pressed else 1)
 
 
 func _on_continue_pressed() -> void:
@@ -1052,39 +479,7 @@ func _announce_added_card(effect: CardEffect, log_line: bool) -> void:
 	var text: String = "+%s%s" % ["%d " % effect.amount if effect.amount > 1 else "", effect.card.display_name]
 	if log_line:
 		_log_label.append_text("Added %s to %s\n" % [text.trim_prefix("+"), where])
-	_show_pile_cue("%s (%s)" % [text, where.trim_prefix("your ")])
-
-
-## A small label that rises from the pile counters and fades. Several at once are stacked a little apart.
-func _show_pile_cue(text: String) -> void:
-	last_cue_text = text
-	cue_count += 1
-	if not is_inside_tree():
-		return
-	var cue := Label.new()
-	cue.text = text
-	cue.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	cue.z_index = OVERLAY_Z + 2
-	cue.add_theme_font_size_override("font_size", 17)
-	cue.add_theme_color_override("font_color", CardView.kind_color(CardEffect.Kind.ADD_CARD).lightened(0.2))
-	cue.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
-	cue.add_theme_constant_override("outline_size", 5)
-	add_child(cue)
-	# Above the energy orb, over the stage, so it never sits on top of the counters it is about.
-	var origin := _energy_orb.get_global_rect().position - get_global_rect().position
-	cue.position = Vector2(_pile_box.get_global_rect().position.x - get_global_rect().position.x, origin.y - 30.0 - 22.0 * _live_cues)
-	_live_cues += 1
-	var tween := create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(cue, "position:y", cue.position.y - CUE_RISE, CUE_TIME)
-	tween.tween_property(cue, "modulate:a", 0.0, CUE_TIME).set_delay(CUE_TIME * 0.5)
-	tween.chain().tween_callback(_end_pile_cue.bind(cue))
-
-
-func _end_pile_cue(cue: Label) -> void:
-	_live_cues = maxi(_live_cues - 1, 0)
-	if is_instance_valid(cue):
-		cue.queue_free()
+	_fx.show_pile_cue("%s (%s)" % [text, where.trim_prefix("your ")])
 
 
 func _on_enemy_acted(enemy: EnemyUnit, intent: CardEffect) -> void:
@@ -1102,52 +497,6 @@ func _on_enemy_acted(enemy: EnemyUnit, intent: CardEffect) -> void:
 	_seen_player_block = _combat.player.block
 
 
-## Creates the wide boss HP bar on the stage for a boss fight (once per fight).
-func _sync_boss_bar() -> void:
-	if _boss_bar != null:
-		_discard_node(_boss_bar)
-		_boss_bar = null
-	if not boss_fight or _combat.enemies.is_empty():
-		return
-	_boss_bar = BossBar.new()
-	_boss_bar.setup(_combat.enemies[0], boss_label)
-	_boss_bar.label_text = ("MID-BOSS" if boss_label == "Mid-boss" else "FINAL BOSS")
-	_stage.add_child(_boss_bar)
-
-
-## True while the boss entrance overlay is up (read by tests).
-func intro_visible() -> bool:
-	return _intro != null and is_instance_valid(_intro) and not _intro.is_done()
-
-
-## True while the phase banner is showing (read by tests).
-func phase_banner_visible() -> bool:
-	return _banner != null and _banner.visible
-
-
-func _start_boss_intro() -> void:
-	if _combat.enemies.is_empty():
-		return
-	var boss := _combat.enemies[0]
-	_intro = BossIntro.new()
-	_intro.setup("MID-BOSS" if boss_label == "Mid-boss" else "FINAL BOSS", boss.display_name)
-	_intro.finished.connect(_on_intro_finished)
-	add_child(_intro)
-	if not Motion.reduced and not _enemy_views.is_empty():
-		var view := _enemy_views[0]
-		view.entrance = ENTRANCE_START_SCALE
-		_entrance_tween = create_tween()
-		_entrance_tween.tween_property(view, "entrance", 1.0, BossIntro.DURATION).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-
-
-func _on_intro_finished() -> void:
-	if _entrance_tween != null:
-		_entrance_tween.kill()
-	for view in _enemy_views:
-		view.entrance = 1.0
-	_intro = null
-
-
 ## A boss (or any enemy with a phase two) enters its second phase: banner, flash, shake, harsher backdrop
 ## and an immediate redraw so the new phase's intent shows.
 func _on_enemy_phase_changed(enemy: EnemyUnit, _new_phase: int) -> void:
@@ -1158,213 +507,6 @@ func _on_enemy_phase_changed(enemy: EnemyUnit, _new_phase: int) -> void:
 		_enemy_views[index].shake()
 	if boss_fight:
 		_backdrop.set_harsh(true)
-	_show_phase_banner(title)
-	_flash_screen()
+	_fx.show_phase_banner(title)
+	_fx.flash_screen()
 	_on_state_changed()
-
-
-func _show_phase_banner(title: String) -> void:
-	if _banner == null:
-		_banner = Label.new()
-		_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		_banner.z_index = 40
-		MenuStyle.heading(_banner, 52)
-		_banner.add_theme_color_override("font_color", MenuStyle.DAMAGE)
-		_banner.add_theme_color_override("font_outline_color", Color(0.05, 0.0, 0.0, 0.9))
-		_banner.add_theme_constant_override("outline_size", 8)
-		add_child(_banner)
-	_banner.text = title.to_upper()
-	_banner.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_banner.offset_top = 120.0
-	_banner.offset_bottom = 200.0
-	_banner.modulate.a = 1.0
-	_banner.show()
-	if _banner_tween != null:
-		_banner_tween.kill()
-	if not is_inside_tree():
-		return
-	var reduced := Motion.reduced
-	_banner_tween = create_tween()
-	if not reduced:
-		_banner.modulate.a = 0.0
-		_banner_tween.tween_property(_banner, "modulate:a", 1.0, 0.2)
-	_banner_tween.tween_interval(PHASE_BANNER_TIME * (0.4 if reduced else 1.0) - 0.5)
-	_banner_tween.tween_property(_banner, "modulate:a", 0.0, 0.3)
-	_banner_tween.tween_callback(_banner.hide)
-
-
-## A quick red flash over the whole screen (skipped under reduced motion).
-func _flash_screen() -> void:
-	if Motion.reduced or not is_inside_tree():
-		return
-	if _flash == null:
-		_flash = ColorRect.new()
-		_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_flash.z_index = 39
-		add_child(_flash)
-		_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	if _flash_tween != null:
-		_flash_tween.kill()
-	_flash.color = Color(MenuStyle.DAMAGE, 0.45)
-	_flash_tween = create_tween()
-	_flash_tween.tween_property(_flash, "color:a", 0.0, 0.5)
-
-
-## Re-applies the hover look to the hand card under the pointer after a rebuild (the new views
-## get no mouse_entered until the mouse moves). Every other card is cleared, so none sticks.
-func _restore_hover(mouse := Vector2(-1.0, -1.0)) -> void:
-	if not is_inside_tree():
-		return
-	if mouse == Vector2(-1.0, -1.0):
-		mouse = get_viewport().get_mouse_position()
-	var found := false
-	for child in _hand_box.get_children():
-		var view := child as CardView
-		if view == null:
-			continue
-		var over := not found and view.get_global_rect().has_point(mouse)
-		found = found or over
-		view.set_hovered(over)
-
-
-func _on_card_hover(inside: bool, view: CardView) -> void:
-	if inside:
-		_show_preview(view)
-	elif _preview != null and _preview.card == view.card and _preview.visible:
-		_hide_preview()
-
-
-## Shows a full-size copy of a hand card above the hand. It ignores the mouse, so it never blocks a click.
-func _show_preview(view: CardView) -> void:
-	if view.card == null:
-		return
-	_preview_view = view
-	if _preview == null:
-		_preview = CardView.new()
-		_preview.view_scale = PREVIEW_SCALE
-		_preview.z_index = 10
-		_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(_preview)
-	_preview.live = view.live
-	_preview.set_card(view.card)
-	_preview.set_state(CardView.State.UNPLAYABLE if view.state == CardView.State.UNPLAYABLE else CardView.State.NORMAL, view.note)
-	_preview.hotkey = view.hotkey
-	_preview.preview = view.preview
-	_preview.discard_marked = view.discard_marked
-	var card_rect := view.get_global_rect()
-	var width := CardView.BASE.x * PREVIEW_SCALE
-	var height := (CardView.BASE.y + CardView.LIFT) * PREVIEW_SCALE
-	var hand_top := _hand_box.get_global_rect().position.y
-	var x := clampf(card_rect.get_center().x - width / 2.0, 4.0, maxf(size.x - width - 4.0, 4.0))
-	_preview.global_position = Vector2(x, maxf(hand_top - height - 6.0, 4.0))
-	_preview.show()
-
-
-func _hide_preview() -> void:
-	if _preview != null:
-		_preview.hide()
-
-
-## True while the inspection preview is on screen (read by tests).
-func preview_visible() -> bool:
-	return _preview != null and _preview.visible
-
-
-## When the discard step's confirm button first becomes available, pulses it amber twice (skipped
-## under Motion.reduced). Becoming unavailable again clears any pulse.
-func _pulse_confirm(available: bool) -> void:
-	if available == _confirm_ready:
-		return
-	_confirm_ready = available
-	if _confirm_tween != null:
-		_confirm_tween.kill()
-		_confirm_tween = null
-	_end_turn_button.modulate = Color.WHITE
-	if not available or Motion.reduced or not is_inside_tree():
-		return
-	var amber := Color(1.0, 0.82, 0.4)
-	_confirm_tween = create_tween()
-	for beat in 2:
-		_confirm_tween.tween_property(_end_turn_button, "modulate", amber, CONFIRM_PULSE_TIME * 0.5)
-		_confirm_tween.tween_property(_end_turn_button, "modulate", Color.WHITE, CONFIRM_PULSE_TIME * 0.5)
-
-
-# --- HUD bar and journey info ------------------------------------------------------------------
-# The bottom of the screen is one full-width HUD with the energy and piles on the left, the hand, and
-# the turn controls on the right. The run screen adds the journey info with `set_journey`.
-
-## A dark bar flush with the bottom and side edges, with a thin amber line along its top.
-func _style_hud() -> void:
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(MenuStyle.BG, 0.93)
-	box.border_color = Color(MenuStyle.AMBER, 0.55)
-	box.border_width_top = 1
-	box.content_margin_left = 16
-	box.content_margin_right = 16
-	box.content_margin_top = 6
-	box.content_margin_bottom = 8
-	box.shadow_color = Color(0, 0, 0, 0.45)
-	box.shadow_size = 8
-	_hud.add_theme_stylebox_override("panel", box)
-
-
-## Journey info for a fight inside a run: the stop title and journey number at the top left of the
-## stage (the relic badges move below them), the character's title above the energy orb, and the
-## deck count under the draw and discard counts. Standalone fights never call this.
-func set_journey(stop_title: String, journey: String, character_title: String, deck_size: int) -> void:
-	if _stage_info == null:
-		_stage_info = VBoxContainer.new()
-		_stage_info.position = Vector2(14, 10)
-		_stage_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_stage_info.add_theme_constant_override("separation", 0)
-		_stage_title = Label.new()
-		_stage_title.add_theme_font_size_override("font_size", 20)
-		_stage_title.add_theme_color_override("font_color", MenuStyle.TEXT)
-		_stage_title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
-		_stage_title.add_theme_constant_override("shadow_offset_y", 2)
-		_stage_info.add_child(_stage_title)
-		_stage_journey = Label.new()
-		_stage_journey.add_theme_font_size_override("font_size", 14)
-		_stage_journey.add_theme_color_override("font_color", MenuStyle.TEXT_DIM)
-		_stage_journey.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
-		_stage_journey.add_theme_constant_override("shadow_offset_y", 1)
-		_stage_info.add_child(_stage_journey)
-		for label in [_stage_title, _stage_journey]:
-			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_stage.add_child(_stage_info)
-		_character_label = Label.new()
-		_character_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_character_label.add_theme_font_size_override("font_size", 12)
-		_character_label.add_theme_color_override("font_color", MenuStyle.TEXT_DIM)
-		_left_box.add_child(_character_label)
-		_left_box.move_child(_character_label, 0)
-	_stage_title.text = stop_title
-	_stage_journey.text = journey
-	_character_label.text = character_title
-	_deck_size = deck_size
-	# Below the two lines of text, the relic badges keep the left edge.
-	_relic_strip.position = Vector2(4, _stage_info.position.y + 20 + 14 + 14)
-	if _combat != null:
-		_sync_piles()
-
-
-## Updates the four counters (and the deck line when the run supplied one).
-func _sync_piles() -> void:
-	var counts := [_combat.piles.draw_pile.size(), _combat.piles.discard_pile.size(), _combat.piles.forgotten.size(), _combat.piles.sworn.size()]
-	for i in _pile_buttons.size():
-		_pile_buttons[i].text = "%s %d" % [PileViewer.PILE_NAMES[i], counts[i]]
-	_deck_label.visible = _deck_size >= 0
-	_deck_label.text = "Deck %d" % _deck_size
-
-
-## The counters as plain lines, one per pile (read by tests).
-func _pile_text() -> String:
-	var lines: Array[String] = []
-	for button in _pile_buttons:
-		lines.append(button.text)
-	if _deck_size >= 0:
-		lines.append(_deck_label.text)
-	return "
-".join(lines)
