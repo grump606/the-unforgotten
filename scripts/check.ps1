@@ -1,5 +1,5 @@
 # Full validation: import, headless tests, main-scene smoke load, UI tests.
-# Engine: $env:GODOT, else the repo-local Godot_v4.7.2-stable_win64.exe console binary.
+# Engine: $env:GODOT, else the repo-local console binary of the version in scripts/engine_version.txt.
 # Optional: $env:CHECK_TESTS_SCRIPT overrides the test script and $env:CHECK_STEP_TIMEOUT_MS the
 # per-step timeout (both used to prove the failure paths).
 # Every step has a timeout: a script error or an infinite loop would otherwise hang
@@ -7,7 +7,8 @@
 param([string]$Godot)
 # Engine lookup order: -Godot parameter, $env:GODOT_EXE (used by CI), $env:GODOT, local path.
 $root = Split-Path -Parent $PSScriptRoot
-$local = Join-Path $root 'Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe'
+. (Join-Path $PSScriptRoot 'engine_version.ps1')  # $GodotFolder / $GodotConsole come from scripts/engine_version.txt
+$local = Join-Path $root (Join-Path $GodotFolder $GodotConsole)
 $godot = if ($Godot) { $Godot } elseif ($env:GODOT_EXE) { $env:GODOT_EXE } elseif ($env:GODOT) { $env:GODOT } else { $local }
 if (-not (Test-Path -LiteralPath $godot -PathType Leaf)) {
     Write-Host "CHECK FAILED: Godot not found at '$godot'. Pass -Godot, or set GODOT_EXE (or GODOT) to the Godot 4.7 console executable, or place it at '$local'."
@@ -57,6 +58,10 @@ try {
         Invoke-Step $stepName @('--headless', '--path', '.', '-s', "res://tests/$($ui.Name)")
     }
     Invoke-Step 'reskin restoration' @('--headless', '--path', '.', '-s', 'res://tests/reskin_presentation_test.gd')
+    # PowerShell side of the update manifest golden test (the GDScript side runs inside 'tests').
+    Write-Host '== manifest golden =='
+    powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_manifest_golden.ps1')
+    if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: manifest golden'; exit 1 }
 } finally { Pop-Location }
 Write-Host 'CHECK PASSED'
 exit 0

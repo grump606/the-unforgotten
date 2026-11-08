@@ -1,5 +1,17 @@
 # Signing helper for build_installer.ps1 (dot-source it). Kept separate so it can be tested without a Godot/Inno build.
 
+# The exact text of the update manifest that gets signed. It must match UpdateCheck.make_manifest in
+# run/update_check.gd byte for byte: LF line endings and a trailing LF (the caller writes it as UTF-8 without a
+# BOM). tests/golden/update_manifest.txt holds the expected bytes for a fixed input; both sides are tested against it.
+function New-UpdateManifestText {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$Version,
+        [Parameter(Mandatory)][string]$Sha256
+    )
+    return "the-unforgotten-update 1`nname=$Name`nversion=$Version`nsha256=$Sha256`n"
+}
+
 # Signs $FilePath with the private key in a .pfx/.p12, entirely in memory: RSA PKCS#1 v1.5 over SHA-256, the same
 # bytes as `openssl dgst -sha256 -sign`. The key is loaded ephemerally (never persisted to a key container or
 # a file) and disposed afterwards. Writes the raw signature to $SigPath.

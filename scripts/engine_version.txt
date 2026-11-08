@@ -1,0 +1,15 @@
+# The single source of truth for tool versions. Read by scripts/check.ps1, scripts/release.ps1,
+# scripts/build_installer.ps1 (through scripts/engine_version.ps1) and by .github/workflows/check.yml.
+# Format: KEY=value, one per line, no quotes, no spaces around "=". Lines starting with # are comments.
+# To change the engine, see docs/CI.md ("Update the engine version").
+
+# Godot release name, as in https://github.com/godotengine/godot-builds/releases/tag/<this>.
+GODOT_VERSION=4.7.2-stable
+
+# SHA512 of Godot_v<GODOT_VERSION>_win64.exe.zip, copied from that release's SHA512-SUMS.txt. CI refuses
+# to run an engine whose download does not match, so a swapped or corrupted download cannot pass.
+GODOT_ZIP_SHA512=83decd58fdf67b9d657958a1ae6bf1929c20785315a81effe245874cdc57acb709bf868e00778a96984338c1b29dafdb453c6847747694621c6ecf5da2259993
+
+# Inno Setup used to build the installer (winget package JRSoftware.InnoSetup). Only the installer build
+# needs it. Install exactly this version: winget install JRSoftware.InnoSetup --version <this>.
+INNO_SETUP_VERSION=6.7.3

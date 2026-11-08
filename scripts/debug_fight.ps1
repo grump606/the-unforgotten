@@ -16,7 +16,8 @@ param(
 )
 if (-not $Fight -and -not $Screen) { throw "Give an enemy list (e.g. eraser) or -Screen vendor|rest." }
 $root = Split-Path -Parent $PSScriptRoot
-$winget = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe\Godot_v4.7.2-stable_win64.exe'
+. (Join-Path $PSScriptRoot 'engine_version.ps1')
+$winget = Join-Path $env:LOCALAPPDATA (Join-Path 'Microsoft\WinGet\Packages\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe' $GodotFolder)
 $exe = if ($Godot) { $Godot } elseif ($env:GODOT_EXE) { $env:GODOT_EXE } elseif ($env:GODOT) { $env:GODOT } elseif (Test-Path -LiteralPath $winget) { $winget } else { 'godot' }
 $userArgs = @()
 if ($Fight) { $userArgs += "--fight=$Fight" }
