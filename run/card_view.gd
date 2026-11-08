@@ -368,6 +368,24 @@ func set_hovered(inside: bool) -> void:
 	_on_hover(inside)
 
 
+## Tooltip width and text size: a narrow block of small wrapped lines, not one line across the screen.
+const TOOLTIP_WIDTH := 230.0
+const TOOLTIP_FONT_SIZE := 11
+
+
+## The card tooltip as a small, wrapped text block (Godot's default tooltip never wraps).
+func _make_custom_tooltip(for_text: String) -> Object:
+	var label := RichTextLabel.new()
+	label.bbcode_enabled = false
+	label.fit_content = true
+	label.scroll_active = false
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.custom_minimum_size = Vector2(TOOLTIP_WIDTH, 0)
+	label.add_theme_font_size_override("normal_font_size", TOOLTIP_FONT_SIZE)
+	label.text = for_text
+	return label
+
+
 func _on_hover(inside: bool) -> void:
 	if auto_hover:
 		_hovered = inside
