@@ -156,20 +156,79 @@ static func preload_paths(paths: Array) -> void:
 ## The decode stays on the main thread: Texture2D.get_image() goes through the RenderingServer, and decoding the same
 ## art from a worker thread and the main thread at once crashed intermittently (access violation).
 static func warm_for_stop(stop_type: int, character_id: StringName = &"", story_beat := -1) -> void:
+	preload_paths(paths_for_stop(stop_type, character_id, story_beat))
+
+
+## The art files the screen after a run stop will draw (see warm_for_stop for the arguments).
+static func paths_for_stop(stop_type: int, character_id: StringName = &"", story_beat := -1) -> Array[String]:
+	var names: Array[StringName] = []
+	var extra: Array[String] = []
 	match stop_type:
 		RunState.StopType.COMBAT:
-			preload_screen(StringName("battle_" + String(character_id)) if character_id != &"" else &"battle_neutral")
-			preload_screen(&"battle_neutral")
-			preload_screen(&"battle_boss")
+			names.append(StringName("battle_" + String(character_id)) if character_id != &"" else &"battle_neutral")
+			names.append(&"battle_neutral")
+			names.append(&"battle_boss")
 		RunState.StopType.REST:
-			preload_screen(StringName("rest_" + String(character_id)) if character_id != &"" else &"rest")
-			preload_screen(&"rest")
+			names.append(StringName("rest_" + String(character_id)) if character_id != &"" else &"rest")
+			names.append(&"rest")
 		RunState.StopType.STORY:
 			if story_beat >= 0:
-				preload_screen(StoryScene.key_for_beat(story_beat))
+				names.append(StoryScene.key_for_beat(story_beat))
 		RunState.StopType.VENDOR:
-			preload_screen(&"vendor")
-			preload_paths(["res://art/layers/screens/vendor/keeper.png"])
+			names.append(&"vendor")
+			extra.append("res://art/layers/screens/vendor/keeper.png")
+	var out: Array[String] = []
+	for screen_name in names:
+		out.append(SCREEN_DIR % screen_name)
+	out.append_array(extra)
+	return out
+
+
+# --- spreading the warm-up over frames ------------------------------------------------------------------
+# Decoding a ~3 MB screen takes long enough to hitch a frame, so the run queues the next stop's art and pumps the
+# queue a little each frame from its _process. Still all on the main thread (see warm_for_stop); a draw that needs a
+# queued path simply decodes it at once through _load, and the pump then skips it.
+
+## Most milliseconds one pump() call keeps decoding after its first file.
+const PUMP_BUDGET_MS := 4.0
+## Paths waiting to be decoded, in order (duplicates and already cached paths are skipped when queued or pumped).
+static var _queue: Array[String] = []
+
+
+## Queues the art for a run stop's next screen instead of decoding it now (the paths of paths_for_stop).
+static func queue_for_stop(stop_type: int, character_id: StringName = &"", story_beat := -1) -> void:
+	queue_paths(paths_for_stop(stop_type, character_id, story_beat))
+
+
+## Queues a screen background (art/layers/screens/<name>/bg.png).
+static func queue_screen(screen_name: StringName) -> void:
+	queue_paths([SCREEN_DIR % screen_name])
+
+
+## Queues res:// paths to decode later; ones already cached or queued are ignored.
+static func queue_paths(paths: Array) -> void:
+	for path in paths:
+		var key := String(path)
+		if not _cache.has(key) and not _queue.has(key):
+			_queue.append(key)
+
+
+## How many queued paths are still waiting.
+static func pending() -> int:
+	return _queue.size()
+
+
+## Decodes queued paths until `budget_ms` has passed (always at least one, if any is waiting) and returns how many
+## remain. Call once per frame; the first file already takes most of a frame, so in practice this is one per frame.
+static func pump(budget_ms := PUMP_BUDGET_MS) -> int:
+	var started := Time.get_ticks_usec()
+	while not _queue.is_empty():
+		var path: String = _queue.pop_front()
+		if not _cache.has(path):
+			_load(path)
+		if (Time.get_ticks_usec() - started) / 1000.0 >= budget_ms:
+			break
+	return _queue.size()
 
 
 ## Any texture under res:// through the shared cache (mipmapped), or null when it is missing.

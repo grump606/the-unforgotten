@@ -46,19 +46,19 @@ func _check_keywords(node: Control) -> void:
 	_mouse_button(views[0], false, origin + Vector2(80, 0))
 	_mouse_button(views[0], true, origin)
 	_mouse_button(views[0], false, origin)
-	node._play_hand_card(0)
+	node._hand.play_card(0)
 	check(c.piles.hand.size() == hand_n and c.energy == 3, "clicking a Dormant card plays nothing")
-	check(node._target_preview(_proto("dormant_burden"), c.enemies[0]).is_empty(), "a Dormant card has no target preview")
+	check(node._damage.for_target(_proto("dormant_burden"), c.enemies[0]).is_empty(), "a Dormant card has no target preview")
 
 	# Multi-hit preview: 3 x2 against 4 Block, then also Exposed (3 -> 4 per hit, rounded down).
 	var dbl := _proto("double_strike")
 	c.enemies[0].gain_block(4)
-	var info: Dictionary = node._target_preview(dbl, c.enemies[0])
+	var info: Dictionary = node._damage.for_target(dbl, c.enemies[0])
 	check(info.dealt == 6 and info.lost == 2, "3 x2 against 4 Block deals 6 and loses 2 HP (%s)" % str(info))
 	check(info.text.contains("Deals 6 (3 x2)") and info.text.contains("2 after Block"), "multi-hit text: " + info.text.replace("
 ", " | "))
 	c.enemies[0].apply_status(Combatant.Status.EXPOSED, 2)
-	info = node._target_preview(dbl, c.enemies[0])
+	info = node._damage.for_target(dbl, c.enemies[0])
 	check(info.dealt == 8 and info.lost == 4, "3 x2 against 4 Block and Exposed deals 8 and loses 4 HP (%s)" % str(info))
 	var hp_before: int = c.enemies[0].hp
 	c.piles.hand.assign([dbl])
@@ -72,13 +72,13 @@ func _check_keywords(node: Control) -> void:
 	# Surge preview scales with the energy that would be spent; clicking plays it for all the energy.
 	var slash := _proto("surge_slash")
 	c.energy = 4
-	info = node._target_preview(slash, c.enemies[0])
+	info = node._damage.for_target(slash, c.enemies[0])
 	check(info.dealt == 12 and info.text.contains("Deals 12 (3 x4)"), "Surge Slash at 4 energy previews 12: " + info.text.replace("
 ", " | "))
 	c.energy = 2
-	check(node._target_preview(slash, c.enemies[0]).dealt == 6, "at 2 energy the Surge preview is 6")
+	check(node._damage.for_target(slash, c.enemies[0]).dealt == 6, "at 2 energy the Surge preview is 6")
 	c.energy = 0
-	check(node._target_preview(slash, c.enemies[0]).dealt == 0, "at 0 energy the Surge preview is 0")
+	check(node._damage.for_target(slash, c.enemies[0]).dealt == 0, "at 0 energy the Surge preview is 0")
 	c.energy = 3
 	c.piles.hand.assign([slash])
 	node._refresh()
@@ -94,15 +94,15 @@ func _check_keywords(node: Control) -> void:
 	check(CardView.find_all(node._hand_box)[0].is_clickable(), "a Surge card stays playable at 0 energy")
 
 	# Pile label shows the Forgotten count.
-	check(node._pile_text().contains("Forgotten 0"), "the pile label lists Forgotten: " + node._pile_text().replace("
+	check(node._hud.pile_text().contains("Forgotten 0"), "the pile label lists Forgotten: " + node._hud.pile_text().replace("
 ", " | "))
 	c.energy = 3
 	var discarded_before := c.piles.discard_pile.size()
 	c.piles.hand.assign([_proto("forgotten_strike")])
 	node._refresh()
 	c.play_card(0, 0)
-	check(node._pile_text().contains("Forgotten 1") and node._pile_text().contains("Discard %d
-" % discarded_before), "a played Forgotten card is counted under Forgotten, not Discard (discard was %d): " % discarded_before + node._pile_text().replace("
+	check(node._hud.pile_text().contains("Forgotten 1") and node._hud.pile_text().contains("Discard %d
+" % discarded_before), "a played Forgotten card is counted under Forgotten, not Discard (discard was %d): " % discarded_before + node._hud.pile_text().replace("
 ", " | "))
 
 	# Discard step: Anchor and Fading cards cannot be marked and do not count toward the 5.
@@ -181,7 +181,7 @@ func _check_statuses(node: Control) -> void:
 		unit.apply_status(Combatant.Status.SCENT, 3)
 		node._refresh()
 		check(_chip_labels(view).get(&"scent") == "3", "%s: a Scent badge shows its stack: %s" % [unit.display_name, str(_chip_labels(view))])
-		check(node._status_tooltip(unit).contains("Scent 3"), "%s: the status tooltip explains Scent" % unit.display_name)
+		check(BattleTooltips.status(unit).contains("Scent 3"), "%s: the status tooltip explains Scent" % unit.display_name)
 		unit.remove_status(Combatant.Status.SCENT)
 		node._refresh()
 		check(not _chip_labels(view).has(&"scent"), "%s: no Scent badge without Scent" % unit.display_name)
@@ -281,14 +281,14 @@ func _check_statuses(node: Control) -> void:
 			enemy.gain_block(setup[3])
 			c.piles.hand.assign([card])
 			node._refresh()
-			var info: Dictionary = node._target_preview(card, enemy)
+			var info: Dictionary = node._damage.for_target(card, enemy)
 			var views := CardView.find_all(node._hand_box)
 			var face: String = views[0].preview
 			# Drag it over the enemy: the figure's drop label is the same preview.
-			node._on_drag_started(views[0])
-			node._on_drag_moved(enemy_view.get_global_rect().get_center())
+			node._drag.started(views[0])
+			node._drag.moved(enemy_view.get_global_rect().get_center())
 			var drop_text: String = enemy_view.drop_text
-			node._end_drag()
+			node._drag.end()
 			var before := enemy.hp
 			check(c.play_card(0, 0), "%s: played" % label)
 			var lost := before - enemy.hp
@@ -335,7 +335,7 @@ func _check_statuses(node: Control) -> void:
 		enemy.apply_status(Combatant.Status.SHAKEN, 2)
 		node._refresh()
 		var want := Combatant.hit_damage(enemy_intent.amount, enemy, c.player)
-		check(Fighter.effective_intent(enemy, c.player).amount == want and want != enemy_intent.amount and node._enemy_tooltip(enemy).contains("Omen: Deal %d" % want), "the enemy tooltip shows the damage after its Malice and Shaken: " + node._enemy_tooltip(enemy).replace("\n", " | "))
+		check(Fighter.effective_intent(enemy, c.player).amount == want and want != enemy_intent.amount and BattleTooltips.enemy(enemy, node._combat.player).contains("Omen: Deal %d" % want), "the enemy tooltip shows the damage after its Malice and Shaken: " + BattleTooltips.enemy(enemy, node._combat.player).replace("\n", " | "))
 	check(enemy_view.intent_target == c.player, "the enemy figure aims its Omen at the player")
 	# The badge text names the exact effect: stacks, hit count, and the card an enemy adds.
 	var dread := load("res://data/status/dread.tres") as CardData
@@ -350,7 +350,7 @@ func _check_statuses(node: Control) -> void:
 	tip_view.set_enemy(tip_unit)
 	tip_view.intent_target = c.player
 	await process_frame
-	check(node._enemy_tooltip(tip_unit).contains("Omen: Add 1 Dread to your draw pile"), "the tooltip spells out the added card: " + node._enemy_tooltip(tip_unit).replace("
+	check(BattleTooltips.enemy(tip_unit, node._combat.player).contains("Omen: Add 1 Dread to your draw pile"), "the tooltip spells out the added card: " + BattleTooltips.enemy(tip_unit, node._combat.player).replace("
 ", " | "))
 	tip_view.queue_free()
 	enemy.clear_statuses()
@@ -398,10 +398,10 @@ func _check_forgotten_damage(node: Control) -> void:
 	c.piles.forgotten.assign(many)
 	var all_effects: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.DAMAGE_PER_FORGOTTEN, 2)]
 	var sweep_all := CardData.make(&"sweep_forgotten", "Sweep", 1, all_effects, CardData.TargetMode.ALL_ENEMIES)
-	check(node._target_preview(strike, c.enemies[0]).get("dealt", -1) == 8, "the drag preview of Pile Strike with 4 Forgotten is 8")
-	check(node._damage_preview(sweep_all).contains("Deals 8 (x%d enemies)" % c.living_enemies().size()), "the all-enemies preview uses the Forgotten count: " + node._damage_preview(sweep_all))
+	check(node._damage.for_target(strike, c.enemies[0]).get("dealt", -1) == 8, "the drag preview of Pile Strike with 4 Forgotten is 8")
+	check(node._damage.line_for(sweep_all, node._target_index).contains("Deals 8 (x%d enemies)" % c.living_enemies().size()), "the all-enemies preview uses the Forgotten count: " + node._damage.line_for(sweep_all, node._target_index))
 	c.piles.forgotten.append(_card("brace"))
-	check(node._target_preview(strike, c.enemies[0]).get("dealt", -1) == 10, "the preview grows when the Forgotten pile does")
+	check(node._damage.for_target(strike, c.enemies[0]).get("dealt", -1) == 10, "the preview grows when the Forgotten pile does")
 
 
 func _initialize() -> void:

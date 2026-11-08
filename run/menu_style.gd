@@ -14,6 +14,25 @@ const DAMAGE := Color("#d96b65")
 const BLOCK := Color("#83b4cf")
 ## Brass trim and warm cream text (update notice border and label, the screen scenes' frame).
 const BRASS := Color(0.78, 0.55, 0.24)
+## Shared UI palette: ink and parchment, the teal accent, wells and rims. Named here so no screen carries a hex literal.
+const PARCHMENT := Color("#d7d0bc")
+const PARCHMENT_HOVER := Color("#eee5ce")
+const TEAL := Color("#78a99b")
+const TEAL_LIGHT := Color("#a9cfc2")
+const TEAL_SOFT := Color("#8fb8ab")
+const WELL := Color("#101720")
+const STONE := Color("#9b9e90")
+const MUTED := Color("#81898b")
+const DISABLED_FILL := Color("#182026")
+const SLATE := Color("#26343d")
+const MIST := Color("#bcc5bd")
+const BRASS_EDGE := Color("#7d6a45")
+const DANGER_TEXT := Color("#f0b3ad")
+const INK_DARK := Color("#1a1208")
+## The small Update button on the main menu: border, text and fill for off, on, and "a newer version is available".
+const UPDATE_OFF := [Color("#4a5358"), MUTED, Color("#141a22")]
+const UPDATE_ON := [TEAL, TEAL_LIGHT, Color("#1a2a2a")]
+const UPDATE_AVAILABLE := [Color("#e0605a"), Color("#ffe3df"), Color("#5a1d1d")]
 const CREAM := Color(1.0, 0.93, 0.78)
 
 ## Button theme-type variations: set `button.theme_type_variation` to one of these.
@@ -27,7 +46,7 @@ static func apply(host: Control) -> void:
 	host.theme = build_theme()
 	var backdrop := ColorRect.new()
 	backdrop.name = "MenuGround"
-	backdrop.color = Color("#171d28")
+	backdrop.color = PANEL
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	host.add_child(backdrop)
 	host.move_child(backdrop, 0)
@@ -43,7 +62,7 @@ static func _button_states(theme: Theme, type_name: String, border: Color, text:
 		var box := StyleBoxFlat.new()
 		box.bg_color = PANEL_HOVER if state == "hover" else PANEL
 		if state == "pressed":
-			box.bg_color = Color("#101720")
+			box.bg_color = WELL
 		box.bg_color = box.bg_color.lerp(border, fill_tint)
 		box.bg_color.a = 0.94
 		box.border_color = BORDER if state == "disabled" else border
@@ -57,20 +76,20 @@ static func _button_states(theme: Theme, type_name: String, border: Color, text:
 	theme.set_color("font_color", type_name, text)
 	theme.set_color("font_hover_color", type_name, text.lightened(0.15))
 	theme.set_color("font_pressed_color", type_name, text.darkened(0.1))
-	theme.set_color("font_disabled_color", type_name, Color("#81898b"))
+	theme.set_color("font_disabled_color", type_name, MUTED)
 	if emphasized:
 		theme.set_type_variation(type_name, "Button")
 
 static func build_theme() -> Theme:
 	var theme := Theme.new()
 	theme.default_font_size = 16
-	theme.set_color("font_color", "Label", Color("#d7d0bc"))
-	_button_states(theme, "Button", Color("#9b9e90"), Color("#d7d0bc"))
-	theme.set_color("font_hover_color", "Button", Color("#eee5ce"))
-	theme.set_color("font_pressed_color", "Button", Color("#78a99b"))
+	theme.set_color("font_color", "Label", PARCHMENT)
+	_button_states(theme, "Button", STONE, PARCHMENT)
+	theme.set_color("font_hover_color", "Button", PARCHMENT_HOVER)
+	theme.set_color("font_pressed_color", "Button", TEAL)
 	_button_states(theme, String(PRIMARY), AMBER, AMBER, 0.12)
 	_button_states(theme, String(QUIET), BORDER, TEXT_DIM)
-	_button_states(theme, String(DANGER), DAMAGE, Color("#f0b3ad"), 0.1)
+	_button_states(theme, String(DANGER), DAMAGE, DANGER_TEXT, 0.1)
 	_button_states(theme, String(SMALL), BORDER, TEXT_DIM, 0.0, 0.67)
 	theme.set_font_size("font_size", String(SMALL), 11)
 	if has_plaques():
@@ -89,7 +108,7 @@ static func build_theme() -> Theme:
 	theme.set_stylebox("focus", "Button", focus)
 	var panel := StyleBoxFlat.new()
 	panel.bg_color = Color(PANEL, 0.94)
-	panel.border_color = Color("#7d6a45")
+	panel.border_color = BRASS_EDGE
 	panel.set_border_width_all(1)
 	panel.set_corner_radius_all(4)
 	panel.set_content_margin_all(20)
@@ -106,7 +125,7 @@ static func build_theme() -> Theme:
 static func heading(label: Label, font_size := 32) -> void:
 	label.add_theme_font_override("font", serif_font())
 	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", Color("#d7d0bc"))
+	label.add_theme_color_override("font_color", PARCHMENT)
 	label.add_theme_color_override("font_shadow_color", Color(0.03, 0.04, 0.06, 0.9))
 	label.add_theme_constant_override("shadow_offset_y", 2)
 
@@ -130,7 +149,7 @@ const PLAQUE_FONT_SIZE := 22
 ## Amber outline that follows the plaque's clipped outline, drawn just outside it for keyboard focus.
 const FOCUS_RING_PATH := "res://art/layers/ui/plaque_focus.png"
 const FOCUS_PAD := 9.0
-const PLAQUE_INK := Color("#171d28")
+const PLAQUE_INK := PANEL
 
 static var _serif: SystemFont
 

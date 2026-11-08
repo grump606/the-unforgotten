@@ -29,7 +29,7 @@ func _check_preview_matches_damage(node: Control, combat: Combat) -> void:
 				target.apply_status(Combatant.Status.EXPOSED, 2)
 			combat.piles.hand.clear()
 			combat.piles.hand.append(card)
-			node._rebuild_hand()
+			node._hand.rebuild()
 			var text: String = (node._hand_box.get_child(0) as CardView).preview
 			var dealt_to_block := target.block
 			combat.play_card(0, 0)
@@ -47,12 +47,12 @@ func _check_preview(node: Control) -> void:
 	var views := CardView.find_all(node._hand_box)
 	views[0].set_hovered(true)
 	check(node.preview_visible(), "hovering a hand card shows the preview")
-	check(node._preview.mouse_filter == Control.MOUSE_FILTER_IGNORE, "the preview does not block input")
-	check(node._preview.card == views[0].card and node._preview.view_scale >= 1.5, "the preview is a larger copy of the hovered card")
+	check(node._hand.preview.mouse_filter == Control.MOUSE_FILTER_IGNORE, "the preview does not block input")
+	check(node._hand.preview.card == views[0].card and node._hand.preview.view_scale >= 1.5, "the preview is a larger copy of the hovered card")
 	views[0].set_hovered(false)
 	check(not node.preview_visible(), "the preview hides when the pointer leaves")
 	views[0].set_hovered(true)
-	node._rebuild_hand()
+	node._hand.rebuild()
 	check(not node.preview_visible(), "a hand rebuild hides a stale preview")
 	Motion.reduced = true
 	var v := CardView.find_all(node._hand_box)[0]
@@ -110,7 +110,7 @@ func _check_discard_ui(node: Control) -> void:
 	check(c.discard_marks == ([0, 1, 2, 3, 9] as Array[int]) and not node._end_turn_button.disabled and node._end_turn_button.text == "Discard 5", "key 0 marks the tenth card and enables Discard 5")
 	key(node, KEY_1)
 	check(c.discard_marks.size() == 4 and node._end_turn_button.disabled, "pressing the key again unmarks")
-	node._cancel_button.pressed.emit()
+	node._hud.cancel_button.pressed.emit()
 	check(c.phase == Combat.Phase.PLAYER_TURN and c.piles.hand.size() == 10 and c.discard_marks.is_empty(), "Back returns to the turn with the hand unchanged")
 	check(not node._end_turn_button.disabled and node._end_turn_button.text == "End Turn" and not node._result_label.text.contains("Choose"), "the End Turn button and hint are restored")
 	# A small hand: Keep all, then marking changes the wording.
@@ -134,7 +134,7 @@ func _initialize() -> void:
 		tries += 1
 	check(node._combat.enemies.size() == 3, "3 enemies")
 	var c: Combat = node._combat
-	var before: String = node._pile_text()
+	var before: String = node._hud.pile_text()
 	check(before.begins_with("Draw "), "pile label " + before)
 	var idx := -1
 	for i in c.piles.hand.size():
@@ -150,7 +150,7 @@ func _initialize() -> void:
 	var disc := c.piles.discard_pile.size()
 	key(node, KEY_1 + idx)
 	check(c.piles.discard_pile.size() == disc + 1, "number key played (discard grew)")
-	check(node._pile_text() != before, "pile label changed: " + node._pile_text())
+	check(node._hud.pile_text() != before, "pile label changed: " + node._hud.pile_text())
 	node._select_target(0)
 	# The card played above may itself have exposed the target, so start from a clean slate.
 	c.enemies[0].clear_statuses()
@@ -163,8 +163,8 @@ func _initialize() -> void:
 	check(not enemy_views[1].tooltip_text.contains("more turns"), "no status tooltip unexposed")
 	c.enemies[0].max_haunt = 5
 	c.enemies[0].apply_status(Combatant.Status.HAUNTED, 9)
-	check(node._enemy_tooltip(c.enemies[0]).contains("Haunt capped at 5"), "capped enemy tooltip shows the cap")
-	check(not node._enemy_tooltip(c.enemies[1]).contains("capped"), "uncapped enemy tooltip has no cap line")
+	check(BattleTooltips.enemy(c.enemies[0], node._combat.player).contains("Haunt capped at 5"), "capped enemy tooltip shows the cap")
+	check(not BattleTooltips.enemy(c.enemies[1], node._combat.player).contains("capped"), "uncapped enemy tooltip has no cap line")
 	c.enemies[0].clear_statuses()
 	c.enemies[0].max_haunt = 0
 	c.enemies[0].apply_status(Combatant.Status.EXPOSED, 2)
@@ -203,9 +203,9 @@ func _initialize() -> void:
 	var turn: int = c.turn
 	key(node, KEY_E)
 	check(c.phase == Combat.Phase.DISCARDING and c.turn == turn, "E opens the discard step instead of ending the turn")
-	check(node._cancel_button.visible and node._end_turn_button.text == "Keep all" and not node._end_turn_button.disabled, "the discard step offers Keep all and Back")
+	check(node._hud.cancel_button.visible and node._end_turn_button.text == "Keep all" and not node._end_turn_button.disabled, "the discard step offers Keep all and Back")
 	key(node, KEY_BACKSPACE)
-	check(c.phase == Combat.Phase.PLAYER_TURN and not node._cancel_button.visible and node._end_turn_button.text == "End Turn", "Backspace goes back to playing cards")
+	check(c.phase == Combat.Phase.PLAYER_TURN and not node._hud.cancel_button.visible and node._end_turn_button.text == "End Turn", "Backspace goes back to playing cards")
 	key(node, KEY_E)
 	key(node, KEY_E)
 	check(c.turn == turn + 1 or c.phase == Combat.Phase.ENDED, "E, E ends turn")
@@ -225,7 +225,7 @@ func _initialize() -> void:
 	key(node, KEY_ENTER)
 	check(c.turn == t and c.phase == Combat.Phase.ENDED, "keys no-op after end")
 	node._on_end_turn_pressed()
-	node._play_hand_card(0)
+	node._hand.play_card(0)
 	node._select_target(0)
 	check(true, "handlers no error after end")
 	key(node, KEY_N)
@@ -263,22 +263,22 @@ func _initialize() -> void:
 	check(hv.size() >= 2, "setup: a hand of two or more for the hover checks")
 	var over := hv[1].get_global_rect().get_center()
 	hv[1].set_hovered(true)
-	node._rebuild_hand() # rebuilds every view, all un-hovered
+	node._hand.rebuild() # rebuilds every view, all un-hovered
 	await process_frame
 	var nv := CardView.find_all(node._hand_box)
 	check(nv[1] != hv[1] and not nv[1]._hovered, "a rebuilt card starts un-hovered")
-	node._restore_hover(over)
+	node._hand.restore_hover(over)
 	var hovered_count := 0
 	for v in nv:
 		hovered_count += 1 if v._hovered else 0
 	check(nv[1]._hovered and hovered_count == 1, "after a rebuild only the card under the pointer is hovered")
-	check(nv[1].hotkey == 2 and nv[1].preview == node._damage_preview(c2.piles.hand[1]).strip_edges(), "restoring hover keeps the hotkey badge and damage preview")
-	node._restore_hover(Vector2(-500.0, -500.0))
+	check(nv[1].hotkey == 2 and nv[1].preview == node._damage.line_for(c2.piles.hand[1], node._target_index).strip_edges(), "restoring hover keeps the hotkey badge and damage preview")
+	node._hand.restore_hover(Vector2(-500.0, -500.0))
 	hovered_count = 0
 	for v in nv:
 		hovered_count += 1 if v._hovered else 0
 	check(hovered_count == 0, "no card stays hovered when the pointer is elsewhere")
-	node._restore_hover(nv[0].get_global_rect().get_center())
+	node._hand.restore_hover(nv[0].get_global_rect().get_center())
 	check(nv[0]._hovered and not nv[1]._hovered, "hover moves to the card now under the pointer")
 	# An end-turn (enemy phase) emits many state_changed signals but renders once.
 	c2.player.hp = c2.player.max_hp

@@ -4,7 +4,7 @@ extends Control
 ## It dims when there is no energy left.
 
 const SIZE := 56.0
-const ENERGY_COLOR := Color("#e8b773")
+const ENERGY_COLOR := MenuStyle.AMBER
 
 var current := 0
 var maximum := 0
@@ -37,15 +37,15 @@ func _draw() -> void:
 			draw_circle(c, r * 0.65, Color(0.09, 0.11, 0.16, 0.72))
 		HudIcons.text(self, text, Rect2(c - Vector2(r, 10), Vector2(r * 2.0, 20)), 17, Color(1, 0.97, 0.9), true, 3)
 		return
-	var col := ENERGY_COLOR if live else Color("#526979")
+	var col := ENERGY_COLOR if live else MenuStyle.BORDER
 	draw_circle(c, r + 3.0, Color(0, 0, 0, 0.55))
 	# A weathered keepsake setting around dark, cloudy glass.
-	draw_circle(c, r, Color("#526979"))
-	draw_circle(c, r - 2.5, Color("#171d28"))
-	draw_circle(c, r * 0.83, Color("#26343d"))
+	draw_circle(c, r, MenuStyle.BORDER)
+	draw_circle(c, r - 2.5, MenuStyle.PANEL)
+	draw_circle(c, r * 0.83, MenuStyle.SLATE)
 	for i in 8:
 		var a := TAU * i / 8.0 + 0.12
-		draw_arc(c, r - 1.0, a, a + 0.35, 6, Color("#d7d0bc") * Color(1, 1, 1, 0.45), 1.1, true)
+		draw_arc(c, r - 1.0, a, a + 0.35, 6, MenuStyle.PARCHMENT * Color(1, 1, 1, 0.45), 1.1, true)
 	# The preserved ember sits behind the live numeral; no number is baked into art.
 	var ember := c + Vector2(0, r * 0.25)
 	if live:
@@ -62,6 +62,6 @@ func _draw() -> void:
 		draw_colored_polygon(flame, Color(col, 0.38))
 	else:
 		draw_arc(ember, r * 0.24, 0, PI, 14, Color(col, 0.55), 2.0, true)
-	draw_arc(c, r * 0.80, PI * 1.06, PI * 1.56, 18, Color("#d7d0bc") * Color(1, 1, 1, 0.5 if live else 0.25), 1.6, true)
-	draw_arc(c + Vector2(r * 0.08, 0), r * 0.60, 0.10, 0.65, 12, Color("#78a99b") * Color(1, 1, 1, 0.18), 1.0, true)
+	draw_arc(c, r * 0.80, PI * 1.06, PI * 1.56, 18, MenuStyle.PARCHMENT * Color(1, 1, 1, 0.5 if live else 0.25), 1.6, true)
+	draw_arc(c + Vector2(r * 0.08, 0), r * 0.60, 0.10, 0.65, 12, MenuStyle.TEAL * Color(1, 1, 1, 0.18), 1.0, true)
 	HudIcons.text(self, text, Rect2(c - Vector2(r, 10), Vector2(r * 2.0, 20)), 17, Color(1, 0.97, 0.9), true, 3)

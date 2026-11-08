@@ -2,7 +2,7 @@ class_name CardGlossary
 extends RefCounted
 ## Plain-language explanations of every mechanic a card uses, shown in the card's tooltip. One entry per term,
 ## in a fixed order (keywords first, then effects in the order the card uses them), so a card never repeats a term.
-## Numbers in the effect entries match the status tooltips in battle.gd; keep the two in step.
+## Numbers in the effect entries match the status tooltips in run/battle/battle_tooltips.gd; keep the two in step.
 
 ## Rule numbers, built from the combat constants so a rule change reaches every tooltip and tutorial page.
 const EXPOSED_X := "%.1f" % (float(Combatant.EXPOSED_NUM) / Combatant.EXPOSED_DEN)

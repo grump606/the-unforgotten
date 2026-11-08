@@ -10,9 +10,9 @@ const PANEL_SIZE := Vector2(1060, 590)
 const BATTLE_SCALE := 0.54
 const CARD_SCALE := 1.85
 const MARKER_RADIUS := 10.0
-const MARKER_FILL := Color("#e8b773")
-const MARKER_INK := Color("#1a1208")
-const TERM_COLOR := Color("#e8b773")
+const MARKER_FILL := MenuStyle.AMBER
+const MARKER_INK := MenuStyle.INK_DARK
+const TERM_COLOR := MenuStyle.AMBER
 const TEXT_SIZE := 17
 const LEGEND_SIZE := 14
 
@@ -214,7 +214,7 @@ func _text_page(entry: Dictionary) -> Control:
 	box.add_theme_constant_override("separation", 20)
 	box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	if entry.lead != "":
-		box.add_child(_label(entry.lead, TEXT_SIZE + 3, Color("#d7d0bc")))
+		box.add_child(_label(entry.lead, TEXT_SIZE + 3, MenuStyle.PARCHMENT))
 	for line in entry.items:
 		var text: String = line
 		box.add_child(_label(text if text.substr(0, 1).is_valid_int() else "•  " + text, TEXT_SIZE))

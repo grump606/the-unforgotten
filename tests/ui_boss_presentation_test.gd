@@ -47,7 +47,7 @@ func _initialize() -> void:
 	var boss := _battle(_boss_data(), true, true)
 	await process_frame
 	check(boss.intro_visible(), "a boss fight starts with the entrance overlay")
-	var intro: BossIntro = boss._intro
+	var intro: BossIntro = boss._fx.intro
 	check(intro.label.text == "FINAL BOSS" and intro.name_label.text == "The Test Boss", "the plate shows the label and the boss name")
 	_key(boss, KEY_SPACE)
 	check(not boss.intro_visible(), "any key skips the intro")
@@ -61,7 +61,7 @@ func _initialize() -> void:
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
 	click.pressed = true
-	mid._intro._gui_input(click)
+	mid._fx.intro._gui_input(click)
 	check(not mid.intro_visible(), "a click skips the intro")
 	mid.queue_free()
 
@@ -95,7 +95,7 @@ func _initialize() -> void:
 	unit.hp = 40
 	unit.phase = 2
 	boss2._combat.enemy_phase_changed.emit(unit, 2)
-	check(boss2.phase_banner_visible() and boss2._banner.text == "TOLLING LOUDER", "the phase banner shows the phase two title")
+	check(boss2.phase_banner_visible() and boss2._fx.banner.text == "TOLLING LOUDER", "the phase banner shows the phase two title")
 	check(bview.shake_amount() > 0.0 and boss2._backdrop.harsh, "the boss shakes and the backdrop turns harsh")
 	check(unit.current_intent().amount == 9, "the new phase's intent is the current one")
 	var data2 := _boss_data()
@@ -103,14 +103,14 @@ func _initialize() -> void:
 	var boss3 := _battle(data2, true, false)
 	await process_frame
 	boss3._combat.enemy_phase_changed.emit(boss3._combat.enemies[0], 2)
-	check(boss3._banner.text == "ENRAGED", "an empty title falls back to Enraged")
+	check(boss3._fx.banner.text == "ENRAGED", "an empty title falls back to Enraged")
 
 	# Reduced motion: no flash, a short intro.
 	Motion.reduced = true
 	var calm := _battle(_boss_data(), true, true)
 	await process_frame
 	calm._combat.enemy_phase_changed.emit(calm._combat.enemies[0], 2)
-	check(calm._flash == null and calm.intro_visible(), "reduced motion skips the flash but keeps the intro")
+	check(calm._fx.flash == null and calm.intro_visible(), "reduced motion skips the flash but keeps the intro")
 	Motion.reduced = false
 	print("DONE fails=", fails)
 	quit(1 if fails > 0 else 0)
