@@ -66,14 +66,14 @@ func _init() -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.04, 0.03, 0.03, 0.9)
 	style.set_border_width_all(1)
-	style.border_color = Color(0.78, 0.55, 0.24)
+	style.border_color = MenuStyle.BRASS
 	style.set_corner_radius_all(6)
 	style.content_margin_left = 12
 	style.content_margin_right = 6
 	style.content_margin_top = 2
 	style.content_margin_bottom = 2
 	add_theme_stylebox_override("panel", style)
-	label.add_theme_color_override("font_color", Color(1.0, 0.93, 0.78))
+	label.add_theme_color_override("font_color", MenuStyle.CREAM)
 	# Bottom centre, growing up and out from there.
 	anchor_left = 0.5
 	anchor_right = 0.5
@@ -96,6 +96,10 @@ func start() -> bool:
 	_request = HTTPRequest.new()
 	_request.body_size_limit = UpdateCheck.MAX_BODY_BYTES
 	_request.timeout = UpdateCheck.TIMEOUT_SECONDS
+	# Godot's HTTPRequest follows redirects itself and does not expose where it ended up, so a redirect to plain
+	# http:// cannot be refused here. The cap keeps a redirect loop short; the reply is only ever read as a version
+	# tag (UpdateCheck validates it) and the installer is trusted only through the signed manifest (UpdateInstaller).
+	_request.max_redirects = UpdateCheck.MAX_REDIRECTS
 	_request.request_completed.connect(_on_request_completed)
 	add_child(_request)
 	var headers := PackedStringArray([
@@ -205,6 +209,7 @@ func _on_installer_changed() -> void:
 
 func _on_skip() -> void:
 	installer.cancel()
+	installer.discard() # a verified installer waiting in READY is removed too
 	revealed = false
 	_refresh()
 	skipped.emit()

@@ -12,6 +12,9 @@ const TEXT_DIM := Color("#a6b9b5")
 const AMBER := Color("#e8b773")
 const DAMAGE := Color("#d96b65")
 const BLOCK := Color("#83b4cf")
+## Brass trim and warm cream text (update notice border and label, the screen scenes' frame).
+const BRASS := Color(0.78, 0.55, 0.24)
+const CREAM := Color(1.0, 0.93, 0.78)
 
 ## Button theme-type variations: set `button.theme_type_variation` to one of these.
 const PRIMARY := &"PrimaryButton"

@@ -77,7 +77,7 @@ func _draw() -> void:
 		var left := clampf(float(unit.hp - drop_lost) / maxf(float(unit.max_hp), 1.0), 0.0, 1.0) * width
 		var right := ratio * width
 		if right > left:
-			HudIcons.box(self, Rect2(bar.position + Vector2(1.0 + left, 1.0), Vector2(right - left, bar.size.y - 2.0)), Color(CardView.SELECT_GOLD, 0.9), 2)
+			HudIcons.box(self, Rect2(bar.position + Vector2(1.0 + left, 1.0), Vector2(right - left, bar.size.y - 2.0)), Color(MenuStyle.AMBER, 0.9), 2)
 	if has_marker():
 		var x := bar.position.x + bar.size.x * marker_ratio()
 		var crossed := enraged

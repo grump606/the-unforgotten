@@ -147,6 +147,20 @@ func _on_visibility_changed() -> void:
 	set_process(is_visible_in_tree()) # no cost while hidden
 
 
+## Turns the per-frame animation back on after the fighter went idle (see _is_idle).
+func _wake() -> void:
+	if is_inside_tree():
+		set_process(is_visible_in_tree())
+	queue_redraw()
+
+
+## True when nothing on this fighter can change its picture any more: it is fully faded out (defeated) and has no
+## reaction, floating number or flash left. A living fighter always breathes, so it is never idle.
+func _is_idle() -> bool:
+	return unit != null and fade >= 1.0 and is_defeated() and _floats.is_empty() and _reactions.is_empty() \
+		and _flash <= 0.0 and _shake <= 0.0 and _recoil <= 0.0 and _pop <= 0.0 and _lunge <= 0.0
+
+
 func _process(delta: float) -> void:
 	advance(delta)
 
@@ -199,6 +213,7 @@ func _reset() -> void:
 	_floats.clear()
 	fade = 1.0 if is_defeated() else 0.0
 	_resize()
+	_wake()
 
 
 func _resize() -> void:
@@ -222,6 +237,7 @@ func fit_boss(max_total: float) -> void:
 ## A short sideways shake of the whole figure (a boss changing phase).
 func shake() -> void:
 	_shake = 1.0
+	_wake()
 
 
 ## Current shake strength, 1 down to 0 (read by tests).
@@ -264,7 +280,7 @@ func is_defeated() -> bool:
 
 func set_targeted(value: bool) -> void:
 	targeted = value
-	queue_redraw()
+	_wake()
 
 
 ## While a card is dragged over this enemy: ring it, show the card's result on it as a label
@@ -298,13 +314,14 @@ func refresh() -> void:
 	_scheduled_loss = 0
 	_scheduled_block = false
 	react_delay = 0.0
-	queue_redraw()
+	_wake()
 
 
 ## Plays a hit (or, with 0, a fully blocked hit) after `delay` seconds, and tells the next refresh() not to
 ## react to it again. The battle uses it so each enemy's hit on the player lands with that enemy's lunge.
 func schedule_hit(amount: int, delay: float, blocked := 0) -> void:
 	_scheduled_loss += amount
+	_wake()
 	if amount == 0:
 		_scheduled_block = true
 	_react(amount, delay, blocked)
@@ -334,6 +351,7 @@ func _play_reaction(amount: int, blocked := 0) -> void:
 func play_attack(delay := 0.0) -> void:
 	_lunge = 1.0
 	_lunge_delay = delay
+	_wake()
 
 
 func _float(txt: String, col: Color) -> void:
@@ -358,16 +376,32 @@ func advance(delta: float) -> void:
 	_shake = maxf(_shake - delta / SHAKE_TIME, 0.0)
 	_recoil = maxf(_recoil - delta / RECOIL_TIME, 0.0)
 	_pop = maxf(_pop - delta / POP_TIME, 0.0)
+	# Age the reactions and play the ones that are due, compacting the array in place (no per-frame allocation).
+	var kept := 0
+	var due: Array[Dictionary] = []
 	for r in _reactions:
 		r.t -= delta
-	for r in _reactions.filter(func(r: Dictionary) -> bool: return r.t <= 0.0):
-		_play_reaction(r.amount, r.get("blocked", 0))
-	_reactions = _reactions.filter(func(r: Dictionary) -> bool: return r.t > 0.0)
+		if r.t <= 0.0:
+			due.append(r)
+		else:
+			_reactions[kept] = r
+			kept += 1
+	if not due.is_empty():
+		_reactions.resize(kept)
+		for r in due:
+			_play_reaction(r.amount, r.get("blocked", 0))
 	fade = move_toward(fade, 1.0 if is_defeated() else 0.0, delta / FADE_TIME)
+	var live := 0
 	for f in _floats:
 		f.age += delta
-	_floats = _floats.filter(func(f: Dictionary) -> bool: return f.age < FLOAT_TIME)
+		if f.age < FLOAT_TIME:
+			_floats[live] = f
+			live += 1
+	if live < _floats.size():
+		_floats.resize(live)
 	queue_redraw()
+	if _is_idle():
+		set_process(false) # one last redraw above; refresh()/set_*()/play_attack() wake it again
 
 
 ## Breathing, -1..1.
@@ -537,7 +571,7 @@ func _draw() -> void:
 	if targeted and not is_defeated():
 		var mx := size.x / 2.0
 		var my := 4.0 + sin(time * 4.0) * 2.0
-		draw_colored_polygon(PackedVector2Array([Vector2(mx - 9, my), Vector2(mx + 9, my), Vector2(mx, my + 9)]), CardView.SELECT_GOLD)
+		draw_colored_polygon(PackedVector2Array([Vector2(mx - 9, my), Vector2(mx + 9, my), Vector2(mx, my + 9)]), MenuStyle.AMBER)
 	if drop_hover and not is_defeated():
 		_draw_drop_hover(ground)
 	_draw_floats()
@@ -564,7 +598,7 @@ func _draw_drop_label() -> void:
 	for line in lines:
 		width = maxf(width, line.length() * 7.5 + 18.0)
 	var box := Rect2(Vector2(size.x / 2.0 - width / 2.0, OVERHEAD + figure_height * 0.4), Vector2(width, line_h * lines.size() + 6.0))
-	HudIcons.box(_drop_layer, box, Color(0.04, 0.03, 0.05, 0.92), 8, 2, CardView.SELECT_GOLD)
+	HudIcons.box(_drop_layer, box, Color(0.04, 0.03, 0.05, 0.92), 8, 2, MenuStyle.AMBER)
 	for i in lines.size():
 		HudIcons.text(_drop_layer, lines[i], Rect2(box.position + Vector2(0, 3.0 + line_h * i), Vector2(width, line_h)), 13, Color(0.97, 0.95, 0.92), true, 3)
 
@@ -583,7 +617,7 @@ func _draw_target_ring(ground: Vector2) -> void:
 	for i in 33:
 		var ang := TAU * i / 32.0
 		pts.append(ground + Vector2(cos(ang) * rx, sin(ang) * rx * 0.16))
-	draw_polyline(pts, Color(CardView.SELECT_GOLD, 0.85), 2.0, true)
+	draw_polyline(pts, Color(MenuStyle.AMBER, 0.85), 2.0, true)
 
 
 ## The figure standing on its feet with the idle breath, the lunge toward the opponent, the recoil from
@@ -660,6 +694,16 @@ static func omen_text(intent: CardEffect) -> String:
 	return str(intent.amount)
 
 
+## Width of an Omen number at the badge's font size; measured once per distinct text.
+static var _number_widths := {}
+
+
+static func _number_width(number: String) -> float:
+	if not _number_widths.has(number):
+		_number_widths[number] = ThemeDB.fallback_font.get_string_size(number, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
+	return _number_widths[number]
+
+
 ## The intent floating above the head: a round badge with the action's icon and its amount beside it.
 ## (The full description is in the figure's tooltip.)
 func _draw_intent(a: float) -> void:
@@ -672,7 +716,7 @@ func _draw_intent(a: float) -> void:
 		col = CardView.STATUS_NEGATIVE
 	var c := intent_center()
 	var number := omen_text(intent)
-	var nw := ThemeDB.fallback_font.get_string_size(number, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
+	var nw := _number_width(number)
 	var total := 30.0 + 5.0 + nw
 	var cx := c.x - total / 2.0 + 15.0
 	var badge := Vector2(cx, c.y)
@@ -698,7 +742,7 @@ func _draw_bar(a: float) -> void:
 		var left := clampf(float(unit.hp - drop_lost) / maxf(float(unit.max_hp), 1.0), 0.0, 1.0) * inner
 		var right := ratio * inner
 		if right > left:
-			HudIcons.box(self, Rect2(bar.position + Vector2(1.0 + left, 1.0), Vector2(right - left, bar.size.y - 2.0)), Color(CardView.SELECT_GOLD, 0.9 * a), 3)
+			HudIcons.box(self, Rect2(bar.position + Vector2(1.0 + left, 1.0), Vector2(right - left, bar.size.y - 2.0)), Color(MenuStyle.AMBER, 0.9 * a), 3)
 	HudIcons.text(self, "%d/%d" % [maxi(unit.hp, 0), unit.max_hp], bar, 12, Color(1, 1, 1, a), true, 3)
 	if has_block:
 		var pop := 1.0 + sin(_pop * PI) * 0.35

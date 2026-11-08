@@ -22,7 +22,7 @@ const BADGE := Color("#e8b773")
 const BADGE_BAD := Color(0.78, 0.18, 0.20)
 const WARN := Color("#e8b773")
 const HP_RED := Color("#a8323a")
-const SELECT_GOLD := Color("#e8b773")
+const SELECT_GOLD := MenuStyle.AMBER
 ## Palette tokens per class. Empty id is neutral keepsake paper.
 const PALETTES := {
 	&"": {
