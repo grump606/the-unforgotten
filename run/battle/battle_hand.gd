@@ -181,7 +181,7 @@ func play_card(hand_index: int) -> void:
 ## Re-applies the hover look to the hand card under the pointer after a rebuild (the new views
 ## get no mouse_entered until the mouse moves). Every other card is cleared, so none sticks.
 func restore_hover(mouse := Vector2(-1.0, -1.0)) -> void:
-	if not _battle.is_inside_tree():
+	if not is_instance_valid(_battle) or not _battle.is_inside_tree(): # a deferred call can outlive the screen
 		return
 	if mouse == Vector2(-1.0, -1.0):
 		mouse = _battle.get_viewport().get_mouse_position()

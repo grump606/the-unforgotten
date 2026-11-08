@@ -23,6 +23,20 @@ static func pile_keys_text() -> String:
 	return ", ".join(names.slice(0, -1)) + " or " + names[-1]
 
 
+## The hand position a number key plays: 1 to 9 (top row or keypad) are cards 1 to 9, 0 is the tenth card (the
+## hotkey badge shows it as 0), and any other key, including the colon key that sits after 9 in the key codes,
+## is -1.
+static func card_index(keycode: Key) -> int:
+	var number := -1
+	if keycode >= KEY_1 and keycode <= KEY_9:
+		number = keycode - KEY_1
+	elif keycode >= KEY_KP_1 and keycode <= KEY_KP_9:
+		number = keycode - KEY_KP_1
+	elif keycode == KEY_0 or keycode == KEY_KP_0:
+		number = 9
+	return number if number < BattleHand.MAX_HAND_KEYS else -1
+
+
 ## The end-turn key as text, "E".
 static func end_turn_key_text() -> String:
 	return OS.get_keycode_string(END_TURN_KEY)
@@ -68,10 +82,8 @@ func handle(event: InputEvent) -> void:
 		_handled()
 		b.open_pile_viewer(BattleOverlays.PILE_KEYS.find(key.keycode) as PileViewer.Pile)
 		return
-	var number := key.keycode - KEY_1
-	if key.keycode == KEY_0:
-		number = 9
-	if number >= 0 and number < BattleHand.MAX_HAND_KEYS:
+	var number := card_index(key.keycode)
+	if number >= 0:
 		_handled()
 		b._hand.play_card(number)
 		return

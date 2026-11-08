@@ -37,7 +37,26 @@ func run() -> int:
 	PaintedArt.warm_for_stop(RunState.StopType.REST, &"")
 	_check(PaintedArt._cache.has(rest_key), "warm_for_stop still fills the cache immediately")
 	_check(PaintedArt.paths_for_stop(RunState.StopType.STORY, &"", -1).is_empty(), "a story stop with no beat has no art to warm")
+	_test_queue_touches_cached_paths(vendor_key)
 	PaintedArt._cache.clear()
 	PaintedArt._last_used.clear()
 	PaintedArt._queue.clear()
 	return _failures
+
+
+## A path cached two stops ago and queued again must survive the next advance_stop() (its screen is about to draw).
+func _test_queue_touches_cached_paths(key: String) -> void:
+	PaintedArt._cache.clear()
+	PaintedArt._last_used.clear()
+	PaintedArt._queue.clear()
+	var serial := PaintedArt._stop_serial
+	PaintedArt._cache[key] = null
+	PaintedArt._last_used[key] = serial - (PaintedArt.EVICT_AFTER_STOPS - 1) # one stop from being evicted
+	PaintedArt.queue_paths([key])
+	_check(PaintedArt.pending() == 0, "a cached path is not queued")
+	PaintedArt.advance_stop()
+	_check(PaintedArt._cache.has(key), "queueing a cached path keeps it through the next stop's eviction")
+	PaintedArt._cache[key] = null
+	PaintedArt._last_used[key] = serial - PaintedArt.EVICT_AFTER_STOPS
+	PaintedArt.advance_stop()
+	_check(not PaintedArt._cache.has(key), "an unqueued stale path is still evicted")

@@ -205,11 +205,14 @@ static func queue_screen(screen_name: StringName) -> void:
 	queue_paths([SCREEN_DIR % screen_name])
 
 
-## Queues res:// paths to decode later; ones already cached or queued are ignored.
+## Queues res:// paths to decode later; ones already queued are ignored. One already cached is not decoded again
+## but is marked as used in the current stop, so advance_stop() cannot evict it before its screen draws.
 static func queue_paths(paths: Array) -> void:
 	for path in paths:
 		var key := String(path)
-		if not _cache.has(key) and not _queue.has(key):
+		if _cache.has(key):
+			_touch(key)
+		elif not _queue.has(key):
 			_queue.append(key)
 
 
