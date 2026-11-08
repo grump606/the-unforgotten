@@ -63,14 +63,21 @@ func _test_run_save_caps() -> void:
 	d["gold"] = 0
 	_check(_loads(d).run != null, "zero gold is accepted")
 
+	# Max HP is bounded by the character's base HP plus MAX_HP relics plus a small slack (RunSave.max_hp_allowed).
 	d = _base()
+	var fresh := RunState.new(7, &"thief")
+	var no_relics: Array[RelicData] = []
+	var allowed := RunSave.max_hp_allowed(fresh, no_relics)
+	d["max_hp"] = allowed
+	d["hp"] = allowed
+	var loaded := _loads(d)
+	_check(loaded.run != null and loaded.run.player.max_hp == allowed and loaded.run.player.hp == allowed, "max_hp and hp at the allowed limit are accepted")
+	d["max_hp"] = allowed + 1
+	d["hp"] = 1
+	_check(_loads(d).run == null, "max_hp one above the allowed limit is rejected")
 	d["max_hp"] = RunSave.MAX_HP
 	d["hp"] = RunSave.MAX_HP
-	var loaded := _loads(d)
-	_check(loaded.run != null and loaded.run.player.max_hp == RunSave.MAX_HP and loaded.run.player.hp == RunSave.MAX_HP, "max_hp and hp at MAX_HP are accepted")
-	d["max_hp"] = RunSave.MAX_HP + 1
-	d["hp"] = 1
-	_check(_loads(d).run == null, "max_hp above MAX_HP is rejected")
+	_check(_loads(d).run == null, "a hand-edited max_hp of MAX_HP is rejected for a fresh run")
 	d = _base()
 	d["hp"] = int(d["max_hp"]) + 1
 	_check(_loads(d).run == null, "hp above max_hp is rejected")
@@ -90,9 +97,17 @@ func _test_run_save_caps() -> void:
 		deck.append("shove")
 	d["deck"] = deck
 	_check(_loads(d).run == null, "a deck above MAX_DECK is rejected")
+	# A deck is also bounded per card: a genuine run can only collect so many copies (RunSave.max_copies).
 	deck.resize(RunSave.MAX_DECK)
 	d["deck"] = deck
-	_check(_loads(d).run != null, "a deck of exactly MAX_DECK known cards is accepted")
+	_check(_loads(d).run == null, "a MAX_DECK deck of one card is rejected: more copies than a run can collect")
+	var copy_limit := RunSave.max_copies(fresh, &"shove")
+	deck.resize(copy_limit)
+	d["deck"] = deck
+	_check(_loads(d).run != null, "a deck with exactly the most copies of a card a run can hold is accepted")
+	deck.append("shove")
+	d["deck"] = deck
+	_check(_loads(d).run == null, "one copy more than a run can hold is rejected")
 	d["deck"] = []
 	_check(_loads(d).run == null, "an empty deck is rejected")
 
