@@ -186,11 +186,11 @@ func _test_multi_hit_scoring() -> void:
 	var single: Array[CardData] = [_card(&"x", 1, CardEffect.Kind.DAMAGE, 3)]
 	var combat := _combat_with_hand(single)
 	var enemy := combat.enemies[0]
-	_check(SmartPolicy._hits_hp_lost(combat.player, enemy, 3, 3) == 9, "three hits of 3 remove 9 HP")
+	_check(Combatant.hits_outcome(combat.player, enemy, 3, 3)["lost"] == 9, "three hits of 3 remove 9 HP")
 	enemy.block = 4
-	_check(SmartPolicy._hits_hp_lost(combat.player, enemy, 3, 3) == 5, "block absorbs across the hits (5 of 9 get through)")
+	_check(Combatant.hits_outcome(combat.player, enemy, 3, 3)["lost"] == 5, "block absorbs across the hits (5 of 9 get through)")
 	enemy.block = 0
-	_check(SmartPolicy._hits_hp_lost(combat.player, enemy, 3, 99) == enemy.hp, "overkill is not counted")
+	_check(Combatant.hits_outcome(combat.player, enemy, 3, 99)["lost"] == enemy.hp, "overkill is not counted")
 	var effects: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.DAMAGE, 3, 0, 0, 3)]
 	var multi := CardData.make(&"multi", "Multi", 1, effects)
 	var hand: Array[CardData] = [multi]
@@ -208,22 +208,22 @@ func _test_estimates_use_the_pipeline() -> void:
 	var enemies: Array[EnemyData] = [_enemy(30, 8)]
 	var fight := _combat([_card(&"y", 1, CardEffect.Kind.BLOCK, 4)], enemies)
 	var foe := fight.enemies[0]
-	_check(SimPolicy._incoming_damage(fight) == 8 and SmartPolicy._incoming_damage(fight) == 8, "baseline incoming damage is the intent")
+	_check(fight.incoming_damage() == 8, "baseline incoming damage is the intent")
 	foe.apply_status(Combatant.Status.MALICE, 2)
-	_check(SimPolicy._incoming_damage(fight) == 10 and SmartPolicy._incoming_damage(fight) == 10, "incoming damage includes enemy Malice")
+	_check(fight.incoming_damage() == 10, "incoming damage includes enemy Malice")
 	foe.apply_status(Combatant.Status.SHAKEN, 1)
-	_check(SimPolicy._incoming_damage(fight) == 7 and SmartPolicy._incoming_damage(fight) == 7, "incoming damage includes enemy Shaken (10 x3/4 = 7)")
+	_check(fight.incoming_damage() == 7, "incoming damage includes enemy Shaken (10 x3/4 = 7)")
 	fight.player.apply_status(Combatant.Status.EXPOSED, 1)
 	var expected := Combatant.hit_damage(8, foe, fight.player)
-	_check(expected > 7 and SimPolicy._incoming_damage(fight) == expected and SmartPolicy._incoming_damage(fight) == expected, "incoming damage includes the player's Expose after Malice and Shaken")
+	_check(expected > 7 and fight.incoming_damage() == expected, "incoming damage includes the player's Expose after Malice and Shaken")
 	# Outgoing: the player's Malice and Shaken, then the enemy's Expose.
-	_check(SmartPolicy._hits_hp_lost(combat.player, enemy, 3, 1) == 3, "baseline card damage")
+	_check(Combatant.hits_outcome(combat.player, enemy, 3, 1)["lost"] == 3, "baseline card damage")
 	combat.player.apply_status(Combatant.Status.MALICE, 2)
-	_check(SmartPolicy._hits_hp_lost(combat.player, enemy, 3, 2) == 10, "card damage includes player Malice per hit")
+	_check(Combatant.hits_outcome(combat.player, enemy, 3, 2)["lost"] == 10, "card damage includes player Malice per hit")
 	combat.player.apply_status(Combatant.Status.SHAKEN, 1)
-	_check(SmartPolicy._hits_hp_lost(combat.player, enemy, 3, 1) == 3, "card damage includes player Shaken ((3+2) x3/4 = 3)")
+	_check(Combatant.hits_outcome(combat.player, enemy, 3, 1)["lost"] == 3, "card damage includes player Shaken ((3+2) x3/4 = 3)")
 	enemy.apply_status(Combatant.Status.EXPOSED, 1)
-	_check(SmartPolicy._hits_hp_lost(combat.player, enemy, 3, 1) == Combatant.hit_damage(3, combat.player, enemy), "card damage includes the enemy's Expose")
+	_check(Combatant.hits_outcome(combat.player, enemy, 3, 1)["lost"] == Combatant.hit_damage(3, combat.player, enemy), "card damage includes the enemy's Expose")
 	# Block: Ward adds, Frayed cuts.
 	var guard := _card(&"g", 1, CardEffect.Kind.BLOCK, 4)
 	var g_hand: Array[CardData] = [guard]

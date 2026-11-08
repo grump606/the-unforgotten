@@ -34,9 +34,13 @@ func _test_plays_whole_runs_without_illegal_moves() -> void:
 					var combat := run.start_combat()
 					combat.start()
 					var guard := 0
-					while combat.phase == Combat.Phase.PLAYER_TURN and guard < 60:
+					# is_acting also covers a Glimpse/Recall pick open at the fight's start (phase CHOOSING).
+					while SimPolicy.is_acting(combat) and guard < 60:
 						_check(SmartPolicy.play_turn(combat), "smart turn is legal (seed %d)" % seed_value)
 						guard += 1
+					if combat.phase != Combat.Phase.ENDED:
+						_check(false, "the fight ended within the turn guard (seed %d)" % seed_value)
+						combat.abandon()
 					run.complete_combat(combat.living_enemies().is_empty())
 					if run.reward_pending():
 						_check(run.resolve_reward(SmartPolicy.pick_reward(run)), "smart reward pick is accepted")

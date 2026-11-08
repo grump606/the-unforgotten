@@ -89,7 +89,7 @@ func _test_small_enemies_in_trios() -> void:
 	var small: Array[String] = [StarterContent.CINDER_HOUND_PATH, StarterContent.MOURNING_CROW_PATH]
 	for path in small:
 		_check(StarterContent.SMALL_ENEMY_PATHS.has(path) and StarterContent.ALL_ENEMY_PATHS.has(path), "new small enemy is registered: %s" % path)
-		_check(StarterContent._trio_paths().has(path), "new small enemy may appear in trios: %s" % path)
+		_check(Encounters.trio_paths().has(path), "new small enemy may appear in trios: %s" % path)
 	var hound := StarterContent._load_enemy(StarterContent.CINDER_HOUND_PATH)
 	var crow := StarterContent._load_enemy(StarterContent.MOURNING_CROW_PATH)
 	if hound != null and crow != null:

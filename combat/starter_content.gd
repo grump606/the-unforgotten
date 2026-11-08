@@ -329,9 +329,6 @@ static func character(character_id: StringName) -> Character:
 	return ContentRegistry.character(character_id)
 
 
-## Returns null (after logging an error) if the resource is missing or not a
-## CardData. Checked explicitly rather than with assert so debug and release
-## builds behave the same.
 ## A status card by id (`dread` or `murmur`), or null (cause logged) for an unknown id or a bad resource.
 static func status_card(id: StringName) -> CardData:
 	return ContentRegistry.status_card(id)
@@ -410,11 +407,6 @@ static func ramp_factor(fight: int) -> float:
 ## EnemyData with new intents, so the shared resource is never touched; factor 1.0 returns `enemy` itself.
 static func scaled(enemy: EnemyData, factor: float) -> EnemyData:
 	return Encounters.scaled(enemy, factor)
-
-
-## SMALL_ENEMY_PATHS minus TRIO_EXCLUDED_PATHS, so a new small enemy joins trios by default.
-static func _trio_paths() -> Array[String]:
-	return Encounters.trio_paths()
 
 
 ## The boss fight: the Conductor alone. Empty (cause logged) if it fails to load,

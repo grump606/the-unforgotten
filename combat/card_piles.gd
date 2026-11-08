@@ -170,11 +170,6 @@ func recall_from_forgotten(indices: Array[int], hand_limit: int) -> int:
 	return moving.size()
 
 
-func discard_hand() -> void:
-	discard_pile.append_array(hand)
-	hand.clear()
-
-
 func _shuffle(cards: Array[CardData]) -> void:
 	for i in range(cards.size() - 1, 0, -1):
 		var j := _rng.randi_range(0, i)

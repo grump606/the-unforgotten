@@ -499,6 +499,7 @@ func _test_save_round_trip() -> void:
 	var offer := state.vendor().relic_offer()
 	state.vendor_buy_relic()
 	state.leave_vendor()
+	state.gold = 0 # the 300 above only paid for the relic; a save may not hold more gold than the run could have earned
 	var dict := RunSave.to_dict(state)
 	_check(dict["relics"] == [String((offer["relic"] as RelicData).id)], "to_dict lists the relic ids")
 	var json := JSON.new()
@@ -513,6 +514,7 @@ func _test_save_round_trip() -> void:
 	tough.player.max_hp += flask.amount
 	tough.player.hp += flask.amount
 	tough.relics.assign([flask])
+	tough.stop_index = 6 # past the first vendor: a run carries a relic only after a visit
 	var restored := RunSave.from_dict(RunSave.to_dict(tough)).run
 	_check(restored != null and restored.player.max_hp == tough.player.max_hp, "restored max HP equals the saved max HP")
 	var old := RunSave.to_dict(RunState.new(3))
@@ -525,16 +527,21 @@ func _test_save_round_trip() -> void:
 func _test_save_rejects_bad_relics() -> void:
 	var own := String(StarterContent.relic_pool(&"deserter")[3].id)
 	var other := String(StarterContent.relic_pool(&"thief")[3].id)
+	# Late in the line, so the number of vendor visits is not what limits the relic list (see RunSave.max_relics).
+	var late := RunState.new(3, &"deserter").stops.size() - 1
 	var good := RunSave.to_dict(RunState.new(3, &"deserter"))
+	good["stop_index"] = late
 	good["relics"] = [own]
 	_check(RunSave.from_dict(good).run != null, "a valid relic id loads")
 	for bad in ["x", 5, null, ["no_such_relic"], [5], [own, own], [other], [own, ""], {"a": 1}, [[own]]]:
 		var data := RunSave.to_dict(RunState.new(3, &"deserter"))
+		data["stop_index"] = late
 		data["relics"] = bad
 		_check(RunSave.from_dict(data).run == null, "relics = %s is rejected" % JSON.stringify(bad))
 	var many: Array = []
 	for i in 40:
 		many.append(own)
 	var data := RunSave.to_dict(RunState.new(3, &"deserter"))
+	data["stop_index"] = late
 	data["relics"] = many
 	_check(RunSave.from_dict(data).run == null, "an oversized relic list is rejected")

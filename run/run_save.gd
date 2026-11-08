@@ -16,16 +16,19 @@ const LEGACY_PICKPOCKET_ID := "pickpocket"
 const REMEMBERED_SUFFIX := "+"
 const DEFAULT_PATH := "user://run_save.json"
 const MAX_FILE_BYTES := 1048576
-const MAX_DECK := 200
-const MAX_GOLD := 1000000
 const MAX_HP := 10000
 ## Max HP can only rise through a MAX_HP relic (Vendor.buy_relic; a rest stop heals but never raises it), so a
 ## genuine save holds the character's base HP plus the MAX_HP relics it carries. The slack lets a save made
 ## before a character's base HP was retuned still load; a hand-edited 9999 does not.
 const MAX_HP_SLACK := 20
-## Copies of one card a genuine run can hold: the starting copies, one reward pick per fight, and the
-## vendor's whole stock every visit, plus slack for a retuned starting deck. Remembered copies count as the same card.
+## The deck, gold and relic bounds below grow with how far the run has got (stop_index): what a genuine run
+## could have collected by then, never what it happens to hold. They are tamper-resistance against absurd or
+## hand-edited saves (a deck of 200 cards, a million gold), not security: anyone can still edit a save to the
+## largest legitimate state for its stop.
+## Slack on the card bounds for a retuned starting deck. Remembered copies count as the same card.
 const DECK_COPY_SLACK := 2
+## Slack on the gold bound for a retuned economy (a save made before a payout changed must still load).
+const GOLD_SLACK := 50
 
 
 class Result extends RefCounted:
@@ -116,7 +119,7 @@ static func from_dict(data: Variant) -> Result:
 	# Each validator stores what it accepts in `got` and returns why a field was rejected ("" if fine).
 	# The order matters: the deck check leaves the card table the offered check needs.
 	var got := Accepted.new()
-	for check in [_check_relics, _check_numbers, _check_rng_state, _check_deck, _check_offered]:
+	for check in [_check_line_and_stop, _check_relics, _check_numbers, _check_rng_state, _check_deck, _check_offered]:
 		error = check.call(d, run, got)
 		if error != "":
 			return Result.fail(error)
@@ -159,13 +162,12 @@ static func max_hp_allowed(run: RunState, relics: Array[RelicData]) -> int:
 	return mini(total, MAX_HP)
 
 
-## The most copies of one card a genuine run of `run`'s line could hold (see DECK_COPY_SLACK).
-static func max_copies(run: RunState, card_id: StringName) -> int:
-	var total := DECK_COPY_SLACK
-	for card in StarterContent.starter_deck(run.character.id):
-		if card.id == card_id:
-			total += 1
-	for stop in run.stops:
+## Cards a genuine run can have gained before `stop_index`: one reward pick per fight won (a boss win ends the
+## run, so no save follows it) and the vendor's whole stock for every vendor visited.
+static func _cards_gained_before(run: RunState, stop_index: int) -> int:
+	var total := 0
+	for i in mini(stop_index, run.stops.size()):
+		var stop := run.stops[i]
 		if stop.type == RunState.StopType.COMBAT:
 			total += 1
 		elif stop.type == RunState.StopType.VENDOR:
@@ -173,8 +175,60 @@ static func max_copies(run: RunState, card_id: StringName) -> int:
 	return total
 
 
-## max_hp, hp, gold, the stop line and stop_index. hp is bounded by max_hp, so that order stays. Needs the
-## relics (max_hp is bounded by them), so _check_relics runs first.
+## The most cards a genuine run of `run`'s line could hold on reaching `stop_index` (see DECK_COPY_SLACK).
+static func max_deck(run: RunState, stop_index: int) -> int:
+	return StarterContent.starter_deck(run.character.id).size() + _cards_gained_before(run, stop_index) + DECK_COPY_SLACK
+
+
+## The most copies of one card a genuine run of `run`'s line could hold on reaching `stop_index`: the starting
+## copies plus every card it could have gained (see DECK_COPY_SLACK).
+static func max_copies(run: RunState, card_id: StringName, stop_index: int) -> int:
+	var total := DECK_COPY_SLACK + _cards_gained_before(run, stop_index)
+	for card in StarterContent.starter_deck(run.character.id):
+		if card.id == card_id:
+			total += 1
+	return total
+
+
+## The most gold a genuine run could hold on reaching `stop_index` if it never spent any: each fight won pays
+## its gold (plus the mid-boss bonus and any win-gold relic carried) and a skipped reward pays SKIP_GOLD.
+static func max_gold(run: RunState, stop_index: int, relics: Array[RelicData]) -> int:
+	var per_win := 0
+	for relic in relics:
+		if relic.kind == RelicData.Kind.WIN_GOLD:
+			per_win += relic.amount
+	var total := GOLD_SLACK
+	for i in mini(stop_index, run.stops.size()):
+		var stop := run.stops[i]
+		if stop.type == RunState.StopType.COMBAT and not stop.boss:
+			total += Vendor.gold_for_win(stop.enemy_count) + (RunState.MID_BOSS_GOLD_BONUS if stop.mid_boss else 0) + per_win + RunState.SKIP_GOLD
+	return total
+
+
+## Relics a genuine run can carry on reaching `stop_index`: a vendor offers at most one per visit (plus
+## DECK_COPY_SLACK, so a hand-built fixture or a retuned line still loads).
+static func max_relics(run: RunState, stop_index: int) -> int:
+	var visits := DECK_COPY_SLACK
+	for i in mini(stop_index, run.stops.size()):
+		if run.stops[i].type == RunState.StopType.VENDOR:
+			visits += 1
+	return visits
+
+
+## The stop line and stop_index, first because the relic, gold and deck bounds all depend on how far the run got.
+static func _check_line_and_stop(d: Dictionary, run: RunState, got: Accepted) -> String:
+	var line: Variant = d.get("line")
+	if typeof(line) != TYPE_STRING or line != line_signature(run):
+		return "this save is from an older version of the game's route and cannot be continued"
+	var stop_index: Variant = _int(d, "stop_index", 0, run.stops.size() - 1)
+	if stop_index == null:
+		return "bad stop_index"
+	got.stop_index = stop_index
+	return ""
+
+
+## max_hp, hp and gold. hp is bounded by max_hp, so that order stays. Needs the relics (max_hp and gold are
+## bounded by them) and the stop_index, so _check_relics and _check_line_and_stop run first.
 static func _check_numbers(d: Dictionary, run: RunState, got: Accepted) -> String:
 	var max_hp: Variant = _int(d, "max_hp", 1, max_hp_allowed(run, got.relics))
 	if max_hp == null:
@@ -182,19 +236,12 @@ static func _check_numbers(d: Dictionary, run: RunState, got: Accepted) -> Strin
 	var hp: Variant = _int(d, "hp", 1, max_hp)
 	if hp == null:
 		return "bad hp"
-	var gold: Variant = _int(d, "gold", 0, MAX_GOLD)
+	var gold: Variant = _int(d, "gold", 0, max_gold(run, got.stop_index, got.relics))
 	if gold == null:
 		return "bad gold"
-	var line: Variant = d.get("line")
-	if typeof(line) != TYPE_STRING or line != line_signature(run):
-		return "this save is from an older version of the game's route and cannot be continued"
-	var stop_index: Variant = _int(d, "stop_index", 0, run.stops.size() - 1)
-	if stop_index == null:
-		return "bad stop_index"
 	got.max_hp = max_hp
 	got.hp = hp
 	got.gold = gold
-	got.stop_index = stop_index
 	return ""
 
 
@@ -216,7 +263,7 @@ static func _check_rng_state(d: Dictionary, _run: RunState, got: Accepted) -> St
 ## Also leaves the id -> card table in `got` for the offered check.
 static func _check_deck(d: Dictionary, run: RunState, got: Accepted) -> String:
 	var raw_deck: Variant = d.get("deck")
-	if typeof(raw_deck) != TYPE_ARRAY or (raw_deck as Array).is_empty() or (raw_deck as Array).size() > MAX_DECK:
+	if typeof(raw_deck) != TYPE_ARRAY or (raw_deck as Array).is_empty() or (raw_deck as Array).size() > max_deck(run, got.stop_index):
 		return "bad deck"
 	var known := {}
 	for card in StarterContent.vendor_pool(run.character.id):
@@ -242,7 +289,7 @@ static func _check_deck(d: Dictionary, run: RunState, got: Accepted) -> String:
 			card = variant
 		deck.append(card)
 		copies[entry_id] = copies.get(entry_id, 0) + 1
-		if copies[entry_id] > max_copies(run, card.id):
+		if copies[entry_id] > max_copies(run, card.id, got.stop_index):
 			return "this save holds more copies of a card than a run can collect"
 	got.known_cards = known
 	got.deck = deck
@@ -276,7 +323,7 @@ static func _check_relics(d: Dictionary, run: RunState, got: Accepted) -> String
 	var known_relics := {}
 	for relic in StarterContent.relic_pool(run.character.id):
 		known_relics[String(relic.id)] = relic
-	if typeof(raw_relics) != TYPE_ARRAY or (raw_relics as Array).size() > known_relics.size():
+	if typeof(raw_relics) != TYPE_ARRAY or (raw_relics as Array).size() > mini(known_relics.size(), max_relics(run, got.stop_index)):
 		return "bad relics list"
 	for entry in raw_relics:
 		if typeof(entry) != TYPE_STRING or not known_relics.has(entry) or relics.has(known_relics[entry]):

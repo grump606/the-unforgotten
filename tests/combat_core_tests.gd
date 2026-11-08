@@ -56,7 +56,8 @@ func _test_damage_and_block() -> void:
 func _test_draw_reshuffles_discard() -> void:
 	var piles := CardPiles.new(_deck(3, _card(1, _dmg(1))), RandomNumberGenerator.new())
 	piles.draw(3)
-	piles.discard_hand()
+	piles.discard_pile.append_array(piles.hand)
+	piles.hand.clear()
 	_check(piles.draw(2) == 2 and piles.hand.size() == 2, "draw reshuffles discard when pile is empty")
 	_check(piles.draw(10) == 1, "draw stops when no cards remain")
 
