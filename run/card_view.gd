@@ -195,6 +195,8 @@ func _ready() -> void:
 func set_card(new_card: CardData) -> void:
 	card = new_card
 	class_id = palette_id(new_card)
+	# Hovering explains every mechanic on the card (callers that want the name and text too overwrite this).
+	tooltip_text = CardGlossary.text(new_card)
 	# A Fading card reads as half there: slightly see-through, with a dashed edge (see _draw).
 	self_modulate = Color(1, 1, 1, FADING_ALPHA) if new_card != null and new_card.fading else Color.WHITE
 	queue_redraw()
