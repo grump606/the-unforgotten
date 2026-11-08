@@ -74,6 +74,20 @@ static func to_dict(run: RunState) -> Dictionary:
 	}
 
 
+## What the validators accepted, field by field. Typed so a misspelt field fails at parse time instead of
+## reading a missing dictionary key; `known_cards` (the id -> card table) is the one the deck check hands on.
+class Accepted extends RefCounted:
+	var max_hp := 0
+	var hp := 0
+	var gold := 0
+	var stop_index := 0
+	var rng_state := ""
+	var deck: Array[CardData] = []
+	var offered: Array[StringName] = []
+	var relics: Array[RelicData] = []
+	var known_cards := {}
+
+
 static func from_dict(data: Variant) -> Result:
 	if typeof(data) != TYPE_DICTIONARY:
 		return Result.fail("save is not an object")
@@ -94,20 +108,20 @@ static func from_dict(data: Variant) -> Result:
 		return Result.fail("character content failed to load")
 	# Each validator stores what it accepts in `got` and returns why a field was rejected ("" if fine).
 	# The order matters: the deck check leaves the card table the offered check needs.
-	var got := {}
+	var got := Accepted.new()
 	for check in [_check_numbers, _check_rng_state, _check_deck, _check_offered, _check_relics]:
 		error = check.call(d, run, got)
 		if error != "":
 			return Result.fail(error)
-	run.relics = got["relics"]
-	run.offered_ids = got["offered"]
+	run.relics = got.relics
+	run.offered_ids = got.offered
 	run.reward_remove_used = d["reward_remove_used"]
 	run.reward_heal_used = d["reward_heal_used"]
-	run.player = Combatant.new(run.character.display_name, got["max_hp"], got["hp"])
-	run.deck = got["deck"]
-	run.gold = got["gold"]
-	run.stop_index = got["stop_index"]
-	run.restore_rng_state((got["rng_state"] as String).to_int())
+	run.player = Combatant.new(run.character.display_name, got.max_hp, got.hp)
+	run.deck = got.deck
+	run.gold = got.gold
+	run.stop_index = got.stop_index
+	run.restore_rng_state(got.rng_state.to_int())
 	return _ok(run)
 
 
@@ -130,7 +144,7 @@ static func _check_character(character_id: Variant) -> String:
 
 
 ## max_hp, hp, gold, the stop line and stop_index. hp is bounded by max_hp, so that order stays.
-static func _check_numbers(d: Dictionary, run: RunState, got: Dictionary) -> String:
+static func _check_numbers(d: Dictionary, run: RunState, got: Accepted) -> String:
 	var max_hp: Variant = _int(d, "max_hp", 1, MAX_HP)
 	if max_hp == null:
 		return "bad max_hp"
@@ -146,10 +160,10 @@ static func _check_numbers(d: Dictionary, run: RunState, got: Dictionary) -> Str
 	var stop_index: Variant = _int(d, "stop_index", 0, run.stops.size() - 1)
 	if stop_index == null:
 		return "bad stop_index"
-	got["max_hp"] = max_hp
-	got["hp"] = hp
-	got["gold"] = gold
-	got["stop_index"] = stop_index
+	got.max_hp = max_hp
+	got.hp = hp
+	got.gold = gold
+	got.stop_index = stop_index
 	return ""
 
 
@@ -160,16 +174,16 @@ static func _is_canonical_int64_text(text: String) -> bool:
 	return text.length() <= max_length and str(text.to_int()) == text
 
 
-static func _check_rng_state(d: Dictionary, _run: RunState, got: Dictionary) -> String:
+static func _check_rng_state(d: Dictionary, _run: RunState, got: Accepted) -> String:
 	var rng_text: Variant = d.get("rng_state")
 	if typeof(rng_text) != TYPE_STRING or not _is_canonical_int64_text(rng_text):
 		return "bad rng_state"
-	got["rng_state"] = rng_text
+	got.rng_state = rng_text
 	return ""
 
 
 ## Also leaves the id -> card table in `got` for the offered check.
-static func _check_deck(d: Dictionary, run: RunState, got: Dictionary) -> String:
+static func _check_deck(d: Dictionary, run: RunState, got: Accepted) -> String:
 	var raw_deck: Variant = d.get("deck")
 	if typeof(raw_deck) != TYPE_ARRAY or (raw_deck as Array).is_empty() or (raw_deck as Array).size() > MAX_DECK:
 		return "bad deck"
@@ -195,15 +209,15 @@ static func _check_deck(d: Dictionary, run: RunState, got: Dictionary) -> String
 				return "this save marks a card as Remembered that cannot be"
 			card = variant
 		deck.append(card)
-	got["known_cards"] = known
-	got["deck"] = deck
+	got.known_cards = known
+	got.deck = deck
 	return ""
 
 
 ## The offered list and the two reward flags. These are required in v3 (migrate() supplies them
 ## for v2 saves).
-static func _check_offered(d: Dictionary, _run: RunState, got: Dictionary) -> String:
-	var known: Dictionary = got["known_cards"]
+static func _check_offered(d: Dictionary, _run: RunState, got: Accepted) -> String:
+	var known: Dictionary = got.known_cards
 	var offered: Array[StringName] = []
 	var raw_offered: Variant = d.get("offered")
 	if typeof(raw_offered) != TYPE_ARRAY or (raw_offered as Array).size() > known.size():
@@ -215,13 +229,13 @@ static func _check_offered(d: Dictionary, _run: RunState, got: Dictionary) -> St
 	for key in ["reward_remove_used", "reward_heal_used"]:
 		if typeof(d.get(key)) != TYPE_BOOL:
 			return "bad %s" % key
-	got["offered"] = offered
+	got.offered = offered
 	return ""
 
 
 ## The saved max HP already includes any MAX_HP relic, so restoring the relic list must not apply
 ## it again.
-static func _check_relics(d: Dictionary, run: RunState, got: Dictionary) -> String:
+static func _check_relics(d: Dictionary, run: RunState, got: Accepted) -> String:
 	var relics: Array[RelicData] = []
 	var raw_relics: Variant = d.get("relics")
 	var known_relics := {}
@@ -233,7 +247,7 @@ static func _check_relics(d: Dictionary, run: RunState, got: Dictionary) -> Stri
 		if typeof(entry) != TYPE_STRING or not known_relics.has(entry) or relics.has(known_relics[entry]):
 			return "this save contains a relic that no longer exists, or the same relic twice"
 		relics.append(known_relics[entry])
-	got["relics"] = relics
+	got.relics = relics
 	return ""
 
 
