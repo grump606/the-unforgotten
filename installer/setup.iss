@@ -255,7 +255,7 @@ begin
   Result := True;
   if not FileExists(OldDir + '\' + Name) then Exit;
   if FileExists(NewDir + '\' + Name) then Exit;
-  Result := FileCopy(OldDir + '\' + Name, NewDir + '\' + Name, True);
+  Result := CopyFile(OldDir + '\' + Name, NewDir + '\' + Name, True);
 end;
 
 procedure MigrateOldSaves();
