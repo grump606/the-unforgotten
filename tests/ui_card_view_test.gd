@@ -23,21 +23,21 @@ func _check_damage_variants() -> void:
 		if not file.ends_with(".tres"):
 			continue
 		var card := load("res://data/cards/" + file) as CardData
-		var variant := CardView.icon_variant(card)
-		if CardView.primary_kind(card) == CardEffect.Kind.DAMAGE:
+		var variant := CardIcons.icon_variant(card)
+		if CardIcons.primary_kind(card) == CardEffect.Kind.DAMAGE:
 			check(variant != &"", "%s (damage) has an icon variant" % card.id)
 			variants[variant] = true
 		else:
 			check(variant == &"" or variant == &"hammer", "%s (not plain damage) has no weapon variant" % card.id)
 	check(variants.size() >= 6, "damage cards use at least 6 distinct icon variants (%d)" % variants.size())
-	var shove := CardView.icon_variant(_card("shove"))
-	var heavy := CardView.icon_variant(_card("heavy_blow"))
-	var flurry := CardView.icon_variant(_card("flurry"))
+	var shove := CardIcons.icon_variant(_card("shove"))
+	var heavy := CardIcons.icon_variant(_card("heavy_blow"))
+	var flurry := CardIcons.icon_variant(_card("flurry"))
 	check(shove != heavy and heavy != flurry and shove != flurry, "Shove, Heavy Blow and Flurry have different icons")
-	check(CardView.icon_variant(_card("bash")) == &"hammer", "Bash (damage from Block) is a hammer")
-	check(CardView.icon_variant(_card("cutting_word")) == &"needle", "thief damage is a needle")
-	check(CardView.icon_variant(_card("sweep")) == &"sweep", "all-enemies damage is a sweep")
-	check(CardView.icon_variant(null) == &"", "no card has no variant")
+	check(CardIcons.icon_variant(_card("bash")) == &"hammer", "Bash (damage from Block) is a hammer")
+	check(CardIcons.icon_variant(_card("cutting_word")) == &"needle", "thief damage is a needle")
+	check(CardIcons.icon_variant(_card("sweep")) == &"sweep", "all-enemies damage is a sweep")
+	check(CardIcons.icon_variant(null) == &"", "no card has no variant")
 
 
 func _initialize() -> void:
@@ -53,7 +53,7 @@ func _initialize() -> void:
 		holder.add_child(view)
 		view.set_card(card)
 		check(view.class_id == (card.character if card.character != &"" else &""), "%s uses the %s frame" % [card.id, card.character if card.character != &"" else "neutral"])
-		check(CardView.primary_kind(card) >= 0, "%s has a primary icon" % card.id)
+		check(CardIcons.primary_kind(card) >= 0, "%s has a primary icon" % card.id)
 		classes[view.class_id] = true
 		for state in [CardView.State.NORMAL, CardView.State.HOVER, CardView.State.SELECTED, CardView.State.UNPLAYABLE]:
 			view.set_state(state, "NEED 1 ENERGY" if state == CardView.State.UNPLAYABLE else "")
@@ -65,9 +65,9 @@ func _initialize() -> void:
 	check(CardView.palette_id(null) == &"" and CardView.PALETTES.has(&"medium"), "palette lookup")
 	var unknown := CardData.make(&"x", "X", 1, [] as Array[CardEffect])
 	unknown.character = &"nobody"
-	check(CardView.palette_id(unknown) == &"" and CardView.primary_kind(unknown) == -1, "unknown class falls back to neutral")
+	check(CardView.palette_id(unknown) == &"" and CardIcons.primary_kind(unknown) == -1, "unknown class falls back to neutral")
 	for kind in CardEffect.Kind.values():
-		check(CardView.ICON_PRIORITY.has(kind), "kind %d has an icon" % kind)
+		check(CardIcons.ICON_PRIORITY.has(kind), "kind %d has an icon" % kind)
 	for kind in CardEffect.Kind.values():
 		# The scaled damage kinds share the damage colour through kind_color's fallback; every other kind has its own.
 		var damage_family := CardEffect.make(kind, 1).is_damage()
@@ -81,10 +81,10 @@ func _initialize() -> void:
 		status_view.set_card(status_card)
 		for state in [CardView.State.NORMAL, CardView.State.HOVER, CardView.State.SELECTED, CardView.State.UNPLAYABLE]:
 			status_view.set_state(state)
-		check(CardView.primary_kind(status_card) == kind and status_view.body_lines()[0].delta == 0, "a card led by kind %d draws" % kind)
+		check(CardIcons.primary_kind(status_card) == kind and status_view.body_lines()[0].delta == 0, "a card led by kind %d draws" % kind)
 	# Every kind has a glyph, and a card led by each kind (the new cycling kinds included) builds and draws.
 	for kind in CardEffect.Kind.values():
-		check(CardView.ICON_KINDS.has(kind), "kind %d has a drawn glyph" % kind)
+		check(CardIcons.ICON_KINDS.has(kind), "kind %d has a drawn glyph" % kind)
 		var effect := CardEffect.make(kind, 2, 1, 1, 1, false, false, StarterContent.status_card(&"dread") if kind == CardEffect.Kind.ADD_CARD else null)
 		var kind_card := CardData.make(&"kind_card", "Kind Card", 1, [effect] as Array[CardEffect])
 		var kind_view := CardView.new()
@@ -94,7 +94,7 @@ func _initialize() -> void:
 		for state in [CardView.State.NORMAL, CardView.State.HOVER, CardView.State.SELECTED, CardView.State.UNPLAYABLE]:
 			kind_view.set_state(state)
 		kind_view.discard_marked = true
-		check(CardView.primary_kind(kind_card) == kind, "a card with only kind %d is led by that icon" % kind)
+		check(CardIcons.primary_kind(kind_card) == kind, "a card with only kind %d is led by that icon" % kind)
 		check(kind_view.body_lines().size() == 1 and kind_view.body_lines()[0].text != "", "kind %d has effect text on its face" % kind)
 	# Status cards (Dread, Murmur) get the junk frame, no effect text, and draw in every state at hand size.
 	for status_id in [&"dread", &"murmur"]:

@@ -25,37 +25,7 @@ const HP_RED := Color("#a8323a")
 const SELECT_GOLD := MenuStyle.AMBER
 const PALETTES := CardPalette.PALETTES
 
-## Primary icon = the first of these that the card has (scaled damage reads before plain damage).
-const ICON_PRIORITY: Array[CardEffect.Kind] = [
-	CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY,
-	CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN, CardEffect.Kind.DAMAGE_PER_SCENT, CardEffect.Kind.DAMAGE, CardEffect.Kind.HAUNT, CardEffect.Kind.BLOCK,
-	CardEffect.Kind.THORNS, CardEffect.Kind.EXPOSE, CardEffect.Kind.HOLD, CardEffect.Kind.GAIN_ENERGY,
-	CardEffect.Kind.DRAW, CardEffect.Kind.HEAL_PER_HAUNTED, CardEffect.Kind.LOSE_HP,
-	CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD,
-	CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL, CardEffect.Kind.SCENT,
-]
-## Every kind that _draw_icon has a glyph for (a test walks CardEffect.Kind and fails if one is missing, so a
-## new kind cannot silently draw nothing).
-const ICON_KINDS: Array[CardEffect.Kind] = [
-	CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK, CardEffect.Kind.DRAW, CardEffect.Kind.EXPOSE, CardEffect.Kind.HOLD,
-	CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.THORNS, CardEffect.Kind.GAIN_ENERGY,
-	CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.HAUNT, CardEffect.Kind.LOSE_HP, CardEffect.Kind.HEAL_PER_HAUNTED,
-	CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD,
-	CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL, CardEffect.Kind.DAMAGE_PER_FORGOTTEN,
-	CardEffect.Kind.SCENT, CardEffect.Kind.DAMAGE_PER_SCENT,
-]
-const KIND_COLORS := {
-	CardEffect.Kind.DAMAGE: Color("#d96b65"), CardEffect.Kind.BLOCK: Color("#83b4cf"),
-	CardEffect.Kind.DRAW: Color(0.88, 0.88, 0.92), CardEffect.Kind.EXPOSE: Color(0.96, 0.80, 0.35),
-	CardEffect.Kind.HOLD: Color(0.40, 0.82, 0.80), CardEffect.Kind.THORNS: Color(0.58, 0.86, 0.42),
-	CardEffect.Kind.GAIN_ENERGY: Color(1.0, 0.88, 0.30), CardEffect.Kind.HAUNT: Color(0.76, 0.70, 1.0),
-	CardEffect.Kind.LOSE_HP: Color(0.92, 0.26, 0.32), CardEffect.Kind.HEAL_PER_HAUNTED: Color(0.96, 0.52, 0.62),
-	CardEffect.Kind.SHAKEN: Color(0.97, 0.62, 0.30), CardEffect.Kind.FRAYED: Color(0.78, 0.70, 0.55),
-	CardEffect.Kind.MALICE: Color(0.84, 0.45, 0.95), CardEffect.Kind.WARD: Color(0.46, 0.62, 1.0),
-	CardEffect.Kind.GLIMPSE: Color(0.55, 0.85, 0.95), CardEffect.Kind.ADD_CARD: Color(0.72, 0.84, 0.60), CardEffect.Kind.RECALL: Color(0.90, 0.78, 0.50),
-	CardEffect.Kind.DAMAGE_PER_FORGOTTEN: Color("#d96b65"),
-	CardEffect.Kind.SCENT: Color(0.62, 0.74, 0.92), CardEffect.Kind.DAMAGE_PER_SCENT: Color("#d96b65"),
-}
+const KIND_COLORS := CardIcons.KIND_COLORS
 ## Tint of a debuff (a negative Malice or Ward) on a status pill.
 const STATUS_NEGATIVE := Color(0.95, 0.35, 0.35)
 ## Live card numbers: green when a status raises the printed number, red when it lowers it.
@@ -202,75 +172,6 @@ static func is_status_card(c: CardData) -> bool:
 	return c != null and c.dormant and c.effects.is_empty()
 
 
-## The effects whose kinds the icons show: the card's own, plus an Oath's lasting effects.
-static func icon_effects(c: CardData) -> Array[CardEffect]:
-	if not c.oath or c.oath_effects.is_empty():
-		return c.effects
-	var all: Array[CardEffect] = []
-	all.append_array(c.oath_effects)
-	all.append_array(c.effects)
-	return all
-
-
-## The effect kind whose icon leads the card, or -1 for a card with no effects.
-static func primary_kind(c: CardData) -> int:
-	for kind in ICON_PRIORITY:
-		for effect in icon_effects(c):
-			if effect.kind == kind:
-				return kind
-	return -1
-
-
-## Ids that get the fist icon (shoves and body blows), the one per-id exception to the rules below.
-const FIST_IDS: Array[StringName] = [&"shove", &"shoulder_charge"]
-const HEAVY_DAMAGE := 12
-const LIGHT_DAMAGE := 4
-
-## Which weapon icon a card's plain damage shows, from its own data: class (thief needle,
-## medium bone), target (all enemies sweep), id (fist), magnitude (axe 12+, dagger up to 4)
-## and cost (a free light hit is a flurry); otherwise a sword. Empty when the card has no DAMAGE
-## effect, or for kinds that draw their own composite icon (see docs/CARD_ART_DESIGN.md).
-static func icon_variant(c: CardData) -> StringName:
-	if c == null:
-		return &""
-	if primary_kind(c) == CardEffect.Kind.DAMAGE_PER_BLOCK:
-		return &"hammer"
-	var total := 0
-	for effect in icon_effects(c):
-		if effect.kind == CardEffect.Kind.DAMAGE:
-			total += effect.amount
-	if total <= 0 or primary_kind(c) != CardEffect.Kind.DAMAGE:
-		return &""
-	if c.character == &"thief":
-		return &"needle"
-	if c.character == &"medium":
-		return &"bone"
-	if c.target_mode == CardData.TargetMode.ALL_ENEMIES:
-		return &"sweep"
-	if c.id in FIST_IDS:
-		return &"fist"
-	if total >= HEAVY_DAMAGE:
-		return &"axe"
-	if total <= LIGHT_DAMAGE:
-		return &"flurry" if c.cost == 0 else &"dagger"
-	return &"sword"
-
-
-## Up to three further kinds shown as small glyphs (the primary and its composite parts are skipped).
-static func secondary_kinds(c: CardData) -> Array[int]:
-	var primary := primary_kind(c)
-	var out: Array[int] = []
-	for kind in ICON_PRIORITY:
-		if kind == primary or out.size() >= 3:
-			continue
-		if kind == CardEffect.Kind.DAMAGE and primary in [CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN, CardEffect.Kind.DAMAGE_PER_SCENT]:
-			continue
-		for effect in icon_effects(c):
-			if effect.kind == kind:
-				out.append(kind)
-				break
-	return out
-
 
 func _update_size() -> void:
 	custom_minimum_size = Vector2(BASE.x, BASE.y + LIFT) * view_scale
@@ -332,22 +233,9 @@ func set_hovered(inside: bool) -> void:
 	_on_hover(inside)
 
 
-## Tooltip width and text size: a narrow block of small wrapped lines, not one line across the screen.
-const TOOLTIP_WIDTH := 230.0
-const TOOLTIP_FONT_SIZE := 13
-
-
-## The card tooltip as a small, wrapped text block (Godot's default tooltip never wraps).
+## The card tooltip as a small, wrapped text block (see CardTooltip).
 func _make_custom_tooltip(for_text: String) -> Object:
-	var label := RichTextLabel.new()
-	label.bbcode_enabled = false
-	label.fit_content = true
-	label.scroll_active = false
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.custom_minimum_size = Vector2(TOOLTIP_WIDTH, 0)
-	label.add_theme_font_size_override("normal_font_size", TOOLTIP_FONT_SIZE)
-	label.text = for_text
-	return label
+	return CardTooltip.make(for_text)
 
 
 func _on_hover(inside: bool) -> void:
@@ -455,7 +343,7 @@ func _draw() -> void:
 		_draw_painted_window(art, win, p, muted)
 	else:
 		_draw_window_motif(win, p)
-		_draw_card_icons(win, p)
+		CardIcons.draw_card_icons(self, card, win, p, is_status_card(card))
 	if card.anchor:
 		_draw_anchor(Vector2(win.end.x - 10, win.position.y + 10))
 
@@ -706,52 +594,21 @@ func _draw_painted_window(art: Texture2D, win: Rect2, p: Dictionary, muted: bool
 	var inner := win.grow(-1.0)
 	draw_texture_rect(art, inner, false, Color(0.55, 0.55, 0.55, 1.0) if muted else Color.WHITE)
 	_box(win, Color(0, 0, 0, 0), 4, 1, Color(p.frame, 0.8))
-	var primary := primary_kind(card)
+	var primary := CardIcons.primary_kind(card)
 	var badge_col: Color = p.window
 	var x := win.position.x + 11.0
 	var y := win.end.y - 11.0
 	if primary >= 0:
 		draw_circle(Vector2(x, y), 9.5, Color(badge_col, 0.82))
 		draw_arc(Vector2(x, y), 9.5, 0, TAU, 20, Color(1, 1, 1, 0.4), 1.0, true)
-		_draw_icon(primary, Vector2(x, y), 5.6, badge_col, icon_variant(card))
+		CardIcons.draw_icon(self, primary, Vector2(x, y), 5.6, badge_col, CardIcons.icon_variant(card))
 	x = win.end.x - 11.0
-	for kind in secondary_kinds(card):
+	for kind in CardIcons.secondary_kinds(card):
 		draw_circle(Vector2(x, y), 9.5, Color(badge_col, 0.82))
 		draw_arc(Vector2(x, y), 9.5, 0, TAU, 20, Color(1, 1, 1, 0.4), 1.0, true)
-		_draw_icon(kind, Vector2(x, y), 5.4, badge_col)
+		CardIcons.draw_icon(self, kind, Vector2(x, y), 5.4, badge_col)
 		x -= 21.0
 
-
-func _draw_card_icons(win: Rect2, p: Dictionary) -> void:
-	var primary := primary_kind(card)
-	if primary < 0:
-		if is_status_card(card):
-			_draw_blot(win.get_center(), 15.0, p.accent)
-		return
-	var window_col: Color = p.window
-	var center := win.get_center() + Vector2(0, -1)
-	_draw_icon(primary, center, 20.0, window_col, icon_variant(card))
-	var secondary := secondary_kinds(card)
-	var x := win.end.x - 12.0
-	for kind in secondary:
-		var pt := Vector2(x, win.end.y - 12.0)
-		draw_circle(pt, 10.0, Color(1, 1, 1, 0.14))
-		draw_arc(pt, 10.0, 0, TAU, 20, Color(1, 1, 1, 0.45), 1.0, true)
-		_draw_icon(kind, pt, 6.5, window_col)
-		x -= 23.0
-
-
-## A status card's art: a ragged inkblot with a few drips.
-func _draw_blot(c: Vector2, r: float, col: Color) -> void:
-	var pts := PackedVector2Array()
-	for i in 18:
-		var a := TAU * i / 18.0
-		pts.append(c + Vector2.from_angle(a) * r * (0.62 + 0.38 * absf(sin(a * 2.5 + 0.7))))
-	draw_colored_polygon(pts, Color(col, 0.55))
-	for dx in [-0.5, 0.1, 0.6]:
-		draw_line(c + Vector2(dx, 0.6) * r, c + Vector2(dx, 1.15 + dx * 0.3) * r, Color(col, 0.55), 2.0)
-	draw_circle(c + Vector2(-0.3, -0.1) * r, r * 0.12, Color(0, 0, 0, 0.6))
-	draw_circle(c + Vector2(0.25, -0.1) * r, r * 0.12, Color(0, 0, 0, 0.6))
 
 
 ## Gold of a Remembered card's title: bright on a dark banner, a deep gold on a light one.
@@ -893,7 +750,7 @@ func _draw_strip(strip: Rect2, p: Dictionary) -> void:
 		var chip_w := 46.0 if note == "" else 32.0
 		var chip := Rect2(strip.end.x - chip_w - 3, strip.position.y + 2, chip_w, strip.size.y - 4)
 		_box(chip, HP_RED, 3, 1, Color(1, 1, 1, 0.7))
-		_draw_icon(CardEffect.Kind.HEAL_PER_HAUNTED, chip.position + Vector2(8, chip.size.y / 2.0), 4.0, Color.WHITE)
+		CardIcons.draw_icon(self, CardEffect.Kind.HEAL_PER_HAUNTED, chip.position + Vector2(8, chip.size.y / 2.0), 4.0, Color.WHITE)
 		_text("-%d HP" % hp if note == "" else "-%d" % hp, Rect2(chip.position + Vector2(13, 0), Vector2(chip.size.x - 13, chip.size.y)), 10, Color.WHITE)
 		right = chip.position.x - 4
 	var room := right - strip.position.x - 6
@@ -923,247 +780,6 @@ func _draw_strip(strip: Rect2, p: Dictionary) -> void:
 	_text(txt, left, 10, ink)
 
 
-# --- icons -----------------------------------------------------------------------------
-# Every icon is built from unit-space points (about -1..1) scaled by r around c.
-
-func _pts(unit: Array, c: Vector2, r: float, rot := 0.0) -> PackedVector2Array:
-	var out := PackedVector2Array()
-	for u in unit:
-		out.append(c + (u as Vector2).rotated(rot) * r)
-	return out
-
-
-func _fill(points: PackedVector2Array, col: Color, outline := true) -> void:
-	draw_colored_polygon(points, col)
-	if outline:
-		var closed := points.duplicate()
-		closed.append(points[0])
-		draw_polyline(closed, Color(0, 0, 0, 0.55), 1.2, true)
-
-
-func _drop(tip: Vector2, w: float) -> PackedVector2Array:
-	# A teardrop whose point is at `tip` and whose belly is w wide.
-	var out := PackedVector2Array([tip])
-	var center := tip + Vector2(0, w * 1.5)
-	for i in range(0, 15):
-		var a := deg_to_rad(-50.0 + 280.0 * i / 14.0)
-		out.append(center + Vector2.from_angle(a) * w)
-	return out
-
-
-func _heart(c: Vector2, r: float) -> PackedVector2Array:
-	var out := PackedVector2Array()
-	for i in 24:
-		var t := TAU * i / 24.0
-		var x := 16.0 * pow(sin(t), 3)
-		var y := -(13.0 * cos(t) - 5.0 * cos(2.0 * t) - 2.0 * cos(3.0 * t) - cos(4.0 * t))
-		out.append(c + Vector2(x, y + 1.0) / 17.0 * r)
-	return out
-
-
-func _shield_pts(c: Vector2, r: float) -> PackedVector2Array:
-	return _pts([Vector2(-0.8, -0.85), Vector2(0, -1.0), Vector2(0.8, -0.85), Vector2(0.8, 0.1), Vector2(0.45, 0.65), Vector2(0, 1.0), Vector2(-0.45, 0.65), Vector2(-0.8, 0.1)], c, r)
-
-
-func _blade(c: Vector2, r: float, col: Color) -> void:
-	var rot := PI / 4.0
-	_fill(_pts([Vector2(0, -1.0), Vector2(0.17, -0.78), Vector2(0.17, 0.25), Vector2(-0.17, 0.25), Vector2(-0.17, -0.78)], c, r, rot), col)
-	_fill(_pts([Vector2(-0.5, 0.25), Vector2(0.5, 0.25), Vector2(0.5, 0.4), Vector2(-0.5, 0.4)], c, r, rot), col.darkened(0.25))
-	_fill(_pts([Vector2(-0.08, 0.4), Vector2(0.08, 0.4), Vector2(0.08, 0.85), Vector2(-0.08, 0.85)], c, r, rot), col.darkened(0.4), false)
-
-
-## Plain-damage icon for a variant from icon_variant(); unknown or empty is the sword.
-func _weapon(variant: StringName, c: Vector2, r: float, col: Color, window_col: Color) -> void:
-	var rot := PI / 4.0
-	match variant:
-		&"dagger":
-			# Short, broad blade with a small guard: reads as a light stab.
-			_fill(_pts([Vector2(0, -0.8), Vector2(0.26, -0.45), Vector2(0.24, 0.3), Vector2(-0.24, 0.3), Vector2(-0.26, -0.45)], c, r, rot), col)
-			_fill(_pts([Vector2(-0.5, 0.3), Vector2(0.5, 0.3), Vector2(0.5, 0.46), Vector2(-0.5, 0.46)], c, r, rot), col.darkened(0.25))
-			_fill(_pts([Vector2(-0.1, 0.46), Vector2(0.1, 0.46), Vector2(0.1, 0.85), Vector2(-0.1, 0.85)], c, r, rot), col.darkened(0.4), false)
-		&"axe":
-			# Long haft with a big crescent head: reads as a heavy chop.
-			_fill(_pts([Vector2(-0.09, -0.9), Vector2(0.09, -0.9), Vector2(0.09, 1.0), Vector2(-0.09, 1.0)], c, r * 0.82, rot), col.darkened(0.4), false)
-			_fill(_pts([Vector2(0.09, -0.95), Vector2(-0.55, -1.05), Vector2(-0.95, -0.85), Vector2(-0.75, -0.4), Vector2(-0.95, 0.05), Vector2(-0.5, 0.15), Vector2(0.09, -0.05)], c, r * 0.82, rot), col)
-		&"fist":
-			# Fist from the side with motion lines.
-			for i in 3:
-				draw_line(c + Vector2(-1.0, -0.4 + 0.45 * i) * r, c + Vector2(-0.55 + 0.1 * i, -0.4 + 0.45 * i) * r, Color(col, 0.7), maxf(1.2, r * 0.1))
-			_fill(_pts([Vector2(-0.3, -0.35), Vector2(0.75, -0.35), Vector2(0.9, 0.3), Vector2(0.65, 0.85), Vector2(-0.3, 0.85)], c, r), col)
-			for i in 4:
-				var f := c + Vector2(-0.18 + 0.28 * i, -0.38) * r
-				draw_circle(f, r * 0.19, col)
-				draw_arc(f, r * 0.19, PI, TAU, 8, Color(0, 0, 0, 0.5), 1.0, true)
-			draw_line(c + Vector2(0.1, 0.1) * r, c + Vector2(0.75, 0.1) * r, window_col, maxf(1.0, r * 0.09))
-		&"flurry":
-			# Three quick parallel slashes.
-			for i in 3:
-				var o := (i - 1) * 0.55
-				_fill(_pts([Vector2(0.9, -0.9), Vector2(0.15, 0.0), Vector2(-0.8, 0.8), Vector2(-0.15, -0.05)], c + Vector2(o, 0.0) * r, r * 0.8), col if i == 1 else col.lightened(0.15))
-		&"needle":
-			# A long, bold pin with a ring eye and a short thread: a precise prick.
-			_fill(_pts([Vector2(0, -1.15), Vector2(0.1, -0.85), Vector2(0.1, 0.55), Vector2(-0.1, 0.55), Vector2(-0.1, -0.85)], c, r, rot), col.lightened(0.2))
-			draw_arc(c + Vector2(-0.53, 0.53) * r, r * 0.17, 0, TAU, 14, col.lightened(0.2), maxf(1.4, r * 0.12), true)
-			var thread := PackedVector2Array()
-			for i in 8:
-				thread.append(c + Vector2(-0.68 - 0.07 * i, 0.62 + 0.05 * i + sin(i * 1.4) * 0.1) * r)
-			draw_polyline(thread, Color(col.lightened(0.2), 0.8), maxf(1.2, r * 0.08), true)
-		&"bone":
-			# A pale bone (shaft with two knobbed ends): a spectral club.
-			var bone := col.lerp(Color(0.92, 0.88, 0.80), 0.6)
-			_fill(_pts([Vector2(-0.12, -0.75), Vector2(0.12, -0.75), Vector2(0.12, 0.75), Vector2(-0.12, 0.75)], c, r, rot), bone)
-			for end in [-0.85, 0.85]:
-				for side in [-0.17, 0.17]:
-					var kp := c + Vector2(side, end).rotated(rot) * r
-					draw_circle(kp, r * 0.2, bone)
-					draw_arc(kp, r * 0.2, 0, TAU, 12, Color(0, 0, 0, 0.5), 1.0, true)
-		&"sweep":
-			# Wide arc slash across the whole window.
-			var u: Array = []
-			for i in 13:
-				var a := deg_to_rad(205.0 + 130.0 * i / 12.0)
-				u.append(Vector2(cos(a) * 1.15, 0.7 + sin(a) * 0.95))
-			for i in 13:
-				var a := deg_to_rad(335.0 - 130.0 * i / 12.0)
-				u.append(Vector2(cos(a) * 1.0, 0.75 + sin(a) * 0.55))
-			_fill(_pts(u, c + Vector2(0, -0.2) * r, r), col)
-		_:
-			_blade(c, r, col)
-
-
-func _hammer(c: Vector2, r: float, col: Color) -> void:
-	var rot := PI / 4.0
-	_fill(_pts([Vector2(-0.09, -0.6), Vector2(0.09, -0.6), Vector2(0.09, 1.0), Vector2(-0.09, 1.0)], c, r, rot), col.darkened(0.4), false)
-	_fill(_pts([Vector2(-0.6, -1.0), Vector2(0.6, -1.0), Vector2(0.6, -0.35), Vector2(-0.6, -0.35)], c, r, rot), col)
-
-
-func _shield(c: Vector2, r: float, col: Color, window_col: Color) -> void:
-	_fill(_shield_pts(c, r), col)
-	draw_line(c + Vector2(0, -0.8) * r, c + Vector2(0, 0.8) * r, window_col, maxf(1.0, r * 0.14))
-	draw_line(c + Vector2(-0.6, -0.2) * r, c + Vector2(0.6, -0.2) * r, window_col, maxf(1.0, r * 0.14))
-
-
-func _ghost(c: Vector2, r: float, col: Color, window_col: Color) -> void:
-	var u: Array = []
-	for i in 13:
-		var a := PI + PI * i / 12.0
-		u.append(Vector2(cos(a) * 0.7, -0.15 + sin(a) * 0.7))
-	u.append_array([Vector2(0.7, 0.9), Vector2(0.35, 0.62), Vector2(0, 0.9), Vector2(-0.35, 0.62), Vector2(-0.7, 0.9)])
-	_fill(_pts(u, c, r), col)
-	draw_circle(c + Vector2(-0.25, -0.2) * r, maxf(0.9, r * 0.13), window_col)
-	draw_circle(c + Vector2(0.25, -0.2) * r, maxf(0.9, r * 0.13), window_col)
-
-
-## Draws the icon for one effect kind at centre c, radius r. `window_col` cuts details out of it.
-func _draw_icon(kind: int, c: Vector2, r: float, window_col: Color, variant := &"") -> void:
-	var col: Color = kind_color(kind)
-	var w := maxf(1.2, r * 0.16)
-	match kind:
-		CardEffect.Kind.DAMAGE:
-			_weapon(variant, c, r * 1.25, col, window_col)
-		CardEffect.Kind.BLOCK:
-			_shield(c, r, col, window_col)
-		CardEffect.Kind.DRAW:
-			_fill(_pts([Vector2(-0.7, -0.85), Vector2(0.3, -0.85), Vector2(0.3, 0.45), Vector2(-0.7, 0.45)], c, r), col.darkened(0.35))
-			_fill(_pts([Vector2(-0.3, -0.45), Vector2(0.7, -0.45), Vector2(0.7, 0.85), Vector2(-0.3, 0.85)], c, r), col)
-			draw_line(c + Vector2(0.0, 0.0) * r, c + Vector2(0.4, 0.0) * r, window_col, w)
-			draw_line(c + Vector2(0.0, 0.3) * r, c + Vector2(0.4, 0.3) * r, window_col, w)
-		CardEffect.Kind.EXPOSE:
-			draw_arc(c, r * 0.62, 0, TAU, 28, col, w * 1.3, true)
-			for d in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
-				draw_line(c + d * r * 0.35, c + d * r * 1.0, col, w * 1.3)
-			draw_circle(c, r * 0.18, col)
-		CardEffect.Kind.HOLD:
-			var outline := _shield_pts(c, r)
-			outline.append(outline[0])
-			draw_polyline(outline, col, w * 1.3, true)
-			draw_rect(Rect2(c + Vector2(-0.3, 0.0) * r, Vector2(0.6, 0.5) * r), col)
-			draw_arc(c + Vector2(0, 0.0) * r, r * 0.22, PI, TAU, 10, col, w * 1.2, true)
-		CardEffect.Kind.THORNS:
-			var u: Array = []
-			for i in 16:
-				u.append(Vector2.from_angle(i * TAU / 16.0 - PI / 2.0) * (1.0 if i % 2 == 0 else 0.45))
-			_fill(_pts(u, c, r), col)
-		CardEffect.Kind.GAIN_ENERGY:
-			_fill(_pts([Vector2(0.2, -1.0), Vector2(-0.55, 0.1), Vector2(-0.05, 0.1), Vector2(-0.3, 1.0), Vector2(0.55, -0.15), Vector2(0.05, -0.15)], c, r), col)
-		CardEffect.Kind.HAUNT:
-			_ghost(c, r, col, window_col)
-		CardEffect.Kind.LOSE_HP:
-			_fill(_drop(c + Vector2(0, -r), r * 0.62), col)
-		CardEffect.Kind.HEAL_PER_HAUNTED:
-			_fill(_heart(c, r), col)
-			draw_line(c + Vector2(0, -0.35) * r, c + Vector2(0, 0.45) * r, window_col, w)
-			draw_line(c + Vector2(-0.4, 0.05) * r, c + Vector2(0.4, 0.05) * r, window_col, w)
-		CardEffect.Kind.SHAKEN:
-			var zig := PackedVector2Array()
-			for i in 7:
-				zig.append(c + Vector2(-0.9 + 0.3 * i, (0.55 if i % 2 == 0 else -0.55)) * r)
-			draw_polyline(zig, col, w * 1.5, true)
-			draw_arc(c, r * 1.0, deg_to_rad(200), deg_to_rad(340), 10, Color(col, 0.6), w, true)
-		CardEffect.Kind.FRAYED:
-			_fill(_pts([Vector2(-0.8, -0.8), Vector2(0.8, -0.8), Vector2(0.8, -0.1), Vector2(-0.8, -0.1)], c, r), col)
-			for i in 5:
-				var x := -0.64 + 0.32 * i
-				draw_line(c + Vector2(x, -0.1) * r, c + Vector2(x * 1.35 + 0.1 * (i - 2), 0.9 - 0.12 * (i % 2)) * r, col, w)
-		CardEffect.Kind.MALICE:
-			_fill(_pts([Vector2(0, -1.0), Vector2(0.85, 0.15), Vector2(0.32, 0.15), Vector2(0.32, 0.95), Vector2(-0.32, 0.95), Vector2(-0.32, 0.15), Vector2(-0.85, 0.15)], c, r), col)
-		CardEffect.Kind.WARD:
-			_shield(c, r, col, window_col)
-			draw_arc(c, r * 1.15, 0, TAU, 24, Color(col, 0.55), w, true)
-		CardEffect.Kind.DAMAGE_PER_BLOCK:
-			_shield(c + Vector2(-0.15, 0.1) * r, r * 0.85, KIND_COLORS[CardEffect.Kind.BLOCK], window_col)
-			_hammer(c + Vector2(0.3, -0.2) * r, r * 0.95, KIND_COLORS[CardEffect.Kind.DAMAGE])
-		CardEffect.Kind.DAMAGE_IF_BLOCK:
-			_blade(c + Vector2(0.1, -0.1) * r, r * 1.0, KIND_COLORS[CardEffect.Kind.DAMAGE])
-			_shield(c + Vector2(-0.55, 0.5) * r, r * 0.5, KIND_COLORS[CardEffect.Kind.BLOCK], window_col)
-		CardEffect.Kind.DAMAGE_PER_PLAY:
-			_blade(c + Vector2(-0.2, -0.1) * r, r * 0.95, KIND_COLORS[CardEffect.Kind.DAMAGE])
-			for i in 3:
-				var h := (0.35 + 0.3 * i) * r
-				draw_rect(Rect2(c + Vector2(0.45 + 0.28 * i, 0.9) * r - Vector2(0, h), Vector2(0.18 * r, h)), KIND_COLORS[CardEffect.Kind.EXPOSE])
-		CardEffect.Kind.DAMAGE_PER_HAUNT:
-			_ghost(c + Vector2(-0.15, 0.1) * r, r * 0.85, KIND_COLORS[CardEffect.Kind.HAUNT], window_col)
-			_blade(c + Vector2(0.35, -0.25) * r, r * 0.8, KIND_COLORS[CardEffect.Kind.DAMAGE])
-		CardEffect.Kind.GLIMPSE:
-			# An eye: an almond with an iris and a pupil.
-			var almond := PackedVector2Array()
-			for i in 9:
-				var x := -1.0 + 0.25 * i
-				almond.append(c + Vector2(x, -0.62 * (1.0 - x * x)) * r)
-			for i in 9:
-				var x := 1.0 - 0.25 * i
-				almond.append(c + Vector2(x, 0.62 * (1.0 - x * x)) * r)
-			_fill(almond, col)
-			draw_circle(c, r * 0.4, window_col)
-			draw_circle(c, r * 0.2, col)
-			draw_circle(c + Vector2(0.08, -0.08) * r, r * 0.07, Color(1, 1, 1, 0.8))
-		CardEffect.Kind.ADD_CARD:
-			# A card with a plus: a darker card behind, the new one in front.
-			_fill(_pts([Vector2(-0.8, -0.85), Vector2(0.2, -0.85), Vector2(0.2, 0.55), Vector2(-0.8, 0.55)], c, r), col.darkened(0.4))
-			_fill(_pts([Vector2(-0.3, -0.55), Vector2(0.7, -0.55), Vector2(0.7, 0.85), Vector2(-0.3, 0.85)], c, r), col)
-			draw_line(c + Vector2(0.2, -0.1) * r, c + Vector2(0.2, 0.55) * r, window_col, w * 1.3)
-			draw_line(c + Vector2(-0.12, 0.22) * r, c + Vector2(0.52, 0.22) * r, window_col, w * 1.3)
-		CardEffect.Kind.RECALL:
-			# A returning arrow: an open circle whose head curls back in.
-			var end_angle := deg_to_rad(215)
-			draw_arc(c, r * 0.72, deg_to_rad(-60), end_angle, 20, col, w * 1.7, true)
-			var tip := c + Vector2.from_angle(end_angle) * r * 0.72
-			var along := Vector2.from_angle(end_angle + PI / 2.0)
-			var out := Vector2.from_angle(end_angle)
-			_fill(PackedVector2Array([tip + along * r * 0.5, tip + out * r * 0.38, tip - out * r * 0.38]), col)
-		CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
-			# A pile of cards under a blade: damage that grows with the Forgotten pile.
-			for i in 3:
-				var o := Vector2(-0.45 + 0.12 * i, 0.55 - 0.2 * i)
-				_fill(_pts([Vector2(-0.6, -0.3), Vector2(0.6, -0.3), Vector2(0.6, 0.3), Vector2(-0.6, 0.3)], c + o * r, r * 0.8, -0.12 + 0.12 * i), Color(0.55, 0.52, 0.62).lightened(0.12 * i))
-			_blade(c + Vector2(0.3, -0.25) * r, r * 0.9, KIND_COLORS[CardEffect.Kind.DAMAGE])
-		CardEffect.Kind.SCENT:
-			_scent_trail(c, r, col)
-		CardEffect.Kind.DAMAGE_PER_SCENT:
-			_scent_trail(c + Vector2(-0.2, 0.2) * r, r * 0.75, KIND_COLORS[CardEffect.Kind.SCENT])
-			_blade(c + Vector2(0.35, -0.25) * r, r * 0.8, KIND_COLORS[CardEffect.Kind.DAMAGE])
-
-
 ## Colour of a rarity gem on the name banner: none for Common, steel blue for Uncommon, gold for Rare.
 const RARITY_GEM_COLORS := {CardData.Rarity.UNCOMMON: Color("#7FA8D8"), CardData.Rarity.RARE: Color("#E8B773")}
 
@@ -1183,16 +799,6 @@ func _draw_rarity_gem(c: Vector2) -> void:
 	draw_polyline(PackedVector2Array([diamond[0], diamond[1], diamond[2], diamond[3], diamond[0]]), Color(0, 0, 0, 0.55), 1.0, true)
 
 
-## A scent trail: three growing drops along a drifting line (placeholder glyph until the card art is designed).
-func _scent_trail(c: Vector2, r: float, col: Color) -> void:
-	var pts := PackedVector2Array([c + Vector2(-0.8, 0.5) * r, c + Vector2(-0.3, 0.1) * r, c + Vector2(0.1, 0.3) * r, c + Vector2(0.55, -0.2) * r])
-	draw_polyline(pts, Color(col, 0.55), 1.5, true)
-	draw_circle(c + Vector2(-0.6, 0.55) * r, r * 0.12, col)
-	draw_circle(c + Vector2(-0.05, 0.2) * r, r * 0.18, col)
-	draw_circle(c + Vector2(0.6, -0.25) * r, r * 0.26, col)
-
-
+## Colour of an effect kind's icon and chips.
 static func kind_color(kind: int) -> Color:
-	if KIND_COLORS.has(kind):
-		return KIND_COLORS[kind]
-	return Color(0.95, 0.45, 0.35)
+	return CardIcons.kind_color(kind)
