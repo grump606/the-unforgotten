@@ -105,7 +105,10 @@ if (-not $Publish) {
 $what = if ($NoDraft) { 'PUBLISH' } else { 'create a draft of' }
 $answer = Read-Host "$what $tag on GitHub with these $($files.Count) files? (type yes)"
 if ($answer -ne 'yes') { Write-Host 'Not published.'; return }
-$extra = if ($NoDraft) { @() } else { @('--draft') }
+# Build the extra flags with += : a one-item array returned from an `if` expression is unrolled into a plain
+# string, and splatting a string passes its characters one by one ("- - d r a f t").
+$extra = @()
+if (-not $NoDraft) { $extra += '--draft' }
 gh release create $tag @files --title $tag --generate-notes @extra
 if ($LASTEXITCODE -ne 0) { throw 'gh release create failed' }
 if ($NoDraft) { Write-Host "Published $tag" } else { Write-Host "Created the draft ${tag}: review it on GitHub, then click Publish release. Players only see it once it is published." }
