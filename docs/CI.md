@@ -1,10 +1,10 @@
 # Continuous integration
 
 `.github/workflows/check.yml` runs on every push to `main` and every pull request, on a
-`windows-latest` runner. It downloads the pinned Godot engine, then runs
+pinned `windows-2022` runner (not `windows-latest`: the installer step relies on what that image has preinstalled, and "latest" moves on GitHub's schedule; change it on purpose in its own pull request). It downloads the pinned Godot engine, then runs
 `scripts/check.ps1` (import, headless unit tests, main-scene smoke load, every UI test, the update
 manifest golden check). The job fails if the script exits non-zero. Permissions are `contents: read`,
-the job times out after 30 minutes, and a newer run on the same ref cancels the older one. Every
+the job times out after 45 minutes, and a newer run on the same ref cancels the older one. Every
 action is pinned by commit SHA.
 
 Everything runs headless (`--headless`), so no GPU or display is needed.
@@ -16,12 +16,13 @@ Everything runs headless (`--headless`), so no GPU or display is needed.
 ```
 GODOT_VERSION=4.7.2-stable
 GODOT_ZIP_SHA512=<sha512 of Godot_v<GODOT_VERSION>_win64.exe.zip>
+GODOT_TEMPLATES_SHA512=<sha512 of Godot_v<GODOT_VERSION>_export_templates.tpz>
 INNO_SETUP_VERSION=6.7.3
 ```
 
 It is read by `scripts/check.ps1`, `scripts/release.ps1`, `scripts/build_installer.ps1` and
 `scripts/debug_fight.ps1` (through `scripts/engine_version.ps1`), and by the workflow's "Read engine
-version" step, which exports `GODOT_VERSION` and `GODOT_ZIP_SHA512` to the later steps. The SHA512 is
+version" step, which exports all four keys to the later steps. The SHA512 is
 the integrity pin: the download step throws if the zip does not hash to it. Prose docs
 (`INSTALLER.md`, `MACOS*.md`) mention the version for humans; they are not read by anything.
 
@@ -65,6 +66,30 @@ caches), which is the slowest part of a cold run. It cannot hide a failure:
 
 To force a cold run (for example if you suspect a bad cache), bump `IMPORT_CACHE_SALT` at the top of
 `check.yml`.
+
+## Export and installer build (no signing, no publishing)
+
+After the check, the job builds what `scripts/release.ps1` would build, so a broken export preset, a missing
+template, an installer script that no longer compiles or a version string that disagrees with `project.godot`
+fails the pull request instead of release day:
+
+1. **Windows export templates**: the Godot `.tpz` is downloaded once, checked against `GODOT_TEMPLATES_SHA512`
+   and only the three Windows files are kept and cached (key: version plus hash).
+2. **Inno Setup**: `choco install innosetup --version=<INNO_SETUP_VERSION>` (Chocolatey is on the runner image;
+   winget is not reliably there). `build_installer.ps1` finds `ISCC.exe` in `Program Files (x86)`.
+3. **`scripts/build_installer.ps1 -NoSign`**: imports (a failed import fails the build), exports the Windows
+   build, checks the exe's file and product version against `config/version`, compiles the installer and checks
+   its version. `-NoSign` skips the manifest and signature (no private key is ever on the runner); the output
+   is discarded with the runner and must never be released. `release.ps1` never passes `-NoSign`.
+
+These steps were added without a way to run GitHub Actions locally (the same commands do work on a developer
+machine), so treat the first pull request run as their real test: the likely failures are the Chocolatey
+package version for Inno Setup and the template file names inside the `.tpz`. They are not skipped when no
+installer-related file changed; the export is a couple of minutes and a path filter would need another pinned
+action.
+
+`scripts/check_verify_release.ps1` (a step of `check.ps1`) tests `scripts/verify_release.ps1` offline against
+the committed signing fixture in `tests/golden` (see `tests/signing_compat_tests.gd`).
 
 ## The update manifest golden check
 
