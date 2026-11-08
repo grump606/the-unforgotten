@@ -36,7 +36,7 @@ These were deliberately not done in the review round.
 ## To do, in the order I would take it
 
 1. **Playtest v0.8.2**, mostly the new rest before the finale and the retuned Medium cards, then the Stray as a whole. The numbers are tuned against bots, not people (`docs/PLAYTEST_CHECKLIST.md`). Re-run the sims on the 22-stop line first: the figures in `docs/SIM.md` were measured on the 21-stop line and do not include the Stray.
-2. **Cut the next release** once playtest feedback is in (0.8.3 or 0.9.0): bump `config/version` and `export_presets.cfg`, merge, then `scripts/release.ps1 -Publish`, check the draft with `scripts/verify_release.ps1 -Draft`, and publish it on GitHub. Check `docs/PLAYTEST_CHECKLIST.md` first.
+2. **Cut the next release** once playtest feedback is in (0.8.3 or 0.9.0). **It must stay under 150 MiB** (the installer is about 123 MiB): v0.8.2 players carry the old 150 MiB download cap, and `build_installer.ps1` fails above it until a release with the 300 MiB cap has been out long enough (`docs/UPDATE_CHECK.md`, "Installer size cap"): bump `config/version` and `export_presets.cfg`, merge, then `scripts/release.ps1 -Publish`, check the draft with `scripts/verify_release.ps1 -Draft`, and publish it on GitHub. Check `docs/PLAYTEST_CHECKLIST.md` first.
 3. **Finish the art**: painted rest and vendor figures, the Warden halberd and Conductor watch chain details (`art/README.md`).
 4. **Retune from playtest feedback**: `REWARD_HEAL`, `HEAL_BELOW`, class HP, card costs. Check any change with the sims.
 5. **Keep-5 hand rule review**: it shifted bot numbers unevenly (the Thief lost ground, the Medium gained in the smart bot). Knobs: `Combat.HAND_SIZE`, `Combat.HAND_MAX`.
