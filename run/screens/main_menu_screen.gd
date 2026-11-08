@@ -101,7 +101,7 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 		# A small button in the bottom-right corner of the screen, out of the way of the main choices.
 		updates_button = Button.new()
 		updates_button.text = UPDATE_LABEL
-		updates_button.add_theme_font_size_override("font_size", 11)
+		updates_button.add_theme_font_size_override("font_size", 12)
 		updates_button.focus_mode = Control.FOCUS_NONE
 		body.add_child(updates_button)
 		updates_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 10)

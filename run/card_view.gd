@@ -23,41 +23,7 @@ const BADGE_BAD := Color(0.78, 0.18, 0.20)
 const WARN := Color("#e8b773")
 const HP_RED := Color("#a8323a")
 const SELECT_GOLD := MenuStyle.AMBER
-## Palette tokens per class. Empty id is neutral keepsake paper.
-const PALETTES := {
-	&"": {
-		"label": "KEEPSAKE", "stock": Color("#D7D0BC"), "frame": Color("#526979"),
-		"ink": Color("#171D28"), "window": Color("#171D28"), "banner": Color("#BBB7A8"),
-		"banner_ink": Color("#171D28"), "accent": Color("#526979"), "glyph": Color("#D7D0BC"),
-	},
-	&"deserter": {
-		"label": "DESERTER", "stock": Color("#29313A"), "frame": Color("#A66A50"),
-		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#49545D"),
-		"banner_ink": Color("#F0EBDD"), "accent": Color("#A66A50"), "glyph": Color("#171D28"),
-	},
-	&"thief": {
-		"label": "THIEF", "stock": Color("#253D3D"), "frame": Color("#78A99B"),
-		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#41615B"),
-		"banner_ink": Color("#F0EBDD"), "accent": Color("#78A99B"), "glyph": Color("#171D28"),
-	},
-	&"medium": {
-		"label": "MEDIUM", "stock": Color("#342F42"), "frame": Color("#9A89AD"),
-		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#5C526B"),
-		"banner_ink": Color("#F0EBDD"), "accent": Color("#9A89AD"), "glyph": Color("#171D28"),
-	},
-	# The Stray: dark cobalt blue. Placeholder colours until the class art is designed (docs/CLASSES_PLAN.md).
-	&"stray": {
-		"label": "STRAY", "stock": Color("#1F2A3E"), "frame": Color("#6D87B3"),
-		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#3B4F78"),
-		"banner_ink": Color("#F0EBDD"), "accent": Color("#6D87B3"), "glyph": Color("#171D28"),
-	},
-	# Status cards (Dread, Murmur: what enemies shuffle in): a sickly grey-green, so they read as junk.
-	&"status": {
-		"label": "STATUS", "stock": Color("#333D31"), "frame": Color("#6F8A5C"),
-		"ink": Color("#C4CFB6"), "window": Color("#161C15"), "banner": Color("#4A5845"),
-		"banner_ink": Color("#DCE5CF"), "accent": Color("#8FAA73"), "glyph": Color("#161C15"),
-	},
-}
+const PALETTES := CardPalette.PALETTES
 
 ## Primary icon = the first of these that the card has (scaled damage reads before plain damage).
 const ICON_PRIORITY: Array[CardEffect.Kind] = [
@@ -168,12 +134,10 @@ var _dragging := false
 var _press_global := Vector2.ZERO
 var _hovered := false
 var _tilt := Vector2.ZERO
-## 0 (resting) to 1 (raised); eases over LIFT_TIME unless reduced_motion.
+## 0 (resting) to 1 (raised); eases over LIFT_TIME unless Motion.reduced (which also stops the tilt).
 var _lift := 0.0
 var _font: Font = ThemeDB.fallback_font
 
-## Skips the hover-lift easing (cards snap) and the confirm pulse when true. No UI sets it yet.
-static var reduced_motion := false
 ## Seconds for a card to rise or settle on hover.
 const LIFT_TIME := 0.12
 
@@ -370,7 +334,7 @@ func set_hovered(inside: bool) -> void:
 
 ## Tooltip width and text size: a narrow block of small wrapped lines, not one line across the screen.
 const TOOLTIP_WIDTH := 230.0
-const TOOLTIP_FONT_SIZE := 11
+const TOOLTIP_FONT_SIZE := 13
 
 
 ## The card tooltip as a small, wrapped text block (Godot's default tooltip never wraps).
@@ -406,7 +370,7 @@ func _process(delta: float) -> void:
 		_lift = move_toward(_lift, lift_goal, delta / LIFT_TIME)
 		queue_redraw()
 	var goal := Vector2.ZERO
-	if _hovered and state != State.UNPLAYABLE and size.x > 0.0 and size.y > 0.0:
+	if _hovered and not Motion.reduced and state != State.UNPLAYABLE and size.x > 0.0 and size.y > 0.0:
 		var mouse := get_local_mouse_position()
 		if Rect2(Vector2.ZERO, size).has_point(mouse):
 			goal = ((mouse / size) - Vector2(0.5, 0.5)) * 2.0
@@ -428,7 +392,7 @@ func _process(delta: float) -> void:
 ## Starts easing the lift toward its goal (snaps when the card does not hover by itself).
 func _chase_lift() -> void:
 	var goal := 1.0 if _raised() else 0.0
-	if reduced_motion or not auto_hover or not is_inside_tree():
+	if Motion.reduced or not auto_hover or not is_inside_tree():
 		_lift = goal
 	elif _lift != goal:
 		set_process(true)
@@ -445,7 +409,7 @@ func _draw() -> void:
 		return
 	# A Dormant card is always muted (it can never be played), even where its state is NORMAL.
 	var muted := state == State.UNPLAYABLE or card.dormant
-	var p := _palette(class_id, muted, not muted and _raised())
+	var p := CardPalette.get_palette(class_id, muted, not muted and _raised())
 	var top := LIFT * (1.0 - _lift)
 	draw_set_transform(Vector2(0, top * view_scale), 0.0, Vector2(view_scale, view_scale))
 	var stock: Color = p.stock
@@ -514,38 +478,30 @@ func _draw() -> void:
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
-## The class palette adjusted for muted / raised, built once per combination (not per redraw).
-static var _derived_palettes: Dictionary = {}
+## Styles shared by every card, keyed by fill, radius and border: a card face draws a dozen boxes per redraw.
+static var _box_styles := {}
+const BOX_STYLE_CAP := 256
 
 
-static func _palette(id: StringName, muted: bool, raised: bool) -> Dictionary:
-	if not muted and not raised:
-		return PALETTES[id]
-	var key := "%s|%d" % [id, 1 if muted else 2]
-	if not _derived_palettes.has(key):
-		var p: Dictionary = PALETTES[id].duplicate()
-		if muted:
-			for k in ["stock", "frame", "banner", "window", "accent"]:
-				p[k] = _mute(p[k])
-		else:
-			p["frame"] = (p["frame"] as Color).lightened(0.15)
-		_derived_palettes[key] = p
-	return _derived_palettes[key]
-
-
-static func _mute(c: Color) -> Color:
-	var g := c.get_luminance()
-	return Color(g, g, g).lerp(c, 0.45) * Color(0.88, 0.88, 0.88, 1.0)
-
-
-func _box(rect: Rect2, fill: Color, radius: int, border := 0, border_color := Color.WHITE) -> void:
+static func _box_style(fill: Color, radius: int, border: int, border_color: Color) -> StyleBoxFlat:
+	var key := [fill, radius, border, border_color]
+	var cached: StyleBoxFlat = _box_styles.get(key)
+	if cached != null:
+		return cached
+	if _box_styles.size() >= BOX_STYLE_CAP:
+		_box_styles.clear()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = fill
 	sb.set_corner_radius_all(radius)
 	sb.set_border_width_all(border)
 	sb.border_color = border_color
 	sb.anti_aliasing = true
-	draw_style_box(sb, rect)
+	_box_styles[key] = sb
+	return sb
+
+
+func _box(rect: Rect2, fill: Color, radius: int, border := 0, border_color := Color.WHITE) -> void:
+	draw_style_box(_box_style(fill, radius, border, border_color), rect)
 	if fill.a >= 0.5 and rect.size.x > 30.0 and rect.size.y > 15.0:
 		TactileArt.draw_grain(self, rect.grow(-3.0), 0.12)
 

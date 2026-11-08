@@ -161,6 +161,18 @@ func _is_idle() -> bool:
 		and _flash <= 0.0 and _shake <= 0.0 and _recoil <= 0.0 and _pop <= 0.0 and _lunge <= 0.0
 
 
+## Redraws per second while a living fighter only breathes.
+const IDLE_REDRAW_HZ := 30.0
+var _idle_accum := 0.0
+
+
+## True while something faster than breathing is animating, so the picture must redraw on every frame.
+func _is_busy() -> bool:
+	return _lunge > 0.0 or _lunge_delay > 0.0 or _flash > 0.0 or _shake > 0.0 or _recoil > 0.0 or _pop > 0.0 \
+		or not _reactions.is_empty() or not _floats.is_empty() or entrance < 1.0 \
+		or fade != (1.0 if is_defeated() else 0.0)
+
+
 func _process(delta: float) -> void:
 	advance(delta)
 
@@ -399,7 +411,11 @@ func advance(delta: float) -> void:
 			live += 1
 	if live < _floats.size():
 		_floats.resize(live)
-	queue_redraw()
+	# Only the slow idle breathing is throttled (to IDLE_REDRAW_HZ); any attack, hit, flash or float redraws every frame.
+	_idle_accum += delta
+	if _is_busy() or _idle_accum >= 1.0 / IDLE_REDRAW_HZ:
+		_idle_accum = 0.0
+		queue_redraw()
 	if _is_idle():
 		set_process(false) # one last redraw above; refresh()/set_*()/play_attack() wake it again
 
@@ -626,7 +642,7 @@ func _draw_figure(ground: Vector2, a: float) -> void:
 	var lunge := lunge_amount()
 	var stance := stance_motion()
 	var dx := facing * (lunge * 46.0) - facing * sin(_recoil * PI) * 16.0
-	var shake := sin(time * 70.0) * 2.5 * _flash + sin(time * 55.0) * 9.0 * _shake * (0.0 if CardView.reduced_motion else 1.0)
+	var shake := sin(time * 70.0) * 2.5 * _flash + sin(time * 55.0) * 9.0 * _shake * (0.0 if Motion.reduced else 1.0)
 	var squash := 1.0 + breath() * 0.008 - stance.z + lunge * 0.04
 	var stretch := 1.0 + lunge * 0.04
 	var sink := fade * 18.0

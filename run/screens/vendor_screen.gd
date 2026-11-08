@@ -221,7 +221,7 @@ func _relic_slot(offer: Dictionary) -> Control:
 	column.add_child(name_label)
 	var text := make_label(relic.description)
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.add_theme_font_size_override("font_size", 11)
+	text.add_theme_font_size_override("font_size", 12)
 	text.add_theme_color_override("font_color", Color("#bcc5bd"))
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(text)

@@ -15,6 +15,7 @@ const ROWS := [
 ## (tests read these).
 var sliders := {}
 var mute_button: CheckButton
+var reduce_button: CheckButton
 var credits_label: Label
 var credits_scroll: ScrollContainer
 var credits_button: Button
@@ -77,14 +78,22 @@ func build(box: Container, on_back: Callable) -> void:
 	credits_label.add_theme_font_size_override("font_size", 13)
 	credits_scroll.add_child(credits_label)
 	box.add_child(credits_scroll)
+	reduce_button = CheckButton.new()
+	reduce_button.text = "Reduce motion"
+	reduce_button.tooltip_text = "Holds the animated backdrops still and skips card tilt, flashes and long entrances."
+	reduce_button.button_pressed = Motion.reduced
+	reduce_button.toggled.connect(_on_reduce_motion)
+	reduce_button.focus_mode = Control.FOCUS_NONE
+	box.add_child(reduce_button)
+	if box.is_inside_tree():
+		(sliders["master"] as HSlider).grab_focus()
 	RunScreen.add_button(box, "Back", func() -> void:
 		_save()
 		on_back.call())
 
 
 static func _audio() -> Node:
-	var tree := Engine.get_main_loop() as SceneTree
-	return tree.root.get_node_or_null("AudioManager") if tree != null else null
+	return Audio.manager()
 
 
 static func _level(audio: Node, key: String) -> float:
@@ -112,6 +121,14 @@ func _on_mute(on: bool) -> void:
 	var audio := _audio()
 	if audio != null:
 		audio.set_muted(on)
+
+
+func _on_reduce_motion(on: bool) -> void:
+	var audio := _audio()
+	var path: String = audio.settings_path if audio != null else Settings.DEFAULT_PATH
+	var error := Motion.set_and_save(on, path)
+	if error != "":
+		push_warning("Could not save settings (%s)." % error)
 
 
 func _toggle_credits() -> void:

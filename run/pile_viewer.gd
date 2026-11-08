@@ -13,6 +13,7 @@ const NOTES := [
 	"In no particular order.",
 	"Most recently discarded last.",
 	"Cards that were Forgotten this fight.",
+	"Oath cards you have sworn this fight.",
 ]
 const SCALES: Array[float] = [0.8, 0.7, 0.6, 0.5]
 const GAP := 6.0

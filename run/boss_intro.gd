@@ -59,7 +59,7 @@ func setup(label_text: String, boss_name: String) -> void:
 
 
 func _ready() -> void:
-	var reduced := CardView.reduced_motion
+	var reduced := Motion.reduced
 	var total := REDUCED_DURATION if reduced else DURATION
 	_tween = create_tween()
 	_tween.tween_property(_plate, "modulate:a", 1.0, 0.3 if not reduced else 0.1)

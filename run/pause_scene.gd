@@ -54,8 +54,8 @@ func set_character(id: StringName) -> void:
 
 ## Steps the animation. Does nothing unless the scene is on screen.
 func advance(delta: float) -> void:
-	if not is_visible_in_tree():
-		return
+	if not is_visible_in_tree() or Motion.reduced:
+		return # reduced motion: the picture holds still
 	time += delta
 	queue_redraw()
 
