@@ -6,6 +6,9 @@ extends "res://tests/test_base.gd"
 var _dir := "user://update_verifier_test_%d" % OS.get_process_id()
 
 
+const Support := preload("res://tests/update_support.gd")
+
+
 func run() -> int:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_dir))
 	var crypto := Crypto.new()
@@ -24,7 +27,7 @@ func run() -> int:
 
 func _test_signatures(key: CryptoKey, pem: String, other_pem: String) -> void:
 	var data := "manifest bytes".to_utf8_buffer()
-	var sig := sign_bytes(data, key)
+	var sig := Support.sign_bytes(data, key)
 	_check(UpdateVerifier.verify_bytes(data, sig, [pem]) == "", "a correct signature verifies")
 	_check(UpdateVerifier.verify_bytes(data, sig, [other_pem]) != "", "a signature from another key is rejected")
 	_check(UpdateVerifier.verify_bytes("manifest byteX".to_utf8_buffer(), sig, [pem]) != "", "a one-byte change breaks the signature")
@@ -44,7 +47,7 @@ func _test_signatures(key: CryptoKey, pem: String, other_pem: String) -> void:
 func _test_file_hash() -> void:
 	var path := _dir.path_join("file.bin")
 	_write(path, "installer bytes".to_utf8_buffer())
-	var good := sha256_hex(path)
+	var good := Support.sha256_hex(path)
 	_check(UpdateVerifier.verify_file_hash(path, good) == "", "a file with the promised hash passes")
 	_check(UpdateVerifier.verify_file_hash(path, good.replace(good[0], "g")) != "", "a different hash fails")
 	_write(path, "installer byteX".to_utf8_buffer())
@@ -69,21 +72,21 @@ func _test_manifest(key: CryptoKey, pem: String, other: CryptoKey) -> void:
 	var name := UpdateCheck.installer_name(tag)
 	var sha := "ab".repeat(32)
 	var manifest := UpdateCheck.make_manifest(name, "0.4.0", sha).to_utf8_buffer()
-	var sig := sign_bytes(manifest, key)
+	var sig := Support.sign_bytes(manifest, key)
 	_check(UpdateVerifier.verify_manifest(manifest, sig, tag, current, [pem]) == "", "a signed manifest for this release verifies")
 	_check(UpdateCheck.parse_manifest(manifest) == {"name": name, "version": "0.4.0", "sha256": sha}, "the manifest parses back to its fields")
-	_check(UpdateVerifier.verify_manifest(manifest, sign_bytes(manifest, other), tag, current, [pem]) != "", "a manifest signed by another key is rejected")
+	_check(UpdateVerifier.verify_manifest(manifest, Support.sign_bytes(manifest, other), tag, current, [pem]) != "", "a manifest signed by another key is rejected")
 	_check(UpdateVerifier.verify_manifest(manifest, sig, tag, current, []) != "", "no embedded key rejects every manifest")
 
 	# Replay: a genuinely signed OLD release must not pass as the new one.
 	var old_manifest := UpdateCheck.make_manifest(UpdateCheck.installer_name("v0.2.0"), "0.2.0", sha).to_utf8_buffer()
-	var old_sig := sign_bytes(old_manifest, key)
+	var old_sig := Support.sign_bytes(old_manifest, key)
 	_check(UpdateVerifier.verify_manifest(old_manifest, old_sig, "v0.2.0", current, [pem]) != "", "an older signed release is not newer than the running game")
 	_check(UpdateVerifier.verify_manifest(old_manifest, old_sig, tag, current, [pem]) != "", "an old signed manifest replayed under a newer tag is rejected")
 	var renamed := UpdateCheck.make_manifest(UpdateCheck.installer_name("v0.4.0"), "0.2.0", sha).to_utf8_buffer()
-	_check(UpdateVerifier.verify_manifest(renamed, sign_bytes(renamed, key), tag, current, [pem]) != "", "a signed manifest whose version differs from the tag is rejected")
+	_check(UpdateVerifier.verify_manifest(renamed, Support.sign_bytes(renamed, key), tag, current, [pem]) != "", "a signed manifest whose version differs from the tag is rejected")
 	var wrong_file := UpdateCheck.make_manifest("Other-Setup-0.4.0.exe", "0.4.0", sha).to_utf8_buffer()
-	_check(UpdateVerifier.verify_manifest(wrong_file, sign_bytes(wrong_file, key), tag, current, [pem]) != "", "a signed manifest for a different file name is rejected")
+	_check(UpdateVerifier.verify_manifest(wrong_file, Support.sign_bytes(wrong_file, key), tag, current, [pem]) != "", "a signed manifest for a different file name is rejected")
 	_check(UpdateVerifier.verify_manifest(manifest, sig, tag, "0.4.0", [pem]) != "", "the same version is not an update")
 	_check(UpdateVerifier.verify_manifest(manifest, sig, tag, "", [pem]) != "", "an unknown running version never updates")
 
@@ -101,7 +104,7 @@ func _test_manifest(key: CryptoKey, pem: String, other: CryptoKey) -> void:
 	]:
 		var bytes: PackedByteArray = bad.to_utf8_buffer()
 		_check(UpdateCheck.parse_manifest(bytes).is_empty(), "a malformed manifest does not parse: %s" % bad.c_escape())
-		_check(UpdateVerifier.verify_manifest(bytes, sign_bytes(bytes, key), tag, current, [pem]) != "", "a signed but malformed manifest is rejected: %s" % bad.c_escape())
+		_check(UpdateVerifier.verify_manifest(bytes, Support.sign_bytes(bytes, key), tag, current, [pem]) != "", "a signed but malformed manifest is rejected: %s" % bad.c_escape())
 	var oversized := PackedByteArray()
 	oversized.resize(UpdateCheck.MAX_MANIFEST_BYTES + 1)
 	_check(UpdateCheck.parse_manifest(oversized).is_empty(), "an oversized manifest does not parse")
@@ -113,16 +116,16 @@ func _test_multiple_keys(key: CryptoKey, pem: String, other: CryptoKey, other_pe
 	var stranger := Crypto.new().generate_rsa(2048)
 	var data := "manifest bytes".to_utf8_buffer()
 	var both := [pem, other_pem]
-	_check(UpdateVerifier.verify_bytes(data, sign_bytes(data, key), both) == "", "the first trusted key's signature verifies")
-	_check(UpdateVerifier.verify_bytes(data, sign_bytes(data, other), both) == "", "the backup key's signature verifies")
-	_check(UpdateVerifier.verify_bytes(data, sign_bytes(data, stranger), both) != "", "a signature from neither trusted key is rejected")
-	_check(UpdateVerifier.verify_bytes(data, sign_bytes(data, other), [pem]) != "", "a key that is not in the list is not trusted")
-	_check(UpdateVerifier.verify_bytes(data, sign_bytes(data, other), ["not a key", other_pem]) == "", "an unreadable entry is skipped, the rest still count")
-	_check(UpdateVerifier.verify_bytes(data, sign_bytes(data, stranger), ["not a key", pem]) != "", "an unreadable entry never makes anything verify")
-	_check(UpdateVerifier.verify_bytes(data, sign_bytes(data, key), ["not a key"]) != "", "a list of only unreadable keys trusts nothing")
+	_check(UpdateVerifier.verify_bytes(data, Support.sign_bytes(data, key), both) == "", "the first trusted key's signature verifies")
+	_check(UpdateVerifier.verify_bytes(data, Support.sign_bytes(data, other), both) == "", "the backup key's signature verifies")
+	_check(UpdateVerifier.verify_bytes(data, Support.sign_bytes(data, stranger), both) != "", "a signature from neither trusted key is rejected")
+	_check(UpdateVerifier.verify_bytes(data, Support.sign_bytes(data, other), [pem]) != "", "a key that is not in the list is not trusted")
+	_check(UpdateVerifier.verify_bytes(data, Support.sign_bytes(data, other), ["not a key", other_pem]) == "", "an unreadable entry is skipped, the rest still count")
+	_check(UpdateVerifier.verify_bytes(data, Support.sign_bytes(data, stranger), ["not a key", pem]) != "", "an unreadable entry never makes anything verify")
+	_check(UpdateVerifier.verify_bytes(data, Support.sign_bytes(data, key), ["not a key"]) != "", "a list of only unreadable keys trusts nothing")
 	var manifest := UpdateCheck.make_manifest(UpdateCheck.installer_name("v0.4.0"), "0.4.0", "ab".repeat(32)).to_utf8_buffer()
-	_check(UpdateVerifier.verify_manifest(manifest, sign_bytes(manifest, other), "v0.4.0", "0.3.0", both) == "", "a manifest signed by the backup key installs")
-	_check(UpdateVerifier.verify_manifest(manifest, sign_bytes(manifest, stranger), "v0.4.0", "0.3.0", both) != "", "a manifest signed by a stranger does not")
+	_check(UpdateVerifier.verify_manifest(manifest, Support.sign_bytes(manifest, other), "v0.4.0", "0.3.0", both) == "", "a manifest signed by the backup key installs")
+	_check(UpdateVerifier.verify_manifest(manifest, Support.sign_bytes(manifest, stranger), "v0.4.0", "0.3.0", both) != "", "a manifest signed by a stranger does not")
 
 
 func _test_shipped_key() -> void:
@@ -138,24 +141,6 @@ func _test_shipped_key() -> void:
 		_check(pem.contains("BEGIN PUBLIC KEY") and not pem.contains("PRIVATE"), "each embedded key is a public key block, never a private one")
 		_check(not seen.has(pem.strip_edges()), "the embedded keys are all different")
 		seen[pem.strip_edges()] = true
-
-
-## Signs the SHA-256 of `data` (what scripts/build_installer.ps1 does to the manifest with openssl).
-static func sign_bytes(data: PackedByteArray, key: CryptoKey) -> PackedByteArray:
-	var ctx := HashingContext.new()
-	ctx.start(HashingContext.HASH_SHA256)
-	ctx.update(data)
-	return Crypto.new().sign(HashingContext.HASH_SHA256, ctx.finish(), key)
-
-
-## Lowercase hex SHA-256 of the file at `path`.
-static func sha256_hex(path: String) -> String:
-	return UpdateVerifier.sha256_file(path).hex_encode()
-
-
-## The signed manifest bytes for the file at `path` as release `tag` would publish them.
-static func manifest_for(path: String, tag: String) -> PackedByteArray:
-	return UpdateCheck.make_manifest(UpdateCheck.installer_name(tag), tag.trim_prefix("v"), sha256_hex(path)).to_utf8_buffer()
 
 
 func _write(path: String, bytes: PackedByteArray) -> void:

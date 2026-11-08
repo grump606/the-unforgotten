@@ -2,7 +2,7 @@ extends "res://tests/test_base.gd"
 ## Tests for UpdateInstaller's state machine. dry_run records the URLs instead of requesting them,
 ## and the replies are fed in directly, so no network is used and no real installer is run.
 
-const VerifierTests := preload("res://tests/update_verifier_tests.gd")
+const VerifierTests := preload("res://tests/update_support.gd")
 const TEST_TAG := "v0.3.9"
 const RUNNING := "0.3.0"
 
