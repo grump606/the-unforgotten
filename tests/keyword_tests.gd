@@ -26,6 +26,7 @@ func run() -> int:
 	_test_multi_hit_block_and_expose()
 	_test_multi_hit_defaults()
 	_test_enemy_multi_hit_barbs()
+	_test_dead_attacker_stops_hitting()
 	return _failures
 
 
@@ -414,3 +415,16 @@ func _test_enemy_multi_hit_barbs() -> void:
 	var combat2 := _fight([_plain("x")], [], intents, 100, 50)
 	combat2.end_player_turn()
 	_check(combat2.player.hp == 44, "an unblocked 3 x2 enemy attack deals 6")
+
+
+## Thorns that kill a multi-hit attacker part-way must stop its remaining hits (they used to land and could kill
+## the player after the enemy was already dead).
+func _test_dead_attacker_stops_hitting() -> void:
+	var intents: Array[CardEffect] = [_dmg(4, 3)]
+	var barbs := _card("barbs", 1, [CardEffect.make(CardEffect.Kind.THORNS, 5)] as Array[CardEffect], CardData.TargetMode.SELF)
+	var combat := _fight([barbs], [], intents, 3, 10)
+	combat.play_card(0)
+	combat.end_player_turn()
+	_check(combat.enemies[0].is_dead(), "Thorns kill the 3 HP attacker on its first hit")
+	_check(combat.player.hp == 6, "the dead attacker's other two hits never land (player %d, not 2 or dead)" % combat.player.hp)
+	_check(combat.phase == Combat.Phase.ENDED and not combat.player.is_dead(), "the fight ends as a victory")

@@ -1,12 +1,15 @@
-# One-command release: checks the repo, builds and signs the installer, and (with -Publish) creates the GitHub release.
-#   powershell -ExecutionPolicy Bypass -File scripts\release.ps1            # build + sign only
-#   powershell -ExecutionPolicy Bypass -File scripts\release.ps1 -Publish   # ...then ask to publish v<version>
+# One-command release: runs the full check, confirms CI is green on this commit, builds and signs the installer,
+# and (with -Publish) creates the GitHub release as a DRAFT that you review and publish on GitHub.
+#   powershell -ExecutionPolicy Bypass -File scripts\release.ps1            # check + build + sign only
+#   powershell -ExecutionPolicy Bypass -File scripts\release.ps1 -Publish   # ...then ask to create the draft v<version>
+#   add -NoDraft to publish immediately instead of leaving a draft
 # The signing key's path comes from -KeyPath or $env:UPDATE_SIGNING_KEY (a .pfx or .pem; set it once with
 # setx UPDATE_SIGNING_KEY "C:\path\signing-private.pfx"). The passphrase is asked for here, kept only in this
 # process's environment for the build, and cleared afterwards. See docs/UPDATE_SIGNING.md.
 param(
     [string]$KeyPath = $env:UPDATE_SIGNING_KEY,
-    [switch]$Publish
+    [switch]$Publish,
+    [switch]$NoDraft
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -61,6 +64,21 @@ if (-not $env:GODOT_EXE) {
 }
 Write-Host "Releasing $tag with $env:GODOT_EXE"
 
+# Never release a commit that has not passed the full check, both here and on GitHub.
+Write-Host 'Running the full check (scripts\check.ps1)...'
+powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'scripts\check.ps1 failed: fix it before releasing.' }
+$sha = (git rev-parse HEAD).Trim()
+$runsJson = gh run list --commit $sha --json status,conclusion,name --limit 20
+if ($LASTEXITCODE -ne 0) { throw 'gh run list failed: run "gh auth status".' }
+$runs = @($runsJson | ConvertFrom-Json)
+if ($runs.Count -eq 0) { throw "No GitHub Actions run found for ${sha}: wait for CI to start on this commit." }
+$notGreen = @($runs | Where-Object { $_.status -ne 'completed' -or $_.conclusion -ne 'success' })
+if ($notGreen.Count -gt 0) {
+    throw "CI is not green on ${sha}: $(($notGreen | ForEach-Object { '{0} ({1}/{2})' -f $_.name, $_.status, $_.conclusion }) -join ', '). Wait for it, or fix it."
+}
+Write-Host "CI is green on $sha."
+
 $secure = Read-Host 'Signing key passphrase' -AsSecureString
 $env:UPDATE_SIGNING_KEY = $KeyPath
 $env:UPDATE_SIGNING_PASS = [System.Net.NetworkCredential]::new('', $secure).Password
@@ -77,6 +95,7 @@ try {
 # The macOS build: an .app (universal, ad-hoc signed, not notarized) zipped, with its checksum. It is
 # published beside the Windows installer; the in-game updater only ever installs the Windows files.
 $macZip = "build\TheUnforgotten-macOS-$version.zip"
+Remove-Item -LiteralPath $macZip, "$macZip.sha256" -ErrorAction SilentlyContinue  # never publish a stale zip
 & $env:GODOT_EXE --headless --path . --export-release 'macOS' $macZip
 if ($LASTEXITCODE -ne 0) { throw 'macOS export failed' }
 if (-not (Test-Path -LiteralPath $macZip)) { throw "Missing build output: $macZip" }
@@ -88,11 +107,13 @@ foreach ($f in $files) { if (-not (Test-Path -LiteralPath $f)) { throw "Missing 
 
 if (-not $Publish) {
     Write-Host "`nBuilt and signed $tag. To publish:"
-    Write-Host "  gh release create $tag $($files -join ' ') --title `"$tag`" --generate-notes"
+    Write-Host "  gh release create $tag $($files -join ' ') --title `"$tag`" --generate-notes --draft"
     return
 }
-$answer = Read-Host "Publish $tag to GitHub with these $($files.Count) files? (type yes)"
+$what = if ($NoDraft) { 'PUBLISH' } else { 'create a draft of' }
+$answer = Read-Host "$what $tag on GitHub with these $($files.Count) files? (type yes)"
 if ($answer -ne 'yes') { Write-Host 'Not published.'; return }
-gh release create $tag @files --title $tag --generate-notes
+$extra = if ($NoDraft) { @() } else { @('--draft') }
+gh release create $tag @files --title $tag --generate-notes @extra
 if ($LASTEXITCODE -ne 0) { throw 'gh release create failed' }
-Write-Host "Published $tag"
+if ($NoDraft) { Write-Host "Published $tag" } else { Write-Host "Created the draft ${tag}: review it on GitHub, then click Publish release. Players only see it once it is published." }

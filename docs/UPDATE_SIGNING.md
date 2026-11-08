@@ -66,7 +66,7 @@ setx UPDATE_SIGNING_KEY "C:\path\to\signing-private.pfx"   # once; open a new wi
 powershell -ExecutionPolicy Bypass -File scripts\release.ps1 -Publish
 ```
 
-`scripts/release.ps1` checks that you are on an up-to-date `main` with a free tag, finds Godot, asks for the passphrase, builds and signs, clears the passphrase, and asks before running `gh release create`. Leave out `-Publish` to build only. The manual steps below do the same by hand.
+`scripts/release.ps1` checks that you are on an up-to-date `main` with a free tag, runs the full `scripts/check.ps1`, confirms the GitHub Actions run on that commit is green, finds Godot, asks for the passphrase, builds and signs, clears the passphrase, and asks before running `gh release create`, which makes a **draft** release: review it on GitHub and click Publish release (players, and the in-game updater, only see it then). Add `-NoDraft` to publish immediately. Leave out `-Publish` to build only. The manual steps below do the same by hand.
 
 1. Take `update_signing_private.pem` out of the password manager into a temporary folder.
 2. In PowerShell:

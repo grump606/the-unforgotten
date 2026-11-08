@@ -83,7 +83,7 @@ var _player_changed_link: Callable = state_changed.emit
 
 
 ## Builds a fight, or returns null (after logging why) if the enemy list is not
-## 1 to MAX_ENEMIES long or the player is already dead. Use this when the inputs
+## 1 to MAX_ENEMIES long, holds a null entry, the deck is empty or the player is already dead. Use this when the inputs
 ## come from data that could be bad, such as resources that failed to load;
 ## `new()` only asserts, which release builds skip.
 static func create(player_combatant: Combatant, deck: Array[CardData], enemy_datas: Array[EnemyData], rng_seed: int = 0, owned_relics: Array[RelicData] = []) -> Combat:
@@ -93,6 +93,13 @@ static func create(player_combatant: Combatant, deck: Array[CardData], enemy_dat
 	if player_combatant.is_dead():
 		push_error("Combat.create: the player is already dead")
 		return null
+	if deck.is_empty():
+		push_error("Combat.create: the deck is empty")
+		return null
+	for enemy_data in enemy_datas:
+		if enemy_data == null:
+			push_error("Combat.create: an enemy entry is null (its data failed to load)")
+			return null
 	return Combat.new(player_combatant, deck, enemy_datas, rng_seed, owned_relics)
 
 
@@ -608,6 +615,9 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 		if effect.per_energy:
 			hit_count *= energy_scale
 		for _hit in hit_count:
+			# An attacker killed part-way (by Thorns) stops there: a dead enemy must not finish its attack.
+			if source.is_dead():
+				break
 			# plays_this_turn already counts the card being played.
 			# Malice and Shaken of the source, Expose of the target, then Block.
 			var raw := effect.raw_damage(EffectContext.make(source.block, target.status_turns(Combatant.Status.HAUNTED), plays_this_turn, piles.forgotten.size(), target.stacks(Combatant.Status.SCENT)))

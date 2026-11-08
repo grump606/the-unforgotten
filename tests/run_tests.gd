@@ -570,6 +570,10 @@ func _test_create_rejects_bad_enemy_counts() -> void:
 	_check(Combat.create(player, deck, _enemies(0, 10, [])) == null, "create rejects zero enemies")
 	_check(Combat.create(player, deck, _enemies(Combat.MAX_ENEMIES + 1, 10, [])) == null, "create rejects too many enemies")
 	_check(Combat.create(player, deck, _enemies(Combat.MAX_ENEMIES, 10, [])) != null, "create accepts the maximum")
+	var no_cards: Array[CardData] = []
+	_check(Combat.create(player, no_cards, _enemies(1, 10, [])) == null, "create rejects an empty deck")
+	var with_null: Array[EnemyData] = [null]
+	_check(Combat.create(player, deck, with_null) == null, "create rejects a null enemy entry")
 
 
 func _test_damage_after_status() -> void:
