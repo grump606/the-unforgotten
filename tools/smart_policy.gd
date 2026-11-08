@@ -14,7 +14,8 @@ extends RefCounted
 ##    to a bigger hit that wastes damage. Sweep sums over every living enemy.
 ##  - Block: 2 per point that cancels incoming damage still unblocked, 0.1 per
 ##    wasted point ("block exactly").
-##  - Draw: 1.5 per card while energy is left to use it, else 0.2.
+##  - Draw: 1.5 per card while energy is left to use it, else 0.2 (this is the value of playing it now;
+##    scoring a card for the deck or a vendor uses DRAW_VALUE, 2.5 per card).
 ##  - Expose on an enemy: half the damage of the other affordable damage cards
 ##    that the Expose multiplier would boost this turn (expose before damage),
 ##    plus a little for extra turns; 0 if it is already exposed. An Expose that
@@ -160,6 +161,8 @@ static func play_turn(combat: Combat) -> bool:
 		var best_target := -1
 		var best_score := 0.0
 		var best_surge := false
+		# The enemies' next intents do not change while the policy only prices plays, so price them once.
+		var incoming := _incoming_damage(combat)
 		for i in combat.piles.hand.size():
 			if not combat.can_play(i):
 				continue
@@ -167,7 +170,7 @@ static func play_turn(combat: Combat) -> bool:
 			if SimPolicy.recycles_itself(combat, card):
 				continue
 			for target in _targets(combat, card):
-				var value := _play_value(combat, i, target)
+				var value := _play_value(combat, i, target, incoming)
 				if card.fading and value > 0.0:
 					value += FADING_URGENCY
 				elif card.forgotten and value > 0.0 and not _kills(combat, card, target):
@@ -297,14 +300,16 @@ static func _targets(combat: Combat, card: CardData) -> Array[int]:
 	return targets
 
 
-static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
+## incoming is the enemies' incoming damage (Combat.incoming_damage); -1 works it out.
+static func _play_value(combat: Combat, hand_index: int, target: int, incoming: int = -1) -> float:
 	var card: CardData = combat.piles.hand[hand_index]
 	var hit: Array[EnemyUnit] = []
 	if card.target_mode == CardData.TargetMode.SINGLE_ENEMY:
 		hit.append(combat.enemies[target])
 	elif card.target_mode == CardData.TargetMode.ALL_ENEMIES:
 		hit = combat.living_enemies()
-	var incoming := _incoming_damage(combat)
+	if incoming < 0:
+		incoming = _incoming_damage(combat)
 	var unblocked := maxi(incoming - combat.player.block, 0)
 	var energy_left := combat.energy - _spent_energy(combat, card) + _energy_gain(card)
 	var value := 0.0

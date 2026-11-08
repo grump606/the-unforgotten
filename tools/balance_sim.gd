@@ -2,11 +2,10 @@ extends SceneTree
 ## Headless balance simulation: plays many seeded fights with a simple greedy
 ## policy and prints win rate, turns and remaining HP per encounter size, then
 ## the win rate per enemy type (over the fights it appeared in) for each size.
-## Run: godot --headless --path . -s res://tools/balance_sim.gd -- --fights 500 --seed 1 [--character deserter|thief|medium]
+## Run: godot --headless --path . -s res://tools/balance_sim.gd -- --fights 500 --seed 1 [--character deserter|thief|medium|stray]
 ## Card choice lives in tools/sim_policy.gd (shared with run_sim.gd). Uses only the
 ## public Combat API and never mutates shared resources.
 
-const TURN_CAP := 50 # a fight still running after this many turns is a stall
 const DEFAULT_FIGHTS := 500
 const DEFAULT_SEED := 1
 var _player_hp := 0 # set from the chosen character in _initialize
@@ -37,7 +36,7 @@ func _initialize() -> void:
 		quit(1)
 		return
 
-	print("Balance sim: %d fights per size, seed %d, character %s, player HP %d, turn cap %d" % [fights, base_seed, opts["character"], _player_hp, TURN_CAP])
+	print("Balance sim: %d fights per size, seed %d, character %s, player HP %d, turn cap %d" % [fights, base_seed, opts["character"], _player_hp, SimPolicy.TURN_CAP])
 	print("%-8s %8s %10s %12s %7s" % ["enemies", "win rate", "avg turns", "avg HP (win)", "stalls"])
 	var breakdown: Array[Dictionary] = [] # per size: enemy name -> [fights, wins]
 	for count in range(1, Combat.MAX_ENEMIES + 1):
@@ -102,8 +101,7 @@ func _parse_args(args: PackedStringArray) -> Dictionary:
 		var name := args[i]
 		if name == "--character":
 			if i + 1 >= args.size() or not StarterContent.CHARACTER_PATHS.has(StringName(args[i + 1])):
-				printerr("balance_sim: --character must be one of %s
-%s" % [", ".join(StarterContent.character_ids()), USAGE])
+				printerr("balance_sim: --character must be one of %s\n%s" % [", ".join(StarterContent.character_ids()), USAGE])
 				return {}
 			opts["character"] = args[i + 1]
 			i += 2
@@ -132,7 +130,7 @@ func _run_fight(combat: Combat) -> int:
 	combat.combat_ended.connect(func(victory: bool) -> void: outcome[0] = 1 if victory else -1)
 	combat.start()
 	while SimPolicy.is_acting(combat):
-		if combat.turn > TURN_CAP:
+		if combat.turn > SimPolicy.TURN_CAP:
 			return 0
 		if not SimPolicy.play_turn(combat):
 			quit(1)

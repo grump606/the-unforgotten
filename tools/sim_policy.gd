@@ -4,6 +4,9 @@ extends RefCounted
 ## Uses only the public Combat API.
 
 
+## A fight still running after this many turns is a stall; every sim tool (balance_sim, run_sim, run_stub) uses this one cap.
+const TURN_CAP := 50
+
 ## Most choices one call settles (a card queues a handful at most); the cap only guards a stuck engine.
 const MAX_CHOICES_PER_CALL := 32
 
@@ -171,19 +174,29 @@ static func keep_score(combat: Combat, card: CardData) -> float:
 		tier = 0.0
 	# A card with discard effects is worth more thrown away than kept.
 	if not card.discard_effects.is_empty():
-		tier -= 1.5
-	return tier * 10.0 - card.cost
+		tier -= DISCARD_EFFECT_TIER_PENALTY
+	return tier * KEEP_TIER_WEIGHT - card.cost
 
 
-## 3 for an attack or a permanent buff, 2 for defence, 1 for the rest, 0 for a Dormant card.
+## Keep tiers (see keep_score): attack or permanent buff, defence, everything else; a Dormant card is 0.
+const TIER_ATTACK := 3.0
+const TIER_DEFENCE := 2.0
+const TIER_OTHER := 1.0
+## One tier is worth this many energy in keep_score, so cost only breaks ties within a tier.
+const KEEP_TIER_WEIGHT := 10.0
+## Tiers a card with discard effects loses: it is worth more thrown away than kept.
+const DISCARD_EFFECT_TIER_PENALTY := 1.5
+
+
+## TIER_ATTACK for an attack or a permanent buff, TIER_DEFENCE for defence, TIER_OTHER for the rest, 0 for a Dormant card.
 static func _base_tier(card: CardData) -> float:
 	if card.dormant:
 		return 0.0
 	if is_damage_card(card) or _is_permanent_buff(card) or _has_effect(card, CardEffect.Kind.SCENT):
-		return 3.0
+		return TIER_ATTACK
 	if is_block_card(card):
-		return 2.0
-	return 1.0
+		return TIER_DEFENCE
+	return TIER_OTHER
 
 
 ## Hand index to play next, or -1 to end the turn. Priority: an Expose card
