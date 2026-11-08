@@ -1,15 +1,8 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## The tutorial's content and first-launch rules (run/tutorial_content.gd, Settings.tutorial_seen). The drawing
 ## is checked in ui_tutorial_test.gd. Uses scratch paths only. Returns the failure count.
 
-var _failures := 0
 var _path := "user://tutorial_tests_%d.json" % OS.get_process_id()
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func run() -> int:
