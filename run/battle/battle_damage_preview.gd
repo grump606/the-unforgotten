@@ -11,7 +11,7 @@ var _battle: Battle
 ## The fight on screen (read through the battle, so a new fight is picked up).
 var _combat: Combat:
 	get:
-		return _battle._combat
+		return _battle.combat()
 
 
 func _init(battle: Battle) -> void:

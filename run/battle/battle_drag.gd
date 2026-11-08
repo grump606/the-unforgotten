@@ -26,7 +26,7 @@ func _init(battle: Battle) -> void:
 
 func started(source: CardView) -> void:
 	end()
-	var combat := _battle._combat
+	var combat := _battle.combat()
 	if combat == null or combat.phase != Combat.Phase.PLAYER_TURN:
 		source.cancel_drag()
 		return
@@ -56,18 +56,18 @@ func moved(pos: Vector2) -> void:
 		_clear_hover()
 		hover = index
 	if index >= 0:
-		var info := _battle._damage.for_target(view.card, _battle._combat.enemies[index])
-		_battle._enemy_views[index].set_drop_hover(true, info.get("text", ""), info.get("lost", -1))
+		var info := _battle._damage.for_target(view.card, _battle.combat().enemies[index])
+		_battle.enemy_views()[index].set_drop_hover(true, info.get("text", ""), info.get("lost", -1))
 		# A boss has no HP bar of its own, so its ghost goes on the wide bar at the top.
 		var bar := _battle._boss_bar
-		if bar != null and bar.unit == _battle._combat.enemies[index]:
+		if bar != null and bar.unit == _battle.combat().enemies[index]:
 			bar.set_drop_lost(info.get("lost", -1))
 
 
 func ended(pos: Vector2, hand_index: int) -> void:
 	var index := enemy_at(pos)
 	end()
-	var combat := _battle._combat
+	var combat := _battle.combat()
 	if index < 0 or combat == null:
 		return
 	_battle._begin_batch()
@@ -78,10 +78,10 @@ func ended(pos: Vector2, hand_index: int) -> void:
 
 ## Index of the living enemy whose figure is under `pos` (viewport coordinates), or -1.
 func enemy_at(pos: Vector2) -> int:
-	var combat := _battle._combat
+	var combat := _battle.combat()
 	if combat == null:
 		return -1
-	var views := _battle._enemy_views
+	var views := _battle.enemy_views()
 	for i in views.size():
 		if i < combat.enemies.size() and not combat.enemies[i].is_dead() and views[i].get_global_rect().has_point(pos):
 			return i
@@ -89,7 +89,7 @@ func enemy_at(pos: Vector2) -> int:
 
 
 func _clear_hover() -> void:
-	var views := _battle._enemy_views
+	var views := _battle.enemy_views()
 	if hover >= 0 and hover < views.size():
 		views[hover].set_drop_hover(false)
 	if _battle._boss_bar != null:

@@ -6,7 +6,7 @@ extends Control
 
 signal closed
 
-const PANEL_SIZE := Vector2(1060, 590)
+const PANEL_SIZE := MenuStyle.BASE_SIZE - Vector2(92, 58) # the base window less its margins (1060 x 590)
 const BATTLE_SCALE := 0.54
 const CARD_SCALE := 1.85
 const MARKER_RADIUS := 10.0

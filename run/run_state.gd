@@ -459,6 +459,11 @@ func _advance() -> void:
 ## The line, 22 stops in two acts (a train line in the original theme, a memorial city since v0.5.0): four regular fights, the Brakeman (now Bellkeeper) halfway (stop 9), four
 ## harder fights, then the Conductor (now Eraser). Three vendors, five rests (the last just before the finale) and the four story beats in order.
 ## Tier (act) and fight number are filled in here; see docs/LEVELS_DESIGN.md.
+## How many stops a journey has (the length of the default line), for text that names it.
+static func default_line_size() -> int:
+	return _default_line().size()
+
+
 static func _default_line() -> Array[Stop]:
 	var line: Array[Stop] = [
 		Stop.new(StopType.STORY, 0, 0).place("Shore of Names", &"", &"coastal"),
