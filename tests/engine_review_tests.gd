@@ -16,6 +16,7 @@ func run() -> int:
 	_test_enum_tables_cover_every_value()
 	_test_debug_enemy_resolver_is_injected()
 	_test_hit_helpers()
+	_test_save_bounds()
 	return _failures
 
 
@@ -158,3 +159,73 @@ func _test_hit_helpers() -> void:
 	_check(hp_before - combat.enemies[0].hp == preview["lost"], "preview_hit matches the real HP loss (%s)" % str(preview))
 	_check(combat.hit_amount(strike, combat.player, combat.enemies[0], 1) == Combatant.hit_damage(3, combat.player, combat.enemies[0]), "hit_amount is the shared single-hit rule")
 	_check(SimPolicy.is_damage_card(CardData.make(&"h", "H", 0, [_fx(K.HAUNT, 2)] as Array[CardEffect])) and SimPolicy.is_damage_card(card) and not SimPolicy.is_damage_card(CardData.make(&"b", "B", 0, [_fx(K.BLOCK, 2)] as Array[CardEffect])), "is_damage_card is is_damage() plus Haunt")
+
+## RunSave bounds: max HP follows the character plus the MAX_HP relics, deck copies are capped, and real runs
+## played by the sim policies still save and load at every stop boundary.
+func _test_save_bounds() -> void:
+	var run := RunState.new(1, &"deserter")
+	var saved := RunSave.to_dict(run)
+	_check(RunSave.from_dict(saved).error == "", "a fresh save loads")
+	var edited := saved.duplicate(true)
+	edited["max_hp"] = 9999
+	edited["hp"] = 9999
+	_check(RunSave.from_dict(edited).error != "", "a hand-edited max_hp of 9999 is rejected")
+	var limit := run.character.max_hp + RunSave.MAX_HP_SLACK
+	edited["max_hp"] = limit
+	edited["hp"] = 1
+	_check(RunSave.from_dict(edited).error == "", "max_hp within the documented slack loads")
+	edited["max_hp"] = limit + 1
+	_check(RunSave.from_dict(edited).error != "", "one above the slack is rejected")
+	# A MAX_HP relic raises the allowance by its amount.
+	var hp_relic: RelicData = null
+	for relic in StarterContent.relic_pool(&"deserter"):
+		if relic.kind == RelicData.Kind.MAX_HP:
+			hp_relic = relic
+	if hp_relic != null:
+		edited["relics"] = [String(hp_relic.id)]
+		edited["max_hp"] = limit + hp_relic.amount
+		_check(RunSave.from_dict(edited).error == "", "max_hp covered by a carried MAX_HP relic loads")
+		edited["max_hp"] = limit + hp_relic.amount + 1
+		_check(RunSave.from_dict(edited).error != "", "max_hp above base + relic + slack is rejected")
+	# Deck copies.
+	var crowded := saved.duplicate(true)
+	var deck: Array = []
+	for _i in 60:
+		deck.append("shove")
+	crowded["deck"] = deck
+	_check(RunSave.from_dict(crowded).error != "", "60 copies of one card is rejected")
+	_check(RunSave.max_copies(run, &"shove") >= 3, "a card the run starts with can be held at least as often as it starts")
+	for character_id in StarterContent.character_ids():
+		for seed_value in 2:
+			_check(_played_run_round_trips(character_id, seed_value), "a played %s run (seed %d) saves and loads at every stop" % [character_id, seed_value])
+
+
+func _played_run_round_trips(character_id: StringName, seed_value: int) -> bool:
+	var run := RunState.new(seed_value, character_id)
+	var guard := 0
+	while not run.finished and guard < 60:
+		guard += 1
+		if run.at_stop_boundary():
+			var loaded := RunSave.from_dict(JSON.parse_string(JSON.stringify(RunSave.to_dict(run))))
+			if loaded.error != "":
+				printerr("round trip failed: ", loaded.error)
+				return false
+		match run.current_stop().type:
+			RunState.StopType.COMBAT:
+				var combat := run.start_combat()
+				combat.start()
+				while SimPolicy.is_acting(combat) and combat.turn < 50:
+					if not SmartPolicy.play_turn(combat):
+						return false
+				var won := combat.phase == Combat.Phase.ENDED and not combat.player.is_dead()
+				combat.abandon()
+				run.complete_combat(won)
+				if won and run.reward_pending():
+					SmartPolicy.take_reward(run)
+			RunState.StopType.REST:
+				SimPolicy.rest_stop(run, true)
+			RunState.StopType.STORY:
+				run.read_story()
+			RunState.StopType.VENDOR:
+				SmartPolicy.shop(run)
+	return true
