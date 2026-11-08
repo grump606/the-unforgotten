@@ -83,6 +83,21 @@ func run() -> int:
 	_write_to(_path + ".bak", "garbage")
 	_check(Settings.load_file(_path).update_check_enabled, "main and .bak both damaged give the defaults")
 	_cleanup()
+	# Size caps: a huge audio/extras section in a loaded file is dropped, and save() never writes a file load rejects.
+	var big := {}
+	for i in 200:
+		big["key_%d" % i] = "x".repeat(40)
+	var huge := Settings.from_dict({"update_check_enabled": false, "audio": big, "future": big})
+	_check(huge.audio.is_empty() and huge.extras.is_empty() and not huge.update_check_enabled, "oversized audio and extras are dropped on load")
+	var fat := Settings.new()
+	fat.extras = big
+	var save_error := fat.save(_path)
+	_check(save_error != "" and not FileAccess.file_exists(_path) and not FileAccess.file_exists(_path + ".tmp"), "save refuses a file the loader would reject")
+	var fits := Settings.new()
+	fits.audio = {"master": 0.5}
+	fits.extras = {"future": "ok"}
+	_check(fits.save(_path) == "" and Settings.load_file(_path).extras.get("future") == "ok", "normal settings still save and load")
+	_cleanup()
 	# The project was renamed (v0.6.0) but saves and settings must stay where earlier versions wrote
 	# them: project.godot pins the user folder to the old name (see config/custom_user_dir_name).
 	_check(OS.get_user_data_dir().replace("\\", "/").ends_with("Godot/app_userdata/The Unforgotten"), "the user data folder is named after the game (UserDataMigration moves saves from the old one)")

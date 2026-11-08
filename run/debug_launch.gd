@@ -105,8 +105,11 @@ var proto := false
 var error := ""
 
 
-## Reads the user arguments (after `--`) first, then the environment.
+## Reads the user arguments (after `--`) first, then the environment. A release build ignores both: the
+## debug fights, screens and prototype content are for development builds only.
 static func from_environment() -> DebugLaunch:
+	if not OS.is_debug_build():
+		return DebugLaunch.new()
 	return parse(OS.get_cmdline_user_args(), {
 		ENV_FIGHT: OS.get_environment(ENV_FIGHT),
 		ENV_CHARACTER: OS.get_environment(ENV_CHARACTER),

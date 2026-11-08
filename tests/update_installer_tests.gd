@@ -98,6 +98,19 @@ func _test_happy_path(key: CryptoKey, pem: String) -> void:
 	_check(probe.launched.size() == 1 and (probe.launched[0][0] as String).ends_with("TheUnforgotten-Setup-0.3.9.exe"), "the verified installer is what runs")
 	_check(probe.launched[0][1] == UpdateInstaller.INSTALLER_ARGS and "/RELAUNCH=1" in UpdateInstaller.INSTALLER_ARGS and "/SILENT" in UpdateInstaller.INSTALLER_ARGS, "it runs silently and asks to relaunch the game")
 	_check(probe.quits == 1, "the game quits once the installer is running")
+	var launched_path: String = probe.launched[0][0]
+	_check(launched_path.replace("\\", "/").contains("/run_") and not launched_path.replace("\\", "/").begins_with(ProjectSettings.globalize_path(_installer_path()).replace("\\", "/")), "it runs from a private per-launch copy, not the download itself")
+	_check(FileAccess.file_exists(launched_path), "the launched copy exists")
+	UpdateInstaller.cleanup(_dir)
+	_check(not FileAccess.file_exists(launched_path) and DirAccess.get_directories_at(_dir).is_empty(), "cleanup removes the per-launch copies")
+	installer.free()
+
+	# Discarding a READY installer (the notice's Skip) removes it from disk.
+	probe = Probe.new()
+	installer = _ready_installer(pem, probe, key)
+	_check(installer.state == UpdateInstaller.State.READY and FileAccess.file_exists(_installer_path()), "setup for discard is ready")
+	installer.discard()
+	_check(installer.state == UpdateInstaller.State.IDLE and not FileAccess.file_exists(_installer_path()), "discard removes a verified installer")
 	installer.free()
 
 

@@ -88,14 +88,19 @@ static func _copy_checked(source: String, target: String) -> bool:
 	return true
 
 
-## Deletes a folder and everything under it. Returns false if anything could not be removed.
+## Deletes a folder and everything under it. Returns false if anything could not be removed. A subfolder that
+## is a symlink or junction is never followed (its link is removed, its target is left alone).
 static func _remove_tree(path: String) -> bool:
 	var dir := DirAccess.open(path)
 	if dir == null:
 		return false
 	var clean := true
 	for sub in dir.get_directories():
-		clean = _remove_tree(path.path_join(sub)) and clean
+		var child := path.path_join(sub)
+		if dir.is_link(sub):
+			clean = DirAccess.remove_absolute(child) == OK and clean
+		else:
+			clean = _remove_tree(child) and clean
 	for file_name in dir.get_files():
 		if DirAccess.remove_absolute(path.path_join(file_name)) != OK:
 			clean = false

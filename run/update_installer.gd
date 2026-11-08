@@ -9,7 +9,7 @@ extends Node
 ## (1) the manifest's detached RSA signature verifies against the public key built into the game,
 ## (2) the manifest names this release's file and version and is newer than the running game, and
 ## (3) the installer's SHA-256 equals the one in the manifest (UpdateVerifier). (3) is checked on
-## arrival and again right before launch. Signing name and version, not just bytes, is what stops an
+## arrival and again, on a private copy, right before launch. Signing name and version, not just bytes, is what stops an
 ## older genuinely signed installer being replayed as an update.
 
 signal changed
@@ -76,6 +76,13 @@ static func cleanup(dir: String = "user://update") -> void:
 		return
 	for file_name in access.get_files():
 		access.remove(file_name)
+	# The per-launch copies (see install_and_restart) live in one level of subfolders.
+	for dir_name in access.get_directories():
+		var sub := DirAccess.open(dir.path_join(dir_name))
+		if sub != null:
+			for file_name in sub.get_files():
+				sub.remove(file_name)
+		access.remove(dir_name)
 
 
 ## Begins downloading the release `release_tag`. Returns false (state FAILED, `error` set) when it
@@ -166,17 +173,37 @@ func handle_installer(result: int, code: int) -> void:
 	changed.emit()
 
 
-## Runs the verified installer and closes the game. Re-verifies first, because the file has sat in
-## the player's profile folder since it was checked. Returns false (state FAILED) if anything is off.
+## Removes a downloaded installer that is waiting (READY) or leftovers of a failed attempt, and returns to
+## IDLE. The Skip button uses it; cancel() only handles a download in flight.
+func discard() -> void:
+	_drop_request()
+	if state == State.READY:
+		cleanup(work_dir)
+		state = State.IDLE
+		progress = 0.0
+		changed.emit()
+
+
+## Runs the verified installer and closes the game. The file has sat in the player's profile folder since it
+## was checked, so it is copied into a fresh, randomly named folder first and the COPY is hashed and launched:
+## nothing that learned the download's name can swap the file between the check and the launch. Returns false
+## (state FAILED) if anything is off.
 func install_and_restart() -> bool:
 	if state != State.READY:
 		return false
-	var why := UpdateVerifier.verify_file_hash(_installer_path, _expected_sha256)
+	var launch_dir := work_dir.path_join("run_" + Crypto.new().generate_random_bytes(8).hex_encode())
+	var copy_path := launch_dir.path_join(_installer_path.get_file())
+	if DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(launch_dir)) != OK \
+			or DirAccess.copy_absolute(ProjectSettings.globalize_path(_installer_path), ProjectSettings.globalize_path(copy_path)) != OK:
+		cleanup(work_dir)
+		return _fail("the installer could not be prepared")
+	var why := UpdateVerifier.verify_file_hash(copy_path, _expected_sha256)
 	if why != "":
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(_installer_path))
+		cleanup(work_dir)
 		return _fail("the update failed verification (%s)" % why)
-	var pid: int = launch.call(ProjectSettings.globalize_path(_installer_path), INSTALLER_ARGS)
+	var pid: int = launch.call(ProjectSettings.globalize_path(copy_path), INSTALLER_ARGS)
 	if pid <= 0:
+		cleanup(work_dir)
 		return _fail("the installer could not be started")
 	quit_game.call()
 	return true
@@ -201,6 +228,10 @@ func _begin_request(url: String, file: String, size_limit: int, timeout: float, 
 	_request = HTTPRequest.new()
 	_request.body_size_limit = size_limit
 	_request.timeout = timeout
+	# HTTPRequest follows redirects internally and does not report the final URL, so a redirect to plain http://
+	# cannot be refused here. That is safe because nothing downloaded is trusted by its transport: the manifest must
+	# carry a valid signature and the installer must match the signed SHA-256. The cap just bounds redirect chains.
+	_request.max_redirects = UpdateCheck.MAX_REDIRECTS
 	if file != "":
 		_request.download_file = ProjectSettings.globalize_path(file)
 	_request.request_completed.connect(done)
