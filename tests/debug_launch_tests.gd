@@ -160,6 +160,7 @@ func _test_proto_statuses() -> void:
 		if run_state.stops[index].type == RunState.StopType.COMBAT:
 			run_state.stop_index = index
 			break
+	run_state.debug_enemy_resolver = DebugLaunch.prototype_enemy
 	run_state.debug_encounter.assign([&"proto_pest"])
 	var combat := run_state.start_combat()
 	_check(combat != null and combat.enemies.size() == 1 and combat.enemies[0].data.id == &"proto_pest", "the run fights the Pest")
@@ -246,6 +247,7 @@ func _test_proto_cycling() -> void:
 		if run_state.stops[index].type == RunState.StopType.COMBAT:
 			run_state.stop_index = index
 			break
+	run_state.debug_enemy_resolver = DebugLaunch.prototype_enemy
 	run_state.debug_encounter.assign([&"proto_dreadkeeper"])
 	run_state.deck = deck
 	var combat := run_state.start_combat()

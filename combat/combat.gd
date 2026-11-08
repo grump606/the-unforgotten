@@ -44,12 +44,19 @@ var phase: Phase = Phase.NOT_STARTED
 var plays_this_turn: int = 0
 ## Hand indices marked for discard while phase == DISCARDING (sorted, no duplicates).
 var discard_marks: Array[int] = []
-## The run's relics for this fight (see RelicData); empty changes nothing.
-var relics: Array[RelicData] = []
-## Once-per-fight relic triggers already spent (FIRST_FORGOTTEN_RETURN, FIRST_ATTACK_SHAKEN).
-# Relic amounts summed per kind, rebuilt when the relic list changes size (see _relic_total).
+## The run's relics for this fight (see RelicData); empty changes nothing. Read-only from outside: the
+## getter hands out a copy, and assigning the property replaces the list and rebuilds the per-kind totals,
+## so the cached totals can never go stale. In-place edits of the returned copy do nothing.
+var relics: Array[RelicData]:
+	get:
+		return _relics.duplicate()
+	set(value):
+		_relics = value.duplicate()
+		_rebuild_totals()
+var _relics: Array[RelicData] = []
+# Relic amounts summed per kind (see _relic_total); rebuilt whenever the list is assigned.
 var _totals: Dictionary = {}
-var _totals_for := -1
+# Once-per-fight relic triggers already spent (FIRST_FORGOTTEN_RETURN, FIRST_ATTACK_SHAKEN).
 var _forgotten_return_used := false
 var _first_attack_used := false
 ## The fight's seeded RNG (the same one the piles shuffle with); Scent uses it to pick an heir.
@@ -112,7 +119,7 @@ func _init(player_combatant: Combatant, deck: Array[CardData], enemy_datas: Arra
 	var rng := RandomNumberGenerator.new()
 	rng.seed = rng_seed
 	player = player_combatant
-	relics = owned_relics.duplicate()
+	relics = owned_relics
 	# The player outlives fights; statuses must not.
 	player.clear_statuses()
 	piles = CardPiles.new(deck, rng)
@@ -170,9 +177,15 @@ func can_play(hand_index: int) -> bool:
 		and not piles.hand[hand_index].dormant
 		and (piles.hand[hand_index].surge or piles.hand[hand_index].cost <= energy)
 		# A card that costs HP cannot be the one that kills the player.
-		and piles.hand[hand_index].hp_cost() < player.hp
+		# A Surge card's HP cost scales with the energy it would spend, as _apply multiplies LOSE_HP per_energy.
+		and piles.hand[hand_index].hp_cost(_surge_scale(piles.hand[hand_index])) < player.hp
 		and plays_this_turn < MAX_PLAYS_PER_TURN
 	)
+
+
+## The per_energy multiplier `card` would get if played now: all the energy for a Surge card, else 1.
+func _surge_scale(card: CardData) -> int:
+	return energy if card.surge else 1
 
 
 ## Plays a card. For SINGLE_ENEMY cards `target_index` indexes `enemies`:
@@ -202,6 +215,23 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 	plays_this_turn += 1
 	# Multiplier for per_energy effects: only a Surge card has one.
 	var scale := spent if card.surge else 1
+	_resolve_effects(card, targets, mode, scale)
+	if not _relics.is_empty():
+		_apply_play_relics(card, targets)
+	_fire_play_oaths(card, scale, sworn_before, block_before)
+	card_played.emit(card, targets)
+	_check_phases()
+	if not _check_end():
+		# Queued Glimpse / Recall picks open only now, after everything else the card did.
+		_open_next_choice()
+		state_changed.emit()
+	return true
+
+
+## Applies a played card's effects in order. A SELF-reach effect lands on the player; Scent marks one quarry
+## among the targets; any other effect lands on each target still alive (an earlier effect of this same card
+## may have killed one, and later effects skip the corpse).
+func _resolve_effects(card: CardData, targets: Array[EnemyUnit], mode: CardData.TargetMode, scale: int) -> void:
 	for effect in card.effects:
 		var reach := effect.reach()
 		# SELF cards expose the player; other EXPOSE cards expose their targets.
@@ -214,26 +244,22 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 				_apply(effect, player, quarry, scale)
 		elif reach != CardEffect.Reach.SELF:
 			for target in targets:
+				if target.is_dead():
+					continue
 				_apply(effect, player, target, scale)
-	if not relics.is_empty():
-		_apply_play_relics(card, targets)
+
+
+## The Oaths already Sworn (the first `sworn_before` of them) that react to the card just played.
+func _fire_play_oaths(card: CardData, scale: int, sworn_before: int, block_before: int) -> void:
 	if plays_this_turn == 1:
 		_fire_oaths(CardData.OathTrigger.FIRST_PLAY, sworn_before)
 	_fire_oaths(CardData.OathTrigger.EACH_PLAY, sworn_before)
 	if player.block > block_before:
 		_fire_oaths(CardData.OathTrigger.ON_BLOCK_GAINED, sworn_before)
-	if card.hp_cost() > 0:
+	if card.hp_cost(scale) > 0:
 		_fire_oaths(CardData.OathTrigger.ON_HP_LOST, sworn_before)
 	if card.forgotten and not card.oath:
 		_fire_oaths(CardData.OathTrigger.ON_FORGOTTEN, sworn_before)
-	card_played.emit(card, targets)
-	_check_phases()
-	if not _check_end():
-		# Queued Glimpse / Recall picks open only now, after everything else the card did.
-		_open_next_choice()
-		state_changed.emit()
-	return true
-
 
 func _clear_choices() -> void:
 	_choice_queue.clear()
@@ -418,8 +444,9 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 	_throw_away(discard_indices)
 	_end_of_turn_effects()
 	# Haunt hurts first, so an enemy it kills never acts.
-	for enemy in living_enemies():
-		enemy.lose_hp(enemy.status_turns(Combatant.Status.HAUNTED))
+	for enemy in enemies:
+		if not enemy.is_dead():
+			enemy.lose_hp(enemy.status_turns(Combatant.Status.HAUNTED))
 	_check_phases()
 	if _check_end():
 		return true
@@ -564,26 +591,27 @@ func _fire_oaths(trigger: CardData.OathTrigger, limit: int = -1) -> void:
 ## living enemy), a SELF-reach effect to the player, any other to every enemy still alive.
 func _apply_lasting(effect: CardEffect) -> void:
 	if effect.kind == CardEffect.Kind.SCENT:
-		var quarry := _scent_target(living_enemies())
+		var quarry := _scent_target(enemies)
 		if quarry != null:
 			_apply(effect, player, quarry)
 	elif effect.reach() == CardEffect.Reach.SELF:
 		_apply(effect, player, player)
 	else:
-		for enemy in living_enemies():
-			_apply(effect, player, enemy)
+		for enemy in enemies:
+			# Dead before the effect lands (an enemy only dies from its own damage, never another's).
+			if not enemy.is_dead():
+				_apply(effect, player, enemy)
 
 
 ## Sum of `amount` over the owned relics of `kind` (0 with none).
 func _relic_total(kind: RelicData.Kind) -> int:
-	if relics.is_empty():
-		return 0
-	if _totals_for != relics.size():
-		_totals.clear()
-		for relic in relics:
-			_totals[relic.kind] = _totals.get(relic.kind, 0) + relic.amount
-		_totals_for = relics.size()
 	return _totals.get(kind, 0)
+
+
+func _rebuild_totals() -> void:
+	_totals.clear()
+	for relic in _relics:
+		_totals[relic.kind] = _totals.get(relic.kind, 0) + relic.amount
 
 
 ## Relic effects that fire after a card's own effects: the first play of a turn draws, every
@@ -614,7 +642,7 @@ func _apply_play_relics(card: CardData, targets: Array[EnemyUnit]) -> void:
 ## to Hold and Thorns to 0, so these grants are not wiped. Fight-start effects come first on turn 1
 ## so that a starting Haunt already counts for the turn-start heal.
 func _apply_turn_start_relics() -> void:
-	if relics.is_empty():
+	if _relics.is_empty():
 		return
 	var block := _relic_total(RelicData.Kind.TURN_START_BLOCK)
 	if turn == 1:
@@ -649,23 +677,7 @@ func _apply_turn_start_relics() -> void:
 ## `energy_scale` is the energy a Surge card spent (1 otherwise); it multiplies per_energy effects.
 func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_scale: int = 1) -> void:
 	if effect.is_damage():
-		var hit_count := maxi(effect.hits, 1)
-		if effect.per_energy:
-			hit_count *= energy_scale
-		for _hit in hit_count:
-			# An attacker killed part-way (by Thorns) stops there: a dead enemy must not finish its attack.
-			if source.is_dead():
-				break
-			# plays_this_turn already counts the card being played.
-			# Malice and Shaken of the source, Expose of the target, then Block.
-			var raw := effect.raw_damage(damage_context(source, target, plays_this_turn))
-			target.take_damage_final(Combatant.hit_damage(raw, source, target))
-			# Thorns: an enemy attack on the player also hurts the attacker, once per hit.
-			if effect.kind == CardEffect.Kind.DAMAGE and target == player and source != player and player.thorns > 0:
-				source.take_damage(player.thorns)
-		# A spender uses up the Scent it hit with, after every hit of the effect.
-		if effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
-			target.remove_status(Combatant.Status.SCENT)
+		_apply_damage(effect, source, target, energy_scale)
 		return
 	var amount := effect.amount * energy_scale if effect.per_energy else effect.amount
 	match effect.kind:
@@ -676,6 +688,47 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 		CardEffect.Kind.GAIN_ENERGY:
 			if source == player:
 				energy += maxi(amount, 0)
+		CardEffect.Kind.LOSE_HP:
+			source.lose_hp(amount)
+		CardEffect.Kind.HEAL_PER_HAUNTED:
+			source.heal(amount * haunted_count())
+		CardEffect.Kind.BLOCK:
+			source.gain_block(source.block_from_card(amount))
+		CardEffect.Kind.SCENT, CardEffect.Kind.HAUNT, CardEffect.Kind.EXPOSE, CardEffect.Kind.SHAKEN, \
+		CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
+			_apply_status_effect(effect, source, target, amount)
+		CardEffect.Kind.DRAW, CardEffect.Kind.GLIMPSE, CardEffect.Kind.RECALL, CardEffect.Kind.ADD_CARD:
+			_apply_pile_effect(effect, source, amount)
+		_:
+			push_error("Combat._apply: no handler for CardEffect kind %d" % effect.kind)
+
+
+## Damage family: every hit goes through hit_amount (the shared pipeline), then Block and HP. The hit
+## amount is the same for every hit of one effect, so it is worked out once.
+func _apply_damage(effect: CardEffect, source: Combatant, target: Combatant, energy_scale: int) -> void:
+	var hit_count := maxi(effect.hits, 1)
+	if effect.per_energy:
+		hit_count *= energy_scale
+	# plays_this_turn already counts the card being played.
+	var dealt := hit_amount(effect, source, target, plays_this_turn)
+	for _hit in hit_count:
+		# An attacker killed part-way (by Thorns) stops there: a dead enemy must not finish its attack.
+		if source.is_dead():
+			break
+		target.take_damage_final(dealt)
+		# Thorns: an enemy attack on the player also hurts the attacker, once per hit.
+		if effect.kind == CardEffect.Kind.DAMAGE and target == player and source != player and player.thorns > 0:
+			source.take_damage(player.thorns)
+	# A spender uses up the Scent it hit with, after every hit of the effect.
+	if effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
+		target.remove_status(Combatant.Status.SCENT)
+
+
+## Status family. `target` receives statuses; `source` receives Malice and Ward when positive (target when
+## negative). An enemy intent with EXPOSE, SHAKEN or FRAYED affects the player, held back until the player's
+## statuses have ticked (see _pending_player_statuses).
+func _apply_status_effect(effect: CardEffect, source: Combatant, target: Combatant, amount: int) -> void:
+	match effect.kind:
 		CardEffect.Kind.SCENT:
 			# Only the player's cards mark a quarry; an enemy intent with SCENT does nothing.
 			if source == player and target != player:
@@ -684,12 +737,24 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 			if source == player:
 				# The Haunt bonus only boosts a Haunt that was going to be applied at all.
 				target.apply_status(Combatant.Status.HAUNTED, amount + (_relic_total(RelicData.Kind.HAUNT_BONUS) if amount > 0 else 0))
-		CardEffect.Kind.LOSE_HP:
-			source.lose_hp(amount)
-		CardEffect.Kind.HEAL_PER_HAUNTED:
-			source.heal(amount * haunted_count())
-		CardEffect.Kind.BLOCK:
-			source.gain_block(source.block_from_card(amount))
+		CardEffect.Kind.EXPOSE, CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
+			var status := _duration_status(effect.kind)
+			if source == player:
+				target.apply_status(status, amount)
+			elif target == player:
+				_pending_player_statuses[status] = _pending_player_statuses.get(status, 0) + maxi(amount, 0)
+		CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
+			var stack_status := Combatant.Status.MALICE if effect.kind == CardEffect.Kind.MALICE else Combatant.Status.WARD
+			var recipient := source if amount > 0 else target
+			if effect.temporary:
+				recipient.apply_temp_stack(stack_status, amount)
+			else:
+				recipient.apply_status(stack_status, amount)
+
+
+## Pile family: draws, the Glimpse / Recall picks and cards added to the player's piles.
+func _apply_pile_effect(effect: CardEffect, source: Combatant, amount: int) -> void:
+	match effect.kind:
 		CardEffect.Kind.DRAW:
 			# Only the player has a hand.
 			if source == player:
@@ -707,21 +772,25 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 			else:
 				for _copy in maxi(amount, 0):
 					piles.add_card(effect.card, effect.pile, HAND_MAX)
-		CardEffect.Kind.EXPOSE, CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED:
-			var status := _duration_status(effect.kind)
-			if source == player:
-				target.apply_status(status, amount)
-			elif target == player:
-				_pending_player_statuses[status] = _pending_player_statuses.get(status, 0) + maxi(amount, 0)
-		CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
-			var stack_status := Combatant.Status.MALICE if effect.kind == CardEffect.Kind.MALICE else Combatant.Status.WARD
-			var recipient := source if amount > 0 else target
-			if effect.temporary:
-				recipient.apply_temp_stack(stack_status, amount)
-			else:
-				recipient.apply_status(stack_status, amount)
-		_:
-			push_error("Combat._apply: no handler for CardEffect kind %d" % effect.kind)
+
+
+## One hit of damage `effect` from `source` onto `target` after the whole pipeline and before Block: the
+## raw damage (reading Block, Haunt, plays, the Forgotten pile and Scent), the source's Malice and Shaken,
+## the target's Scent and Expose. `plays_including_this` counts the card being played (a bot pricing a card
+## not yet played passes plays_this_turn + 1). The engine's _apply and every preview use this one rule.
+func hit_amount(effect: CardEffect, source: Combatant, target: Combatant, plays_including_this: int) -> int:
+	return Combatant.hit_damage(effect.raw_damage(damage_context(source, target, plays_including_this)), source, target)
+
+
+## What `hits` hits (default: the effect's own `hits`; a Surge card's per_energy scaling is the caller's to
+## pass) of damage `effect` would do to `target`, without changing anything: {damage, absorbed, through,
+## lost, block_left}. `damage` is the total after Malice/Shaken/Expose, `absorbed` what Block took,
+## `through` the rest (not capped by HP), `lost` the HP the target would really lose (capped), and
+## `block_left` its Block afterwards. `block` overrides the target's current Block (pass the previous
+## effect's block_left to chain several effects of one card); -1 uses the target's own.
+func preview_hit(effect: CardEffect, source: Combatant, target: Combatant, plays_including_this: int, hits: int = -1, block: int = -1) -> Dictionary:
+	var raw := effect.raw_damage(damage_context(source, target, plays_including_this))
+	return Combatant.hits_outcome(source, target, raw, maxi(effect.hits, 1) if hits < 0 else hits, block)
 
 
 ## The fight numbers a damage effect from `source` onto `target` reads (see CardEffect.raw_damage).
@@ -805,12 +874,15 @@ func scent_holder_index() -> int:
 	return -1
 
 
-## Makes `quarry` the one enemy holding Scent: any Scent held elsewhere moves to it, `amount` is added, and
-## the total is capped (Combatant.SCENT_CAP). A non-positive amount with nothing to move changes nothing.
+## Makes `quarry` the one enemy holding Scent: any Scent held by a LIVING enemy elsewhere moves to it,
+## `amount` is added, and the total is capped (Combatant.SCENT_CAP). A non-positive amount with nothing to
+## move changes nothing. A DEAD holder's stack is deliberately left alone: it belongs to _pass_on_scent
+## (half the stack, the quarry-kill heal and the QUARRY_DIES Oaths), which runs after the card, so a card
+## that kills the quarry and then marks another enemy cannot absorb the whole dead stack.
 func _give_scent(quarry: EnemyUnit, amount: int) -> void:
 	var total := quarry.stacks(Combatant.Status.SCENT) + maxi(amount, 0)
 	for enemy in enemies:
-		if enemy != quarry and enemy.stacks(Combatant.Status.SCENT) > 0:
+		if enemy != quarry and not enemy.is_dead() and enemy.stacks(Combatant.Status.SCENT) > 0:
 			total += enemy.stacks(Combatant.Status.SCENT)
 			enemy.remove_status(Combatant.Status.SCENT)
 	quarry.remove_status(Combatant.Status.SCENT)
@@ -841,6 +913,6 @@ func _pass_on_scent() -> void:
 ## a dead quarry's Scent on: every way an enemy can die is followed by this check.
 func _check_phases() -> void:
 	_pass_on_scent()
-	for enemy in living_enemies():
-		if enemy.check_phase():
+	for enemy in enemies:
+		if not enemy.is_dead() and enemy.check_phase():
 			enemy_phase_changed.emit(enemy, enemy.phase)

@@ -86,7 +86,7 @@ static func gold_for_win(enemy_count: int) -> int:
 const UNVALUED := -999999
 
 ## Raw strength of a card: 2 per energy of cost plus the value of each effect (effect_value).
-static func card_value(card: CardData) -> int:
+static func card_value(card: CardData, added_depth: int = 0) -> int:
 	var value := card.cost * 2
 	if card.forgotten:
 		value += FORGOTTEN_ADJUST
@@ -101,20 +101,20 @@ static func card_value(card: CardData) -> int:
 	if card.surge:
 		value += SURGE_ADJUST
 	for effect in card.effects:
-		var effect_points := effect_value(effect)
+		var effect_points := effect_value(effect, added_depth)
 		if effect_points == UNVALUED:
 			push_error("Vendor.card_value: no valuation for CardEffect kind %d" % effect.kind)
 			continue
 		value += effect_points
 	# What a card does when thrown away at the end of the turn counts for half: it only fires if it is discarded.
 	for effect in card.discard_effects:
-		var discard_points := effect_value(effect)
+		var discard_points := effect_value(effect, added_depth)
 		if discard_points != UNVALUED:
 			value += discard_points / DISCARD_VALUE_DIVISOR
 	# An Oath's effects fire on a trigger for the rest of the fight, so they count several times.
 	if card.oath:
 		for effect in card.oath_effects:
-			var oath_points := effect_value(effect)
+			var oath_points := effect_value(effect, added_depth)
 			if oath_points == UNVALUED:
 				push_error("Vendor.card_value: no valuation for oath CardEffect kind %d" % effect.kind)
 				continue
@@ -125,7 +125,7 @@ static func card_value(card: CardData) -> int:
 ## Deliberate value of one effect, in the same points as damage (1 per point). Scaling
 ## kinds assume a typical board: about 5 Block held, a card or two played earlier in the
 ## turn, a Haunt of about 4. Every CardEffect.Kind needs a branch here (a test enforces it).
-static func effect_value(effect: CardEffect) -> int:
+static func effect_value(effect: CardEffect, added_depth: int = 0) -> int:
 	var amount := effect.amount
 	# per_energy scales hits on a damage kind and the amount on any other kind, by a typical energy.
 	var multiplier := 1
@@ -134,7 +134,7 @@ static func effect_value(effect: CardEffect) -> int:
 			multiplier = SURGE_TYPICAL_ENERGY
 		else:
 			amount *= SURGE_TYPICAL_ENERGY
-	var points := _base_effect_value(effect, amount)
+	var points := _base_effect_value(effect, amount, added_depth)
 	if points == UNVALUED:
 		return UNVALUED
 	if effect.is_damage():
@@ -143,7 +143,7 @@ static func effect_value(effect: CardEffect) -> int:
 	return points
 
 
-static func _base_effect_value(effect: CardEffect, amount: int) -> int:
+static func _base_effect_value(effect: CardEffect, amount: int, added_depth: int) -> int:
 	match effect.kind:
 		CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK, CardEffect.Kind.HOLD:
 			return amount
@@ -189,22 +189,18 @@ static func _base_effect_value(effect: CardEffect, amount: int) -> int:
 		CardEffect.Kind.DAMAGE_PER_SCENT:
 			return amount + effect.bonus * TYPICAL_SCENT
 		CardEffect.Kind.ADD_CARD:
-			return amount * _added_card_value(effect.card)
+			return amount * _added_card_value(effect.card, added_depth)
 	return UNVALUED
 
 
 ## Value of one copy of a created card: its own card_value, which is large and negative for a Dormant
 ## card (junk is a cost for whoever receives it, so a card adding one is worth less) and positive for a
 ## playable one. 0 for no card. Depth-limited so a card that adds itself cannot recurse forever.
-static var _added_depth := 0
-
-static func _added_card_value(card: CardData) -> int:
-	if card == null or _added_depth >= 3:
+## dded_depth is how many created-card levels enclose this one (a parameter, so there is no shared state).
+static func _added_card_value(card: CardData, added_depth: int) -> int:
+	if card == null or added_depth >= 3:
 		return 0
-	_added_depth += 1
-	var value := card_value(card)
-	_added_depth -= 1
-	return value
+	return card_value(card, added_depth + 1)
 
 
 ## The single price rule: value < MID_FROM -> PRICE_CHEAP, value < PRICEY_FROM ->
@@ -261,7 +257,7 @@ var _healed := false
 ## `card_pool` is what the stock is drawn from (a character's pool); empty means every card.
 ## `relic_pool` is the relics that may be offered (the caller leaves out the ones already
 ## owned); one is picked after the card stock, and none is offered when it is empty.
-func _init(deck: Array[CardData], rng: RandomNumberGenerator, starting_gold: int, card_pool: Array[CardData] = [], relic_pool: Array[RelicData] = [], wallet: Wallet = null, rarity_weights: Array[int] = [60, 32, 8]) -> void:
+func _init(deck: Array[CardData], rng: RandomNumberGenerator, starting_gold: int, card_pool: Array[CardData] = [], relic_pool: Array[RelicData] = [], wallet: Wallet = null, rarity_weights: Array[int] = []) -> void:
 	_deck = deck
 	if wallet != null:
 		_wallet = wallet  # shared: `starting_gold` is ignored
@@ -280,7 +276,7 @@ func _init(deck: Array[CardData], rng: RandomNumberGenerator, starting_gold: int
 			seen[card.id] = true
 			pool.append(card)
 	# Each stock slot rolls a rarity, then a card of it (the same odds as a reward at this depth).
-	for card in StarterContent.pick_by_rarity(pool, STOCK_CARDS, rarity_weights, rng):
+	for card in StarterContent.pick_by_rarity(pool, STOCK_CARDS, rarity_weights if not rarity_weights.is_empty() else StarterContent.rarity_weights(0), rng):
 		_offers.append({"card": card, "price": card_price(card), "sold": false})
 	if _offers.size() < STOCK_CARDS:
 		push_error("Vendor: could only stock %d of %d cards" % [_offers.size(), STOCK_CARDS])

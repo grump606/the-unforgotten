@@ -4,9 +4,6 @@ extends SceneTree
 ## described in docs/RUN_INTEGRATION.md. Uses only the public Combat API.
 ## Run: godot --headless --path . -s res://tools/run_stub.gd -- --seed 1
 
-const PLAYER_START_HP: int = preload("res://battle.gd").PLAYER_START_HP # single source: battle.gd
-const REST_HEAL := 8
-const TURN_CAP := 50 # a fight still running after this many turns is a stall (treated as a loss)
 const USAGE := "Usage: godot --headless --path . -s res://tools/run_stub.gd -- [--seed S] [--character ID]\n  --seed S        run seed, integer (default 1)\n  --character ID  max HP and starting deck come from this character: deserter, thief, medium or stray (default deserter)"
 
 var _outcome := 0 # 0 running, 1 victory, -1 defeat
@@ -51,9 +48,9 @@ func _run(run_seed: int, character_id: StringName) -> int:
 		return 1
 	var deck := StarterContent.starter_deck(character.id)
 	if deck.is_empty():
-		printerr("run_stub: extended deck failed to load")
+		printerr("run_stub: the character's starting deck failed to load")
 		return 1
-	# Reward pool: one entry per distinct card type in the extended deck.
+	# Reward pool: one entry per distinct card type in the starting deck.
 	var reward_pool: Array[CardData] = []
 	var seen: Dictionary = {}
 	for card in deck:
@@ -105,17 +102,17 @@ func _run(run_seed: int, character_id: StringName) -> int:
 	return 0
 
 
-## The stub's rest stop, like the real one: Rest (REST_HEAL HP) while HP is under 60% of max or no card can
-## be Remembered, else Remember the first card that can be (its slot takes the Remembered variant: same id,
+## The stub's rest stop, like the real one: Rest (heal to full, as RunState.rest does) while HP is under
+## SimPolicy.REST_BELOW of max or no card can be Remembered, else Remember the first card that can be (its slot takes the Remembered variant: same id,
 ## `is_remembered`). Returns a short description of what happened.
 static func rest_or_remember(player: Combatant, deck: Array[CardData]) -> String:
-	if player.hp >= 0.6 * player.max_hp:
+	if player.hp >= SimPolicy.REST_BELOW * player.max_hp:
 		for i in deck.size():
 			if deck[i].can_remember():
 				var name := deck[i].display_name
 				deck[i] = deck[i].remembered_card()
 				return "remembered %s" % name
-	return "rest +%d" % player.heal(REST_HEAL)
+	return "rest +%d" % player.heal(player.max_hp - player.hp)
 
 
 ## Describes the per-fight state still on `player` (Block, any status or stack, temporary stacks
@@ -133,7 +130,7 @@ static func leaked_state(player: Combatant) -> String:
 ## Plays the fight to its end with the trivial policy. Returns false on an internal failure.
 func _play(combat: Combat) -> bool:
 	while SimPolicy.is_acting(combat):
-		if combat.turn > TURN_CAP:
+		if combat.turn > SimPolicy.TURN_CAP:
 			combat.abandon() # release the persistent player from the stalled fight
 			return true
 		if not SimPolicy.resolve_choices(combat):

@@ -229,8 +229,49 @@ func block_from_card(amount: int) -> int:
 		return 0
 	var value := maxi(amount + stacks(Status.WARD), 0)
 	if value > 0 and stacks(Status.FRAYED) > 0:
-		value = maxi(value * REDUCED_NUM / REDUCED_DEN, 1)
+		value = frayed_amount(value)
 	return value
+
+
+## A positive Block `amount` after Frayed: 3/4, rounded down, never below 1. The one Frayed formula.
+static func frayed_amount(amount: int) -> int:
+	return maxi(amount * REDUCED_NUM / REDUCED_DEN, 1)
+
+
+## Block points a Block of `amount` loses to Frayed (0 for an amount of 0 or less).
+static func frayed_loss(amount: int) -> int:
+	return 0 if amount <= 0 else amount - frayed_amount(amount)
+
+
+## How one hit of `amount` splits against `block` and `hp`: x = absorbed by Block, y = HP lost (capped at hp).
+## The one Block-absorption rule: take_damage_final and every preview use it.
+static func block_split(block_now: int, hp_now: int, amount: int) -> Vector2i:
+	amount = maxi(amount, 0)
+	var absorbed := mini(block_now, amount)
+	return Vector2i(absorbed, mini(amount - absorbed, hp_now))
+
+
+## What `hits` hits of raw damage `raw` from `attacker` would do to `defender`, without changing anything:
+## {damage (after Malice/Shaken/Scent/Expose, summed), absorbed (by Block, across the hits), through (damage
+## minus absorbed, not capped by HP), lost (HP really lost, capped), block_left}. `block_now` overrides the
+## defender's Block when >= 0.
+static func hits_outcome(attacker: Combatant, defender: Combatant, raw: int, hits: int, block_now: int = -1) -> Dictionary:
+	var block_left := defender.block if block_now < 0 else block_now
+	var hp_left := defender.hp
+	var damage := 0
+	var absorbed := 0
+	var through := 0
+	var lost := 0
+	for _h in hits:
+		var dealt := hit_damage(raw, attacker, defender)
+		var split := block_split(block_left, hp_left, dealt)
+		block_left -= split.x
+		hp_left -= split.y
+		damage += dealt
+		absorbed += split.x
+		through += dealt - split.x
+		lost += split.y
+	return {"damage": damage, "absorbed": absorbed, "through": through, "lost": lost, "block_left": block_left}
 
 
 ## Loses HP directly: Block and Expose do not apply. Returns the HP actually lost.
@@ -249,10 +290,8 @@ func take_damage(amount: int) -> int:
 ## Block and HP absorb an amount that already went through the whole chain (hit_damage), so Expose is
 ## not applied again. Returns the HP actually lost.
 func take_damage_final(amount: int) -> int:
-	amount = maxi(amount, 0)
-	var absorbed := mini(block, amount)
-	block -= absorbed
-	var lost := mini(amount - absorbed, hp)
-	hp -= lost
+	var split := block_split(block, hp, amount)
+	block -= split.x
+	hp -= split.y
 	changed.emit()
-	return lost
+	return split.y

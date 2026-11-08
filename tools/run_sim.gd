@@ -11,11 +11,14 @@ extends SceneTree
 ## composition reward/vendor scoring with skips and card removal); see its header.
 ## The default, --policy greedy, is the behaviour described above.
 
-const TURN_CAP := 50 # a fight still running after this many turns is a stall
 const DEFAULT_RUNS := 300
+## Run i of base seed S uses seed S * SEED_STRIDE + i, so two base seeds never share a run seed as long as
+## --runs stays below SEED_STRIDE (MAX_RUNS enforces it).
+const SEED_STRIDE := 1000003
+const MAX_RUNS := 1000000
 const DEFAULT_SEED := 1
 const POLICIES: Array[String] = ["greedy", "smart"]
-const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [--runs N] [--seed S] [--policy P] [--character C] [--help]\n  --runs N    number of whole runs, integer >= 1 (default 300)\n  --seed S    base random seed, integer (default 1)\n  --policy P  greedy (default) or smart (stronger lookahead player)\n  --character C  deserter (default), thief, medium or stray\n  --help     print this usage and exit 0"
+const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [--runs N] [--seed S] [--policy P] [--character C] [--help]\n  --runs N    number of whole runs, integer 1 to 1000000 (default 300)\n  --seed S    base random seed, integer (default 1)\n  --policy P  greedy (default) or smart (stronger lookahead player)\n  --character C  deserter (default), thief, medium or stray\n  --help     print this usage and exit 0"
 
 var _smart := false
 var _card_stats := false
@@ -24,22 +27,8 @@ var _held := {} # card id -> runs whose deck held at least one copy when the run
 var _character: StringName = StarterContent.DEFAULT_CHARACTER_ID
 
 
-func _initialize() -> void:
-	var args := OS.get_cmdline_user_args()
-	if "--help" in args:
-		print(USAGE)
-		quit(0)
-		return
-	var opts := _parse_args(args)
-	if opts.is_empty():
-		quit(2)
-		return
-	var runs: int = opts["runs"]
-	var base_seed: int = opts["seed"]
-	_smart = opts["policy"] == "smart"
-	_character = StringName(opts["character"])
-	_card_stats = opts["card_stats"]
-
+## What the whole simulation counts, filled by _play_all and read by _print_report.
+class Stats extends RefCounted:
 	var escapes := 0
 	var heals_used := 0
 	var removes_used := 0
@@ -53,110 +42,145 @@ func _initialize() -> void:
 	var deaths_by_desc := {} # stop description -> deaths
 	var entering := {} # stop index -> [runs that reached it, total HP on arrival]
 	var stop_desc := {} # stop index -> description
+	## Set by _play_run: the run's last fight was abandoned at the turn cap.
+	var stalled := false
+
+
+func _initialize() -> void:
+	var args := OS.get_cmdline_user_args()
+	if "--help" in args:
+		print(USAGE)
+		quit(0)
+		return
+	var opts := _parse_args(args)
+	if opts.is_empty():
+		quit(2)
+		return
+	_smart = opts["policy"] == "smart"
+	_character = StringName(opts["character"])
+	_card_stats = opts["card_stats"]
+	var stats := Stats.new()
+	if not _play_all(opts["runs"], opts["seed"], stats):
+		quit(1)
+		return
+	_print_report(opts["runs"], opts["seed"], stats)
+	quit(0)
+
+
+## Plays `runs` whole runs and tallies them. False on an internal failure (already printed).
+func _play_all(runs: int, base_seed: int, stats: Stats) -> bool:
 	for i in runs:
-		var run := RunState.new(base_seed * 1000003 + i, _character)
+		var run := RunState.new(base_seed * SEED_STRIDE + i, _character)
 		if run.stops.is_empty():
 			printerr("run_sim: run has no stops")
-			quit(1)
-			return
-		var stalled := false
-		while not run.finished:
-			var index := run.stop_index
-			var stop := run.current_stop()
-			stop_desc[index] = stop.describe()
-			var tally: Array = entering.get(index, [0, 0])
-			tally[0] += 1
-			tally[1] += run.player.hp
-			entering[index] = tally
-			match stop.type:
-				RunState.StopType.COMBAT:
-					var result := _play_combat(run)
-					if result == -2:
-						quit(1)
-						return
-					if result == 0:
-						stalls += 1
-						stalled = true
-						run.complete_combat(false)
-					else:
-						run.complete_combat(result == 1)
-						# A boss win has no reward to take.
-						if result == 1 and run.reward_pending() and not _take_reward(run):
-							quit(1)
-							return
-				RunState.StopType.REST:
-					if not SimPolicy.rest_stop(run, _smart):
-						printerr("run_sim: rest() failed at stop %d" % index)
-						quit(1)
-						return
-				RunState.StopType.STORY:
-					if not run.read_story():
-						printerr("run_sim: read_story() failed at stop %d" % index)
-						quit(1)
-						return
-				RunState.StopType.VENDOR:
-					if not _shop(run):
-						quit(1)
-						return
-				_:
-					# RunState has no public way to pass a stop of another type.
-					printerr("run_sim: unsupported stop type %d at stop %d (%s)" % [stop.type, index, stop.describe()])
-					quit(1)
-					return
-		if not run.relics.is_empty():
-			runs_with_relics += 1
-			if run.escaped:
-				escapes_with_relics += 1
-		for relic in run.relics:
-			relics_bought[relic.id] = relics_bought.get(relic.id, 0) + 1
-		var seen := {}
-		for card in run.deck:
-			if not seen.has(card.id):
-				seen[card.id] = true
-				_held[card.id] = _held.get(card.id, 0) + 1
-		heals_used += 1 if run.reward_heal_used else 0
-		removes_used += 1 if run.reward_remove_used else 0
-		if run.escaped:
-			escapes += 1
-			escape_hp += run.player.hp
-			escape_deck += run.deck.size()
-		elif not stalled:
-			deaths_at[run.stop_index] = deaths_at.get(run.stop_index, 0) + 1
-			var desc: String = stop_desc[run.stop_index]
-			deaths_by_desc[desc] = deaths_by_desc.get(desc, 0) + 1
+			return false
+		if not _play_run(run, stats):
+			return false
+		_tally_run(run, stats)
+	return true
 
+
+## Plays one run to its end, counting arrivals and stalls. False on an internal failure.
+func _play_run(run: RunState, stats: Stats) -> bool:
+	stats.stalled = false
+	while not run.finished:
+		var index := run.stop_index
+		var stop := run.current_stop()
+		stats.stop_desc[index] = stop.describe()
+		var tally: Array = stats.entering.get(index, [0, 0])
+		tally[0] += 1
+		tally[1] += run.player.hp
+		stats.entering[index] = tally
+		match stop.type:
+			RunState.StopType.COMBAT:
+				var result := _play_combat(run)
+				if result == -2:
+					return false
+				if result == 0:
+					stats.stalls += 1
+					stats.stalled = true
+					run.complete_combat(false)
+				else:
+					run.complete_combat(result == 1)
+					# A boss win has no reward to take.
+					if result == 1 and run.reward_pending() and not _take_reward(run):
+						return false
+			RunState.StopType.REST:
+				if not SimPolicy.rest_stop(run, _smart):
+					printerr("run_sim: rest() failed at stop %d" % index)
+					return false
+			RunState.StopType.STORY:
+				if not run.read_story():
+					printerr("run_sim: read_story() failed at stop %d" % index)
+					return false
+			RunState.StopType.VENDOR:
+				if not _shop(run):
+					return false
+			_:
+				# RunState has no public way to pass a stop of another type.
+				printerr("run_sim: unsupported stop type %d at stop %d (%s)" % [stop.type, index, stop.describe()])
+				return false
+	return true
+
+
+## Adds a finished run to the totals.
+func _tally_run(run: RunState, stats: Stats) -> void:
+	if not run.relics.is_empty():
+		stats.runs_with_relics += 1
+		if run.escaped:
+			stats.escapes_with_relics += 1
+	for relic in run.relics:
+		stats.relics_bought[relic.id] = stats.relics_bought.get(relic.id, 0) + 1
+	var seen := {}
+	for card in run.deck:
+		if not seen.has(card.id):
+			seen[card.id] = true
+			_held[card.id] = _held.get(card.id, 0) + 1
+	stats.heals_used += 1 if run.reward_heal_used else 0
+	stats.removes_used += 1 if run.reward_remove_used else 0
+	if run.escaped:
+		stats.escapes += 1
+		stats.escape_hp += run.player.hp
+		stats.escape_deck += run.deck.size()
+	elif not stats.stalled:
+		stats.deaths_at[run.stop_index] = stats.deaths_at.get(run.stop_index, 0) + 1
+		var desc: String = stats.stop_desc[run.stop_index]
+		stats.deaths_by_desc[desc] = stats.deaths_by_desc.get(desc, 0) + 1
+
+
+func _print_report(runs: int, base_seed: int, stats: Stats) -> void:
 	var start_hp := StarterContent.character(_character).max_hp
-	print("Run sim: %d runs, seed %d, character %s, policy %s, player HP %d, turn cap %d" % [runs, base_seed, _character, "smart" if _smart else "greedy", start_hp, TURN_CAP])
-	print("Escape rate: %d/%d (%.1f%%)" % [escapes, runs, 100.0 * escapes / runs])
-	print("Free reward alternatives used: Heal in %d/%d runs, Remove in %d/%d runs" % [heals_used, runs, removes_used, runs])
-	print("Runs that bought a relic: %d/%d (escape rate with a relic %s, without %s)" % [runs_with_relics, runs, _rate(escapes_with_relics, runs_with_relics), _rate(escapes - escapes_with_relics, runs - runs_with_relics)])
-	var relic_ids: Array = relics_bought.keys()
+	print("Run sim: %d runs, seed %d, character %s, policy %s, player HP %d, turn cap %d" % [runs, base_seed, _character, "smart" if _smart else "greedy", start_hp, SimPolicy.TURN_CAP])
+	print("Escape rate: %d/%d (%.1f%%)" % [stats.escapes, runs, 100.0 * stats.escapes / runs])
+	print("Free reward alternatives used: Heal in %d/%d runs, Remove in %d/%d runs" % [stats.heals_used, runs, stats.removes_used, runs])
+	print("Runs that bought a relic: %d/%d (escape rate with a relic %s, without %s)" % [stats.runs_with_relics, runs, _rate(stats.escapes_with_relics, stats.runs_with_relics), _rate(stats.escapes - stats.escapes_with_relics, runs - stats.runs_with_relics)])
+	var relic_ids: Array = stats.relics_bought.keys()
 	# By name: StringName order is by address, which shifts with the order names were first seen.
 	relic_ids.sort_custom(func(x: StringName, y: StringName) -> bool: return String(x) < String(y))
 	for id: StringName in relic_ids:
-		print("  relic %-18s held at the end of %d runs" % [id, relics_bought[id]])
-	print("Stalls (fight abandoned at turn cap, run counted lost): %d" % stalls)
-	if escapes > 0:
-		print("On escapes: avg final HP %.2f, avg deck size %.2f" % [float(escape_hp) / escapes, float(escape_deck) / escapes])
+		print("  relic %-18s held at the end of %d runs" % [id, stats.relics_bought[id]])
+	print("Stalls (fight abandoned at turn cap, run counted lost): %d" % stats.stalls)
+	if stats.escapes > 0:
+		print("On escapes: avg final HP %.2f, avg deck size %.2f" % [float(stats.escape_hp) / stats.escapes, float(stats.escape_deck) / stats.escapes])
 	else:
 		print("On escapes: n/a")
 	print("")
 	print("Per stop (deaths = runs that died there; avg HP is on arrival)")
 	print("%-5s %-18s %8s %7s %8s %12s" % ["stop", "description", "reached", "deaths", "loss %", "avg HP in"])
-	var indices: Array = entering.keys()
+	var indices: Array = stats.entering.keys()
 	indices.sort()
 	for index: int in indices:
-		var tally: Array = entering[index]
-		var deaths: int = deaths_at.get(index, 0)
-		print("%-5d %-18s %8d %7d %7.1f%% %12.2f" % [index, stop_desc[index], tally[0], deaths, 100.0 * deaths / tally[0], float(tally[1]) / tally[0]])
+		var tally: Array = stats.entering[index]
+		var deaths: int = stats.deaths_at.get(index, 0)
+		print("%-5d %-18s %8d %7d %7.1f%% %12.2f" % [index, stats.stop_desc[index], tally[0], deaths, 100.0 * deaths / tally[0], float(tally[1]) / tally[0]])
 	print("")
 	print("Deaths by stop description")
-	var descs: Array = deaths_by_desc.keys()
+	var descs: Array = stats.deaths_by_desc.keys()
 	descs.sort()
 	if descs.is_empty():
 		print("none")
 	for desc: String in descs:
-		print("%-18s %7d (%.1f%% of runs)" % [desc, deaths_by_desc[desc], 100.0 * deaths_by_desc[desc] / runs])
+		print("%-18s %7d (%.1f%% of runs)" % [desc, stats.deaths_by_desc[desc], 100.0 * stats.deaths_by_desc[desc] / runs])
 	if _card_stats:
 		print("")
 		print("Card plays per run (a card never played shows 0.00), share of runs whose final deck held it, plays per run that held it")
@@ -167,7 +191,6 @@ func _initialize() -> void:
 		for entry: Array in played:
 			var held: int = _held.get(entry[0], 0)
 			print("%-18s %6.2f %7.1f%% %8.2f" % [entry[0], float(entry[1]) / runs, 100.0 * held / runs, float(entry[1]) / maxi(held, 1)])
-	quit(0)
 
 
 static func _rate(part: int, whole: int) -> String:
@@ -189,8 +212,7 @@ func _parse_args(args: PackedStringArray) -> Dictionary:
 			return {}
 		if name == "--character":
 			if i + 1 >= args.size() or not StarterContent.CHARACTER_PATHS.has(StringName(args[i + 1])):
-				printerr("run_sim: --character must be one of %s
-%s" % [", ".join(StarterContent.character_ids()), USAGE])
+				printerr("run_sim: --character must be one of %s\n%s" % [", ".join(StarterContent.character_ids()), USAGE])
 				return {}
 			opts["character"] = args[i + 1]
 			i += 2
@@ -207,8 +229,8 @@ func _parse_args(args: PackedStringArray) -> Dictionary:
 			return {}
 		var value := args[i + 1].to_int()
 		if name == "--runs":
-			if value < 1:
-				printerr("run_sim: --runs must be >= 1\n%s" % USAGE)
+			if value < 1 or value > MAX_RUNS:
+				printerr("run_sim: --runs must be 1 to %d\n%s" % [MAX_RUNS, USAGE])
 				return {}
 			opts["runs"] = value
 		else:
@@ -228,7 +250,7 @@ func _play_combat(run: RunState) -> int:
 	combat.combat_ended.connect(func(victory: bool) -> void: outcome[0] = 1 if victory else -1)
 	combat.start()
 	while SimPolicy.is_acting(combat):
-		if combat.turn > TURN_CAP:
+		if combat.turn > SimPolicy.TURN_CAP:
 			combat.abandon()
 			return 0
 		var played := SmartPolicy.play_turn(combat) if _smart else SimPolicy.play_turn(combat)
