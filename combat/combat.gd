@@ -215,6 +215,23 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 	plays_this_turn += 1
 	# Multiplier for per_energy effects: only a Surge card has one.
 	var scale := spent if card.surge else 1
+	_resolve_effects(card, targets, mode, scale)
+	if not _relics.is_empty():
+		_apply_play_relics(card, targets)
+	_fire_play_oaths(card, scale, sworn_before, block_before)
+	card_played.emit(card, targets)
+	_check_phases()
+	if not _check_end():
+		# Queued Glimpse / Recall picks open only now, after everything else the card did.
+		_open_next_choice()
+		state_changed.emit()
+	return true
+
+
+## Applies a played card's effects in order. A SELF-reach effect lands on the player; Scent marks one quarry
+## among the targets; any other effect lands on each target still alive (an earlier effect of this same card
+## may have killed one, and later effects skip the corpse).
+func _resolve_effects(card: CardData, targets: Array[EnemyUnit], mode: CardData.TargetMode, scale: int) -> void:
 	for effect in card.effects:
 		var reach := effect.reach()
 		# SELF cards expose the player; other EXPOSE cards expose their targets.
@@ -227,12 +244,13 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 				_apply(effect, player, quarry, scale)
 		elif reach != CardEffect.Reach.SELF:
 			for target in targets:
-				# An earlier effect of this same card may have killed the target; later effects skip the corpse.
 				if target.is_dead():
 					continue
 				_apply(effect, player, target, scale)
-	if not _relics.is_empty():
-		_apply_play_relics(card, targets)
+
+
+## The Oaths already Sworn (the first `sworn_before` of them) that react to the card just played.
+func _fire_play_oaths(card: CardData, scale: int, sworn_before: int, block_before: int) -> void:
 	if plays_this_turn == 1:
 		_fire_oaths(CardData.OathTrigger.FIRST_PLAY, sworn_before)
 	_fire_oaths(CardData.OathTrigger.EACH_PLAY, sworn_before)
@@ -242,14 +260,6 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 		_fire_oaths(CardData.OathTrigger.ON_HP_LOST, sworn_before)
 	if card.forgotten and not card.oath:
 		_fire_oaths(CardData.OathTrigger.ON_FORGOTTEN, sworn_before)
-	card_played.emit(card, targets)
-	_check_phases()
-	if not _check_end():
-		# Queued Glimpse / Recall picks open only now, after everything else the card did.
-		_open_next_choice()
-		state_changed.emit()
-	return true
-
 
 func _clear_choices() -> void:
 	_choice_queue.clear()
@@ -434,8 +444,9 @@ func end_player_turn(discard_indices: Array[int] = []) -> bool:
 	_throw_away(discard_indices)
 	_end_of_turn_effects()
 	# Haunt hurts first, so an enemy it kills never acts.
-	for enemy in living_enemies():
-		enemy.lose_hp(enemy.status_turns(Combatant.Status.HAUNTED))
+	for enemy in enemies:
+		if not enemy.is_dead():
+			enemy.lose_hp(enemy.status_turns(Combatant.Status.HAUNTED))
 	_check_phases()
 	if _check_end():
 		return true
@@ -580,14 +591,16 @@ func _fire_oaths(trigger: CardData.OathTrigger, limit: int = -1) -> void:
 ## living enemy), a SELF-reach effect to the player, any other to every enemy still alive.
 func _apply_lasting(effect: CardEffect) -> void:
 	if effect.kind == CardEffect.Kind.SCENT:
-		var quarry := _scent_target(living_enemies())
+		var quarry := _scent_target(enemies)
 		if quarry != null:
 			_apply(effect, player, quarry)
 	elif effect.reach() == CardEffect.Reach.SELF:
 		_apply(effect, player, player)
 	else:
-		for enemy in living_enemies():
-			_apply(effect, player, enemy)
+		for enemy in enemies:
+			# Dead before the effect lands (an enemy only dies from its own damage, never another's).
+			if not enemy.is_dead():
+				_apply(effect, player, enemy)
 
 
 ## Sum of `amount` over the owned relics of `kind` (0 with none).
@@ -900,6 +913,6 @@ func _pass_on_scent() -> void:
 ## a dead quarry's Scent on: every way an enemy can die is followed by this check.
 func _check_phases() -> void:
 	_pass_on_scent()
-	for enemy in living_enemies():
-		if enemy.check_phase():
+	for enemy in enemies:
+		if not enemy.is_dead() and enemy.check_phase():
 			enemy_phase_changed.emit(enemy, enemy.phase)
