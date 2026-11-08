@@ -1,7 +1,23 @@
 # Repository size
 
-Notes for the maintainer. Nothing has been moved or deleted, and history has not been rewritten;
-this page lists what is big and what the options are, so the decision is yours.
+## What was done (November 2026)
+
+History was rewritten once to shrink clones from **about 250 MiB to about 155 MiB**:
+
+- The 77 MB of replaced art that only existed in old history was dropped. Every commit that had `art/layers` now
+  carries today's art (identical files are stored once), so every old commit still builds with its art.
+- `audio/source` (the original MP3s, 16 MB) and `docs/reference` (generated sheets, 4 MB) were removed from the
+  repository and its history, and are git-ignored. Keep your own copies in those folders.
+- Code, data, tests and docs history, branches and tags (including the older release tags) are kept; only the
+  commit hashes changed. Release assets and the in-game updater are unaffected (they use release files, not commits).
+- A bundle of the repository as it was before the rewrite was kept by the maintainer outside the repo.
+- If an old clone shows unrelated histories, delete it and clone again. Do not merge it into the new history.
+- Not done: lossless recompression of the PNGs (needs `oxipng` or `zopflipng`, which were not installed); it
+  would save roughly another 15 to 25% of the art.
+
+The rest of this page is the analysis from before the rewrite; the sizes below are the old ones.
+
+Notes for the maintainer. This page lists what is big and what the options are.
 
 Measured on `main` after v0.8.1 (about 1,020 tracked files, about 430 commits):
 

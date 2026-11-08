@@ -11,7 +11,7 @@ All sound goes through the `AudioManager` autoload (`audio/audio_manager.gd`). S
 
 ## Assets
 
-- `audio/source/` holds the untouched originals (hidden from Godot with `.gdignore`, so neither imported nor exported).
+- `audio/source/` holds the untouched originals (hidden from Godot with `.gdignore`, so neither imported nor exported). **They are no longer tracked in git** (see `docs/REPO_SIZE.md`): the folder is git-ignored, so keep your own copy there; the repository only carries the compressed files in `audio/music`, `audio/ambience` and `audio/sfx`.
 - `tools/audio/bake_loops.py` turns them into the seamless loops the game plays (`audio/music/*_loop.ogg`, `audio/ambience/coastal_loop.ogg`, import set to loop). Requires Python with numpy and soundfile.
 - Effects are unmodified Kenney CC0 WAVs in `audio/sfx/`.
 - `audio/CREDITS.txt` is the credits/licence record. It is listed in the export preset's `include_filter` so it ships, and the Sound page shows it.

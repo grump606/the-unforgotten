@@ -15,3 +15,7 @@ art/work/
 *.pem
 *.p12
 *.key
+
+# Source-only files kept out of the repository (history rewrite, see docs/REPO_SIZE.md)
+audio/source/
+docs/reference/

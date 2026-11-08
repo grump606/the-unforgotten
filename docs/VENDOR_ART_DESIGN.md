@@ -37,7 +37,7 @@ None. When the player cannot afford the cheapest offer (`Vendor.PRICE_CHEAP`) th
 
 ## Retaking the captures
 
-`tools/vendor_sheet.gd` writes the rich, sold, remove and poor shots (not headless); the reference sheets under `docs/reference` use `vendor_rich.png` as JPEGs.
+`tools/vendor_sheet.gd` writes the rich, sold, remove and poor shots (not headless); the reference sheets (once kept under `docs/reference`, no longer tracked) used `vendor_rich.png` as JPEGs.
 
 ## Performance and tests
 
