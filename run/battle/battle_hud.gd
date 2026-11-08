@@ -6,6 +6,11 @@ extends RefCounted
 
 ## Seconds per beat of the amber pulse (two beats) when the discard-step confirm button becomes available.
 const CONFIRM_PULSE_TIME := 0.35
+## Font sizes of the stop title and journey lines, and where the relic badges sit under them.
+const STAGE_TITLE_FONT := 20
+const STAGE_JOURNEY_FONT := 14
+const RELIC_STRIP_X := 4.0
+const RELIC_STRIP_GAP := 14.0
 
 ## The four pile counters (Draw, Discard, Forgotten, Sworn) and the deck line.
 var pile_buttons: Array[Button] = []
@@ -169,17 +174,17 @@ func pile_text() -> String:
 func set_journey(stop_title: String, journey: String, character_title: String, deck_size: int) -> void:
 	if _stage_info == null:
 		_stage_info = VBoxContainer.new()
-		_stage_info.position = Vector2(14, 10)
+		_stage_info.position = MenuStyle.STAGE_INFO_POS
 		_stage_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_stage_info.add_theme_constant_override("separation", 0)
 		_stage_title = Label.new()
-		_stage_title.add_theme_font_size_override("font_size", 20)
+		_stage_title.add_theme_font_size_override("font_size", STAGE_TITLE_FONT)
 		_stage_title.add_theme_color_override("font_color", MenuStyle.TEXT)
 		_stage_title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
 		_stage_title.add_theme_constant_override("shadow_offset_y", 2)
 		_stage_info.add_child(_stage_title)
 		_stage_journey = Label.new()
-		_stage_journey.add_theme_font_size_override("font_size", 14)
+		_stage_journey.add_theme_font_size_override("font_size", STAGE_JOURNEY_FONT)
 		_stage_journey.add_theme_color_override("font_color", MenuStyle.TEXT_DIM)
 		_stage_journey.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
 		_stage_journey.add_theme_constant_override("shadow_offset_y", 1)
@@ -198,6 +203,6 @@ func set_journey(stop_title: String, journey: String, character_title: String, d
 	_character_label.text = character_title
 	_deck_size = deck_size
 	# Below the two lines of text, the relic badges keep the left edge.
-	_battle._relic_strip.position = Vector2(4, _stage_info.position.y + 20 + 14 + 14)
+	_battle._relic_strip.position = Vector2(RELIC_STRIP_X, _stage_info.position.y + STAGE_TITLE_FONT + STAGE_JOURNEY_FONT + RELIC_STRIP_GAP)
 	if _battle.combat() != null:
 		sync_piles()

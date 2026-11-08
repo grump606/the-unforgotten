@@ -39,48 +39,11 @@ func show() -> void:
 	_add_hud_info()
 	var greeting := "What will you carry with you?" if run.gold >= Vendor.PRICE_CHEAP else "\"Empty pockets? Look, then. Looking is free.\""
 	if removing:
-		var picker := panel(greeting, true)
-		style_banner(picker.get_child(0) as Label)
-		if message != "":
-			var note := make_label(message)
-			style_banner(note)
-			picker.add_child(note)
-		add_remove_picker(picker, _remove_card, cancel_removing)
+		_show_remove_picker(greeting)
 		return
-	# Top centre: room for the shopkeeper's hood.
-	var top := VBoxContainer.new()
-	top.add_theme_constant_override("separation", 8)
-	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.add_child(top)
-	top.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, 12)
-	var head := Control.new()
-	head.custom_minimum_size = Vector2(0, VENDOR_HEAD_HEIGHT)
-	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	top.add_child(head)
-	stall.head_anchor = head
-	# Bottom HUD: the speech banner (and last result) centred above a row with the gold and the
-	# Remove / Heal buttons on the left, the offers in the middle and Leave on the right.
-	var margin := MarginContainer.new()
-	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_bottom", 20)
-	body.add_child(margin)
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var stack := VBoxContainer.new()
-	stack.add_theme_constant_override("separation", 8)
-	stack.size_flags_vertical = Control.SIZE_SHRINK_END
-	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.add_child(stack)
-	var banner := make_label(greeting)
-	style_banner(banner)
-	banner.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	stack.add_child(banner)
-	if message != "":
-		var result := make_label(message)
-		style_banner(result)
-		result.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		stack.add_child(result)
+	_add_head_room(stall)
+	var stack := _add_bottom_stack()
+	_add_speech(stack, greeting)
 	var bottom := HBoxContainer.new()
 	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.add_child(bottom)
@@ -93,8 +56,67 @@ func show() -> void:
 	bottom.add_child(_expander())
 	var right := _service_column()
 	bottom.add_child(right)
-	# Disabled up front when the purchase would be refused, so the player is not
-	# sent into a picker or a click that can only fail.
+	_add_services(stall, vendor, left, right)
+
+
+## The pick-a-card-to-remove list, in place of the stall's offers.
+func _show_remove_picker(greeting: String) -> void:
+	var picker := panel(greeting, true)
+	style_banner(picker.get_child(0) as Label)
+	if message != "":
+		var note := make_label(message)
+		style_banner(note)
+		picker.add_child(note)
+	add_remove_picker(picker, _remove_card, cancel_removing)
+
+
+## Top centre: room for the shopkeeper's hood.
+func _add_head_room(stall: VendorScene) -> void:
+	var top := VBoxContainer.new()
+	top.add_theme_constant_override("separation", 8)
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_child(top)
+	top.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, 12)
+	var head := Control.new()
+	head.custom_minimum_size = Vector2(0, VENDOR_HEAD_HEIGHT)
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(head)
+	stall.head_anchor = head
+
+
+## The column at the bottom of the screen that holds the speech banner and the row beneath it; returns it.
+func _add_bottom_stack() -> VBoxContainer:
+	var margin := MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_theme_constant_override("margin_left", 24)
+	margin.add_theme_constant_override("margin_right", 24)
+	margin.add_theme_constant_override("margin_bottom", 20)
+	body.add_child(margin)
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 8)
+	stack.size_flags_vertical = Control.SIZE_SHRINK_END
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(stack)
+	return stack
+
+
+## The speech banner (and the last result) centred above the row of services and offers.
+func _add_speech(stack: VBoxContainer, greeting: String) -> void:
+	var banner := make_label(greeting)
+	style_banner(banner)
+	banner.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	stack.add_child(banner)
+	if message != "":
+		var result := make_label(message)
+		style_banner(result)
+		result.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		stack.add_child(result)
+
+
+## The gold, Remove and Heal on the left and Leave on the right. A button is disabled up front when the
+## purchase would be refused, so the player is not sent into a picker or a click that can only fail.
+func _add_services(stall: VendorScene, vendor: Vendor, left: Control, right: Control) -> void:
 	left.add_child(GoldBadge.new(run.gold))
 	var remove := add_button(left, "Remove a card (%d gold)" % Vendor.REMOVE_CARD_PRICE, start_removing)
 	remove.disabled = vendor.has_removed() or run.gold < Vendor.REMOVE_CARD_PRICE or run.deck.size() <= 1
@@ -110,7 +132,7 @@ func show() -> void:
 ## Top-left info like the fight HUD: stop title, journey number, then HP, gold, deck and relics.
 func _add_hud_info() -> void:
 	var info := VBoxContainer.new()
-	info.position = Vector2(14, 10)
+	info.position = MenuStyle.STAGE_INFO_POS
 	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info.add_theme_constant_override("separation", 0)
 	body.add_child(info)

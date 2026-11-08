@@ -7,7 +7,7 @@ extends RefCounted
 ## If the battle layout changes, retake that picture and move the markers.
 
 const BATTLE_IMAGE := "res://art/tutorial/battle_layout.png"
-const BATTLE_IMAGE_SIZE := Vector2(1152, 648)
+const BATTLE_IMAGE_SIZE := MenuStyle.BASE_SIZE
 
 ## Page kinds the overlay knows how to build.
 enum Kind { TEXT, BATTLE, CARD, ICONS, KEYWORDS }

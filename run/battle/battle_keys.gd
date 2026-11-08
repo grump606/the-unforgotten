@@ -42,68 +42,123 @@ static func end_turn_key_text() -> String:
 	return OS.get_keycode_string(END_TURN_KEY)
 
 
+## Routes one key press. The contexts are tried in a fixed order and the first one that takes the key ends the
+## routing, so an earlier (more modal) context hides every later one:
+##   1. Esc cancels a card drag in progress.
+##   2. Any key skips the boss entrance while it plays.
+##   3. After the fight: N, E and Enter continue (the New Fight / Continue button); other keys do nothing.
+##   4. The pile viewer is modal: Esc closes it, the pile keys switch piles, other keys do nothing.
+##   5. A Glimpse / Recall pick: number keys mark cards, Enter confirms, Esc is swallowed, the rest do nothing.
+##   6. Outside the player's turn and the discard step nothing happens (the same gate as the buttons).
+##   7. The pile keys open the viewer.
+##   8. Number keys play hand cards.
+##   9. Backspace goes back from the discard step.
+##  10. End turn (E, Enter) and target cycling (arrows, Tab).
 func handle(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
 		return
-	var b := _battle
-	var combat := b.combat()
-	if key.keycode == KEY_ESCAPE and b.drag().cancel_with_key():
+	var combat := _battle.combat()
+	var routes: Array[Callable] = [
+		_key_drag_cancel, _key_boss_intro, _key_after_fight, _key_pile_viewer, _key_choice,
+		_key_outside_player_turn, _key_pile_open, _key_play_card, _key_back, _key_turn,
+	]
+	for route in routes:
+		if route.call(key, combat):
+			return
+
+
+func _key_drag_cancel(key: InputEventKey, _combat: Combat) -> bool:
+	if key.keycode == KEY_ESCAPE and _battle.drag().cancel_with_key():
 		_handled()
-		return
-	if b._fx.skip_intro():
+		return true
+	return false
+
+
+func _key_boss_intro(_key: InputEventKey, _combat: Combat) -> bool:
+	if _battle._fx.skip_intro():
 		_handled()
-		return
-	if b._new_fight_button.visible:
-		if key.keycode == KEY_N or key.keycode == KEY_E or key.keycode == KEY_ENTER or key.keycode == KEY_KP_ENTER:
-			_handled()
-			b._on_continue_pressed()
-		return
-	# The pile viewer is read-only and modal: Esc closes it, the pile keys switch piles, other keys do nothing.
-	if b._overlays.pile_viewer_open():
+		return true
+	return false
+
+
+func _key_after_fight(key: InputEventKey, _combat: Combat) -> bool:
+	if not _battle._new_fight_button.visible:
+		return false
+	if key.keycode == KEY_N or key.keycode == END_TURN_KEY or key.keycode == KEY_ENTER or key.keycode == KEY_KP_ENTER:
 		_handled()
-		if key.keycode == KEY_ESCAPE:
-			b._overlays.close_pile_viewer()
-		elif BattleOverlays.PILE_KEYS.has(key.keycode):
-			b.open_pile_viewer(BattleOverlays.PILE_KEYS.find(key.keycode) as PileViewer.Pile)
-		return
-	# A Glimpse / Recall pick: number keys mark cards, Enter confirms, and every other key does nothing.
-	# Esc is swallowed here so it cannot fall through to the run's pause menu; the player's turn controls
-	# stay locked until the pick is resolved.
-	if combat != null and combat.phase == Combat.Phase.CHOOSING:
-		var overlay := b._overlays.choice
-		if key.keycode == KEY_ESCAPE or (overlay != null and overlay.handle_key(key.keycode)):
-			_handled()
-		return
-	# Same gate as the buttons: nothing happens outside the player's turn.
-	if combat == null or (combat.phase != Combat.Phase.PLAYER_TURN and combat.phase != Combat.Phase.DISCARDING):
-		return
-	if BattleOverlays.PILE_KEYS.has(key.keycode):
+		_battle._on_continue_pressed()
+	return true
+
+
+func _key_pile_viewer(key: InputEventKey, _combat: Combat) -> bool:
+	if not _battle._overlays.pile_viewer_open():
+		return false
+	_handled()
+	if key.keycode == KEY_ESCAPE:
+		_battle._overlays.close_pile_viewer()
+	elif BattleOverlays.PILE_KEYS.has(key.keycode):
+		_battle.open_pile_viewer(BattleOverlays.PILE_KEYS.find(key.keycode) as PileViewer.Pile)
+	return true
+
+
+## Esc is swallowed so it cannot fall through to the run's pause menu; the player's turn controls stay locked
+## until the pick is resolved.
+func _key_choice(key: InputEventKey, combat: Combat) -> bool:
+	if combat == null or combat.phase != Combat.Phase.CHOOSING:
+		return false
+	var overlay := _battle._overlays.choice
+	if key.keycode == KEY_ESCAPE or (overlay != null and overlay.handle_key(key.keycode)):
 		_handled()
-		b.open_pile_viewer(BattleOverlays.PILE_KEYS.find(key.keycode) as PileViewer.Pile)
-		return
+	return true
+
+
+func _key_outside_player_turn(_key: InputEventKey, combat: Combat) -> bool:
+	return combat == null or (combat.phase != Combat.Phase.PLAYER_TURN and combat.phase != Combat.Phase.DISCARDING)
+
+
+func _key_pile_open(key: InputEventKey, _combat: Combat) -> bool:
+	if not BattleOverlays.PILE_KEYS.has(key.keycode):
+		return false
+	_handled()
+	_battle.open_pile_viewer(BattleOverlays.PILE_KEYS.find(key.keycode) as PileViewer.Pile)
+	return true
+
+
+func _key_play_card(key: InputEventKey, _combat: Combat) -> bool:
 	var number := card_index(key.keycode)
-	if number >= 0:
-		_handled()
-		b._hand.play_card(number)
-		return
-	if key.keycode == KEY_BACKSPACE:
-		_handled()
-		b._on_cancel_discard_pressed()
-		return
+	if number < 0:
+		return false
+	_handled()
+	_battle._hand.play_card(number)
+	return true
+
+
+func _key_back(key: InputEventKey, _combat: Combat) -> bool:
+	if key.keycode != KEY_BACKSPACE:
+		return false
+	_handled()
+	_battle._on_cancel_discard_pressed()
+	return true
+
+
+func _key_turn(key: InputEventKey, _combat: Combat) -> bool:
 	match key.keycode:
 		END_TURN_KEY, KEY_ENTER, KEY_KP_ENTER:
 			_handled()
-			b._on_end_turn_pressed()
+			_battle._on_end_turn_pressed()
 		KEY_RIGHT:
 			_handled()
-			b._cycle_target(1)
+			_battle._cycle_target(1)
 		KEY_LEFT:
 			_handled()
-			b._cycle_target(-1)
+			_battle._cycle_target(-1)
 		KEY_TAB:
 			_handled()
-			b._cycle_target(-1 if key.shift_pressed else 1)
+			_battle._cycle_target(-1 if key.shift_pressed else 1)
+		_:
+			return false
+	return true
 
 
 func _handled() -> void:

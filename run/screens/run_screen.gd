@@ -83,7 +83,7 @@ func add_remove_picker(box: VBoxContainer, on_pick: Callable, on_cancel: Callabl
 	var columns := mini(PICKER_COLUMNS, maxi(shown.size(), 1))
 	var rows := ceili(float(shown.size()) / PICKER_COLUMNS)
 	var content := Vector2(columns * cell.x + (columns - 1) * 6.0, rows * cell.y + maxi(rows - 1, 0) * 6.0)
-	var window_height := body.get_viewport_rect().size.y if body.is_inside_tree() else 648.0
+	var window_height := body.get_viewport_rect().size.y if body.is_inside_tree() else MenuStyle.BASE_SIZE.y
 	scroll.custom_minimum_size = Vector2(content.x, minf(content.y + 2.0, maxf(window_height - PICKER_RESERVED_HEIGHT, 120.0)))
 	box.add_child(scroll)
 	add_button(box, "Cancel", on_cancel)

@@ -5,6 +5,9 @@ extends RefCounted
 
 ## Layer of the choice overlay and the pile viewer (above the figures, below the phase banner).
 const Z := 22
+## Layers of the screen-wide effects, above the overlays: the phase-change flash and the phase banner.
+const PHASE_FLASH_Z := 39
+const PHASE_BANNER_Z := 40
 ## Keys that open the Draw, Discard, Forgotten and Sworn piles (D, C, F and W; the letters are free of the
 ## other hotkeys).
 const PILE_KEYS := [KEY_D, KEY_C, KEY_F, KEY_W]

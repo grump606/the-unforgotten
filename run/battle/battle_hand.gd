@@ -5,6 +5,8 @@ extends RefCounted
 
 ## Keys 1-9 pick hand cards 1-9 and 0 picks the 10th.
 const MAX_HAND_KEYS := 10
+## Layer of the enlarged copy of the hovered card, above the hand and the stage.
+const PREVIEW_Z := 10
 ## Hand cards are drawn smaller than full size so a hand fits beside the enemy row and log.
 const CARD_SCALE := 0.7
 ## A hand too wide for one row first shrinks its cards down to this scale, then overlaps them
@@ -210,7 +212,7 @@ func show_preview(view: CardView) -> void:
 	if preview == null:
 		preview = CardView.new()
 		preview.view_scale = PREVIEW_SCALE
-		preview.z_index = 10
+		preview.z_index = PREVIEW_Z
 		preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_battle.add_child(preview)
 	preview.live = view.live

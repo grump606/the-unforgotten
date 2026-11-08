@@ -2,6 +2,12 @@ class_name MenuStyle
 extends RefCounted
 ## Shared menu presentation; gameplay text and input behavior are unchanged.
 
+## The window the layouts are designed for (the project's base window); fallbacks for a node that has no size yet
+## and the picture the tutorial's fight screen is taken at read it from here.
+const BASE_SIZE := Vector2(1152, 648)
+## Where the top-left info block (stop title, journey line) of the fight and run screens starts.
+const STAGE_INFO_POS := Vector2(14, 10)
+
 ## Shared palette (styling pass). Use these instead of ad-hoc colors.
 const BG := Color("#10151d")
 const PANEL := Color("#171d28")

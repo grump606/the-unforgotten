@@ -56,10 +56,21 @@ static func style_update_button(button: Button, enabled: bool, available: bool) 
 ## `saved` is the run found on disk, or null. `actions` (see MainMenuActions) holds the callables; its
 ## `on_toggle_updates`, when valid, adds the update-check toggle, called on each press and returning the new setting.
 func show(saved: RunState, actions: MainMenuActions) -> void:
-	var on_continue := actions.on_continue
-	var update_notice := actions.update_notice
 	add_backdrop(MenuScene.new())
 	var box := panel("The Unforgotten")
+	_add_title(box)
+	if saved != null:
+		_add_saved_summary(box, saved)
+		continue_button = add_button(box, "Continue", actions.on_continue)
+	_add_main_buttons(box, actions)
+	if actions.on_toggle_updates.is_valid():
+		_add_update_toggle(actions)
+	_add_secondary_buttons(box, actions)
+	(continue_button if continue_button != null else new_run_button).grab_focus()
+
+
+## The carved title (or its text fallback) and the tagline under it.
+func _add_title(box: VBoxContainer) -> void:
 	var title := box.get_child(0) as Label
 	MenuStyle.heading(title, 64)
 	title.add_theme_color_override("font_color", MenuStyle.PARCHMENT)
@@ -71,77 +82,90 @@ func show(saved: RunState, actions: MainMenuActions) -> void:
 	subtitle.add_theme_font_override("font", MenuStyle.serif_font())
 	subtitle.add_theme_font_size_override("font_size", 22)
 	box.add_child(subtitle)
-	if saved != null:
-		# The saved run's details sit in a compact panel of their own.
-		var details := PanelContainer.new()
-		details.name = "SavedRunDetails"
-		var tablet := MenuStyle.tablet_box()
-		details.add_theme_stylebox_override("panel", tablet if tablet != null else _compact_panel_style())
-		details.custom_minimum_size = Vector2(BUTTON_WIDTH + 140.0, 0)
-		details.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		var summary := make_label("Your journey waits at %s.\n%s  ·  HP %d/%d  ·  Gold %d  ·  Deck %d" % [
-			DestinationArt.label_at(saved.stop_index), saved.player.display_name, saved.player.hp, saved.player.max_hp, saved.gold, saved.deck.size(),
-		])
-		summary.add_theme_font_override("font", MenuStyle.serif_font())
-		summary.add_theme_font_size_override("font_size", 18)
-		summary.add_theme_color_override("font_color", MenuStyle.TEXT)
-		details.add_child(summary)
-		box.add_child(details)
-		continue_button = add_button(box, "Continue", on_continue)
+
+
+## The saved run's details, in a compact panel of their own.
+func _add_saved_summary(box: VBoxContainer, saved: RunState) -> void:
+	var details := PanelContainer.new()
+	details.name = "SavedRunDetails"
+	var tablet := MenuStyle.tablet_box()
+	details.add_theme_stylebox_override("panel", tablet if tablet != null else _compact_panel_style())
+	details.custom_minimum_size = Vector2(BUTTON_WIDTH + 140.0, 0)
+	details.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var summary := make_label("Your journey waits at %s.\n%s  ·  HP %d/%d  ·  Gold %d  ·  Deck %d" % [
+		DestinationArt.label_at(saved.stop_index), saved.player.display_name, saved.player.hp, saved.player.max_hp, saved.gold, saved.deck.size(),
+	])
+	summary.add_theme_font_override("font", MenuStyle.serif_font())
+	summary.add_theme_font_size_override("font_size", 18)
+	summary.add_theme_color_override("font_color", MenuStyle.TEXT)
+	details.add_child(summary)
+	box.add_child(details)
+
+
+## New Journey and Exit (Continue was added before them), sized alike, with one clear primary action:
+## Continue when there is a save, otherwise New Journey.
+func _add_main_buttons(box: VBoxContainer, actions: MainMenuActions) -> void:
 	new_run_button = add_button(box, "New Journey", actions.on_new_run)
 	new_run_button.theme_type_variation = MenuStyle.PLAQUE
 	exit_button = add_button(box, "Exit", actions.on_exit)
-	# One clear primary action: Continue when there is a save, otherwise New Journey.
 	(continue_button if continue_button != null else new_run_button).theme_type_variation = MenuStyle.PLAQUE_PRIMARY
 	exit_button.theme_type_variation = MenuStyle.PLAQUE
 	for button in [continue_button, new_run_button, exit_button]:
 		if button != null:
-			button.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
-			button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	if actions.on_toggle_updates.is_valid():
-		# A small button in the bottom-right corner of the screen, out of the way of the main choices.
-		updates_button = Button.new()
-		updates_button.text = UPDATE_LABEL
-		updates_button.add_theme_font_size_override("font_size", 12)
-		updates_button.focus_mode = Control.FOCUS_NONE
-		body.add_child(updates_button)
-		updates_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 10)
-		var state := {"enabled": actions.update_check_on}  # a lambda sees plain variables by value, so share a dictionary
-		# The notice owns the setting while it exists (Skip can turn it off from the bar).
-		var enabled_now := func() -> bool:
-			return update_notice.user_enabled if update_notice != null else state.enabled
-		var restyle := func() -> void:
-			if is_instance_valid(updates_button):
-				var available := update_notice != null and update_notice.latest_tag != ""
-				style_update_button(updates_button, enabled_now.call(), available)
-		restyle.call()
-		updates_button.pressed.connect(func() -> void:
-			# Red (a newer version is waiting): show it instead of switching the checks off.
-			if update_notice != null and enabled_now.call() and update_notice.latest_tag != "":
-				update_notice.reveal()
-				return
-			state.enabled = actions.on_toggle_updates.call()
-			restyle.call())
-		if update_notice != null:
-			# The answer from GitHub can arrive while the menu is showing.
-			update_notice.changed.connect(restyle)
-			updates_button.tree_exiting.connect(update_notice.changed.disconnect.bind(restyle))
+			_size_menu_button(button)
+
+
+## The small update-check button in the bottom-right corner of the screen, out of the way of the main choices.
+func _add_update_toggle(actions: MainMenuActions) -> void:
+	var update_notice := actions.update_notice
+	updates_button = Button.new()
+	updates_button.text = UPDATE_LABEL
+	updates_button.add_theme_font_size_override("font_size", 12)
+	updates_button.focus_mode = Control.FOCUS_NONE
+	body.add_child(updates_button)
+	updates_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 10)
+	var state := {"enabled": actions.update_check_on}  # a lambda sees plain variables by value, so share a dictionary
+	# The notice owns the setting while it exists (Skip can turn it off from the bar).
+	var enabled_now := func() -> bool:
+		return update_notice.user_enabled if update_notice != null else state.enabled
+	var restyle := func() -> void:
+		if is_instance_valid(updates_button):
+			var available := update_notice != null and update_notice.latest_tag != ""
+			style_update_button(updates_button, enabled_now.call(), available)
+	restyle.call()
+	updates_button.pressed.connect(func() -> void:
+		# Red (a newer version is waiting): show it instead of switching the checks off.
+		if update_notice != null and enabled_now.call() and update_notice.latest_tag != "":
+			update_notice.reveal()
+			return
+		state.enabled = actions.on_toggle_updates.call()
+		restyle.call())
+	if update_notice != null:
+		# The answer from GitHub can arrive while the menu is showing.
+		update_notice.changed.connect(restyle)
+		updates_button.tree_exiting.connect(update_notice.changed.disconnect.bind(restyle))
+
+
+## The Sound button and, when the run supplies it, How to Play.
+func _add_secondary_buttons(box: VBoxContainer, actions: MainMenuActions) -> void:
 	sound_button = Button.new()
 	sound_button.text = "Sound"
 	sound_button.theme_type_variation = MenuStyle.PLAQUE
 	box.add_child(sound_button)
-	sound_button.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
-	sound_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_size_menu_button(sound_button)
 	sound_button.pressed.connect(_open_sound.bind(box))
 	if actions.on_how_to_play.is_valid():
 		how_to_play_button = Button.new()
 		how_to_play_button.text = "How to Play"
 		how_to_play_button.theme_type_variation = MenuStyle.PLAQUE
 		box.add_child(how_to_play_button)
-		how_to_play_button.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
-		how_to_play_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_size_menu_button(how_to_play_button)
 		how_to_play_button.pressed.connect(actions.on_how_to_play)
-	(continue_button if continue_button != null else new_run_button).grab_focus()
+
+
+func _size_menu_button(button: Button) -> void:
+	button.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 
 
 ## A tighter version of the theme's panel, so the save summary does not dominate the menu.

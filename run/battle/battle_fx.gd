@@ -79,7 +79,7 @@ func show_phase_banner(title: String) -> void:
 		banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		banner.z_index = 40
+		banner.z_index = BattleOverlays.PHASE_BANNER_Z
 		MenuStyle.heading(banner, 52)
 		banner.add_theme_color_override("font_color", MenuStyle.DAMAGE)
 		banner.add_theme_color_override("font_outline_color", Color(0.05, 0.0, 0.0, 0.9))
@@ -113,7 +113,7 @@ func flash_screen() -> void:
 	if flash == null:
 		flash = ColorRect.new()
 		flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		flash.z_index = 39
+		flash.z_index = BattleOverlays.PHASE_FLASH_Z
 		_battle.add_child(flash)
 		flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	if _flash_tween != null:
