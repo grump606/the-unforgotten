@@ -4,11 +4,15 @@ extends RefCounted
 ## in a fixed order (keywords first, then effects in the order the card uses them), so a card never repeats a term.
 ## Numbers in the effect entries match the status tooltips in battle.gd; keep the two in step.
 
+## Rule numbers, built from the combat constants so a rule change reaches every tooltip and tutorial page.
+const EXPOSED_X := "%.1f" % (float(Combatant.EXPOSED_NUM) / Combatant.EXPOSED_DEN)
+const REDUCED_PERCENT := "%d%%" % (100 - 100 * Combatant.REDUCED_NUM / Combatant.REDUCED_DEN)
+
 const KEYWORD_TEXT := {
 	"Forgotten": "Once played, leaves the fight for good (returns after).",
 	"Fading": "Still in hand at end of turn: becomes Forgotten. Not kept.",
 	"Ready": "Starts the fight in your opening hand.",
-	"Anchor": "Can't be discarded. Doesn't count toward the 5 kept.",
+	"Anchor": "Can't be discarded. Doesn't count toward the %d kept." % Combat.HAND_SIZE,
 	"Dormant": "Can't be played. Enemies shuffle these in.",
 	"Surge": "Spends all your energy. Effect grows with it.",
 	"Oath": "Played once, then Sworn for the fight. Its Oath effect fires on its trigger.",
@@ -19,8 +23,8 @@ const KEYWORD_TEXT := {
 const EFFECT_TEXT := {
 	CardEffect.Kind.DAMAGE: ["Deal", "Damage to the target. Block absorbs it first."],
 	CardEffect.Kind.BLOCK: ["Block", "Absorbs damage until your next turn."],
-	CardEffect.Kind.DRAW: ["Draw", "Take cards into your hand (10 max)."],
-	CardEffect.Kind.EXPOSE: ["Expose", "Target takes 1.5x damage for N turns."],
+	CardEffect.Kind.DRAW: ["Draw", "Take cards into your hand (%d max)." % Combat.HAND_MAX],
+	CardEffect.Kind.EXPOSE: ["Expose", "Target takes " + EXPOSED_X + "x damage for N turns."],
 	CardEffect.Kind.HOLD: ["Hold", "Keep up to N leftover Block next turn."],
 	CardEffect.Kind.DAMAGE_PER_BLOCK: ["Your Block", "Damage scales with your current Block."],
 	CardEffect.Kind.DAMAGE_IF_BLOCK: ["Block bonus", "Deals the higher number with enough Block."],
@@ -31,8 +35,8 @@ const EFFECT_TEXT := {
 	CardEffect.Kind.LOSE_HP: ["Lose HP", "You pay this much HP to play it."],
 	CardEffect.Kind.HEAL_PER_HAUNTED: ["Heal per Haunted", "Heal for each Haunted enemy."],
 	CardEffect.Kind.DAMAGE_PER_HAUNT: ["Haunt damage", "Damage scales with the target's Haunt."],
-	CardEffect.Kind.SHAKEN: ["Shaken", "Target deals 25% less damage for N turns."],
-	CardEffect.Kind.FRAYED: ["Frayed", "Gains 25% less Block for N turns."],
+	CardEffect.Kind.SHAKEN: ["Shaken", "Target deals " + REDUCED_PERCENT + " less damage for N turns."],
+	CardEffect.Kind.FRAYED: ["Frayed", "Gains " + REDUCED_PERCENT + " less Block for N turns."],
 	CardEffect.Kind.MALICE: ["Malice", "Flat bonus to each hit you deal. Stacks; lasts the fight."],
 	CardEffect.Kind.WARD: ["Ward", "Flat bonus to Block from cards. Stacks; lasts the fight."],
 	CardEffect.Kind.GLIMPSE: ["Glimpse", "Look at the top N cards of your draw pile; discard any."],
