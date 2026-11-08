@@ -12,7 +12,7 @@ From Windows, Linux or macOS with Godot 4.7.2 and its export templates (the same
 godot --headless --path . --export-release "macOS" build/TheUnforgotten-macOS.zip
 ```
 
-The zip holds `The Unforgotten.app`. `scripts/release.ps1` does this for you and publishes the zip and a `.sha256` file beside the Windows installer files on the GitHub release (`TheUnforgotten-macOS-<version>.zip`).
+The zip holds `The Unforgotten.app`. `scripts/release.ps1` no longer builds or publishes it: releases carry only the Windows installer files until the Mac build has been run on a Mac.
 
 Version numbers: set `application/short_version` and `application/version` in the macOS preset to the same number as `config/version` in `project.godot` (no trailing `.0`, unlike the Windows keys). `release.ps1` stops if they differ.
 

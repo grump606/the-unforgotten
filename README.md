@@ -27,7 +27,7 @@ Open the project in Godot 4.7 and press F5, or:
 
 On launch the game checks GitHub once for a newer release and turns the main menu's Update button red if there is one (click it to see the update bar, with Download and Skip; Skip turns the checks off); once a signing key is built in (`docs/UPDATE_SIGNING.md`) the notice offers Update & restart, which downloads, verifies and installs the new version itself (`docs/UPDATE_CHECK.md`); set `THE_UNFORGOTTEN_NO_UPDATE_CHECK=1` to turn that off (`docs/UPDATE_CHECK.md`).
 
-A macOS build (a universal `.app` in a zip, not yet tested on a Mac) is exported from the second preset in `export_presets.cfg` and published with each release; see `docs/MACOS.md`.
+A macOS build (a universal `.app` in a zip, not yet tested on a Mac) is exported from the second preset in `export_presets.cfg`. It is not published with releases until it has been tested on a Mac; see `docs/MACOS.md`.
 
 ### Debug: start in any fight
 

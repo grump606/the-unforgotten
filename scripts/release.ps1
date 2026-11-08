@@ -92,17 +92,7 @@ try {
     }
 }
 
-# The macOS build: an .app (universal, ad-hoc signed, not notarized) zipped, with its checksum. It is
-# published beside the Windows installer; the in-game updater only ever installs the Windows files.
-$macZip = "build\TheUnforgotten-macOS-$version.zip"
-Remove-Item -LiteralPath $macZip, "$macZip.sha256" -ErrorAction SilentlyContinue  # never publish a stale zip
-& $env:GODOT_EXE --headless --path . --export-release 'macOS' $macZip
-if ($LASTEXITCODE -ne 0) { throw 'macOS export failed' }
-if (-not (Test-Path -LiteralPath $macZip)) { throw "Missing build output: $macZip" }
-$macHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $macZip).Hash.ToLower()
-Set-Content -LiteralPath "$macZip.sha256" -Value "$macHash  $(Split-Path -Leaf $macZip)" -Encoding ascii
-
-$files = @("build\TheUnforgotten-Setup-$version.exe", "build\TheUnforgotten-Setup-$version.exe.sha256", "build\TheUnforgotten-Setup-$version.exe.manifest", "build\TheUnforgotten-Setup-$version.exe.manifest.sig", $macZip, "$macZip.sha256")
+$files = @("build\TheUnforgotten-Setup-$version.exe", "build\TheUnforgotten-Setup-$version.exe.sha256", "build\TheUnforgotten-Setup-$version.exe.manifest", "build\TheUnforgotten-Setup-$version.exe.manifest.sig")
 foreach ($f in $files) { if (-not (Test-Path -LiteralPath $f)) { throw "Missing build output: $f" } }
 
 if (-not $Publish) {
