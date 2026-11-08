@@ -44,12 +44,19 @@ var phase: Phase = Phase.NOT_STARTED
 var plays_this_turn: int = 0
 ## Hand indices marked for discard while phase == DISCARDING (sorted, no duplicates).
 var discard_marks: Array[int] = []
-## The run's relics for this fight (see RelicData); empty changes nothing.
-var relics: Array[RelicData] = []
-## Once-per-fight relic triggers already spent (FIRST_FORGOTTEN_RETURN, FIRST_ATTACK_SHAKEN).
-# Relic amounts summed per kind, rebuilt when the relic list changes size (see _relic_total).
+## The run's relics for this fight (see RelicData); empty changes nothing. Read-only from outside: the
+## getter hands out a copy, and assigning the property replaces the list and rebuilds the per-kind totals,
+## so the cached totals can never go stale. In-place edits of the returned copy do nothing.
+var relics: Array[RelicData]:
+	get:
+		return _relics.duplicate()
+	set(value):
+		_relics = value.duplicate()
+		_rebuild_totals()
+var _relics: Array[RelicData] = []
+# Relic amounts summed per kind (see _relic_total); rebuilt whenever the list is assigned.
 var _totals: Dictionary = {}
-var _totals_for := -1
+# Once-per-fight relic triggers already spent (FIRST_FORGOTTEN_RETURN, FIRST_ATTACK_SHAKEN).
 var _forgotten_return_used := false
 var _first_attack_used := false
 ## The fight's seeded RNG (the same one the piles shuffle with); Scent uses it to pick an heir.
@@ -112,7 +119,7 @@ func _init(player_combatant: Combatant, deck: Array[CardData], enemy_datas: Arra
 	var rng := RandomNumberGenerator.new()
 	rng.seed = rng_seed
 	player = player_combatant
-	relics = owned_relics.duplicate()
+	relics = owned_relics
 	# The player outlives fights; statuses must not.
 	player.clear_statuses()
 	piles = CardPiles.new(deck, rng)
@@ -170,9 +177,15 @@ func can_play(hand_index: int) -> bool:
 		and not piles.hand[hand_index].dormant
 		and (piles.hand[hand_index].surge or piles.hand[hand_index].cost <= energy)
 		# A card that costs HP cannot be the one that kills the player.
-		and piles.hand[hand_index].hp_cost() < player.hp
+		# A Surge card's HP cost scales with the energy it would spend, as _apply multiplies LOSE_HP per_energy.
+		and piles.hand[hand_index].hp_cost(_surge_scale(piles.hand[hand_index])) < player.hp
 		and plays_this_turn < MAX_PLAYS_PER_TURN
 	)
+
+
+## The per_energy multiplier `card` would get if played now: all the energy for a Surge card, else 1.
+func _surge_scale(card: CardData) -> int:
+	return energy if card.surge else 1
 
 
 ## Plays a card. For SINGLE_ENEMY cards `target_index` indexes `enemies`:
@@ -214,15 +227,18 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 				_apply(effect, player, quarry, scale)
 		elif reach != CardEffect.Reach.SELF:
 			for target in targets:
+				# An earlier effect of this same card may have killed the target; later effects skip the corpse.
+				if target.is_dead():
+					continue
 				_apply(effect, player, target, scale)
-	if not relics.is_empty():
+	if not _relics.is_empty():
 		_apply_play_relics(card, targets)
 	if plays_this_turn == 1:
 		_fire_oaths(CardData.OathTrigger.FIRST_PLAY, sworn_before)
 	_fire_oaths(CardData.OathTrigger.EACH_PLAY, sworn_before)
 	if player.block > block_before:
 		_fire_oaths(CardData.OathTrigger.ON_BLOCK_GAINED, sworn_before)
-	if card.hp_cost() > 0:
+	if card.hp_cost(scale) > 0:
 		_fire_oaths(CardData.OathTrigger.ON_HP_LOST, sworn_before)
 	if card.forgotten and not card.oath:
 		_fire_oaths(CardData.OathTrigger.ON_FORGOTTEN, sworn_before)
@@ -576,14 +592,13 @@ func _apply_lasting(effect: CardEffect) -> void:
 
 ## Sum of `amount` over the owned relics of `kind` (0 with none).
 func _relic_total(kind: RelicData.Kind) -> int:
-	if relics.is_empty():
-		return 0
-	if _totals_for != relics.size():
-		_totals.clear()
-		for relic in relics:
-			_totals[relic.kind] = _totals.get(relic.kind, 0) + relic.amount
-		_totals_for = relics.size()
 	return _totals.get(kind, 0)
+
+
+func _rebuild_totals() -> void:
+	_totals.clear()
+	for relic in _relics:
+		_totals[relic.kind] = _totals.get(relic.kind, 0) + relic.amount
 
 
 ## Relic effects that fire after a card's own effects: the first play of a turn draws, every
@@ -614,7 +629,7 @@ func _apply_play_relics(card: CardData, targets: Array[EnemyUnit]) -> void:
 ## to Hold and Thorns to 0, so these grants are not wiped. Fight-start effects come first on turn 1
 ## so that a starting Haunt already counts for the turn-start heal.
 func _apply_turn_start_relics() -> void:
-	if relics.is_empty():
+	if _relics.is_empty():
 		return
 	var block := _relic_total(RelicData.Kind.TURN_START_BLOCK)
 	if turn == 1:
@@ -805,12 +820,15 @@ func scent_holder_index() -> int:
 	return -1
 
 
-## Makes `quarry` the one enemy holding Scent: any Scent held elsewhere moves to it, `amount` is added, and
-## the total is capped (Combatant.SCENT_CAP). A non-positive amount with nothing to move changes nothing.
+## Makes `quarry` the one enemy holding Scent: any Scent held by a LIVING enemy elsewhere moves to it,
+## `amount` is added, and the total is capped (Combatant.SCENT_CAP). A non-positive amount with nothing to
+## move changes nothing. A DEAD holder's stack is deliberately left alone: it belongs to _pass_on_scent
+## (half the stack, the quarry-kill heal and the QUARRY_DIES Oaths), which runs after the card, so a card
+## that kills the quarry and then marks another enemy cannot absorb the whole dead stack.
 func _give_scent(quarry: EnemyUnit, amount: int) -> void:
 	var total := quarry.stacks(Combatant.Status.SCENT) + maxi(amount, 0)
 	for enemy in enemies:
-		if enemy != quarry and enemy.stacks(Combatant.Status.SCENT) > 0:
+		if enemy != quarry and not enemy.is_dead() and enemy.stacks(Combatant.Status.SCENT) > 0:
 			total += enemy.stacks(Combatant.Status.SCENT)
 			enemy.remove_status(Combatant.Status.SCENT)
 	quarry.remove_status(Combatant.Status.SCENT)
