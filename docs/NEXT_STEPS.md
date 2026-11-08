@@ -1,13 +1,12 @@
 # Next steps
 
-Last updated after the second production review (see "Second review" below), on top of the tagged v0.8.1 release plus the unreleased work on `main` (the version in
-`project.godot` is now 0.8.2, bumped and ready for `scripts/release.ps1`). Numbers such as the stop count
-and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`SIM.md`](SIM.md).
+Last updated after the v0.8.2 release (2026-11-08) and the repository history rewrite. `main` is at v0.8.2; the next release needs a version bump.
+Numbers such as the stop count and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`SIM.md`](SIM.md).
 
 ## State
 
-- **Released:** v0.8.1 (tag `v0.8.1`): card tooltips that explain every mechanic on the card (`CardGlossary`), on top of v0.8.0. Earlier milestones: v0.8.0 and before brought the Stray (fourth class, Scent engine), v0.6.0 the rename to The Unforgotten, v0.5.0 the reskin, v0.4.0 painted art and the battle stage, v0.3.2 the in-game update check. `git tag` and the GitHub releases have the full list.
-- **Unreleased on `main` since v0.8.1:**
+- **Released:** v0.8.2 (tag `v0.8.2`, 2026-11-08, Windows installer only), on top of v0.8.1 (card tooltips) and v0.8.0. Earlier milestones: v0.8.0 and before brought the Stray (fourth class, Scent engine), v0.6.0 the rename to The Unforgotten, v0.5.0 the reskin, v0.4.0 painted art and the battle stage, v0.3.2 the in-game update check. `git tag` and the GitHub releases have the full list.
+- **What v0.8.2 contains (all of it is released):**
   - The Stray on the title screen.
   - A fifth rest before the Conductor (22 stops instead of 21; `docs/LEVELS_DESIGN.md`, "Pre-finale rest"). It lifts escape rates and has not been playtested.
   - Reckoning (3x the target's Haunt) and Spirit Tithe (heal 4 per Haunted enemy) retuned.
@@ -25,14 +24,14 @@ and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`
 
 These were deliberately not done in the review round.
 
-1. **Authenticode signing of the installer.** Today the in-game update is protected by our own signature, but a first-time download from the releases page is an unsigned `.exe`, so SmartScreen warns and some antivirus products are suspicious. Fixing that needs a code-signing certificate (an EV certificate from a CA, or Azure Trusted Signing; roughly 100 to 400 USD a year, with identity checks) and a `signtool` step in `build_installer.ps1` plus the key kept off the dev machine. Recommendation: not worth it while the audience is friends and playtesters who get the link directly; revisit before any public launch (itch.io or Steam distribution removes most of the warning on its own), and then prefer Azure Trusted Signing over a hardware token.
+1. **Authenticode signing of the installer. On hold (owner's call, 2026-11-08).** Today the in-game update is protected by our own signature, but a first-time download from the releases page is an unsigned `.exe`, so SmartScreen warns and some antivirus products are suspicious. Fixing that needs a code-signing certificate (an EV certificate from a CA, or Azure Trusted Signing; roughly 100 to 400 USD a year, with identity checks) and a `signtool` step in `build_installer.ps1` plus the key kept off the dev machine. Recommendation: not worth it while the audience is friends and playtesters who get the link directly; revisit before any public launch (itch.io or Steam distribution removes most of the warning on its own), and then prefer Azure Trusted Signing over a hardware token.
 2. **Manifest freshness / expiry.** The signed manifest names the file, version and hash, which stops an old installer being replayed as an update, but a manifest never expires: a stolen older-but-newer-than-installed signed release could still be served to someone who is further behind, and there is no way to withdraw a bad release for already-offered clients. A `valid_until` or `min_version` field would change the manifest format (both writers, the golden file and the fixture) and needs a clock the game can trust, so it is a policy call. Recommendation: skip the expiry date (a player offline for weeks would be unable to update, and the game cannot trust the clock anyway) and, if withdrawal ever matters, add a signed `revoked_below` version instead.
-3. **History rewrite and repo size.** Rewriting git history to shrink the repo (see `docs/REPO_SIZE.md`) breaks every clone, tag and release link. Recommendation: do not rewrite; keep new binary art out of history by adding it once, finished, and revisit Git LFS only if clone time becomes a real problem.
+3. **History rewrite and repo size: done (2026-11-08).** History was rewritten once: fresh clones went from about 250 MiB to about 155 MiB, `audio/source` and `docs/reference` left the repository (they are git-ignored) and every commit now carries today's art. See `docs/REPO_SIZE.md`. Not done: lossless PNG recompression (needs `oxipng` or `zopflipng`), worth roughly another 15 to 25% of the art.
 
 ## To do, in the order I would take it
 
-1. **Playtest the unreleased build**, mostly the new rest before the finale and the retuned Medium cards, then the Stray as a whole. The numbers are tuned against bots, not people (`docs/PLAYTEST_CHECKLIST.md`). Re-run the sims on the 22-stop line first: the figures in `docs/SIM.md` were measured on the 21-stop line and do not include the Stray.
-2. **Cut the next release** (0.8.2 or 0.9.0) once the playtest is happy. Check `docs/PLAYTEST_CHECKLIST.md` and the version mismatch checks in `scripts/release.ps1`.
+1. **Playtest v0.8.2**, mostly the new rest before the finale and the retuned Medium cards, then the Stray as a whole. The numbers are tuned against bots, not people (`docs/PLAYTEST_CHECKLIST.md`). Re-run the sims on the 22-stop line first: the figures in `docs/SIM.md` were measured on the 21-stop line and do not include the Stray.
+2. **Cut the next release** once playtest feedback is in (0.8.3 or 0.9.0): bump `config/version` and `export_presets.cfg`, merge, then `scripts/release.ps1 -Publish`, check the draft with `scripts/verify_release.ps1 -Draft`, and publish it on GitHub. Check `docs/PLAYTEST_CHECKLIST.md` first.
 3. **Finish the art**: painted rest and vendor figures, the Warden halberd and Conductor watch chain details (`art/README.md`).
 4. **Retune from playtest feedback**: `REWARD_HEAL`, `HEAL_BELOW`, class HP, card costs. Check any change with the sims.
 5. **Keep-5 hand rule review**: it shifted bot numbers unevenly (the Thief lost ground, the Medium gained in the smart bot). Knobs: `Combat.HAND_SIZE`, `Combat.HAND_MAX`.
