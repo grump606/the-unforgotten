@@ -1,7 +1,7 @@
 # Next steps
 
 Last updated after the tagged v0.8.1 release plus the unreleased work on `main` (the version in
-`project.godot` is still 0.8.1, so the next release needs a bump). Numbers such as the stop count
+`project.godot` is now 0.8.2, bumped and ready for `scripts/release.ps1`). Numbers such as the stop count
 and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`SIM.md`](SIM.md).
 
 ## State
@@ -15,6 +15,7 @@ and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`
   - A first-launch tutorial and a How to Play button (`run/tutorial_overlay.gd`, words in `run/tutorial_content.gd`, picture `art/tutorial/battle_layout.png`; retake the picture and move the markers if the battle layout changes).
   - P1 review fixes: dead attackers no longer hit, bad `Combat` input is rejected, the release script is hardened, and the macOS build is no longer part of releases (`docs/MACOS.md`).
   - Test and docs review pass (this one): tests are auto-discovered (`tests/README.md`), a shared `TestBase`, scratch-file cleanup, the big test files split by topic, one engine-version file for CI and scripts, an update-manifest golden test, a README split into `docs/`, `docs/GAME_FACTS.md`, `docs/README.md` (index of every doc with its status) and `docs/REPO_SIZE.md`.
+  - Engine and UI review pass: the Forgotten-return relic and scaled-enemy fixes, bot rules shared with the engine, cached card pools (a 100-run sim went from 107 s to 6 s), route labels and backdrops stored on each stop, an idle-fighter redraw fix for defeated fighters only, and updater hardening (private launch copy of the installer, settings size cap, Skip cleans up, redirect limit, debug launch off in release builds). Still open from the review: the `battle.gd` and `card_view.gd` splits, rebuilding the hand without recreating every card view, Authenticode signing, and the repo size options in `docs/REPO_SIZE.md`.
 - Four characters (Deserter, Thief, Medium, Stray), a neutral pool, relics sold at vendors, a pause menu and crash-safe save/resume. Design notes are in `docs/CLASSES_PLAN.md` and `docs/RELICS_DESIGN.md`.
 - Windows installer (`scripts/build_installer.ps1`, `docs/INSTALLER.md`), in-game update check and self-install (`docs/UPDATE_CHECK.md`, `docs/UPDATE_SIGNING.md`), CI on every push (`docs/CI.md`). To ship: bump `config/version` (and `export_presets.cfg`), then `scripts/release.ps1`.
 
