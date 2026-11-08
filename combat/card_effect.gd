@@ -57,6 +57,8 @@ enum Kind { DAMAGE, BLOCK, DRAW, EXPOSE, HOLD, DAMAGE_PER_BLOCK, DAMAGE_IF_BLOCK
 ## position. New effects default to HAND; enemy intents conventionally use DRAW.
 enum Pile { HAND, DRAW, DISCARD }
 @export var pile: Pile = Pile.HAND
+## Display name per pile, keyed by enum value so appending a Pile cannot index out of range.
+const PILE_NAMES := {Pile.HAND: "hand", Pile.DRAW: "draw pile", Pile.DISCARD: "discard pile"}
 
 
 static func make(effect_kind: Kind, effect_amount: int, effect_bonus: int = 0, effect_threshold: int = 0, effect_hits: int = 1, effect_per_energy: bool = false, effect_temporary: bool = false, effect_card: CardData = null, effect_pile: Pile = Pile.HAND) -> CardEffect:
@@ -182,7 +184,7 @@ func _describe_base() -> String:
 			return "Glimpse %d" % amount
 		Kind.ADD_CARD:
 			var what := "%d %s" % [amount, card.display_name] if card != null else "%d cards" % amount
-			return "Add %s to your %s" % [what, ["hand", "draw pile", "discard pile"][pile]]
+			return "Add %s to your %s" % [what, PILE_NAMES.get(pile, "hand")]
 		Kind.RECALL:
 			return "Recall %d" % amount
 		Kind.DAMAGE_PER_FORGOTTEN:
