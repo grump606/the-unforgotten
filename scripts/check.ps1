@@ -45,21 +45,17 @@ try {
     Invoke-Step 'import' @('--headless', '--path', '.', '--import')
     Invoke-Step 'tests' @('--headless', '--path', '.', '-s', $testScript)
     Invoke-Step 'smoke' @('--headless', '--path', '.', '-s', 'res://tests/smoke_main.gd')
-    Invoke-Step 'ui battle' @('--headless', '--path', '.', '-s', 'res://tests/ui_battle_test.gd')
     Invoke-Step 'battle seed' @('--headless', '--path', '.', '-s', 'res://tests/battle_seed_test.gd')
     Invoke-Step 'audio runtime' @('--headless', '--audio-driver', 'Dummy', '--path', '.', '-s', 'res://tests/audio_runtime_test.gd')
-    Invoke-Step 'ui flow' @('--headless', '--path', '.', '-s', 'res://tests/ui_flow_test.gd')
-    Invoke-Step 'ui card view' @('--headless', '--path', '.', '-s', 'res://tests/ui_card_view_test.gd')
-    Invoke-Step 'ui stage' @('--headless', '--path', '.', '-s', 'res://tests/ui_stage_test.gd')
-    Invoke-Step 'ui battle backdrop' @('--headless', '--path', '.', '-s', 'res://tests/ui_battle_backdrop_test.gd')
-    Invoke-Step 'ui boss presentation' @('--headless', '--path', '.', '-s', 'res://tests/ui_boss_presentation_test.gd')
-    Invoke-Step 'ui debug screen' @('--headless', '--path', '.', '-s', 'res://tests/ui_debug_screen_test.gd')
-    Invoke-Step 'ui vendor scene' @('--headless', '--path', '.', '-s', 'res://tests/ui_vendor_scene_test.gd')
-    Invoke-Step 'ui screen scenes' @('--headless', '--path', '.', '-s', 'res://tests/ui_screen_scenes_test.gd')
-    Invoke-Step 'ui scene noise' @('--headless', '--path', '.', '-s', 'res://tests/ui_scene_noise_test.gd')
-    Invoke-Step 'ui relic view' @('--headless', '--path', '.', '-s', 'res://tests/ui_relic_view_test.gd')
-    Invoke-Step 'ui update notice' @('--headless', '--path', '.', '-s', 'res://tests/ui_update_notice_test.gd')
-    Invoke-Step 'ui tutorial' @('--headless', '--path', '.', '-s', 'res://tests/ui_tutorial_test.gd')
+    # Every tests/ui_*_test.gd is a step of its own, in name order: a new UI test needs no edit here.
+    # (tests/test_wiring_tests.gd fails if a test-looking file is neither picked up by this glob nor
+    # one of the named steps in this script.)
+    $uiTests = @(Get-ChildItem -LiteralPath (Join-Path $root 'tests') -Filter 'ui_*_test.gd' -File | Sort-Object Name)
+    if ($uiTests.Count -eq 0) { Write-Host 'CHECK FAILED: no tests/ui_*_test.gd files found'; exit 1 }
+    foreach ($ui in $uiTests) {
+        $stepName = ($ui.BaseName -replace '_test$', '') -replace '_', ' '
+        Invoke-Step $stepName @('--headless', '--path', '.', '-s', "res://tests/$($ui.Name)")
+    }
     Invoke-Step 'reskin restoration' @('--headless', '--path', '.', '-s', 'res://tests/reskin_presentation_test.gd')
 } finally { Pop-Location }
 Write-Host 'CHECK PASSED'

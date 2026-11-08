@@ -1,6 +1,6 @@
 extends RefCounted
 ## Rarity (Common, Uncommon, Rare): every card has one, rewards and vendor stock roll a rarity first with odds that
-## shift towards the rarer cards deeper into the run. Registered by run_tests.gd.
+## shift towards the rarer cards deeper into the run. Discovered by run_tests.gd.
 
 var _failures := 0
 

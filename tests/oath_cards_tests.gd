@@ -1,6 +1,6 @@
 extends RefCounted
 ## The six shipped Oaths (docs/MECHANICS_PLAN.md, phase 6b): two per class, each valid, readable and playable.
-## Numbers are provisional, so these check shape and behaviour, not tuning. Registered by run_tests.gd.
+## Numbers are provisional, so these check shape and behaviour, not tuning. Discovered by run_tests.gd.
 
 const EXPECTED := {
 	&"thief": [&"quick_hands", &"light_step"],

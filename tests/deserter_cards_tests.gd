@@ -1,6 +1,6 @@
 extends RefCounted
 ## Phase 4c: the Deserter retunes (Last Stand, Heavy Blow, Iron Resolve) and Dig Deep, played through the
-## real engine from the shipped data files. Registered by run_tests.gd.
+## real engine from the shipped data files. Discovered by run_tests.gd.
 
 const S := Combatant.Status
 

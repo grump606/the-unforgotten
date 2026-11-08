@@ -1,6 +1,6 @@
 extends RefCounted
 ## The Medium's mechanics: paying HP, Haunt, healing per Haunted enemy and damage from Haunt,
-## then the real Medium cards. Registered by run_tests.gd. Tiny hand-made cards test the rules;
+## then the real Medium cards. Discovered by run_tests.gd. Tiny hand-made cards test the rules;
 ## the last test loads the shipped cards.
 
 var _failures := 0

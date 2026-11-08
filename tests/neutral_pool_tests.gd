@@ -1,7 +1,7 @@
 extends RefCounted
 ## The neutral pool split (docs/CLASSES_PLAN.md and docs/MECHANICS_PLAN.md): the basic cards (Shove, Slip Past)
 ## are starting cards and vendor stock but never reward offers, and eight shared cards join the neutral pool.
-## Registered by run_tests.gd.
+## Discovered by run_tests.gd.
 
 const SHARED: Array[StringName] = [
 	&"steady_hands", &"counter_step", &"second_look", &"downpour", &"hold_fast", &"pull_together", &"lucky_break", &"shake_them",
