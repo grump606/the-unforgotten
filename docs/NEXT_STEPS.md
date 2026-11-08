@@ -4,6 +4,7 @@ Last updated for v0.8.0, plus unreleased work: card tooltips that explain every 
 
 ## State
 
+- Tutorial: a six-page how-to-play overlay (`run/tutorial_overlay.gd`, words and marker positions in `run/tutorial_content.gd`) opens by itself on the first real launch after install (`Settings.tutorial_seen` in settings.json; never headless; `THE_UNFORGOTTEN_NO_TUTORIAL` opts out) and from the main menu's How to Play button. Its fight-screen page is a real screenshot, `art/tutorial/battle_layout.png`: if the battle layout changes, retake it and move the markers in `TutorialContent`. Playtest the wording.
 - Four characters (Deserter, Thief, Medium, Stray) with class cards, a neutral pool, a character select screen, a pause menu and save/resume.
 - Classes plan: all seven phases done (infrastructure, select screen, the three classes' mechanics and cards, bots and balance, story). Per-character boarding, Conductor and Last Light beats live under `data/story/<id>/` with a neutral fallback (draft text, edit freely). Details: `docs/CLASSES_PLAN.md`.
 - Card rewards: designs A and C are in (no repeats past 2 copies, skip pays 10 gold, free once-per-run Remove and Heal 12). See `docs/REWARDS_PROPOSAL.md`.

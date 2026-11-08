@@ -59,6 +59,7 @@ try {
     Invoke-Step 'ui scene noise' @('--headless', '--path', '.', '-s', 'res://tests/ui_scene_noise_test.gd')
     Invoke-Step 'ui relic view' @('--headless', '--path', '.', '-s', 'res://tests/ui_relic_view_test.gd')
     Invoke-Step 'ui update notice' @('--headless', '--path', '.', '-s', 'res://tests/ui_update_notice_test.gd')
+    Invoke-Step 'ui tutorial' @('--headless', '--path', '.', '-s', 'res://tests/ui_tutorial_test.gd')
     Invoke-Step 'reskin restoration' @('--headless', '--path', '.', '-s', 'res://tests/reskin_presentation_test.gd')
 } finally { Pop-Location }
 Write-Host 'CHECK PASSED'
