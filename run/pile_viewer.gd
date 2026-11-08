@@ -150,10 +150,10 @@ func _build() -> void:
 	_fill()
 
 
+## Brings the tabs, the note and the card views up to date. The card views already on screen are reused in place
+## (like BattleHand.sync): a view is rewritten only when its card or the scale differs, views are added or removed
+## only when the card count changes, so a refresh with nothing new does no work and a switch of tab keeps the nodes.
 func _fill() -> void:
-	for child in _flow.get_children():
-		_flow.remove_child(child)
-		child.queue_free()
 	var cards := shown_cards(_combat.piles, pile)
 	for i in tab_buttons.size():
 		var count := shown_cards(_combat.piles, i as Pile).size()
@@ -169,13 +169,23 @@ func _fill() -> void:
 		if rows * (CardView.BASE.y + CardView.LIFT) * s + (rows - 1) * GAP <= height:
 			scale = s
 			break
-	for card in cards:
-		var view := CardView.new()
-		view.view_scale = scale
-		view.live = _live
-		view.set_card(card)
-		view.set_state(CardView.State.NORMAL)
-		_flow.add_child(view)
+	var views := card_views()
+	for i in cards.size():
+		var view: CardView
+		if i < views.size():
+			view = views[i]
+		else:
+			view = CardView.new()
+			view.live = _live
+			view.set_state(CardView.State.NORMAL)
+			_flow.add_child(view)
+		if view.view_scale != scale:
+			view.view_scale = scale
+		if view.card != cards[i]:
+			view.set_card(cards[i])
+	for i in range(cards.size(), views.size()):
+		_flow.remove_child(views[i])
+		views[i].queue_free()
 
 
 func close() -> void:
