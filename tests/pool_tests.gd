@@ -1,14 +1,6 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Cards step 4: every class pool is at least 22 cards wide, and each class has Common, Uncommon and Rare
-## cards that are not part of the starting deck. Registered by run_tests.gd.
-
-var _failures := 0
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
+## cards that are not part of the starting deck. Discovered by run_tests.gd.
 
 
 func run() -> int:
