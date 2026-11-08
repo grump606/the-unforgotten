@@ -145,9 +145,15 @@ jobs:
           $dest = Join-Path $env:APPDATA ('Godot\export_templates\' + ($env:GODOT_VERSION -replace '-', '.'))
           New-Item -ItemType Directory -Force $dest | Out-Null
           Copy-Item (Join-Path $env:RUNNER_TEMP 'godot_templates\*') $dest
-          # The exact version from scripts/engine_version.txt, the one the release is built with.
+          # Prefer the exact version from scripts/engine_version.txt (the one releases are built with). The
+          # Chocolatey package lags the winget one (it had no 6.7.3), so fall back to the newest it offers: this
+          # step only checks that the installer still compiles, and the real release is built locally.
           choco install innosetup --version=$env:INNO_SETUP_VERSION --yes --no-progress
-          if ($LASTEXITCODE -ne 0) { throw "choco could not install Inno Setup $env:INNO_SETUP_VERSION" }
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::warning::Chocolatey has no Inno Setup $env:INNO_SETUP_VERSION; installing the newest version it offers."
+            choco install innosetup --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { throw "choco could not install Inno Setup" }
+          }
 
       - name: Build the installer (unsigned)
         shell: pwsh
