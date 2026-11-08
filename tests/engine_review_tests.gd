@@ -14,6 +14,7 @@ func run() -> int:
 	_test_relic_totals_follow_the_list()
 	_test_remembered_copies_every_export()
 	_test_enum_tables_cover_every_value()
+	_test_debug_enemy_resolver_is_injected()
 	return _failures
 
 
@@ -109,3 +110,21 @@ func _test_enum_tables_cover_every_value() -> void:
 	for pile in CardEffect.Pile.values():
 		_check(CardEffect.PILE_NAMES.has(pile), "pile %d has a name" % pile)
 	_check(CardEffect.PILE_NAMES.size() == CardEffect.Pile.size(), "no stray pile name")
+
+## RunState has no knowledge of DebugLaunch: unknown debug ids resolve only through the injected Callable.
+func _test_debug_enemy_resolver_is_injected() -> void:
+	var run_state := RunState.new(1, &"deserter")
+	for index in run_state.stops.size():
+		if run_state.stops[index].type == RunState.StopType.COMBAT:
+			run_state.stop_index = index
+			break
+	_check(not run_state.debug_enemy_resolver.is_valid(), "no resolver by default")
+	var resolver := func(enemy_id: StringName) -> EnemyData:
+		return EnemyData.make("Stub", 7, [] as Array[CardEffect]) if enemy_id == &"stub_enemy" else null
+	run_state.debug_enemy_resolver = resolver
+	run_state.debug_encounter.assign([&"stub_enemy"])
+	var combat := run_state.start_combat()
+	_check(combat != null and combat.enemies.size() == 1 and combat.enemies[0].data.max_hp == 7, "an injected resolver supplies the enemy")
+	run_state.debug_encounter.assign([&"the_wisp_that_does_not_exist"])
+	run_state.debug_enemy_resolver = Callable()
+	_check(run_state.start_combat() == null, "an unknown id with no resolver yields no fight")
