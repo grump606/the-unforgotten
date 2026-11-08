@@ -7,7 +7,7 @@ extends Control
 
 const NIGHT := Color(0.03, 0.03, 0.045)
 const AMBER := Color(1.0, 0.78, 0.42)
-const BRASS := Color(0.78, 0.55, 0.24)
+const BRASS := MenuStyle.BRASS
 const PALE := Color(0.72, 0.84, 0.95)
 const WOOD := Color(0.20, 0.12, 0.07)
 const NOISE_SIZE := 64
