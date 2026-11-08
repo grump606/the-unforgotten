@@ -193,7 +193,7 @@ func _test_bad_fields() -> void:
 			_check(result.run == null and result.error != "", "%s = %s is rejected" % [key, JSON.stringify(bad)])
 	var big := RunSave.to_dict(state)
 	var ids: Array = []
-	for i in RunSave.MAX_DECK + 1:
+	for i in RunSave.max_deck(state, 0) + 1:
 		ids.append("shove")
 	big["deck"] = ids
 	_check(RunSave.from_dict(big).run == null, "an oversized deck is rejected")
@@ -271,7 +271,7 @@ func _test_act_two_round_trip() -> void:
 	var state := RunState.new(21, &"medium")
 	_walk(state, 11)
 	_check(state.stop_index >= 11 and not state.finished, "setup: the run is in act 2")
-	state.gold = 400
+	state.gold = RunSave.max_gold(state, state.stop_index, [] as Array[RelicData]) # the most a run could hold here
 	state.reward_remove_used = true
 	var relic: RelicData = StarterContent.relic_pool(&"medium")[0]
 	state.relics.assign([relic])
@@ -304,7 +304,7 @@ func _test_save_refused_mid_flight() -> void:
 
 func _test_migration_v2_to_v3() -> void:
 	var state := RunState.new(7, &"medium")
-	_walk(state, 4)
+	_walk(state, 7) # past the first vendor (stop 5): a run can carry a relic only after a visit
 	state.reward_remove_used = true
 	var relic: RelicData = StarterContent.relic_pool(&"medium")[0]
 	state.relics.assign([relic])

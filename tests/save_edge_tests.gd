@@ -54,10 +54,16 @@ func _write_bytes(path: String, bytes: PackedByteArray) -> void:
 func _test_run_save_caps() -> void:
 	var d := _base()
 	_check(_loads(d).run != null, "setup: the fresh save loads")
-	d["gold"] = RunSave.MAX_GOLD
-	_check(_loads(d).run != null and _loads(d).run.gold == RunSave.MAX_GOLD, "gold at MAX_GOLD is accepted")
-	d["gold"] = RunSave.MAX_GOLD + 1
-	_check(_loads(d).run == null, "gold above MAX_GOLD is rejected")
+	# Gold is bounded by what the run could have earned by its stop (RunSave.max_gold), so a fresh run holds almost none.
+	var fresh_run := RunState.new(7, &"thief")
+	var gold_cap := RunSave.max_gold(fresh_run, 0, [] as Array[RelicData])
+	d["gold"] = gold_cap
+	_check(_loads(d).run != null and _loads(d).run.gold == gold_cap, "gold at the run's cap is accepted")
+	d["gold"] = gold_cap + 1
+	_check(_loads(d).run == null, "gold above the run's cap is rejected")
+	d["gold"] = 1000000
+	_check(_loads(d).run == null, "a million gold on a fresh run is rejected")
+	_check(RunSave.max_gold(fresh_run, 3, [] as Array[RelicData]) > gold_cap, "the gold cap rises as the run progresses")
 	d["gold"] = -1
 	_check(_loads(d).run == null, "negative gold is rejected")
 	d["gold"] = 0
@@ -93,15 +99,15 @@ func _test_run_save_caps() -> void:
 
 	d = _base()
 	var deck: Array = []
-	for i in RunSave.MAX_DECK + 1:
+	for i in RunSave.max_deck(fresh, 0) + 1:
 		deck.append("shove")
 	d["deck"] = deck
-	_check(_loads(d).run == null, "a deck above MAX_DECK is rejected")
+	_check(_loads(d).run == null, "a deck above the size the run's stop allows is rejected")
 	# A deck is also bounded per card: a genuine run can only collect so many copies (RunSave.max_copies).
-	deck.resize(RunSave.MAX_DECK)
+	deck.resize(RunSave.max_deck(fresh, 0))
 	d["deck"] = deck
-	_check(_loads(d).run == null, "a MAX_DECK deck of one card is rejected: more copies than a run can collect")
-	var copy_limit := RunSave.max_copies(fresh, &"shove")
+	_check(_loads(d).run == null, "a full-size deck of one card is rejected: more copies than a run can collect")
+	var copy_limit := RunSave.max_copies(fresh, &"shove", 0)
 	deck.resize(copy_limit)
 	d["deck"] = deck
 	_check(_loads(d).run != null, "a deck with exactly the most copies of a card a run can hold is accepted")
@@ -188,7 +194,7 @@ func _test_run_save_json_shapes() -> void:
 	_check(RunSave.load_file(_save_path).run != null, "a duplicate key resolves to its last value (still a valid save)")
 	dup = text.replace("\"gold\":", "\"gold\":5,\"gold\":99999999999,\"x\":")
 	_write(_save_path, dup)
-	_check(RunSave.load_file(_save_path).run == null or RunSave.load_file(_save_path).run.gold <= RunSave.MAX_GOLD, "a duplicate key can never smuggle a value past the caps")
+	_check(RunSave.load_file(_save_path).run == null or RunSave.load_file(_save_path).run.gold <= RunSave.max_gold(RunState.new(7, &"thief"), 0, [] as Array[RelicData]), "a duplicate key can never smuggle a value past the caps")
 	# Deep nesting: must come back as an error, not a crash or a hang.
 	_write(_save_path, "[".repeat(50000) + "]".repeat(50000))
 	var deep := RunSave.load_file(_save_path)
