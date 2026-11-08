@@ -3,7 +3,7 @@ extends SceneTree
 ## UpdateNotice.handle_response. Also checks that the real request is never started headless.
 ## Run via scripts/check.ps1.
 
-const UpdateVerifierTests := preload("res://tests/update_verifier_tests.gd")
+const UpdateVerifierTests := preload("res://tests/update_support.gd")
 const TestBase := preload("res://tests/test_base.gd")
 
 var test_save := "user://ui_update_notice_test_save_%d.json" % OS.get_process_id()
