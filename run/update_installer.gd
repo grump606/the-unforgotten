@@ -9,7 +9,8 @@ extends Node
 ## (1) the manifest's detached RSA signature verifies against the public key built into the game,
 ## (2) the manifest names this release's file and version and is newer than the running game, and
 ## (3) the installer's SHA-256 equals the one in the manifest (UpdateVerifier). (3) is checked on
-## arrival and again, on a private copy, right before launch. Signing name and version, not just bytes, is what stops an
+## arrival and again, on a private copy, right before launch. Both hashes (and the copy) run on a worker thread
+## in the real game so the UI keeps drawing; tests run them inline unless force_worker is set. Signing name and version, not just bytes, is what stops an
 ## older genuinely signed installer being replayed as an update.
 
 signal changed
@@ -42,12 +43,24 @@ var quit_game: Callable = func() -> void: get_tree().quit()
 ## Tests: record the URL in `requested` instead of sending the request.
 var dry_run := false
 var requested: Array[String] = []
+## The two big file jobs (hashing the download, copying and hashing the launch copy) run on a worker thread so
+## the UI never stalls on ~30 MB of SHA-256. Off in dry_run (tests stay synchronous) unless force_worker is set.
+var use_worker := true
+## Tests: run the jobs on the worker thread even in dry_run, to exercise that path.
+var force_worker := false
 
 var _manifest_signature := PackedByteArray()
 ## The SHA-256 (lowercase hex) the signed manifest promises for the installer.
 var _expected_sha256 := ""
 var _installer_path := ""
 var _request: HTTPRequest
+var _thread: Thread
+## Bumped whenever a job starts or is abandoned (cancel, discard): a finished job only counts if its serial is current.
+var _job_serial := 0
+## True while the launch copy is being prepared (state stays READY); a second call is ignored.
+var _installing := false
+## True once the installer was started: the game is about to quit, and a second click must not start another one.
+var _launched := false
 
 
 ## Whether in-game install can work at all: a signing key is built in and this is an exported,
@@ -96,6 +109,7 @@ func start(release_tag: String) -> bool:
 	if not UpdateVerifier.is_configured(public_key_pems):
 		return _fail("this version cannot verify updates")
 	cleanup(work_dir)
+	_launched = false
 	if DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(work_dir)) != OK:
 		return _fail("cannot create the download folder")
 	_installer_path = work_dir.path_join(UpdateCheck.installer_name(tag))
@@ -112,6 +126,7 @@ func start(release_tag: String) -> bool:
 ## Cancels a download in flight and returns to IDLE.
 func cancel() -> void:
 	_drop_request()
+	_job_serial += 1
 	if state == State.DOWNLOADING:
 		cleanup(work_dir)
 		state = State.IDLE
@@ -163,7 +178,16 @@ func handle_installer(result: int, code: int) -> void:
 	if DirAccess.rename_absolute(ProjectSettings.globalize_path(part), ProjectSettings.globalize_path(_installer_path)) != OK:
 		_fail("the downloaded update could not be saved")
 		return
-	var why := UpdateVerifier.verify_file_hash(_installer_path, _expected_sha256)
+	if _threaded():
+		# Hash on the worker; the state stays DOWNLOADING (at 100%) until it reports back.
+		progress = 1.0
+		_start_job(_job_serial + 1, _hash_job.bind(_job_serial + 1, ProjectSettings.globalize_path(_installer_path), _expected_sha256))
+		return
+	_complete_download(UpdateVerifier.verify_file_hash(_installer_path, _expected_sha256))
+
+
+## The downloaded installer has been hashed: "" means it matches the signed manifest.
+func _complete_download(why: String) -> void:
 	if why != "":
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(_installer_path))
 		_fail("the download failed verification (%s)" % why)
@@ -177,6 +201,9 @@ func handle_installer(result: int, code: int) -> void:
 ## IDLE. The Skip button uses it; cancel() only handles a download in flight.
 func discard() -> void:
 	_drop_request()
+	_job_serial += 1
+	_installing = false
+	_launched = false
 	if state == State.READY:
 		cleanup(work_dir)
 		state = State.IDLE
@@ -189,27 +216,97 @@ func discard() -> void:
 ## nothing that learned the download's name can swap the file between the check and the launch. Returns false
 ## (state FAILED) if anything is off.
 func install_and_restart() -> bool:
-	if state != State.READY:
+	if state != State.READY or _installing or _launched:
 		return false
 	var launch_dir := work_dir.path_join("run_" + Crypto.new().generate_random_bytes(8).hex_encode())
 	var copy_path := launch_dir.path_join(_installer_path.get_file())
-	if DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(launch_dir)) != OK \
-			or DirAccess.copy_absolute(ProjectSettings.globalize_path(_installer_path), ProjectSettings.globalize_path(copy_path)) != OK:
+	var source_abs := ProjectSettings.globalize_path(_installer_path)
+	var dir_abs := ProjectSettings.globalize_path(launch_dir)
+	var copy_abs := ProjectSettings.globalize_path(copy_path)
+	if _threaded():
+		# Returns true = started. A failure arrives later as state FAILED (UpdateNotice listens to `changed`).
+		_installing = true
+		_start_job(_job_serial + 1, _copy_job.bind(_job_serial + 1, source_abs, dir_abs, copy_abs, _expected_sha256))
+		return true
+	return _launch_copy(_prepare_copy(source_abs, dir_abs, copy_abs, _expected_sha256), copy_path)
+
+
+## The launch copy was made and hashed (outcome from _prepare_copy): run it, or fail with the reason.
+func _launch_copy(outcome: Dictionary, copy_path: String) -> bool:
+	_installing = false
+	if not outcome["copied"]:
 		cleanup(work_dir)
 		return _fail("the installer could not be prepared")
-	var why := UpdateVerifier.verify_file_hash(copy_path, _expected_sha256)
-	if why != "":
+	if outcome["why"] != "":
 		cleanup(work_dir)
-		return _fail("the update failed verification (%s)" % why)
+		return _fail("the update failed verification (%s)" % outcome["why"])
 	var pid: int = launch.call(ProjectSettings.globalize_path(copy_path), INSTALLER_ARGS)
 	if pid <= 0:
 		cleanup(work_dir)
 		return _fail("the installer could not be started")
+	_launched = true
 	quit_game.call()
 	return true
 
 
+## Makes the private copy and hashes THE COPY (the exact file that will be launched). Static and free of scene
+## state so it can run on a worker thread. Returns {copied: bool, why: String}.
+static func _prepare_copy(source_abs: String, launch_dir_abs: String, copy_abs: String, expected_hex: String) -> Dictionary:
+	if not FileAccess.file_exists(source_abs) or DirAccess.make_dir_recursive_absolute(launch_dir_abs) != OK or DirAccess.copy_absolute(source_abs, copy_abs) != OK:
+		return {"copied": false, "why": ""}
+	return {"copied": true, "why": UpdateVerifier.verify_file_hash(copy_abs, expected_hex)}
+
+
+static func _hash_job(serial: int, path_abs: String, expected_hex: String) -> Dictionary:
+	return {"serial": serial, "kind": "hash", "why": UpdateVerifier.verify_file_hash(path_abs, expected_hex)}
+
+
+static func _copy_job(serial: int, source_abs: String, launch_dir_abs: String, copy_abs: String, expected_hex: String) -> Dictionary:
+	var outcome := _prepare_copy(source_abs, launch_dir_abs, copy_abs, expected_hex)
+	outcome["serial"] = serial
+	outcome["kind"] = "copy"
+	outcome["copy_abs"] = copy_abs
+	return outcome
+
+
+func _threaded() -> bool:
+	return force_worker or (use_worker and not dry_run)
+
+
+func _start_job(serial: int, work: Callable) -> void:
+	_reap(true)
+	_job_serial = serial
+	_thread = Thread.new()
+	_thread.start(work)
+
+
+## Collects a finished job (or, with `block`, waits for a running one and drops its result). A result is acted
+## on only if no cancel/discard/new job happened since it started.
+func _reap(block: bool) -> void:
+	if _thread == null:
+		return
+	if not block and _thread.is_alive():
+		return
+	var outcome: Variant = _thread.wait_to_finish()
+	_thread = null
+	if block or not (outcome is Dictionary) or int(outcome["serial"]) != _job_serial:
+		return
+	if outcome["kind"] == "hash":
+		if state == State.DOWNLOADING:
+			_complete_download(outcome["why"])
+	elif state == State.READY:
+		_launch_copy(outcome, outcome["copy_abs"])
+
+
+## Never free the node with a worker still running (also covers a node that was never in the tree).
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		_job_serial += 1
+		_reap(true)
+
+
 func _process(_delta: float) -> void:
+	_reap(false)
 	if state != State.DOWNLOADING or _request == null:
 		return
 	var total := _request.get_body_size()
