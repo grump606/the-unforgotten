@@ -5,11 +5,27 @@ extends RefCounted
 ## pile viewer, the Glimpse / Recall pick, the boss entrance and the end-of-fight prompt each take the keys
 ## over while they are up.
 
+## The key that ends the turn (Enter does too); the help text reads it from here.
+const END_TURN_KEY := KEY_E
+
 var _battle: Battle
 
 
 func _init(battle: Battle) -> void:
 	_battle = battle
+
+
+## The pile keys as prose, "D, C, F or W", read from BattleOverlays.PILE_KEYS (tutorial and help text).
+static func pile_keys_text() -> String:
+	var names: Array[String] = []
+	for keycode in BattleOverlays.PILE_KEYS:
+		names.append(OS.get_keycode_string(keycode))
+	return ", ".join(names.slice(0, -1)) + " or " + names[-1]
+
+
+## The end-turn key as text, "E".
+static func end_turn_key_text() -> String:
+	return OS.get_keycode_string(END_TURN_KEY)
 
 
 func handle(event: InputEvent) -> void:
@@ -64,7 +80,7 @@ func handle(event: InputEvent) -> void:
 		b._on_cancel_discard_pressed()
 		return
 	match key.keycode:
-		KEY_E, KEY_ENTER, KEY_KP_ENTER:
+		END_TURN_KEY, KEY_ENTER, KEY_KP_ENTER:
 			_handled()
 			b._on_end_turn_pressed()
 		KEY_RIGHT:
