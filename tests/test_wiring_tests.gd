@@ -11,7 +11,8 @@ const STANDALONE_STEPS: Array[String] = [
 	"audio_runtime_test.gd",
 	"reskin_presentation_test.gd",
 ]
-## Infrastructure that is neither a suite nor a step.
+## Infrastructure that is neither a suite nor a step. Files named *_support.gd are shared helpers for
+## a split suite and are skipped too.
 const INFRASTRUCTURE: Array[String] = ["run_tests.gd", "test_base.gd"]
 
 
@@ -27,8 +28,8 @@ func _test_every_test_file_is_wired() -> void:
 	var discovered := discover_unit_test_files()
 	var check_script := FileAccess.get_file_as_string("res://scripts/check.ps1")
 	for file_name in list_test_files():
-		if INFRASTRUCTURE.has(file_name):
-			continue
+		if INFRASTRUCTURE.has(file_name) or file_name.ends_with("_support.gd"):
+			continue  # shared helpers for split suites; never run on their own
 		var source := FileAccess.get_file_as_string("res://tests/" + file_name)
 		var looks_like_test := source.contains("extends SceneTree") or source.contains("func run(") or file_name.ends_with("_test.gd") or file_name.ends_with("_tests.gd")
 		if not looks_like_test:
@@ -36,7 +37,7 @@ func _test_every_test_file_is_wired() -> void:
 		if file_name.ends_with("_tests.gd"):
 			_check(discovered.has(file_name), "%s has no run() method, so run_tests.gd would skip it" % file_name)
 		elif file_name.begins_with("ui_") and file_name.ends_with("_test.gd"):
-			_check(source.contains("extends SceneTree"), "%s must extend SceneTree to be run by check.ps1" % file_name)
+			_check(source.contains("extends SceneTree") or source.contains("_support.gd\""), "%s must extend SceneTree (directly or through a *_support.gd) to be run by check.ps1" % file_name)
 		elif STANDALONE_STEPS.has(file_name):
 			if check_script != "":
 				_check(check_script.contains(file_name), "%s is listed as a standalone step but scripts/check.ps1 does not run it" % file_name)

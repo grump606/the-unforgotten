@@ -50,6 +50,6 @@ once more when it is freed, so flush it before the cleanup. As a backstop, `run_
 ## Layout of the larger suites
 
 Big topics are split by concern into several files named after the topic (for example
-`run_state_*_tests.gd`, `smart_policy_*_tests.gd`, `ui_battle_*_test.gd`). A shared helper that is
-not itself a test lives in its own file (`*_helpers.gd`, which has no `run()` and does not extend
-`SceneTree`).
+`run_state_*_tests.gd`, `smart_policy_*_tests.gd`, `ui_battle_*_test.gd`). Helpers shared by the parts of a split suite live in a `*_support.gd` file (for example
+`smart_policy_support.gd`, `ui_battle_support.gd`); the wiring guard skips those, and the parts
+inherit from them with `extends "res://tests/<name>_support.gd"`.
