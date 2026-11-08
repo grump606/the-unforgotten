@@ -13,9 +13,11 @@ func run() -> int:
 	if img.is_compressed():
 		img.decompress()
 	_check(Vector2(img.get_size()) == TutorialContent.BATTLE_IMAGE_SIZE, "the screenshot has the size the markers assume")
+	_check(Vector2(img.get_size()) == MenuStyle.BASE_SIZE, "the screenshot is the base window's size, the one the layouts are designed for")
 	var page: Dictionary = TutorialContent.pages()[1]
 	for item in page.items:
 		var at: Vector2 = item.at
+		_check(Rect2(Vector2(TutorialOverlay.MARKER_RADIUS, TutorialOverlay.MARKER_RADIUS), TutorialContent.BATTLE_IMAGE_SIZE - Vector2.ONE * 2.0 * TutorialOverlay.MARKER_RADIUS).has_point(at), "the marker at %s lies inside the picture" % str(at))
 		var lo := 1e9
 		var hi := -1e9
 		for y in range(int(at.y) - 40, int(at.y) + 41):

@@ -206,11 +206,23 @@ func boss_label() -> String:
 ## on. Beating the boss stop is the exception: it pays nothing (no later stop could
 ## spend it), offers no reward and ends the run as an escape. Only valid at a COMBAT stop that has no reward pending and is not finished
 ## (anything else is a caller bug: it is logged and changes nothing).
+## When the run built the fight (start_combat) and it ended on its own (Combat.outcome), that outcome decides
+## the result: a disagreeing `victory` is logged and the fight's outcome wins. A fight with no outcome (still
+## in progress, or abandoned) is abandoned if need be and the caller's `victory` decides (the sims record a
+## turn-cap stall as a defeat; UI tests use it as a shortcut). With no fight started (tests, debug paths) the
+## caller's `victory` is taken as given.
 func complete_combat(victory: bool) -> void:
 	var stop := current_stop()
 	if finished or _reward_pending or stop == null or stop.type != StopType.COMBAT:
 		push_error("RunState.complete_combat: not at a combat stop awaiting a result")
 		return
+	if _active_combat != null:
+		_active_combat.abandon() # no-op once ended; releases the player from a fight cut short
+		if _active_combat.outcome != Combat.Outcome.NONE:
+			var actual := _active_combat.outcome == Combat.Outcome.VICTORY
+			if actual != victory:
+				push_error("RunState.complete_combat: the caller reported %s but the fight ended in %s" % ["a victory" if victory else "a defeat", "a victory" if actual else "a defeat"])
+				victory = actual
 	_active_combat = null
 	if not victory:
 		finished = true
@@ -447,6 +459,11 @@ func _advance() -> void:
 ## The line, 22 stops in two acts (a train line in the original theme, a memorial city since v0.5.0): four regular fights, the Brakeman (now Bellkeeper) halfway (stop 9), four
 ## harder fights, then the Conductor (now Eraser). Three vendors, five rests (the last just before the finale) and the four story beats in order.
 ## Tier (act) and fight number are filled in here; see docs/LEVELS_DESIGN.md.
+## How many stops a journey has (the length of the default line), for text that names it.
+static func default_line_size() -> int:
+	return _default_line().size()
+
+
 static func _default_line() -> Array[Stop]:
 	var line: Array[Stop] = [
 		Stop.new(StopType.STORY, 0, 0).place("Shore of Names", &"", &"coastal"),

@@ -106,12 +106,15 @@ func _run(run_seed: int, character_id: StringName) -> int:
 ## SimPolicy.REST_BELOW of max or no card can be Remembered, else Remember the first card that can be (its slot takes the Remembered variant: same id,
 ## `is_remembered`). Returns a short description of what happened.
 static func rest_or_remember(player: Combatant, deck: Array[CardData]) -> String:
-	if player.hp >= SimPolicy.REST_BELOW * player.max_hp:
-		for i in deck.size():
-			if deck[i].can_remember():
-				var name := deck[i].display_name
-				deck[i] = deck[i].remembered_card()
-				return "remembered %s" % name
+	var pick := -1
+	for i in deck.size():
+		if deck[i].can_remember():
+			pick = i
+			break
+	if not SimPolicy.prefers_rest(player, pick != -1):
+		var name := deck[pick].display_name
+		deck[pick] = deck[pick].remembered_card()
+		return "remembered %s" % name
 	return "rest +%d" % player.heal(player.max_hp - player.hp)
 
 

@@ -6,9 +6,11 @@ extends RefCounted
 # Derived from the rules constants so the text cannot drift from them.
 const EXPOSED_MULTIPLIER_TEXT := "%.1fx" % (float(Combatant.EXPOSED_NUM) / Combatant.EXPOSED_DEN)
 const EXPOSED_TOOLTIP := "Takes " + EXPOSED_MULTIPLIER_TEXT + " damage, rounded down, for %d more turns."
-## Shaken and Frayed take 25% off (Combatant.REDUCED_NUM / REDUCED_DEN = 3/4); the tests pin the wording.
-const SHAKEN_TOOLTIP := "Shaken %d: deals 25%% less damage (rounded down) for %d more turns."
-const FRAYED_TOOLTIP := "Frayed %d: gains 25%% less Block from cards (rounded down) for %d more turns."
+## Shaken and Frayed take CardGlossary.REDUCED_PERCENT off (Combatant.REDUCED_NUM / REDUCED_DEN); the percentage
+## is the first %s of each.
+const SHAKEN_TOOLTIP := "Shaken %d: deals %s less damage (rounded down) for %d more turns."
+const FRAYED_TOOLTIP := "Frayed %d: gains %s less Block from cards (rounded down) for %d more turns."
+const HAUNT_TOOLTIP := "Haunt %d: takes %d damage at the start of the enemy phase (ignoring Block), then %s."
 const MALICE_TOOLTIP := "Malice %+d: %+d damage on every hit, for the rest of the fight."
 const WARD_TOOLTIP := "Ward %+d: %+d Block from every card, for the rest of the fight."
 const SCENT_TOOLTIP := "Scent %d: every hit your cards land here deals %d more. Only one enemy holds Scent (up to %d). Marking another enemy moves it."
@@ -34,15 +36,15 @@ static func status(combatant: Combatant) -> String:
 		lines.append(EXPOSED_TOOLTIP % exposed)
 	var haunted := combatant.status_turns(Combatant.Status.HAUNTED)
 	if haunted > 0:
-		lines.append("Haunt %d: takes %d damage at the start of the enemy phase (ignoring Block), then Haunt falls by 1." % [haunted, haunted])
+		lines.append(HAUNT_TOOLTIP % [haunted, haunted, CardGlossary.HAUNT_FALLS])
 	if combatant.max_haunt > 0:
 		lines.append("Haunt capped at %d." % combatant.max_haunt)
 	var shaken := combatant.stacks(Combatant.Status.SHAKEN)
 	if shaken > 0:
-		lines.append(SHAKEN_TOOLTIP % [shaken, shaken])
+		lines.append(SHAKEN_TOOLTIP % [shaken, CardGlossary.REDUCED_PERCENT, shaken])
 	var frayed := combatant.stacks(Combatant.Status.FRAYED)
 	if frayed > 0:
-		lines.append(FRAYED_TOOLTIP % [frayed, frayed])
+		lines.append(FRAYED_TOOLTIP % [frayed, CardGlossary.REDUCED_PERCENT, frayed])
 	var malice := combatant.stacks(Combatant.Status.MALICE)
 	if malice != 0:
 		lines.append(MALICE_TOOLTIP % [malice, malice])

@@ -44,7 +44,7 @@ var quit_game: Callable = func() -> void: get_tree().quit()
 var dry_run := false
 var requested: Array[String] = []
 ## The two big file jobs (hashing the download, copying and hashing the launch copy) run on a worker thread so
-## the UI never stalls on ~30 MB of SHA-256. Off in dry_run (tests stay synchronous) unless force_worker is set.
+## the UI never stalls on ~120 MB of SHA-256. Off in dry_run (tests stay synchronous) unless force_worker is set.
 var use_worker := true
 ## Tests: run the jobs on the worker thread even in dry_run, to exercise that path.
 var force_worker := false
@@ -127,6 +127,7 @@ func start(release_tag: String) -> bool:
 func cancel() -> void:
 	_drop_request()
 	_job_serial += 1
+	_retire_worker()
 	if state == State.DOWNLOADING:
 		cleanup(work_dir)
 		state = State.IDLE
@@ -204,8 +205,10 @@ func discard() -> void:
 	_job_serial += 1
 	_installing = false
 	_launched = false
-	if state == State.READY:
+	var had_worker := _retire_worker()
+	if state == State.READY or had_worker:
 		cleanup(work_dir)
+	if state == State.READY:
 		state = State.IDLE
 		progress = 0.0
 		changed.emit()
@@ -280,22 +283,39 @@ func _start_job(serial: int, work: Callable) -> void:
 	_thread.start(work)
 
 
-## Collects a finished job (or, with `block`, waits for a running one and drops its result). A result is acted
-## on only if no cancel/discard/new job happened since it started.
-func _reap(block: bool) -> void:
+## Waits for a running worker (it only does file work and hashing, so this is at most a second or two) and
+## throws its result away. cancel() and discard() call it BEFORE cleanup(): otherwise a copy job could still be
+## writing its run_* folder while that folder is being deleted, or create it afterwards, and leave a stray copy of
+## the installer behind until the next launch. Callers have already bumped _job_serial. True if a worker was there.
+func _retire_worker() -> bool:
+	if _thread == null:
+		return false
+	_reap(true)
+	return true
+
+
+## Collects a finished job (or, with `block`, waits for a running one and drops its result unless `apply`). A result
+## is acted on only if no cancel/discard/new job happened since it started.
+func _reap(block: bool, apply := false) -> void:
 	if _thread == null:
 		return
 	if not block and _thread.is_alive():
 		return
 	var outcome: Variant = _thread.wait_to_finish()
 	_thread = null
-	if block or not (outcome is Dictionary) or int(outcome["serial"]) != _job_serial:
+	if (block and not apply) or not (outcome is Dictionary) or int(outcome["serial"]) != _job_serial:
 		return
 	if outcome["kind"] == "hash":
 		if state == State.DOWNLOADING:
 			_complete_download(outcome["why"])
 	elif state == State.READY:
 		_launch_copy(outcome, outcome["copy_abs"])
+
+
+## Tests: waits for the running worker and acts on its result exactly as the next frame step would, so a test
+## needs no timer or polling (the thread is joined, however slow the machine is).
+func finish_worker() -> void:
+	_reap(true, true)
 
 
 ## Never free the node with a worker still running (also covers a node that was never in the tree).

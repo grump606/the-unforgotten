@@ -15,6 +15,7 @@ func run() -> int:
 	_test_check_enabled()
 	_test_fixed_urls()
 	_test_install_urls()
+	_test_installer_size_cap()
 	return _failures
 
 
@@ -114,3 +115,26 @@ func _test_install_urls() -> void:
 func _test_fixed_urls() -> void:
 	_check(UpdateCheck.RELEASES_PAGE.begins_with("https://github.com/grump606/the-unforgotten/"), "the page opened is a fixed github.com repo URL")
 	_check(UpdateCheck.LATEST_RELEASE_API.begins_with("https://api.github.com/repos/grump606/the-unforgotten/"), "the request goes to the fixed api.github.com repo URL")
+
+
+## The download cap must leave room for the installer to grow: tests/golden/latest_installer_size.txt holds the
+## byte size of the latest published installer (update it when releasing, see docs/UPDATE_CHECK.md).
+func _test_installer_size_cap() -> void:
+	var text := FileAccess.get_file_as_string("res://tests/golden/latest_installer_size.txt").strip_edges()
+	_check(text.is_valid_int() and int(text) > 1000000, "tests/golden/latest_installer_size.txt holds the latest installer size in bytes")
+	var latest := int(text)
+	_check(UpdateCheck.MAX_INSTALLER_BYTES * 2 >= latest * 3, "MAX_INSTALLER_BYTES (%d) is at least 1.5x the latest installer (%d): raise the cap before the art outgrows it" % [UpdateCheck.MAX_INSTALLER_BYTES, latest])
+	_check(UpdateCheck.MAX_INSTALLER_BYTES > latest, "the cap is above the real installer")
+	# A download past the cap: the HTTP node reports BODY_SIZE_LIMIT_EXCEEDED, which fails the update and removes the partial file.
+	var dir := "user://update_size_cap_test_%d" % OS.get_process_id()
+	var installer := UpdateInstaller.new()
+	installer.dry_run = true
+	installer.work_dir = dir
+	installer.public_key_pems = [Crypto.new().generate_rsa(2048).save_to_string(true)]
+	installer.current_version = "0.3.0"
+	installer.start("v0.3.9")
+	installer.handle_installer(HTTPRequest.RESULT_BODY_SIZE_LIMIT_EXCEEDED, 200)
+	_check(installer.state == UpdateInstaller.State.FAILED, "a download over the size cap fails the update")
+	installer.free()
+	UpdateInstaller.cleanup(dir)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(dir))

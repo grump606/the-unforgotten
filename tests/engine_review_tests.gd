@@ -182,6 +182,7 @@ func _test_save_bounds() -> void:
 		if relic.kind == RelicData.Kind.MAX_HP:
 			hp_relic = relic
 	if hp_relic != null:
+		edited["stop_index"] = 6 # past the first vendor: a run carries a relic only after a visit
 		edited["relics"] = [String(hp_relic.id)]
 		edited["max_hp"] = limit + hp_relic.amount
 		_check(RunSave.from_dict(edited).error == "", "max_hp covered by a carried MAX_HP relic loads")
@@ -194,7 +195,7 @@ func _test_save_bounds() -> void:
 		deck.append("shove")
 	crowded["deck"] = deck
 	_check(RunSave.from_dict(crowded).error != "", "60 copies of one card is rejected")
-	_check(RunSave.max_copies(run, &"shove") >= 3, "a card the run starts with can be held at least as often as it starts")
+	_check(RunSave.max_copies(run, &"shove", 0) >= 3, "a card the run starts with can be held at least as often as it starts")
 	for character_id in StarterContent.character_ids():
 		for seed_value in 2:
 			_check(_played_run_round_trips(character_id, seed_value), "a played %s run (seed %d) saves and loads at every stop" % [character_id, seed_value])

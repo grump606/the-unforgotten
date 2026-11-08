@@ -6,6 +6,7 @@ extends ScreenScene
 
 const DECEL := 0.22 # how quickly the escaping train loses speed
 const LAMP_LIFE := 9.0 # seconds the defeat lamp takes to go out
+const REST_TIME := 40.0 # seconds into the animation at which everything has settled
 const STEEL := Color(0.16, 0.19, 0.25)
 
 ## Picks the variant; may change at any time.
@@ -16,14 +17,20 @@ func _init() -> void:
 	super(2041, 24)
 
 
+## The clock the picture is drawn at: the running time, or under Motion.reduced the settled end state
+## (the train at rest, the lamp out), so nothing drifts and the card still reads as finished.
+func _clock() -> float:
+	return REST_TIME if Motion.reduced else time
+
+
 ## Distance the escaping train has rolled, flattening out as it slows to a stop.
 func train_offset() -> float:
-	return 520.0 * (1.0 - exp(-time * DECEL))
+	return 520.0 * (1.0 - exp(-_clock() * DECEL))
 
 
 ## 1 while the defeat lamp burns, falling to 0 (with stutters on the way) and staying out.
 func lamp_level() -> float:
-	var fade := clampf(1.0 - time / LAMP_LIFE, 0.0, 1.0)
+	var fade := clampf(1.0 - _clock() / LAMP_LIFE, 0.0, 1.0)
 	return fade * lerpf(0.55, 1.0, wobble(9.0, 3)) if fade > 0.0 else 0.0
 
 
@@ -61,11 +68,11 @@ func _draw_escape(w: float, h: float) -> void:
 		arch.append(mouth + Vector2(cos(a) * 150.0, sin(a) * 190.0))
 	draw_colored_polygon(arch, Color(1.0, 0.96, 0.88))
 	draw_polyline(arch, Color(0.05, 0.05, 0.07), 6.0, true)
-	_ellipse(mouth + Vector2(0, -80), 90.0 + 8.0 * sin(time * 0.6), 120.0, Color(1.0, 1.0, 0.97, 0.5), 20)
+	_ellipse(mouth + Vector2(0, -80), 90.0 + 8.0 * sin(_clock() * 0.6), 120.0, Color(1.0, 1.0, 0.97, 0.5), 20)
 	# Ground, then the train rolling along the front, slowing to a stop.
 	_gradient(Rect2(0, horizon, w, h - horizon), Color(0.14, 0.13, 0.15), Color(0.04, 0.04, 0.06))
 	draw_line(Vector2(0, horizon + 22.0), Vector2(w, horizon + 22.0), Color(STEEL, 0.7), 3.0)
-	var speed := exp(-time * DECEL)
+	var speed := exp(-_clock() * DECEL)
 	var shift := train_offset()
 	var floor_y := horizon + 20.0
 	for car in 4:
@@ -76,7 +83,7 @@ func _draw_escape(w: float, h: float) -> void:
 			draw_rect(Rect2(x + 22.0 + i * 70.0, floor_y - 66.0, 44.0, 34.0), Color(AMBER, 0.5 + 0.2 * flicker(car + i)))
 		draw_rect(Rect2(x, floor_y - 6.0, 310.0, 6.0), Color(0.03, 0.03, 0.04))
 	for i in 5: # steam puffing off the roof; thinner as the train stops
-		var t := fposmod(time * 0.1 + i * 0.2, 1.0)
+		var t := fposmod(_clock() * 0.1 + i * 0.2, 1.0)
 		_ellipse(Vector2(w * (0.1 + 0.2 * i) + t * 50.0 * speed, floor_y - 100.0 - t * 70.0), 20.0 + 26.0 * t, 12.0 + 14.0 * t, Color(1.0, 1.0, 1.0, 0.12 * (1.0 - t) * (0.3 + 0.7 * speed)), 14)
 
 
@@ -86,18 +93,18 @@ func _draw_defeat(w: float, h: float) -> void:
 	var vp := Vector2(w * 0.74, h * 0.5)
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.015, 0.015, 0.03))
 	for i in 8: # ribs of the tunnel streaming past, barely visible
-		var t := fposmod(float(i) / 8.0 - time * 0.07, 1.0)
+		var t := fposmod(float(i) / 8.0 - _clock() * 0.07, 1.0)
 		var half := Vector2(40.0, 55.0).lerp(Vector2(w * 0.7, h * 0.9), t * t)
 		draw_rect(Rect2(vp - half, half * 2.0), Color(STEEL, 0.5 * smoothstep(0.0, 0.3, t) * t), false, 1.0 + 3.0 * t * t)
 	for side in [-1.0, 1.0]:
 		draw_line(vp + Vector2(side * 8.0, 50.0), Vector2(vp.x + side * w * 0.26, h), Color(STEEL, 0.6), 2.0)
 	for i in 14: # sleepers sliding toward the viewer
-		var t := fposmod(float(i) / 14.0 - time * 0.09, 1.0)
+		var t := fposmod(float(i) / 14.0 - _clock() * 0.09, 1.0)
 		var y := vp.y + 50.0 + (h - vp.y - 50.0) * t * t
 		var half := lerpf(10.0, w * 0.26, t * t)
 		draw_line(Vector2(vp.x - half, y), Vector2(vp.x + half, y), Color(STEEL, 0.28 * t), 1.0 + 2.0 * t)
 	# The train going away from us: shrinking toward the dark, a tail lamp still showing.
-	var shrink := 1.0 / (1.0 + time * 0.12)
+	var shrink := 1.0 / (1.0 + _clock() * 0.12)
 	var body := Vector2(150.0, 100.0) * shrink
 	var tail := vp + Vector2(0, 52.0 - 52.0 * (1.0 - shrink))
 	draw_rect(Rect2(tail - Vector2(body.x * 0.5, body.y), body), Color(0.04, 0.04, 0.06))
@@ -114,4 +121,4 @@ func _draw_defeat(w: float, h: float) -> void:
 		_halo(head, 190.0, AMBER, 0.022 * level, 0.9)
 		draw_circle(head, 7.0, Color(1.0, 0.9, 0.6, 0.3 + 0.7 * level))
 	else:
-		draw_circle(head, 4.0, Color(0.5, 0.2, 0.1, 0.6 * (1.0 - clampf((time - LAMP_LIFE) / 6.0, 0.0, 1.0)) + 0.1))
+		draw_circle(head, 4.0, Color(0.5, 0.2, 0.1, 0.6 * (1.0 - clampf((_clock() - LAMP_LIFE) / 6.0, 0.0, 1.0)) + 0.1))

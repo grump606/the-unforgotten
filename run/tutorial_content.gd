@@ -4,10 +4,17 @@ extends RefCounted
 ## the drawing so tests can check every page without building any UI.
 ##
 ## Marker positions are in the pixels of art/tutorial/battle_layout.png (1152 x 648, a real battle screenshot).
-## If the battle layout changes, retake that picture and move the markers.
+## If the battle layout changes, retake that picture and move the markers. Tests keep the three in step:
+## tests/tutorial_markers_tests.gd (the picture is the base window's size, every marker is inside it and on
+## something drawn) and tests/ui_tutorial_layout_test.gd (every marker is on its part of the live layout).
+##
+## To retake the picture: start a run (or use tools/debug launch) in a real 1152 x 648 window, at a fight with
+## three enemies where one is Haunted, the player has some Block and a full hand, and (with a scratch script
+## outside the repo that waits a few frames) save `get_tree().root.get_texture().get_image()` with save_png as
+## art/tutorial/battle_layout.png. Then move the eight markers of the BATTLE page below onto what they describe.
 
 const BATTLE_IMAGE := "res://art/tutorial/battle_layout.png"
-const BATTLE_IMAGE_SIZE := Vector2(1152, 648)
+const BATTLE_IMAGE_SIZE := MenuStyle.BASE_SIZE
 
 ## Page kinds the overlay knows how to build.
 enum Kind { TEXT, BATTLE, CARD, ICONS, KEYWORDS }
@@ -21,7 +28,7 @@ static func pages() -> Array[Dictionary]:
 			"kind": Kind.TEXT,
 			"lead": "Someone still remembers you. Cross the city, one stop at a time, and reach the end.",
 			"items": [
-				"A journey is %d stops: fights, rests, vendors and short story moments." % RunState._default_line().size(),
+				"A journey is %d stops: fights, rests, vendors and short story moments." % RunState.default_line_size(),
 				"Win fights to earn gold and add a new card to your deck. Your deck grows as you go.",
 				"At a rest you can heal, or Remember a card to make it stronger. Vendors sell cards and relics.",
 				"If your HP reaches 0 the journey ends. Beat the final boss to escape.",
@@ -38,9 +45,9 @@ static func pages() -> Array[Dictionary]:
 				{"at": Vector2(766, 163), "text": "Omen: what that enemy will do on its next turn, as an icon and a number."},
 				{"at": Vector2(748, 413), "text": "Status pills under the HP bar, such as Haunt 3 here. Hover one for what it does."},
 				{"at": Vector2(116, 462), "text": "Energy: what you have left this turn out of what you get each turn. Cards cost energy."},
-				{"at": Vector2(154, 574), "text": "Your piles: Draw, Discard, Forgotten and Sworn. Click one, or press D, C, F or W, to look inside."},
+				{"at": Vector2(154, 574), "text": "Your piles: Draw, Discard, Forgotten and Sworn. Click one, or press " + BattleKeys.pile_keys_text() + ", to look inside."},
 				{"at": Vector2(836, 500), "text": "Your hand. Click a card or press its number to play it. Drag a card onto an enemy to aim it."},
-				{"at": Vector2(1070, 488), "text": "End Turn (or press E) passes to the enemies. Log shows what happened."},
+				{"at": Vector2(1070, 488), "text": "End Turn (or press " + BattleKeys.end_turn_key_text() + ") passes to the enemies. Log shows what happened."},
 			],
 		},
 		{
@@ -65,9 +72,9 @@ static func pages() -> Array[Dictionary]:
 				"1. You start with your energy and a hand of cards. Check each enemy's Omen to see what is coming.",
 				"2. Play cards: click one, or press its number. Cards that hit one enemy need a target: click the enemy first, or drag the card onto it.",
 				"3. Hover a card to see it larger. Rest the pointer on it a moment for a note on each of its keywords and effects.",
-				"4. When you are done, press End Turn (or E). You may keep up to %d cards in hand: mark the others to discard, then confirm. With %d or fewer you can just choose Keep all." % [Combat.HAND_SIZE, Combat.HAND_SIZE],
+				"4. When you are done, press End Turn (or %s). You may keep up to %d cards in hand: mark the others to discard, then confirm. With %d or fewer you can just choose Keep all." % [BattleKeys.end_turn_key_text(), Combat.HAND_SIZE, Combat.HAND_SIZE],
 				"5. The enemies act as their Omens showed. Your energy refills and you draw back up to %d cards (%d at most)." % [Combat.HAND_SIZE, Combat.HAND_MAX],
-				"6. Played cards go to the discard pile, which is reshuffled into the draw pile when that runs out. Press D, C, F or W to look at the Draw, Discard, Forgotten or Sworn pile. Defeat every enemy to win the fight.",
+				"6. Played cards go to the discard pile, which is reshuffled into the draw pile when that runs out. Press %s to look at the Draw, Discard, Forgotten or Sworn pile. Defeat every enemy to win the fight." % BattleKeys.pile_keys_text(),
 			],
 		},
 		{
@@ -79,7 +86,7 @@ static func pages() -> Array[Dictionary]:
 				{"icon": &"intent", "color_kind": CardEffect.Kind.BLOCK, "name": "Block", "text": "The enemy will guard against damage."},
 				{"icon": &"intent", "color_kind": CardEffect.Kind.EXPOSE, "name": "Expose", "text": "The enemy will make you take more damage."},
 				{"icon": &"exposed", "color_kind": CardEffect.Kind.EXPOSE, "name": "Exposed", "text": "Takes " + CardGlossary.EXPOSED_X + "x damage for N turns."},
-				{"icon": &"haunt", "color_kind": CardEffect.Kind.HAUNT, "name": "Haunt", "text": "Takes N damage at the enemy phase, ignoring Block, then Haunt drops by 1."},
+				{"icon": &"haunt", "color_kind": CardEffect.Kind.HAUNT, "name": "Haunt", "text": "Takes N damage at the enemy phase, ignoring Block, then " + CardGlossary.HAUNT_FALLS + "."},
 				{"icon": &"shaken", "color_kind": CardEffect.Kind.SHAKEN, "name": "Shaken", "text": "Deals " + CardGlossary.REDUCED_PERCENT + " less damage for N turns."},
 				{"icon": &"frayed", "color_kind": CardEffect.Kind.FRAYED, "name": "Frayed", "text": "Gains " + CardGlossary.REDUCED_PERCENT + " less Block for N turns."},
 				{"icon": &"malice", "color_kind": CardEffect.Kind.MALICE, "name": "Malice", "text": "A flat bonus to every hit dealt. Red means a penalty."},

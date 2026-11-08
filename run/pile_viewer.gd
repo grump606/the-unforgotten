@@ -17,6 +17,8 @@ const NOTES := [
 ]
 const SCALES: Array[float] = [0.8, 0.7, 0.6, 0.5]
 const GAP := 6.0
+## Layer of the viewer when used on its own (the battle sets its own, BattleOverlays.Z).
+const Z := 25
 
 var pile: Pile = Pile.DRAW
 var tab_buttons: Array[Button] = []
@@ -26,7 +28,7 @@ var close_button: Button
 var _combat: Combat
 var _flow: HFlowContainer
 var _scroll: ScrollContainer
-var _area := Vector2(1152, 648)
+var _area := MenuStyle.BASE_SIZE
 var _live: Combatant = null
 
 
@@ -81,13 +83,24 @@ func _build() -> void:
 	name = "PileViewer"
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	z_index = 25
+	z_index = Z
 	var dim := ColorRect.new()
 	dim.color = Color(0.02, 0.03, 0.05, 0.62)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dim)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var column := _build_panel()
+	_build_tabs(column)
+	note_label = Label.new()
+	note_label.add_theme_font_size_override("font_size", 13)
+	note_label.add_theme_color_override("font_color", MenuStyle.TEXT_DIM)
+	column.add_child(note_label)
+	_build_card_area(column)
+	_fill()
 
+
+## The bordered panel, centred and a little above the middle; returns its column.
+func _build_panel() -> VBoxContainer:
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var box := StyleBoxFlat.new()
@@ -108,10 +121,14 @@ func _build() -> void:
 	panel.offset_right = width / 2.0
 	panel.offset_top = -height / 2.0 - 20.0
 	panel.offset_bottom = height / 2.0 - 20.0
-
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 8)
 	panel.add_child(column)
+	return column
+
+
+## One toggle tab per pile, a spacer, and the Close button.
+func _build_tabs(column: VBoxContainer) -> void:
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 8)
 	column.add_child(tabs)
@@ -134,10 +151,9 @@ func _build() -> void:
 	close_button.pressed.connect(close)
 	tabs.add_child(close_button)
 
-	note_label = Label.new()
-	note_label.add_theme_font_size_override("font_size", 13)
-	note_label.add_theme_color_override("font_color", MenuStyle.TEXT_DIM)
-	column.add_child(note_label)
+
+## The scrolling flow the card views are put in (filled by _fill).
+func _build_card_area(column: VBoxContainer) -> void:
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -147,13 +163,12 @@ func _build() -> void:
 	_flow.add_theme_constant_override("h_separation", int(GAP))
 	_flow.add_theme_constant_override("v_separation", int(GAP))
 	_scroll.add_child(_flow)
-	_fill()
 
 
+## Brings the tabs, the note and the card views up to date. The card views already on screen are reused in place
+## (like BattleHand.sync): a view is rewritten only when its card or the scale differs, views are added or removed
+## only when the card count changes, so a refresh with nothing new does no work and a switch of tab keeps the nodes.
 func _fill() -> void:
-	for child in _flow.get_children():
-		_flow.remove_child(child)
-		child.queue_free()
 	var cards := shown_cards(_combat.piles, pile)
 	for i in tab_buttons.size():
 		var count := shown_cards(_combat.piles, i as Pile).size()
@@ -169,13 +184,23 @@ func _fill() -> void:
 		if rows * (CardView.BASE.y + CardView.LIFT) * s + (rows - 1) * GAP <= height:
 			scale = s
 			break
-	for card in cards:
-		var view := CardView.new()
-		view.view_scale = scale
-		view.live = _live
-		view.set_card(card)
-		view.set_state(CardView.State.NORMAL)
-		_flow.add_child(view)
+	var views := card_views()
+	for i in cards.size():
+		var view: CardView
+		if i < views.size():
+			view = views[i]
+		else:
+			view = CardView.new()
+			view.live = _live
+			view.set_state(CardView.State.NORMAL)
+			_flow.add_child(view)
+		if view.view_scale != scale:
+			view.view_scale = scale
+		if view.card != cards[i]:
+			view.set_card(cards[i])
+	for i in range(cards.size(), views.size()):
+		_flow.remove_child(views[i])
+		views[i].queue_free()
 
 
 func close() -> void:

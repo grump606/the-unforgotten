@@ -27,6 +27,12 @@ func _old(seed_value: int, noise_size: int, mote_count: int, lo: float, hi: floa
 	return [noise, motes]
 
 
+## Decodes everything queued, on the main thread (never a worker: see PaintedArt).
+func _pump_all() -> void:
+	while PaintedArt.pending() > 0:
+		PaintedArt.pump(0.0)
+
+
 func _initialize() -> void:
 	var backdrop := BattleBackdrop.new()
 	var want := _old(1906, 64, 44, 0.015, 0.05, 0.8, 1.9)
@@ -64,16 +70,20 @@ func _initialize() -> void:
 	check(rng_a.randi() == rng_b.randi(), "the generator is left in the same state")
 
 	# Warm-up: caches present and missing files, and is idempotent.
-	PaintedArt.preload_screen(&"vendor")
-	check(PaintedArt._cache.has("res://art/layers/screens/vendor/bg.png"), "preload_screen caches the texture")
+	PaintedArt.queue_screen(&"vendor")
+	_pump_all()
+	check(PaintedArt._cache.has("res://art/layers/screens/vendor/bg.png"), "a queued screen is cached once pumped")
 	var tex := PaintedArt.screen_texture(&"vendor")
-	PaintedArt.preload_screen(&"vendor")
-	check(PaintedArt.screen_texture(&"vendor") == tex, "preloading twice returns the same texture")
-	PaintedArt.preload_paths(["res://art/layers/screens/nope/bg.png"])
+	PaintedArt.queue_screen(&"vendor")
+	_pump_all()
+	check(PaintedArt.screen_texture(&"vendor") == tex, "queueing twice returns the same texture")
+	PaintedArt.queue_paths(["res://art/layers/screens/nope/bg.png"])
+	_pump_all()
 	check(PaintedArt._cache.has("res://art/layers/screens/nope/bg.png") and PaintedArt.screen_texture(&"nope") == null, "a missing file stays a cached null")
 	for stop_type in 4:
-		PaintedArt.warm_for_stop(stop_type, &"deserter")
-	check(PaintedArt.screen_texture(&"rest") == PaintedArt.screen_texture(&"rest"), "warm_for_stop runs for every stop type")
+		PaintedArt.queue_for_stop(stop_type, &"deserter")
+	_pump_all()
+	check(PaintedArt.screen_texture(&"rest") == PaintedArt.screen_texture(&"rest"), "queueing runs for every stop type")
 
 	print("scene noise test: %d failure(s)" % fails)
 	quit(1 if fails > 0 else 0)

@@ -1,0 +1,8 @@
+# Weekly refresh PRs for the SHA-pinned actions in .github/workflows (the "# v5" comments show the version each
+# pin stands for). Dependabot updates both the SHA and the comment.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

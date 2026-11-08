@@ -178,8 +178,27 @@ func _start_with(player: Combatant, enemies: Array[EnemyData], combat_seed: int)
 	_attach(combat)
 
 
+## Stops listening to the current fight (a replaced one, or when this screen leaves the tree), so a Combat that
+## outlives the screen holds no connection back to it.
+func _detach() -> void:
+	if _combat == null:
+		return
+	for pair in [[_combat.state_changed, _on_state_changed], [_combat.combat_ended, _on_combat_ended],
+			[_combat.card_played, _on_card_played], [_combat.enemy_acted, _on_enemy_acted],
+			[_combat.enemy_phase_changed, _on_enemy_phase_changed]]:
+		var sig: Signal = pair[0]
+		var handler: Callable = pair[1]
+		if sig.is_connected(handler):
+			sig.disconnect(handler)
+
+
+func _exit_tree() -> void:
+	_detach()
+
+
 ## Shows and starts `combat`, replacing any previous fight on this screen.
 func _attach(combat: Combat) -> void:
+	_detach()
 	_combat = combat
 	_combat.state_changed.connect(_on_state_changed)
 	_combat.combat_ended.connect(_on_combat_ended)
@@ -245,6 +264,28 @@ func _refresh() -> void:
 func _discard_node(node: Node) -> void:
 	node.get_parent().remove_child(node)
 	node.queue_free()
+
+
+# --- the screen's public face for its helper classes (run/battle/) ---------------------------------
+
+## The fight on screen (null before the first fight is attached).
+func combat() -> Combat:
+	return _combat
+
+
+## The enemies' figures on the stage, in the order of combat().enemies.
+func enemy_views() -> Array[Fighter]:
+	return _enemy_views
+
+
+## The card-drag handler.
+func drag() -> BattleDrag:
+	return _drag
+
+
+## Asks for a refresh: it runs when the current batch ends, or at once outside one.
+func request_refresh() -> void:
+	_on_state_changed()
 
 
 # --- forwarders for the pieces other scripts and tests call -----------------------------------

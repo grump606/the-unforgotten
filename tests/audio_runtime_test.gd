@@ -25,6 +25,22 @@ func _music_db() -> float:
 	return AudioServer.get_bus_volume_db(AudioServer.get_bus_index("Music"))
 
 
+## Waits frame by frame until `condition` is true (a state to reach, not a time to sit through), so a slow or
+## loaded machine just takes longer. `max_seconds` only bounds a hang: reaching it is a failure of the check that follows.
+func _wait_until(condition: Callable, max_seconds := 30.0) -> bool:
+	var started := Time.get_ticks_msec()
+	while not condition.call():
+		if Time.get_ticks_msec() - started > int(max_seconds * 1000.0):
+			return false
+		await process_frame
+	return true
+
+
+func _frames(count: int) -> void:
+	for i in count:
+		await process_frame
+
+
 func _run() -> void:
 	var audio := root.get_node_or_null("AudioManager")
 	_check(audio != null, "AudioManager autoload exists")
@@ -45,28 +61,28 @@ func _run() -> void:
 	_check(credits.contains("Pixabay") and credits.contains("Kenney") and credits.contains("AI generated"), "credits file is readable")
 
 	audio.set_scene(&"menu", &"coastal")
-	await create_timer(0.3).timeout
+	await _wait_until(func() -> bool: return audio.music_channel.playing_count() == 1 and audio.ambience_channel.playing_count() == 1)
 	_check(audio.music_channel.playing_count() == 1 and audio.ambience_channel.playing_count() == 1, "menu music and ambience start")
 	_check(not audio.music_channel.play(&"menu", null, true), "asking for the playing track does nothing")
 	audio.set_scene(&"menu", &"coastal")
-	await create_timer(0.1).timeout
+	await _frames(10)
 	_check(audio.music_channel.playing_count() == 1, "repeated scene does not start a second copy")
 	var menu_player: AudioStreamPlayer = audio.music_channel._current
 
 	audio.set_scene(&"combat", &"coastal")
-	await create_timer(0.4).timeout
+	await _wait_until(func() -> bool: return audio.music_channel.playing_count() == 2, 5.0)
 	_check(audio.music_channel.playing_count() == 2, "crossfade overlaps exactly two tracks")
-	await create_timer(2.0).timeout
+	await _wait_until(func() -> bool: return audio.music_channel.playing_count() == 1 and audio.music_channel.current_id == &"combat")
 	_check(audio.music_channel.playing_count() == 1 and audio.music_channel.current_id == &"combat", "old track stopped after the fade")
 	_check(not menu_player.playing, "the menu player was released")
 	for i in 12:
 		audio.set_scene(&"menu" if i % 2 == 0 else &"combat", &"" if i % 3 == 0 else &"coastal")
-		await create_timer(0.05).timeout
-	await create_timer(3.0).timeout
+		await _frames(3)
+	await _wait_until(func() -> bool: return audio.music_channel.playing_count() == 1 and audio.ambience_channel.playing_count() <= 1)
 	_check(audio.music_channel.playing_count() == 1, "rapid scene changes leave one music track")
 	_check(audio.ambience_channel.playing_count() <= 1, "rapid scene changes leave at most one ambience")
 	audio.set_scene(&"menu", &"")
-	await create_timer(3.0).timeout
+	await _wait_until(func() -> bool: return audio.ambience_channel.playing_count() == 0)
 	_check(audio.ambience_channel.playing_count() == 0, "ambience fades out when a scene has none")
 
 	audio.sfx_log.clear()
@@ -95,19 +111,20 @@ func _run() -> void:
 	_check(is_equal_approx(saved.music, 0.4) and not saved.muted, "volume choice reached the settings file")
 	var normal := _music_db()
 	audio.set_paused_duck(true)
-	await create_timer(0.6).timeout
+	await _wait_until(func() -> bool: return _music_db() < normal - 5.0)
 	_check(_music_db() < normal - 5.0, "pause ducks the music")
 	audio.set_paused_duck(false)
-	await create_timer(0.6).timeout
+	await _wait_until(func() -> bool: return is_equal_approx(_music_db(), normal))
 	_check(is_equal_approx(_music_db(), normal), "unpausing restores the music level")
 
 	audio.set_music(1.0)
 	audio.set_scene(&"combat", &"")
-	var peak := -200.0
-	for i in 40:
-		await create_timer(0.05).timeout
-		peak = maxf(peak, AudioServer.get_bus_peak_volume_left_db(master, 0))
-	_check(peak > -60.0, "sound reaches the master bus (peak %.1f dB)" % peak)
+	var peak := [-200.0]  # an array: a lambda copies plain numbers, but shares an array
+	var hears_sound := func() -> bool:
+		peak[0] = maxf(peak[0], AudioServer.get_bus_peak_volume_left_db(master, 0))
+		return peak[0] > -60.0
+	await _wait_until(hears_sound, 10.0)
+	_check(peak[0] > -60.0, "sound reaches the master bus (peak %.1f dB)" % peak[0])
 
 	# Flush any pending prefs save first: the manager would otherwise write the scratch file again
 	# when it is freed at exit, after the cleanup below, and leave an orphan behind.

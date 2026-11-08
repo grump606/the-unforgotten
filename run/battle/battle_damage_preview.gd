@@ -11,7 +11,7 @@ var _battle: Battle
 ## The fight on screen (read through the battle, so a new fight is picked up).
 var _combat: Combat:
 	get:
-		return _battle._combat
+		return _battle.combat()
 
 
 func _init(battle: Battle) -> void:
@@ -47,10 +47,7 @@ func line_for(card: CardData, target_index: int) -> String:
 ## How many times `effect` of `card` would hit if played now. A Surge card's per_energy damage hits
 ## once per point of the energy it WOULD spend (all the current energy).
 func _hit_count(card: CardData, effect: CardEffect) -> int:
-	var count := maxi(effect.hits, 1)
-	if card.surge and effect.per_energy:
-		count *= _combat.energy
-	return count
+	return _combat.hit_count(card, effect)
 
 
 ## What `card` would do to this one enemy (works for single-target and all-enemies cards alike, so a drag can

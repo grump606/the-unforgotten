@@ -10,6 +10,38 @@ const TURN_CAP := 50
 ## Most choices one call settles (a card queues a handful at most); the cap only guards a stuck engine.
 const MAX_CHOICES_PER_CALL := 32
 
+## Rest stop (both bots): Rest while HP is under this share of max HP, else Remember a card (see prefers_rest).
+const REST_BELOW := 0.6
+
+## Keep tiers (see keep_score): attack or permanent buff, defence, everything else; a Dormant card is 0.
+const TIER_ATTACK := 3.0
+const TIER_DEFENCE := 2.0
+const TIER_OTHER := 1.0
+## One tier is worth this many energy in keep_score, so cost only breaks ties within a tier.
+const KEEP_TIER_WEIGHT := 10.0
+## Tiers a card with discard effects loses: it is worth more thrown away than kept.
+const DISCARD_EFFECT_TIER_PENALTY := 1.5
+
+## Last player turn on which the greedy bot still swears an Oath: sworn later, it would fire too few times to
+## repay its cost.
+const OATH_LAST_TURN := 2
+
+## Play order of the greedy bot (see _pick_card): the lowest rank is played first.
+const RANK_NOTHING := 99.0 # starting value: any playable card beats it
+const RANK_SURGE := 4.0 # spends all the energy left, so last
+const RANK_OATH := -1.5 # acts from the next turn on, so sworn first
+const RANK_SETUP := -1.0 # an Expose or buff that sets up another card this turn
+const RANK_SCENT := -0.9 # marks the quarry before the attacks that use it
+const RANK_GLIMPSE := -0.75
+const RANK_RECALL_NOW := -0.25 # returns a card playable this turn
+const RANK_FADING := -0.5
+const RANK_FREE := 0.0 # 0-cost and energy-refunding cards
+const RANK_BUFF := 0.5 # a permanent stack, the earlier the better
+const RANK_BLOCK := 1.0 # Block or Shaken, while the enemies out-damage current Block
+const RANK_ATTACK := 2.0
+const RANK_SPENDER := 2.5 # damage that scales with Scent or Haunt, after the ordinary attacks
+const RANK_OTHER := 3.0 # anything else affordable, and a Recall that returns nothing playable
+
 
 ## Plays cards until the policy passes or the fight ends, then ends the turn.
 ## Combat.MAX_PLAYS_PER_TURN stops a self-recycling zero-cost deck (no card is
@@ -31,15 +63,17 @@ static func play_turn(combat: Combat) -> bool:
 	return combat.end_player_turn(discards_for(combat))
 
 
+## The rest-stop rule every sim tool shares: Rest while HP is under REST_BELOW of max or no card can be Remembered.
+static func prefers_rest(player: Combatant, can_remember_any: bool) -> bool:
+	return not can_remember_any or player.hp < REST_BELOW * player.max_hp
+
+
 ## Rest stop for both bots: Rest (heal to full) while HP is under REST_BELOW of max or nothing can be
 ## Remembered, else Remember a card (no heal). `smart` picks the card by score gain (SmartPolicy.remember_pick),
 ## greedy takes the first attack that can be Remembered, else the first card. False on a RunState failure.
-const REST_BELOW := 0.6
-
-
 static func rest_stop(run: RunState, smart: bool) -> bool:
 	var indices := run.rememberable_indices()
-	if indices.is_empty() or run.player.hp < REST_BELOW * run.player.max_hp:
+	if prefers_rest(run.player, not indices.is_empty()):
 		return run.rest() >= 0
 	var pick := SmartPolicy.remember_pick(run) if smart else indices[0]
 	if not smart:
@@ -178,16 +212,6 @@ static func keep_score(combat: Combat, card: CardData) -> float:
 	return tier * KEEP_TIER_WEIGHT - card.cost
 
 
-## Keep tiers (see keep_score): attack or permanent buff, defence, everything else; a Dormant card is 0.
-const TIER_ATTACK := 3.0
-const TIER_DEFENCE := 2.0
-const TIER_OTHER := 1.0
-## One tier is worth this many energy in keep_score, so cost only breaks ties within a tier.
-const KEEP_TIER_WEIGHT := 10.0
-## Tiers a card with discard effects loses: it is worth more thrown away than kept.
-const DISCARD_EFFECT_TIER_PENALTY := 1.5
-
-
 ## TIER_ATTACK for an attack or a permanent buff, TIER_DEFENCE for defence, TIER_OTHER for the rest, 0 for a Dormant card.
 static func _base_tier(card: CardData) -> float:
 	if card.dormant:
@@ -208,54 +232,54 @@ static func _base_tier(card: CardData) -> float:
 ## nothing. (Holding Many Hands and Last Keepsake back until last was tried: it starved them of energy, and
 ## Last Keepsake's plays fell from 10 to 4 per run.)
 static func _pick_card(combat: Combat) -> int:
-	var need_block := _incoming_damage(combat) > combat.player.block
+	var need_block := combat.incoming_damage() > combat.player.block
 	var best := -1
-	var best_rank := 99.0
+	var best_rank := RANK_NOTHING
 	for i in combat.piles.hand.size():
 		if not combat.can_play(i):
 			continue
 		var card: CardData = combat.piles.hand[i]
 		if _too_costly_in_hp(combat, card) or _is_pointless(combat, card):
 			continue
-		var rank := 3.0
+		var rank := RANK_OTHER
 		if card.surge:
 			# A Surge spends every point of energy left, so it goes last; at 0 energy a scaling
 			# one does nothing (and playing it would only burn a play).
 			if combat.energy == 0 and _scales_with_energy(card):
 				continue
-			rank = 4.0
+			rank = RANK_SURGE
 		elif card.oath:
 			# An Oath acts from the next turn on, so swear it before spending the turn's energy elsewhere.
-			rank = -1.5
+			rank = RANK_OATH
 		elif _has_effect(card, CardEffect.Kind.SCENT):
 			# Mark the quarry before the attacks that use it, so it is cheap and goes early.
-			rank = -0.9
+			rank = RANK_SCENT
 		elif _has_effect(card, CardEffect.Kind.DAMAGE_PER_SCENT):
 			# A spender goes after the ordinary attacks, which gain from the Scent it will use up.
-			rank = 2.5
+			rank = RANK_SPENDER
 		elif _expose_sets_up_damage(combat, i) or _buff_sets_up(combat, card):
-			rank = -1
+			rank = RANK_SETUP
 		elif _has_effect(card, CardEffect.Kind.GLIMPSE):
 			# Sets up the draws, so it goes early (pointless ones were skipped above).
-			rank = -0.75
+			rank = RANK_GLIMPSE
 		elif _has_effect(card, CardEffect.Kind.RECALL):
 			# Early when it returns a card playable this turn; otherwise it can wait until last.
-			rank = -0.25 if _recall_returns_playable(combat, card) else 3.0
+			rank = RANK_RECALL_NOW if _recall_returns_playable(combat, card) else RANK_OTHER
 		elif card.fading:
 			# It is lost at the end of the turn, so play it before the ordinary cards.
-			rank = -0.5
+			rank = RANK_FADING
 		elif card.cost == 0 or _refunds_cost(card):
-			rank = 0
+			rank = RANK_FREE
 		elif _is_permanent_buff(card):
 			# A stack for the whole fight is worth more the earlier it is played.
-			rank = 0.5
+			rank = RANK_BUFF
 		elif need_block and (is_block_card(card) or _has_effect(card, CardEffect.Kind.SHAKEN)):
 			# Shaken on an attacker cuts the hit like Block does.
-			rank = 1
+			rank = RANK_BLOCK
 		elif _has_effect(card, CardEffect.Kind.DAMAGE_PER_HAUNT):
-			rank = 2.5
+			rank = RANK_SPENDER
 		elif is_damage_card(card):
-			rank = 2
+			rank = RANK_ATTACK
 		if rank < best_rank:
 			best_rank = rank
 			best = i
@@ -292,11 +316,8 @@ static func recycles_itself(combat: Combat, card: CardData) -> bool:
 	return drawn > combat.piles.draw_pile.size()
 
 
-## Last player turn on which the greedy bot still swears an Oath: sworn later, it would fire too few times to
-## repay its cost. It also never swears a second copy of an Oath it already has Sworn.
-const OATH_LAST_TURN := 2
-
-
+## True while an Oath is worth swearing (see OATH_LAST_TURN); it also never swears a second copy of an Oath it
+## already has Sworn.
 static func oath_worth_swearing(combat: Combat, card: CardData) -> bool:
 	if combat.turn > OATH_LAST_TURN:
 		return false
@@ -338,7 +359,7 @@ static func _is_pointless(combat: Combat, card: CardData) -> bool:
 ## True if the Forgotten pile holds an attack or a defence card (the only ones the greedy bot would play).
 static func _forgotten_worth_recalling(combat: Combat) -> bool:
 	for card in combat.piles.forgotten:
-		if _base_tier(card) >= 2.0:
+		if _base_tier(card) >= TIER_DEFENCE:
 			return true
 	return false
 
@@ -385,7 +406,7 @@ static func _is_pointless_status(combat: Combat, card: CardData) -> bool:
 				var found := false
 				for enemy in combat.living_enemies():
 					if effect.kind == CardEffect.Kind.SHAKEN:
-						found = found or (intent_hit(combat, enemy) > 0 and enemy.status_turns(Combatant.Status.SHAKEN) == 0)
+						found = found or (combat.intent_hit(enemy) > 0 and enemy.status_turns(Combatant.Status.SHAKEN) == 0)
 					else:
 						found = found or _blocks_next(enemy)
 				if not found:
@@ -394,7 +415,7 @@ static func _is_pointless_status(combat: Combat, card: CardData) -> bool:
 				if effect.amount < 0:
 					var found := false
 					for enemy in combat.living_enemies():
-						found = found or (_blocks_next(enemy) if effect.kind == CardEffect.Kind.WARD else intent_hit(combat, enemy) > 0)
+						found = found or (_blocks_next(enemy) if effect.kind == CardEffect.Kind.WARD else combat.intent_hit(enemy) > 0)
 					# A temporary stack on an enemy is cleared before it acts (Combat), so it never helps.
 					if not found or effect.temporary:
 						return true
@@ -515,6 +536,17 @@ static func _expose_sets_up_damage(combat: Combat, index: int) -> bool:
 	return false
 
 
+## The start of every bot's vendor visit: buy a Heal when at least half of one is missing, then the relic. False,
+## after logging, when there is no vendor or the run refuses an affordable relic.
+static func shop_basics(run: RunState) -> bool:
+	if run.vendor() == null:
+		printerr("SimPolicy: no vendor at a vendor stop")
+		return false
+	if run.player.max_hp - run.player.hp >= Vendor.HEAL_AMOUNT / 2:
+		run.vendor_buy_heal()
+	return buy_relic(run)
+
+
 ## Vendor step shared by both bots: buys the visit's relic when it is affordable (the vendor stocks at
 ## most one, so cheapest-eligible is that one), before any gold goes on cards. False only if the run
 ## refuses an affordable relic.
@@ -545,9 +577,11 @@ static func is_block_card(card: CardData) -> bool:
 	return false
 
 
-## Greedy never pays HP that would leave it under a quarter of its max HP.
+## Greedy never pays HP that would leave it under a quarter of its max HP. The HP cost is the one the engine
+## charges (a Surge card's per_energy HP loss scales with the energy it would spend, as in Combat.can_play).
 static func _too_costly_in_hp(combat: Combat, card: CardData) -> bool:
-	return card.hp_cost() > 0 and combat.player.hp - card.hp_cost() < combat.player.max_hp / 4
+	var cost := card.hp_cost(combat.surge_scale(card))
+	return cost > 0 and combat.player.hp - cost < combat.player.max_hp / 4
 
 
 static func _has_effect(card: CardData, kind: CardEffect.Kind) -> bool:
@@ -555,17 +589,6 @@ static func _has_effect(card: CardData, kind: CardEffect.Kind) -> bool:
 		if effect.kind == kind:
 			return true
 	return false
-
-
-## HP-before-Block the player would take from the living enemies' next intents, through the shared
-## damage pipeline (enemy Malice and Shaken, then the player's Expose).
-static func _incoming_damage(combat: Combat) -> int:
-	return combat.incoming_damage()
-
-
-## Damage `enemy`'s next intent deals the player (all its hits, before Block), 0 for a non-damage intent.
-static func intent_hit(combat: Combat, enemy: EnemyUnit) -> int:
-	return combat.intent_hit(enemy)
 
 
 ## Index into combat.enemies of the living enemy with the least HP (first on ties).

@@ -14,6 +14,8 @@ signal confirmed(indices: Array[int])
 ## Card scales tried from largest to smallest; below the last one the card list scrolls.
 const SCALES: Array[float] = [0.9, 0.8, 0.7, 0.6, 0.55]
 const GAP := 6.0
+## Height of the card area assumed when the caller gives no usable size (its width is the base window's).
+const FALLBACK_HEIGHT := 420.0
 ## Room kept clear: the enemy HP bars along the bottom of the stage, and the top strip with the prompt.
 const MARGIN_BOTTOM := 74.0
 const MARGIN_TOP := 36.0
@@ -110,12 +112,10 @@ func confirm() -> bool:
 	return true
 
 
-## Number keys 1-9 and 0 toggle cards 1-10, Enter confirms. True when the key was used.
+## Number keys 1-9 and 0 (top row or keypad) toggle cards 1-10, Enter confirms. True when the key was used.
 func handle_key(keycode: int) -> bool:
-	var number := keycode - KEY_1
-	if keycode == KEY_0:
-		number = 9
-	if number >= 0 and number < _views.size() and number < 10:
+	var number := BattleKeys.card_index(keycode as Key)
+	if number >= 0 and number < _views.size():
 		toggle(number)
 		return true
 	if keycode == KEY_ENTER or keycode == KEY_KP_ENTER:
@@ -134,13 +134,21 @@ func _build(area: Vector2) -> void:
 	add_child(dim)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	if area.x < 200.0 or area.y < 100.0:
-		area = Vector2(1152, 420)
+		area = Vector2(MenuStyle.BASE_SIZE.x, FALLBACK_HEIGHT)
 	var inner_w := area.x - 2.0 * MARGIN_SIDE - 40.0
 	var cards_h := maxf(area.y - MARGIN_TOP - MARGIN_BOTTOM - CHROME_H, 120.0)
 	card_scale = fit_scale(cards.size(), inner_w, cards_h)
 	var rows := ceili(float(cards.size()) / maxi(int(floorf((inner_w + GAP) / (CardView.BASE.x * card_scale + GAP))), 1))
 	var list_h := minf(rows * (CardView.BASE.y + CardView.LIFT) * card_scale + (rows - 1) * GAP + 6.0, cards_h)
+	var column := _build_panel(list_h)
+	_build_heading(column)
+	_build_card_list(column, list_h)
+	_build_confirm_row(column)
+	_sync()
 
+
+## The bordered panel along the bottom of the screen, sized for a card list `list_h` tall; returns its column.
+func _build_panel(list_h: float) -> VBoxContainer:
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var box := StyleBoxFlat.new()
@@ -160,10 +168,14 @@ func _build(area: Vector2) -> void:
 	panel.offset_bottom = -MARGIN_BOTTOM
 	panel.offset_top = -MARGIN_BOTTOM - (list_h + CHROME_H)
 	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
-
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 6)
 	panel.add_child(column)
+	return column
+
+
+## The heading and the hint line under it (their text is set by _sync).
+func _build_heading(column: VBoxContainer) -> void:
 	heading_label = Label.new()
 	heading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heading_label.add_theme_font_size_override("font_size", 22)
@@ -175,6 +187,9 @@ func _build(area: Vector2) -> void:
 	hint_label.add_theme_color_override("font_color", MenuStyle.TEXT_DIM)
 	column.add_child(hint_label)
 
+
+## The scrolling flow of card views, one per offered card, each clickable and numbered with its hotkey.
+func _build_card_list(column: VBoxContainer, list_h: float) -> void:
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.custom_minimum_size = Vector2(0, list_h)
@@ -198,6 +213,8 @@ func _build(area: Vector2) -> void:
 		_flow.add_child(view)
 		_views.append(view)
 
+
+func _build_confirm_row(column: VBoxContainer) -> void:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_child(row)
@@ -207,7 +224,6 @@ func _build(area: Vector2) -> void:
 	confirm_button.focus_mode = Control.FOCUS_NONE
 	confirm_button.pressed.connect(confirm)
 	row.add_child(confirm_button)
-	_sync()
 
 
 ## Redraws the marks, the heading and the confirm button from `marks`.

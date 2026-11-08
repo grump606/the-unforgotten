@@ -44,7 +44,7 @@ func skip_intro() -> bool:
 
 
 func start_boss_intro() -> void:
-	var combat := _battle._combat
+	var combat := _battle.combat()
 	if combat.enemies.is_empty():
 		return
 	var boss := combat.enemies[0]
@@ -52,7 +52,7 @@ func start_boss_intro() -> void:
 	intro.setup("MID-BOSS" if _battle.boss_label == "Mid-boss" else "FINAL BOSS", boss.display_name)
 	intro.finished.connect(_on_intro_finished)
 	_battle.add_child(intro)
-	var views := _battle._enemy_views
+	var views := _battle.enemy_views()
 	if not Motion.reduced and not views.is_empty():
 		var view := views[0]
 		view.entrance = ENTRANCE_START_SCALE
@@ -63,7 +63,7 @@ func start_boss_intro() -> void:
 func _on_intro_finished() -> void:
 	if _entrance_tween != null:
 		_entrance_tween.kill()
-	for view in _battle._enemy_views:
+	for view in _battle.enemy_views():
 		view.entrance = 1.0
 	intro = null
 
@@ -79,7 +79,7 @@ func show_phase_banner(title: String) -> void:
 		banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		banner.z_index = 40
+		banner.z_index = BattleOverlays.PHASE_BANNER_Z
 		MenuStyle.heading(banner, 52)
 		banner.add_theme_color_override("font_color", MenuStyle.DAMAGE)
 		banner.add_theme_color_override("font_outline_color", Color(0.05, 0.0, 0.0, 0.9))
@@ -101,7 +101,8 @@ func show_phase_banner(title: String) -> void:
 		banner.modulate.a = 0.0
 		_banner_tween.tween_property(banner, "modulate:a", 1.0, 0.2)
 	_banner_tween.tween_interval(PHASE_BANNER_TIME * (0.4 if reduced else 1.0) - 0.5)
-	_banner_tween.tween_property(banner, "modulate:a", 0.0, 0.3)
+	if not reduced:
+		_banner_tween.tween_property(banner, "modulate:a", 0.0, 0.3)
 	_banner_tween.tween_callback(banner.hide)
 
 
@@ -112,7 +113,7 @@ func flash_screen() -> void:
 	if flash == null:
 		flash = ColorRect.new()
 		flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		flash.z_index = 39
+		flash.z_index = BattleOverlays.PHASE_FLASH_Z
 		_battle.add_child(flash)
 		flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	if _flash_tween != null:
@@ -142,6 +143,10 @@ func show_pile_cue(text: String) -> void:
 	cue.position = Vector2(_battle._pile_box.get_global_rect().position.x - _battle.get_global_rect().position.x, origin.y - 30.0 - 22.0 * _live_cues)
 	_live_cues += 1
 	var tween := _battle.create_tween()
+	if Motion.reduced: # the cue stays where it is, at full strength, for the same time, then goes
+		tween.tween_interval(CUE_TIME)
+		tween.tween_callback(_end_pile_cue.bind(cue))
+		return
 	tween.set_parallel(true)
 	tween.tween_property(cue, "position:y", cue.position.y - CUE_RISE, CUE_TIME)
 	tween.tween_property(cue, "modulate:a", 0.0, CUE_TIME).set_delay(CUE_TIME * 0.5)

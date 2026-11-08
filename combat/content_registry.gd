@@ -112,9 +112,6 @@ static func character(character_id: StringName) -> Character:
 	return loaded
 
 
-## Returns null (after logging an error) if the resource is missing or not a
-## CardData. Checked explicitly rather than with assert so debug and release
-## builds behave the same.
 ## A status card by id (`dread` or `murmur`), or null (cause logged) for an unknown id or a bad resource.
 static func status_card(id: StringName) -> CardData:
 	if not StarterContent.STATUS_CARD_PATHS.has(id):
@@ -131,13 +128,25 @@ static func created_card(id: StringName) -> CardData:
 	return load_card(StarterContent.CREATED_CARD_PATHS[id])
 
 
+## Returns null (after logging an error) if the resource is missing, not a CardData, or has a rarity outside
+## CardData.Rarity (the picker would otherwise fail on it). Checked explicitly rather than with assert so
+## debug and release builds behave the same.
 static func load_card(path: String) -> CardData:
 	var card: CardData = null
 	if ResourceLoader.exists(path):
 		card = load(path) as CardData
 	if card == null:
 		push_error("StarterContent: missing or non-CardData resource: %s" % path)
+		return null
+	if not has_valid_rarity(card):
+		push_error("StarterContent: card %s has rarity %d, outside CardData.Rarity: %s" % [card.id, card.rarity, path])
+		return null
 	return card
+
+
+## True when the card's rarity is one of CardData.Rarity's values.
+static func has_valid_rarity(card: CardData) -> bool:
+	return card.rarity >= 0 and card.rarity < CardData.Rarity.size()
 
 
 ## Enemies are deep-copied so each encounter slot owns its data, as before.

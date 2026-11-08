@@ -7,6 +7,9 @@ extends RefCounted
 ## Rule numbers, built from the combat constants so a rule change reaches every tooltip and tutorial page.
 const EXPOSED_X := "%.1f" % (float(Combatant.EXPOSED_NUM) / Combatant.EXPOSED_DEN)
 const REDUCED_PERCENT := "%d%%" % (100 - 100 * Combatant.REDUCED_NUM / Combatant.REDUCED_DEN)
+## How Haunt decays each enemy phase (Combatant.StatusKind.DECAYING); the one wording used by the glossary,
+## the status tooltip and the tutorial.
+const HAUNT_FALLS := "Haunt falls by 1"
 
 const KEYWORD_TEXT := {
 	"Forgotten": "Once played, leaves the fight for good (returns after).",
@@ -31,7 +34,7 @@ const EFFECT_TEXT := {
 	CardEffect.Kind.THORNS: ["Thorns", "Attackers take N damage this turn."],
 	CardEffect.Kind.GAIN_ENERGY: ["Energy", "Gain energy now, on top of the turn's."],
 	CardEffect.Kind.DAMAGE_PER_PLAY: ["Combo", "More damage per card played earlier this turn."],
-	CardEffect.Kind.HAUNT: ["Haunt", "Target takes N at enemy phase (ignores Block), then Haunt drops by 1."],
+	CardEffect.Kind.HAUNT: ["Haunt", "Target takes N at enemy phase (ignores Block), then " + HAUNT_FALLS + "."],
 	CardEffect.Kind.LOSE_HP: ["Lose HP", "You pay this much HP to play it."],
 	CardEffect.Kind.HEAL_PER_HAUNTED: ["Heal per Haunted", "Heal for each Haunted enemy."],
 	CardEffect.Kind.DAMAGE_PER_HAUNT: ["Haunt damage", "Damage scales with the target's Haunt."],

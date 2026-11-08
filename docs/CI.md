@@ -67,6 +67,16 @@ caches), which is the slowest part of a cold run. It cannot hide a failure:
 To force a cold run (for example if you suspect a bad cache), bump `IMPORT_CACHE_SALT` at the top of
 `check.yml`.
 
+## What counts as a failed step
+
+`check.ps1` fails a step on a non-zero exit code, on a timeout (the last 60 lines of its output are printed
+first, so a hang leaves a log), and when its output contains a script error. What that means is in
+`scripts/check_log_patterns.ps1`: every `SCRIPT ERROR` / `Parse Error` / failed script load, the runtime
+shapes `Invalid call`, `Invalid access`, `Cannot call method`, and engine-side `ERROR:` lines such as
+`Required object "..." is null`, `Parameter "..." is null` or an out-of-bounds index. It deliberately ignores
+`push_error` lines from tests that pass bad input, warnings, and the leaked-object lines at exit.
+`scripts/check_log_patterns_test.ps1` (a step of `check.ps1`) feeds the rules sample bad and noisy logs.
+
 ## Export and installer build (no signing, no publishing)
 
 After the check, the job builds what `scripts/release.ps1` would build, so a broken export preset, a missing
@@ -76,17 +86,18 @@ fails the pull request instead of release day:
 1. **Windows export templates**: the Godot `.tpz` is downloaded once, checked against `GODOT_TEMPLATES_SHA512`
    and only the three Windows files are kept and cached (key: version plus hash).
 2. **Inno Setup**: `choco install innosetup --version=<INNO_SETUP_VERSION>` (Chocolatey is on the runner image;
-   winget is not reliably there). `build_installer.ps1` finds `ISCC.exe` in `Program Files (x86)`.
+   winget is not reliably there). `build_installer.ps1` finds `ISCC.exe` in the newest `Inno Setup*` folder under `Program Files (x86)`, `Program Files` or the per-user `Programs` folder.
 3. **`scripts/build_installer.ps1 -NoSign`**: imports (a failed import fails the build), exports the Windows
    build, checks the exe's file and product version against `config/version`, compiles the installer and checks
    its version. `-NoSign` skips the manifest and signature (no private key is ever on the runner); the output
    is discarded with the runner and must never be released. `release.ps1` never passes `-NoSign`.
 
-These steps were added without a way to run GitHub Actions locally (the same commands do work on a developer
-machine), so treat the first pull request run as their real test: the likely failures are the Chocolatey
-package version for Inno Setup and the template file names inside the `.tpz`. They are not skipped when no
+These steps have run green on pull requests since they were added. They are not skipped when no
 installer-related file changed; the export is a couple of minutes and a path filter would need another pinned
-action.
+action. If Chocolatey has no package for the pinned Inno Setup version, the step installs the newest one it has
+and then fails unless that is a 6.x (and prints the version either way); `build_installer.ps1` prints the Inno
+Setup version it found and picks the newest `Inno Setup*` folder. Dependabot (`.github/dependabot.yml`, weekly)
+opens pull requests that refresh the SHA-pinned actions.
 
 `scripts/check_verify_release.ps1` (a step of `check.ps1`) tests `scripts/verify_release.ps1` offline against
 the committed signing fixture in `tests/golden` (see `tests/signing_compat_tests.gd`).

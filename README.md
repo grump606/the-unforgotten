@@ -21,7 +21,7 @@ Open the project in Godot 4.7 and press F5, or:
 & $env:GODOT --path .
 ```
 
-On launch the game checks GitHub once for a newer release and turns the main menu's Update button red if there is one (click it to see the update bar, with Download and Skip; Skip turns the checks off); once a signing key is built in (`docs/UPDATE_SIGNING.md`) the notice offers Update & restart, which downloads, verifies and installs the new version itself (`docs/UPDATE_CHECK.md`); set `THE_UNFORGOTTEN_NO_UPDATE_CHECK=1` to turn that off (`docs/UPDATE_CHECK.md`).
+On launch the game checks GitHub once for a newer release and turns the main menu's Update button red if there is one (click it to see the update bar, with Download and Skip; Skip turns the checks off); with the maintainer's two signing keys built in (`docs/UPDATE_SIGNING.md`) the notice offers Update & restart, which downloads, verifies and installs the new version itself (`docs/UPDATE_CHECK.md`); set `THE_UNFORGOTTEN_NO_UPDATE_CHECK=1` to turn that off (`docs/UPDATE_CHECK.md`).
 
 A macOS build (a universal `.app` in a zip, not yet tested on a Mac) can be exported from the second preset in `export_presets.cfg`. It is not published with releases; see `docs/MACOS.md`.
 
@@ -82,4 +82,4 @@ Bump `config/version` in `project.godot` (and the matching lines in `export_pres
 
 ## Repository
 
-All rights reserved, no license. The repository holds source art and audio that are not part of the game export; see [`docs/REPO_SIZE.md`](docs/REPO_SIZE.md).
+All rights reserved, no license. The repository holds only what the game and its tooling need (the source audio and the screen reference sheets are kept out of it); see [`docs/REPO_SIZE.md`](docs/REPO_SIZE.md).

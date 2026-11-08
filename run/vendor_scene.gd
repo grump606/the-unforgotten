@@ -87,12 +87,20 @@ func _process(delta: float) -> void:
 	advance(delta)
 
 
+## Redraws per second while the shop animates (the motion is slow, so half a typical frame rate is enough).
+const ANIMATION_HZ := 30.0
+var _redraw_accum := 0.0
+
+
 ## Steps the animation. Does nothing unless the scene is on screen.
 func advance(delta: float) -> void:
-	if not is_visible_in_tree():
-		return
+	if not is_visible_in_tree() or Motion.reduced:
+		return # reduced motion: motes, lantern sway, flame glow and the till pulse hold still
 	time += delta
-	queue_redraw()
+	_redraw_accum += delta
+	if _redraw_accum >= 1.0 / ANIMATION_HZ:
+		_redraw_accum = 0.0
+		queue_redraw()
 
 
 ## Sets the gold on the till. A change after the first call makes the till glow briefly.
@@ -116,6 +124,8 @@ func coin_count() -> int:
 
 ## 1 right after the gold changes, fading to 0.
 func pulse() -> float:
+	if Motion.reduced:
+		return 0.0
 	return clampf(1.0 - (time - _gold_changed_at) / PULSE_SECONDS, 0.0, 1.0)
 
 

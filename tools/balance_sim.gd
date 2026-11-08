@@ -9,6 +9,7 @@ extends SceneTree
 const DEFAULT_FIGHTS := 500
 const DEFAULT_SEED := 1
 var _player_hp := 0 # set from the chosen character in _initialize
+var _failed := false # set by _run_fight when the policy could not play a turn
 
 const USAGE := "Usage: godot --headless --path . -s res://tools/balance_sim.gd -- [--fights N] [--seed S] [--character ID] [--help]\n  --fights N      fights per encounter size, integer >= 1 (default 500)\n  --seed S        base random seed, integer (default 1)\n  --character ID  max HP and starting deck come from this character: deserter, thief, medium or stray (default deserter)\n  --help     print this usage and exit 0"
 
@@ -124,7 +125,7 @@ func _parse_args(args: PackedStringArray) -> Dictionary:
 	return opts
 
 
-## Plays one fight. Returns 1 for a win, -1 for a loss, 0 for a stall.
+## Plays one fight. Returns 1 for a win, -1 for a loss, 0 for a stall; sets _failed when the policy cannot play.
 func _run_fight(combat: Combat) -> int:
 	var outcome := [0]
 	combat.combat_ended.connect(func(victory: bool) -> void: outcome[0] = 1 if victory else -1)
@@ -133,7 +134,7 @@ func _run_fight(combat: Combat) -> int:
 		if combat.turn > SimPolicy.TURN_CAP:
 			return 0
 		if not SimPolicy.play_turn(combat):
-			quit(1)
+			_failed = true
 			return 0
 	return outcome[0]
 

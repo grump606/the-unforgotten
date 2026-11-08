@@ -93,7 +93,7 @@ static func _scaled_intents(source: Array[CardEffect], factor: float) -> Array[C
 
 
 ## StarterContent.SMALL_ENEMY_PATHS minus StarterContent.TRIO_EXCLUDED_PATHS, so a new small enemy joins trios by default.
-## Built once: the path tables are constants.
+## Built once (the path tables are constants); each call returns a copy, so a caller cannot change the cache.
 static var _trio_cache: Array[String] = []
 
 
@@ -102,7 +102,7 @@ static func trio_paths() -> Array[String]:
 		for path in StarterContent.SMALL_ENEMY_PATHS:
 			if not StarterContent.TRIO_EXCLUDED_PATHS.has(path):
 				_trio_cache.append(path)
-	return _trio_cache
+	return _trio_cache.duplicate()
 
 
 ## The boss fight: the Conductor alone. Empty (cause logged) if it fails to load,
