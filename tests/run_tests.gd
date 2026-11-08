@@ -8,7 +8,7 @@ const TestBase := preload("res://tests/test_base.gd")
 ## because a method stopped being called or a loop became empty, fails the run instead of passing. It is recorded
 ## here only. Raise it, to a little under the current total, whenever tests are added; never lower it to make a
 ## run pass (a lower total means checks went missing). Last set at 15150 for a total of 15160+.
-const MIN_CHECKS := 15150
+const MIN_CHECKS := 15450
 
 
 var _total_checks := 0

@@ -161,7 +161,7 @@ func _unplayable_note(card: CardData) -> String:
 		return "DORMANT"
 	if card.cost > combat.energy:
 		return "NEED %d ENERGY" % card.cost
-	if card.hp_cost(combat.energy if card.surge else 1) >= combat.player.hp:
+	if card.hp_cost(combat.surge_scale(card)) >= combat.player.hp:
 		return "TOO LOW HP"
 	return "PLAY LIMIT"
 
