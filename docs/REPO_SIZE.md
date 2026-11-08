@@ -12,8 +12,9 @@ History was rewritten once to shrink clones from **about 250 MiB to about 155 Mi
   commit hashes changed. Release assets and the in-game updater are unaffected (they use release files, not commits).
 - A bundle of the repository as it was before the rewrite was kept by the maintainer outside the repo.
 - If an old clone shows unrelated histories, delete it and clone again. Do not merge it into the new history.
-- Not done: lossless recompression of the PNGs (needs `oxipng` or `zopflipng`, which were not installed); it
-  would save roughly another 15 to 25% of the art.
+- Not done, deliberately: lossless recompression of the PNGs with `oxipng` (`winget install Shssoichiro.Oxipng`). A
+  test saved about 20% with identical pixels (roughly 25 to 30 MB of 147 MB), but it only shrinks clones if history is
+  rewritten again, and it does not change the installer. Recommendation: skip unless another rewrite is needed anyway.
 
 The rest of this page is the analysis from before the rewrite; the sizes below are the old ones.
 
