@@ -99,7 +99,7 @@ func _test_small_enemies_in_trios() -> void:
 
 func _test_extended_deck() -> void:
 	var deck := StarterContent.extended_deck()
-	_check(deck.size() == StarterContent.EXTENDED_DECK_SIZE and deck.size() == 14, "extended deck has 14 cards")
+	_check(deck.size() == StarterContent.EXTENDED_DECK_SIZE, "extended deck has EXTENDED_DECK_SIZE cards (the number itself is pinned in pinned_balance_tests.gd)")
 	var counts := {}
 	for card in deck:
 		counts[card.id] = counts.get(card.id, 0) + 1
@@ -112,7 +112,7 @@ func _test_extended_deck() -> void:
 
 func _test_existing_content_unchanged() -> void:
 	var deck := StarterContent.deck()
-	_check(deck.size() == 10, "starter deck still 10 cards")
+	_check(deck.size() > 0, "the neutral starter deck is not empty (its size is pinned in pinned_balance_tests.gd)")
 	_check(StarterContent.warden().id == &"gate_warden", "warden unchanged")
 	_check(StarterContent.lost_shade().id == &"lost_shade", "lost shade unchanged")
 	_check(StarterContent.early_encounter(1)[0].id == &"gate_warden", "early_encounter(1) unchanged")
@@ -127,7 +127,7 @@ func _names(enemies: Array[EnemyData]) -> Array:
 
 
 func _test_varied_encounter() -> void:
-	_check(StarterContent.enemy_pool().size() == 7, "enemy pool has 7 enemies")
+	_check(StarterContent.enemy_pool().size() == StarterContent.ALL_ENEMY_PATHS.size() and StarterContent.enemy_pool().size() >= 2, "the enemy pool is the whole registry (its size is pinned in pinned_balance_tests.gd)")
 	var seen := {}
 	for seed_value in 60:
 		for requested in [-2, 0, 1, 2, 3, 9]:
@@ -257,7 +257,7 @@ func _test_mid_boss_encounter() -> void:
 ## Characters own their starting decks and class cards; neutral cards are shared.
 func _test_characters_and_pools() -> void:
 	var all := StarterContent.all_cards()
-	_check(all.size() == StarterContent.ALL_CARD_PATHS.size() and all.size() == 112, "all_cards loads all 112 cards")
+	_check(all.size() == StarterContent.ALL_CARD_PATHS.size(), "all_cards loads every registered card")
 	var ids := {}
 	for card in all:
 		_check(not ids.has(card.id), "card id is unique: %s" % card.id)
@@ -272,14 +272,13 @@ func _test_characters_and_pools() -> void:
 
 	_check(StarterContent.character_ids() == [&"deserter", &"thief", &"medium", &"stray"], "four characters, in selection order")
 	_check(StarterContent.character(&"nobody") == null, "an unknown character is null")
-	var max_hp := {&"deserter": 52, &"thief": 36, &"medium": 56, &"stray": 37}
 	for id in StarterContent.character_ids():
 		var character := StarterContent.character(id)
 		_check(character != null and character.id == id and character.display_name != "" and character.pitch != "", "character %s loads with a name and pitch" % id)
 		if character == null:
 			continue
-		_check(character.max_hp == max_hp[id], "character %s starts at %d HP" % [id, max_hp[id]])
-		_check(character.starting_deck.size() == 10, "character %s starts with 10 cards" % id)
+		_check(character.max_hp > 0, "character %s has HP (the numbers are pinned in pinned_balance_tests.gd)" % id)
+		_check(character.starting_deck.size() == StarterContent.deck().size(), "character %s starts with the standard deck size" % id)
 		for card in character.starting_deck:
 			_check(card.character == &"" or card.character == id, "%s starting deck holds only neutral or own cards (%s)" % [id, card.id])
 		var pool := StarterContent.vendor_pool(id)

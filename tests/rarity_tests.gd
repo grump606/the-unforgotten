@@ -26,7 +26,7 @@ func _test_assignments() -> void:
 		by_class[key][card.rarity] += 1
 		if card.basic:
 			_check(card.rarity == CardData.Rarity.COMMON, "%s: a basic card is Common" % card.id)
-	_check(totals[0] + totals[1] + totals[2] == 112, "every card has a rarity (%s)" % str(totals))
+	_check(totals[0] + totals[1] + totals[2] == StarterContent.ALL_CARD_PATHS.size(), "every card has a rarity (%s)" % str(totals))
 	_check(totals[0] > totals[1] and totals[1] > totals[2] and totals[2] >= 6, "Common outnumbers Uncommon, which outnumbers Rare, and there are Rares (%s)" % str(totals))
 	for class_id in [&"deserter", &"thief", &"medium", &"stray"]:
 		var counts: Array = by_class[class_id]
