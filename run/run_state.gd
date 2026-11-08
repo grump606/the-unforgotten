@@ -39,6 +39,12 @@ class Stop:
 	var mid_boss: bool
 	var tier: int
 	var fight: int
+	## Presentation, set with place(): the destination's name, the painted battle backdrop used there ("" for the
+	## default art) and the ambience that plays there ("" for none). Carried on the stop so reordering the line
+	## cannot misassign art; the save stores only the stop index.
+	var label: String = ""
+	var backdrop: StringName = &""
+	var ambience: StringName = &""
 
 	func _init(stop_type: StopType, count: int = 0, beat: int = 0, is_boss: bool = false, is_mid_boss: bool = false) -> void:
 		type = stop_type
@@ -48,6 +54,13 @@ class Stop:
 		mid_boss = is_mid_boss
 		tier = 0
 		fight = 0
+
+	## Sets the presentation fields and returns this stop (for chaining in the line definition).
+	func place(destination: String, backdrop_key: StringName = &"", ambience_key: StringName = &"") -> Stop:
+		label = destination
+		backdrop = backdrop_key
+		ambience = ambience_key
+		return self
 
 	func describe() -> String:
 		match type:
@@ -430,30 +443,30 @@ func _advance() -> void:
 ## The line, 22 stops in two acts (a train line in the original theme, a memorial city since v0.5.0): four regular fights, the Brakeman (now Bellkeeper) halfway (stop 9), four
 ## harder fights, then the Conductor (now Eraser). Three vendors, five rests (the last just before the finale) and the four story beats in order.
 ## Tier (act) and fight number are filled in here; see docs/LEVELS_DESIGN.md.
-func _default_line() -> Array[Stop]:
+static func _default_line() -> Array[Stop]:
 	var line: Array[Stop] = [
-		Stop.new(StopType.STORY, 0, 0),
-		Stop.new(StopType.COMBAT, 1),
-		Stop.new(StopType.COMBAT, 2),
-		Stop.new(StopType.REST),
-		Stop.new(StopType.COMBAT, 2),
-		Stop.new(StopType.VENDOR),
-		Stop.new(StopType.COMBAT, 2),
-		Stop.new(StopType.STORY, 0, 1),
-		Stop.new(StopType.REST),
-		Stop.new(StopType.COMBAT, 1, 0, false, true),
-		Stop.new(StopType.STORY, 0, 2),
-		Stop.new(StopType.REST),
-		Stop.new(StopType.COMBAT, 2),
-		Stop.new(StopType.COMBAT, 3),
-		Stop.new(StopType.VENDOR),
-		Stop.new(StopType.REST),
-		Stop.new(StopType.COMBAT, 2),
-		Stop.new(StopType.COMBAT, 3),
-		Stop.new(StopType.VENDOR),
-		Stop.new(StopType.REST),
-		Stop.new(StopType.STORY, 0, 3),
-		Stop.new(StopType.COMBAT, 1, 0, true),
+		Stop.new(StopType.STORY, 0, 0).place("Shore of Names", &"", &"coastal"),
+		Stop.new(StopType.COMBAT, 1).place("Drowned Street", &"battle_street"),
+		Stop.new(StopType.COMBAT, 2).place("Laundry Court", &"battle_street"),
+		Stop.new(StopType.REST).place("Lampkeeper's Kitchen"),
+		Stop.new(StopType.COMBAT, 2).place("Empty Tenements", &"battle_street"),
+		Stop.new(StopType.VENDOR).place("The Lost-Property Stall"),
+		Stop.new(StopType.COMBAT, 2).place("Petition Steps", &"battle_street"),
+		Stop.new(StopType.STORY, 0, 1).place("The Unanswered Hall"),
+		Stop.new(StopType.REST).place("Caretaker's Alcove"),
+		Stop.new(StopType.COMBAT, 1, 0, false, true).place("The Bell Court", &"battle_bell_court"),
+		Stop.new(StopType.STORY, 0, 2).place("Garden of Unmarked Stones"),
+		Stop.new(StopType.REST).place("Glasshouse Shelter"),
+		Stop.new(StopType.COMBAT, 2).place("Processional Garden", &"battle_garden"),
+		Stop.new(StopType.COMBAT, 3).place("The Listening Marsh", &"battle_garden"),
+		Stop.new(StopType.VENDOR).place("The Bone Orchard Market"),
+		Stop.new(StopType.REST).place("Candlehouse"),
+		Stop.new(StopType.COMBAT, 2).place("The Name Vault", &"battle_archive"),
+		Stop.new(StopType.COMBAT, 3).place("The Unwritten Causeway", &"battle_archive"),
+		Stop.new(StopType.VENDOR).place("Last Keepsake Stall"),
+		Stop.new(StopType.REST).place("The Last Hearth"),
+		Stop.new(StopType.STORY, 0, 3).place("The Breathing Door"),
+		Stop.new(StopType.COMBAT, 1, 0, true).place("The Threshold", &"battle_threshold"),
 	]
 	var tier := 0
 	var fight := 0

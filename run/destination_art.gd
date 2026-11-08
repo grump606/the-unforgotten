@@ -1,22 +1,25 @@
 class_name DestinationArt
 extends RefCounted
-## Presentation metadata only; stop objects, save signatures and RNG are unchanged.
-const LABELS := [
-	"Shore of Names", "Drowned Street", "Laundry Court", "Lampkeeper's Kitchen",
-	"Empty Tenements", "The Lost-Property Stall", "Petition Steps", "The Unanswered Hall",
-	"Caretaker's Alcove", "The Bell Court", "Garden of Unmarked Stones", "Glasshouse Shelter",
-	"Processional Garden", "The Listening Marsh", "The Bone Orchard Market", "Candlehouse",
-	"The Name Vault", "The Unwritten Causeway", "Last Keepsake Stall", "The Last Hearth", "The Breathing Door", "The Threshold",
-]
+## Presentation lookups by stop index. The data (destination name, battle backdrop) lives on each Stop of the
+## line (RunState._default_line), so reordering the route moves the art with it; these are thin lookups for
+## callers that only have an index. Stop objects, save signatures and RNG are unchanged.
 
+static var _line: Array[RunState.Stop] = []
+
+
+static func _stop(index: int) -> RunState.Stop:
+	if _line.is_empty():
+		_line = RunState._default_line()
+	return _line[index] if index >= 0 and index < _line.size() else null
+
+
+## The destination's name at a stop index, "" outside the line.
 static func label_at(index: int) -> String:
-	return LABELS[index] if index >= 0 and index < LABELS.size() else ""
+	var stop := _stop(index)
+	return stop.label if stop != null else ""
 
+
+## The painted battle backdrop key at a stop index, &"" for the default art or outside the line.
 static func battle_key(index: int) -> StringName:
-	match index:
-		1, 2, 4, 6: return &"battle_street"
-		9: return &"battle_bell_court"
-		12, 13: return &"battle_garden"
-		16, 17: return &"battle_archive"
-		21: return &"battle_threshold"
-	return &""
+	var stop := _stop(index)
+	return stop.backdrop if stop != null else &""

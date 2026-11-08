@@ -244,8 +244,8 @@ func _show_stop() -> void:
 ## everywhere else, and the sea only at the first destination (Shore of Names).
 func _set_stop_audio() -> void:
 	var fighting := not _run.finished and not _run.reward_pending() and _run.current_stop().type == RunState.StopType.COMBAT
-	var shore := not _run.finished and _run.stop_index == 0
-	_set_audio(&"combat" if fighting else &"menu", &"coastal" if shore else &"")
+	var ambience: StringName = &"" if _run.finished else _run.current_stop().ambience
+	_set_audio(&"combat" if fighting else &"menu", ambience)
 
 
 func _set_audio(music: StringName, ambience: StringName) -> void:
@@ -462,6 +462,14 @@ func _warm_next_stop() -> void:
 		PaintedArt.preload_screen(backdrop)
 
 
+## Where the debug defeat card is shown from: the mid-boss, the middle of the run.
+func _defeat_demo_index() -> int:
+	for i in _run.stops.size():
+		if _run.stops[i].mid_boss:
+			return i
+	return _run.stops.size() / 2
+
+
 # --- Fight HUD -------------------------------------------------------------------------------
 # During a fight the top header and the framed margin go away. The fight shows the stop title and
 # journey number itself (battle.gd `set_journey`), and the Pause button shrinks into the top-right corner.
@@ -541,7 +549,7 @@ func start_debug_screen(launch: DebugLaunch) -> void:
 		# The end card after the last boss (escaped), or after a defeat part-way down the line.
 		_run.finished = true
 		_run.escaped = launch.screen == "end"
-		_run.stop_index = _run.stops.size() if _run.escaped else _run.stops.size() / 2
+		_run.stop_index = _run.stops.size() if _run.escaped else _defeat_demo_index()
 	_debug_session = true
 	_reset_screens()
 	_show_stop()
