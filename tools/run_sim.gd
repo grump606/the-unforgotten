@@ -18,7 +18,7 @@ const SEED_STRIDE := 1000003
 const MAX_RUNS := 1000000
 const DEFAULT_SEED := 1
 const POLICIES: Array[String] = ["greedy", "smart"]
-const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [--runs N] [--seed S] [--policy P] [--character C] [--help]\n  --runs N    number of whole runs, integer 1 to 1000000 (default 300)\n  --seed S    base random seed, integer (default 1)\n  --policy P  greedy (default) or smart (stronger lookahead player)\n  --character C  deserter (default), thief, medium or stray\n  --help     print this usage and exit 0"
+const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [--runs N] [--seed S] [--policy P] [--character C] [--card-stats] [--help]\n  --runs N    number of whole runs, integer 1 to 1000000 (default 300)\n  --seed S    base random seed, integer (default 1)\n  --policy P  greedy (default) or smart (stronger lookahead player)\n  --card-stats  also print per-card play counts and how many runs held each card\n  --character C  deserter (default), thief, medium or stray\n  --help     print this usage and exit 0"
 
 var _smart := false
 var _card_stats := false
