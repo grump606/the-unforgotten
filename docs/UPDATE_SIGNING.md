@@ -62,9 +62,15 @@ Remove-Item Env:KEYPASS
 The short way (works with the `.pfx` or a `.pem` key): bump `config/version`, merge to `main`, then in a normal PowerShell window
 
 ```powershell
-setx UPDATE_SIGNING_KEY "C:\path\to\signing-private.pfx"   # once; open a new window afterwards
+# Once: replace <YOUR-KEY-PATH> with the real location of your signing-private.pfx (a path that exists on
+# this machine), then open a NEW window so it takes effect. Do not paste this line unchanged.
+setx UPDATE_SIGNING_KEY "<YOUR-KEY-PATH>"
+Test-Path $env:UPDATE_SIGNING_KEY    # in the new window: must print True
+
 powershell -ExecutionPolicy Bypass -File scripts\release.ps1 -Publish
 ```
+
+If the saved path is wrong or the window is older than the `setx`, the script stops at once with "Signing key not found" and shows the path it tried. You can also skip the variable and pass the path for one run: `scripts\release.ps1 -Publish -KeyPath "<YOUR-KEY-PATH>"`.
 
 `scripts/release.ps1` checks that you are on an up-to-date `main` with a free tag, runs the full `scripts/check.ps1`, confirms the GitHub Actions run on that commit is green, finds Godot, asks for the passphrase, builds and signs, clears the passphrase, and asks before running `gh release create`, which makes a **draft** release: review it on GitHub and click Publish release (players, and the in-game updater, only see it then). Add `-NoDraft` to publish immediately. Leave out `-Publish` to build only. The manual steps below do the same by hand.
 
@@ -72,7 +78,7 @@ powershell -ExecutionPolicy Bypass -File scripts\release.ps1 -Publish
 2. In PowerShell:
 
 ```powershell
-$env:UPDATE_SIGNING_KEY = 'C:\path\to\update_signing_private.pem'
+$env:UPDATE_SIGNING_KEY = '<PATH-TO-YOUR-KEY-FILE>'   # the real path of the .pem or .pfx
 $s = Read-Host "Key passphrase" -AsSecureString
 $env:UPDATE_SIGNING_PASS = [System.Net.NetworkCredential]::new('', $s).Password
 powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1

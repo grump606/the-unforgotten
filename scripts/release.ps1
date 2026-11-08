@@ -4,7 +4,7 @@
 #   powershell -ExecutionPolicy Bypass -File scripts\release.ps1 -Publish   # ...then ask to create the draft v<version>
 #   add -NoDraft to publish immediately instead of leaving a draft
 # The signing key's path comes from -KeyPath or $env:UPDATE_SIGNING_KEY (a .pfx or .pem; set it once with
-# setx UPDATE_SIGNING_KEY "C:\path\signing-private.pfx"). The passphrase is asked for here, kept only in this
+# setx UPDATE_SIGNING_KEY "<real path to your key file>", then open a new window). The passphrase is asked for here, kept only in this
 # process's environment for the build, and cleared afterwards. See docs/UPDATE_SIGNING.md.
 param(
     [string]$KeyPath = $env:UPDATE_SIGNING_KEY,
@@ -48,7 +48,8 @@ if ($LASTEXITCODE -ne 0) { throw 'gh release list failed: run "gh auth status".'
 if ($existing -contains $tag) { throw "Release $tag already exists on GitHub: bump config/version first." }
 
 if (-not $KeyPath -or -not (Test-Path -LiteralPath $KeyPath)) {
-    throw 'Signing key not found. Pass -KeyPath or set $env:UPDATE_SIGNING_KEY to the .pfx (or .pem) path.'
+    $tried = if ($KeyPath) { "'$KeyPath'" } else { '(nothing: $env:UPDATE_SIGNING_KEY is empty)' }
+    throw "Signing key not found at $tried. Pass -KeyPath with the real path to the .pfx (or .pem), or fix `$env:UPDATE_SIGNING_KEY (after setx, open a new window)."
 }
 
 # Godot: GODOT_EXE / GODOT, the repo-local copy, then common places.
