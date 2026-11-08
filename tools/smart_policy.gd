@@ -326,17 +326,17 @@ static func _play_value(combat: Combat, hand_index: int, target: int) -> float:
 ## returns the running total so the floating-point additions keep their order.
 static func _effect_value(combat: Combat, card: CardData, hand_index: int, effect: CardEffect, hit: Array[EnemyUnit], incoming: int, energy_left: int, value: float) -> float:
 	var amount := _scaled_amount(combat, card, effect)
+	if effect.is_damage():
+		for enemy in hit:
+			var lost := _hits_hp_lost(combat.player, enemy, _effect_damage(combat, effect, enemy), _hit_count(combat, card, effect))
+			var threat := _threat(combat, enemy)
+			value += lost * (1.0 + float(threat) / maxi(enemy.hp, 1))
+			if lost >= enemy.hp:
+				value += 4.0 + 1.5 * threat
+			elif effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
+				value -= _spend_cost(combat, hand_index, enemy, energy_left)
+		return value
 	match effect.kind:
-		CardEffect.Kind.DAMAGE, CardEffect.Kind.DAMAGE_PER_BLOCK, CardEffect.Kind.DAMAGE_IF_BLOCK, \
-		CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.DAMAGE_PER_FORGOTTEN, CardEffect.Kind.DAMAGE_PER_SCENT:
-			for enemy in hit:
-				var lost := _hits_hp_lost(combat.player, enemy, _effect_damage(combat, effect, enemy), _hit_count(combat, card, effect))
-				var threat := _threat(combat, enemy)
-				value += lost * (1.0 + float(threat) / maxi(enemy.hp, 1))
-				if lost >= enemy.hp:
-					value += 4.0 + 1.5 * threat
-				elif effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
-					value -= _spend_cost(combat, hand_index, enemy, energy_left)
 		CardEffect.Kind.HOLD:
 			# Block kept for next turn: worth about a third of useful Block.
 			value += 0.8 * amount
@@ -559,7 +559,7 @@ static func _with_stack(enemy: EnemyUnit, effect: CardEffect) -> Combatant:
 
 ## Block points a Block of `amount` loses to Frayed (3/4, rounded down, never below 1).
 static func _frayed_loss(amount: int) -> int:
-	return 0 if amount <= 0 else amount - maxi(amount * Combatant.REDUCED_NUM / Combatant.REDUCED_DEN, 1)
+	return Combatant.frayed_loss(amount)
 
 
 ## Damage hits (is_malice) or Block effects of the other cards in hand that `energy_left` can pay for.
@@ -652,17 +652,7 @@ static func _haunted_count(combat: Combat) -> int:
 ## HP `enemy` would lose to `hits` hits of raw damage `amount` each from `attacker`: every hit goes through
 ## the shared pipeline (attacker Malice and Shaken, then the enemy's Expose) and Block absorbs across the hits.
 static func _hits_hp_lost(attacker: Combatant, enemy: EnemyUnit, amount: int, hits: int) -> int:
-	var block := enemy.block
-	var hp := enemy.hp
-	var total := 0
-	for _h in hits:
-		var dealt := Combatant.hit_damage(amount, attacker, enemy)
-		var absorbed := mini(block, dealt)
-		block -= absorbed
-		var lost := mini(dealt - absorbed, hp)
-		hp -= lost
-		total += lost
-	return total
+	return Combatant.hits_outcome(attacker, enemy, amount, hits)["lost"]
 
 
 ## Damage the enemy's next intent would deal to the player (shared pipeline), 0 for other intents.

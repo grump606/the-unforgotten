@@ -15,6 +15,7 @@ func run() -> int:
 	_test_remembered_copies_every_export()
 	_test_enum_tables_cover_every_value()
 	_test_debug_enemy_resolver_is_injected()
+	_test_hit_helpers()
 	return _failures
 
 
@@ -128,3 +129,32 @@ func _test_debug_enemy_resolver_is_injected() -> void:
 	run_state.debug_encounter.assign([&"the_wisp_that_does_not_exist"])
 	run_state.debug_enemy_resolver = Callable()
 	_check(run_state.start_combat() == null, "an unknown id with no resolver yields no fight")
+
+## The shared Block-absorption and damage-preview helpers (Combatant.block_split / hits_outcome, Combat.preview_hit).
+func _test_hit_helpers() -> void:
+	_check(Combatant.block_split(5, 20, 3) == Vector2i(3, 0), "block absorbs a small hit")
+	_check(Combatant.block_split(2, 20, 7) == Vector2i(2, 5), "block absorbs part of a bigger hit")
+	_check(Combatant.block_split(0, 4, 9) == Vector2i(0, 4), "HP lost is capped at the HP left")
+	_check(Combatant.block_split(3, 3, -5) == Vector2i(0, 0), "a negative amount is nothing")
+	_check(Combatant.frayed_amount(4) == 3 and Combatant.frayed_amount(1) == 1 and Combatant.frayed_loss(4) == 1 and Combatant.frayed_loss(0) == 0, "the Frayed formula lives on Combatant")
+	var player := Combatant.new("p", 40)
+	var dummy := Combatant.new("e", 20)
+	dummy.gain_block(5)
+	var out := Combatant.hits_outcome(player, dummy, 3, 3)
+	_check(out["damage"] == 9 and out["absorbed"] == 5 and out["through"] == 4 and out["lost"] == 4 and out["block_left"] == 0, "three hits of 3 against 5 Block: %s" % str(out))
+	_check(Combatant.hits_outcome(player, dummy, 3, 99)["lost"] == 20, "overkill is not counted in lost")
+	_check(Combatant.hits_outcome(player, dummy, 3, 99)["through"] == 99 * 3 - 5, "through is not capped by HP")
+	_check(Combatant.hits_outcome(player, dummy, 3, 1, 0)["lost"] == 3, "a block override replaces the target's Block")
+	# preview_hit equals what _apply really does, including Malice, Expose and a multi-hit.
+	var strike := CardEffect.make(K.DAMAGE, 3, 0, 0, 2)
+	var card := CardData.make(&"x", "X", 0, [strike] as Array[CardEffect])
+	var combat := _fight([card] as Array[CardData], [30] as Array[int])
+	combat.player.apply_status(Combatant.Status.MALICE, 1)
+	combat.enemies[0].apply_status(Combatant.Status.EXPOSED, 1)
+	combat.enemies[0].gain_block(3)
+	var preview := combat.preview_hit(strike, combat.player, combat.enemies[0], combat.plays_this_turn + 1)
+	var hp_before := combat.enemies[0].hp
+	combat.play_card(0, 0)
+	_check(hp_before - combat.enemies[0].hp == preview["lost"], "preview_hit matches the real HP loss (%s)" % str(preview))
+	_check(combat.hit_amount(strike, combat.player, combat.enemies[0], 1) == Combatant.hit_damage(3, combat.player, combat.enemies[0]), "hit_amount is the shared single-hit rule")
+	_check(SimPolicy.is_damage_card(CardData.make(&"h", "H", 0, [_fx(K.HAUNT, 2)] as Array[CardEffect])) and SimPolicy.is_damage_card(card) and not SimPolicy.is_damage_card(CardData.make(&"b", "B", 0, [_fx(K.BLOCK, 2)] as Array[CardEffect])), "is_damage_card is is_damage() plus Haunt")
