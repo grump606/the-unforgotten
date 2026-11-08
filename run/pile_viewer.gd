@@ -135,7 +135,7 @@ func _build_tabs(column: VBoxContainer) -> void:
 	for i in PILE_NAMES.size():
 		var tab := Button.new()
 		tab.toggle_mode = true
-		tab.focus_mode = Control.FOCUS_NONE
+		tab.focus_mode = Control.FOCUS_ALL # Tab reaches the tabs; the pile keys still work (see BattleKeys)
 		tab.theme_type_variation = MenuStyle.QUIET
 		tab.custom_minimum_size = Vector2(130, 34)
 		tab.pressed.connect(show_pile.bind(i as Pile))
@@ -146,7 +146,7 @@ func _build_tabs(column: VBoxContainer) -> void:
 	tabs.add_child(spacer)
 	close_button = Button.new()
 	close_button.text = "Close (Esc)"
-	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.focus_mode = Control.FOCUS_ALL
 	close_button.custom_minimum_size = Vector2(110, 34)
 	close_button.pressed.connect(close)
 	tabs.add_child(close_button)
