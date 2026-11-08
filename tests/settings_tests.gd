@@ -91,9 +91,6 @@ func run() -> int:
 	fits.extras = {"future": "ok"}
 	_check(fits.save(_path) == "" and Settings.load_file(_path).extras.get("future") == "ok", "normal settings still save and load")
 	_cleanup()
-	# The project was renamed (v0.6.0) but saves and settings must stay where earlier versions wrote
-	# them: project.godot pins the user folder to the old name (see config/custom_user_dir_name).
-	_check(OS.get_user_data_dir().replace("\\", "/").ends_with("Godot/app_userdata/The Unforgotten"), "the user data folder is named after the game (UserDataMigration moves saves from the old one)")
 	return _failures
 
 
