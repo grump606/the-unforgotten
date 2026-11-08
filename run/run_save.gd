@@ -19,6 +19,13 @@ const MAX_FILE_BYTES := 1048576
 const MAX_DECK := 200
 const MAX_GOLD := 1000000
 const MAX_HP := 10000
+## Max HP can only rise through a MAX_HP relic (Vendor.buy_relic; a rest stop heals but never raises it), so a
+## genuine save holds the character's base HP plus the MAX_HP relics it carries. The slack lets a save made
+## before a character's base HP was retuned still load; a hand-edited 9999 does not.
+const MAX_HP_SLACK := 20
+## Copies of one card a genuine run can hold: the starting copies, one reward pick per fight, and the
+## vendor's whole stock every visit, plus slack for a retuned starting deck. Remembered copies count as the same card.
+const DECK_COPY_SLACK := 2
 
 
 class Result extends RefCounted:
@@ -109,7 +116,7 @@ static func from_dict(data: Variant) -> Result:
 	# Each validator stores what it accepts in `got` and returns why a field was rejected ("" if fine).
 	# The order matters: the deck check leaves the card table the offered check needs.
 	var got := Accepted.new()
-	for check in [_check_numbers, _check_rng_state, _check_deck, _check_offered, _check_relics]:
+	for check in [_check_relics, _check_numbers, _check_rng_state, _check_deck, _check_offered]:
 		error = check.call(d, run, got)
 		if error != "":
 			return Result.fail(error)
@@ -143,9 +150,33 @@ static func _check_character(character_id: Variant) -> String:
 	return ""
 
 
-## max_hp, hp, gold, the stop line and stop_index. hp is bounded by max_hp, so that order stays.
+## The largest max HP a genuine save of `run`'s character can hold given the relics it carries.
+static func max_hp_allowed(run: RunState, relics: Array[RelicData]) -> int:
+	var total := run.character.max_hp + MAX_HP_SLACK
+	for relic in relics:
+		if relic.kind == RelicData.Kind.MAX_HP:
+			total += relic.amount
+	return mini(total, MAX_HP)
+
+
+## The most copies of one card a genuine run of `run`'s line could hold (see DECK_COPY_SLACK).
+static func max_copies(run: RunState, card_id: StringName) -> int:
+	var total := DECK_COPY_SLACK
+	for card in StarterContent.starter_deck(run.character.id):
+		if card.id == card_id:
+			total += 1
+	for stop in run.stops:
+		if stop.type == RunState.StopType.COMBAT:
+			total += 1
+		elif stop.type == RunState.StopType.VENDOR:
+			total += Vendor.STOCK_CARDS
+	return total
+
+
+## max_hp, hp, gold, the stop line and stop_index. hp is bounded by max_hp, so that order stays. Needs the
+## relics (max_hp is bounded by them), so _check_relics runs first.
 static func _check_numbers(d: Dictionary, run: RunState, got: Accepted) -> String:
-	var max_hp: Variant = _int(d, "max_hp", 1, MAX_HP)
+	var max_hp: Variant = _int(d, "max_hp", 1, max_hp_allowed(run, got.relics))
 	if max_hp == null:
 		return "bad max_hp"
 	var hp: Variant = _int(d, "hp", 1, max_hp)
@@ -193,6 +224,7 @@ static func _check_deck(d: Dictionary, run: RunState, got: Accepted) -> String:
 	if known.is_empty():
 		return "card content failed to load"
 	var deck: Array[CardData] = []
+	var copies := {}
 	for entry in raw_deck:
 		if typeof(entry) != TYPE_STRING:
 			return "this save contains a card that no longer exists"
@@ -209,6 +241,9 @@ static func _check_deck(d: Dictionary, run: RunState, got: Accepted) -> String:
 				return "this save marks a card as Remembered that cannot be"
 			card = variant
 		deck.append(card)
+		copies[entry_id] = copies.get(entry_id, 0) + 1
+		if copies[entry_id] > max_copies(run, card.id):
+			return "this save holds more copies of a card than a run can collect"
 	got.known_cards = known
 	got.deck = deck
 	return ""
