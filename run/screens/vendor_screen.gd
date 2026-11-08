@@ -197,7 +197,7 @@ func _relic_slot(offer: Dictionary) -> Control:
 		var style := StyleBoxFlat.new()
 		style.bg_color = states[state]
 		style.set_border_width_all(1)
-		style.border_color = Color("#9b9e90") if state != "disabled" else MenuStyle.BORDER
+		style.border_color = MenuStyle.STONE if state != "disabled" else MenuStyle.BORDER
 		style.set_corner_radius_all(3)
 		plate.add_theme_stylebox_override(state, style)
 	outer.add_child(plate)
@@ -215,14 +215,14 @@ func _relic_slot(offer: Dictionary) -> Control:
 	column.add_child(view)
 	var name_label := make_label(relic.display_name)
 	name_label.add_theme_font_size_override("font_size", 14)
-	name_label.add_theme_color_override("font_color", Color("#D7D0BC"))
+	name_label.add_theme_color_override("font_color", MenuStyle.PARCHMENT)
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(name_label)
 	var text := make_label(relic.description)
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.add_theme_font_size_override("font_size", 12)
-	text.add_theme_color_override("font_color", Color("#bcc5bd"))
+	text.add_theme_color_override("font_color", MenuStyle.MIST)
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(text)
 	if sold or not affordable:

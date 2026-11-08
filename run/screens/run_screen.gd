@@ -149,12 +149,12 @@ static func style_service(button: Button) -> void:
 		button.theme_type_variation = MenuStyle.PLAQUE_SMALL
 		button.custom_minimum_size = Vector2(0, 44)
 		return
-	var states := {"normal": MenuStyle.PANEL, "hover": MenuStyle.PANEL_HOVER, "pressed": Color("#101720"), "disabled": Color("#182026")}
+	var states := {"normal": MenuStyle.PANEL, "hover": MenuStyle.PANEL_HOVER, "pressed": MenuStyle.WELL, "disabled": MenuStyle.DISABLED_FILL}
 	for state in states:
 		var style := StyleBoxFlat.new()
 		style.bg_color = states[state]
 		style.set_border_width_all(2)
-		style.border_color = MenuStyle.BORDER if state == "disabled" else Color("#9b9e90")
+		style.border_color = MenuStyle.BORDER if state == "disabled" else MenuStyle.STONE
 		style.set_corner_radius_all(5)
 		style.content_margin_left = 14
 		style.content_margin_right = 14

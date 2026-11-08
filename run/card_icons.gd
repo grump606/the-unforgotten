@@ -24,7 +24,7 @@ const ICON_KINDS: Array[CardEffect.Kind] = [
 	CardEffect.Kind.SCENT, CardEffect.Kind.DAMAGE_PER_SCENT,
 ]
 const KIND_COLORS := {
-	CardEffect.Kind.DAMAGE: Color("#d96b65"), CardEffect.Kind.BLOCK: Color("#83b4cf"),
+	CardEffect.Kind.DAMAGE: MenuStyle.DAMAGE, CardEffect.Kind.BLOCK: MenuStyle.BLOCK,
 	CardEffect.Kind.DRAW: Color(0.88, 0.88, 0.92), CardEffect.Kind.EXPOSE: Color(0.96, 0.80, 0.35),
 	CardEffect.Kind.HOLD: Color(0.40, 0.82, 0.80), CardEffect.Kind.THORNS: Color(0.58, 0.86, 0.42),
 	CardEffect.Kind.GAIN_ENERGY: Color(1.0, 0.88, 0.30), CardEffect.Kind.HAUNT: Color(0.76, 0.70, 1.0),
@@ -32,8 +32,8 @@ const KIND_COLORS := {
 	CardEffect.Kind.SHAKEN: Color(0.97, 0.62, 0.30), CardEffect.Kind.FRAYED: Color(0.78, 0.70, 0.55),
 	CardEffect.Kind.MALICE: Color(0.84, 0.45, 0.95), CardEffect.Kind.WARD: Color(0.46, 0.62, 1.0),
 	CardEffect.Kind.GLIMPSE: Color(0.55, 0.85, 0.95), CardEffect.Kind.ADD_CARD: Color(0.72, 0.84, 0.60), CardEffect.Kind.RECALL: Color(0.90, 0.78, 0.50),
-	CardEffect.Kind.DAMAGE_PER_FORGOTTEN: Color("#d96b65"),
-	CardEffect.Kind.SCENT: Color(0.62, 0.74, 0.92), CardEffect.Kind.DAMAGE_PER_SCENT: Color("#d96b65"),
+	CardEffect.Kind.DAMAGE_PER_FORGOTTEN: MenuStyle.DAMAGE,
+	CardEffect.Kind.SCENT: Color(0.62, 0.74, 0.92), CardEffect.Kind.DAMAGE_PER_SCENT: MenuStyle.DAMAGE,
 }
 ## Ids that get the fist icon (shoves and body blows), the one per-id exception to the rules below.
 const FIST_IDS: Array[StringName] = [&"shove", &"shoulder_charge"]

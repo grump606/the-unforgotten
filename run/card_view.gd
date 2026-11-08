@@ -15,12 +15,12 @@ const KEYWORD_H := 11.0
 ## Opacity of a Fading card.
 const FADING_ALPHA := 0.8
 ## Keyword line colours: on dark class stock and on the pale neutral paper.
-const KEYWORD_INK := Color("#e8b773")
+const KEYWORD_INK := MenuStyle.AMBER
 const KEYWORD_INK_PAPER := Color("#8a4a14")
 const BACKDROP := Color(0.05, 0.05, 0.08)
-const BADGE := Color("#e8b773")
+const BADGE := MenuStyle.AMBER
 const BADGE_BAD := Color(0.78, 0.18, 0.20)
-const WARN := Color("#e8b773")
+const WARN := MenuStyle.AMBER
 const HP_RED := Color("#a8323a")
 const SELECT_GOLD := MenuStyle.AMBER
 const PALETTES := CardPalette.PALETTES
@@ -781,7 +781,7 @@ func _draw_strip(strip: Rect2, p: Dictionary) -> void:
 
 
 ## Colour of a rarity gem on the name banner: none for Common, steel blue for Uncommon, gold for Rare.
-const RARITY_GEM_COLORS := {CardData.Rarity.UNCOMMON: Color("#7FA8D8"), CardData.Rarity.RARE: Color("#E8B773")}
+const RARITY_GEM_COLORS := {CardData.Rarity.UNCOMMON: Color("#7FA8D8"), CardData.Rarity.RARE: MenuStyle.AMBER}
 
 
 static func rarity_gem_color(rarity: int) -> Color:

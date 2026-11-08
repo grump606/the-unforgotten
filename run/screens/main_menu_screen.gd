@@ -20,10 +20,10 @@ var _sound_panel: AudioSettingsPanel
 
 
 const UPDATE_LABEL := "Update"
-## Update button colours: border, text and fill for off, on, and "a newer version is available".
-const UPDATE_OFF := [Color("#4a5358"), Color("#81898b"), Color("#141a22")]
-const UPDATE_ON := [Color("#78a99b"), Color("#a9cfc2"), Color("#1a2a2a")]
-const UPDATE_AVAILABLE := [Color("#e0605a"), Color("#ffe3df"), Color("#5a1d1d")]
+## Update button colours (border, text, fill) live in MenuStyle; kept here under their old names.
+const UPDATE_OFF := MenuStyle.UPDATE_OFF
+const UPDATE_ON := MenuStyle.UPDATE_ON
+const UPDATE_AVAILABLE := MenuStyle.UPDATE_AVAILABLE
 
 
 ## The tooltip of the update button for the current state.
@@ -53,20 +53,21 @@ static func style_update_button(button: Button, enabled: bool, available: bool) 
 	button.tooltip_text = update_tooltip(enabled, available)
 
 
-## `saved` is the run found on disk, or null. `on_continue` is already bound to it by the caller.
-## `on_toggle_updates` (when valid) adds the update-check toggle; it is called on each press and
-## returns the new setting, which the button label then shows.
-func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit: Callable, update_check_on := true, on_toggle_updates := Callable(), update_notice: UpdateNotice = null, on_how_to_play := Callable()) -> void:
+## `saved` is the run found on disk, or null. `actions` (see MainMenuActions) holds the callables; its
+## `on_toggle_updates`, when valid, adds the update-check toggle, called on each press and returning the new setting.
+func show(saved: RunState, actions: MainMenuActions) -> void:
+	var on_continue := actions.on_continue
+	var update_notice := actions.update_notice
 	add_backdrop(MenuScene.new())
 	var box := panel("The Unforgotten")
 	var title := box.get_child(0) as Label
 	MenuStyle.heading(title, 64)
-	title.add_theme_color_override("font_color", Color("#d7d0bc"))
+	title.add_theme_color_override("font_color", MenuStyle.PARCHMENT)
 	title.add_theme_color_override("font_outline_color", Color(0.02, 0.01, 0.02, 0.9))
 	title.add_theme_constant_override("outline_size", 3)
 	_add_title_art(box, title)
 	var subtitle := make_label("Someone still remembers you.")
-	subtitle.add_theme_color_override("font_color", Color("#8fb8ab"))
+	subtitle.add_theme_color_override("font_color", MenuStyle.TEAL_SOFT)
 	subtitle.add_theme_font_override("font", MenuStyle.serif_font())
 	subtitle.add_theme_font_size_override("font_size", 22)
 	box.add_child(subtitle)
@@ -87,9 +88,9 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 		details.add_child(summary)
 		box.add_child(details)
 		continue_button = add_button(box, "Continue", on_continue)
-	new_run_button = add_button(box, "New Journey", on_new_run)
+	new_run_button = add_button(box, "New Journey", actions.on_new_run)
 	new_run_button.theme_type_variation = MenuStyle.PLAQUE
-	exit_button = add_button(box, "Exit", on_exit)
+	exit_button = add_button(box, "Exit", actions.on_exit)
 	# One clear primary action: Continue when there is a save, otherwise New Journey.
 	(continue_button if continue_button != null else new_run_button).theme_type_variation = MenuStyle.PLAQUE_PRIMARY
 	exit_button.theme_type_variation = MenuStyle.PLAQUE
@@ -97,7 +98,7 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 		if button != null:
 			button.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
 			button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	if on_toggle_updates.is_valid():
+	if actions.on_toggle_updates.is_valid():
 		# A small button in the bottom-right corner of the screen, out of the way of the main choices.
 		updates_button = Button.new()
 		updates_button.text = UPDATE_LABEL
@@ -105,7 +106,7 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 		updates_button.focus_mode = Control.FOCUS_NONE
 		body.add_child(updates_button)
 		updates_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 10)
-		var state := {"enabled": update_check_on}  # a lambda sees plain variables by value, so share a dictionary
+		var state := {"enabled": actions.update_check_on}  # a lambda sees plain variables by value, so share a dictionary
 		# The notice owns the setting while it exists (Skip can turn it off from the bar).
 		var enabled_now := func() -> bool:
 			return update_notice.user_enabled if update_notice != null else state.enabled
@@ -119,7 +120,7 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 			if update_notice != null and enabled_now.call() and update_notice.latest_tag != "":
 				update_notice.reveal()
 				return
-			state.enabled = on_toggle_updates.call()
+			state.enabled = actions.on_toggle_updates.call()
 			restyle.call())
 		if update_notice != null:
 			# The answer from GitHub can arrive while the menu is showing.
@@ -132,14 +133,14 @@ func show(saved: RunState, on_continue: Callable, on_new_run: Callable, on_exit:
 	sound_button.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
 	sound_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	sound_button.pressed.connect(_open_sound.bind(box))
-	if on_how_to_play.is_valid():
+	if actions.on_how_to_play.is_valid():
 		how_to_play_button = Button.new()
 		how_to_play_button.text = "How to Play"
 		how_to_play_button.theme_type_variation = MenuStyle.PLAQUE
 		box.add_child(how_to_play_button)
 		how_to_play_button.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
 		how_to_play_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		how_to_play_button.pressed.connect(on_how_to_play)
+		how_to_play_button.pressed.connect(actions.on_how_to_play)
 	(continue_button if continue_button != null else new_run_button).grab_focus()
 
 

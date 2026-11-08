@@ -145,20 +145,20 @@ static func _save() -> void:
 ## Dark track, brass-edged knob: the same colours as the buttons around it.
 static func _style_slider(slider: HSlider) -> void:
 	var track := StyleBoxFlat.new()
-	track.bg_color = Color("#101720")
-	track.border_color = Color("#526979")
+	track.bg_color = MenuStyle.WELL
+	track.border_color = MenuStyle.BORDER
 	track.set_border_width_all(1)
 	track.set_corner_radius_all(3)
 	track.content_margin_top = 4
 	track.content_margin_bottom = 4
 	slider.add_theme_stylebox_override("slider", track)
 	var filled := StyleBoxFlat.new()
-	filled.bg_color = Color("#78a99b")
+	filled.bg_color = MenuStyle.TEAL
 	filled.set_corner_radius_all(3)
 	slider.add_theme_stylebox_override("grabber_area", filled)
 	slider.add_theme_stylebox_override("grabber_area_highlight", filled)
-	var knob := _knob(Color("#d7d0bc"))
-	var knob_hot := _knob(Color("#e8b773"))
+	var knob := _knob(MenuStyle.PARCHMENT)
+	var knob_hot := _knob(MenuStyle.AMBER)
 	slider.add_theme_icon_override("grabber", knob)
 	slider.add_theme_icon_override("grabber_highlight", knob_hot)
 	slider.add_theme_icon_override("grabber_disabled", knob)
@@ -172,5 +172,5 @@ static func _knob(color: Color) -> Texture2D:
 		for x in size:
 			var d := Vector2(x, y).distance_to(Vector2(centre, centre))
 			if d <= 7.5:
-				image.set_pixel(x, y, Color("#171d28") if d > 5.5 else color)
+				image.set_pixel(x, y, MenuStyle.PANEL if d > 5.5 else color)
 	return ImageTexture.create_from_image(image)

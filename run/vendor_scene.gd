@@ -7,14 +7,14 @@ extends Control
 ## docs/VENDOR_ART_DESIGN.md). It ignores the mouse, only animates while visible in the tree and
 ## is driven by advance(delta), so tests can step it.
 
-const NIGHT := Color("#171D28")
+const NIGHT := MenuStyle.PANEL
 const WALL := Color(0.10, 0.12, 0.14)
 const WOOD := Color(0.20, 0.18, 0.16)
 const WOOD_DARK := Color(0.10, 0.11, 0.12)
 const BRASS := Color(0.56, 0.47, 0.34)
-const AMBER := Color("#E8B773")
+const AMBER := MenuStyle.AMBER
 const CLOAK := Color(0.08, 0.10, 0.12)
-const PALE := Color("#D7D0BC")
+const PALE := MenuStyle.PARCHMENT
 const COIN := Color(0.95, 0.76, 0.28)
 const LEATHER: Array[Color] = [Color(0.34, 0.20, 0.11), Color(0.25, 0.15, 0.10), Color(0.30, 0.26, 0.16), Color(0.18, 0.14, 0.12)]
 ## x as a fraction of the width, how far the chain drops, and the size, per hanging lantern.

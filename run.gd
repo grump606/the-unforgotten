@@ -101,8 +101,15 @@ func _show_main_menu() -> void:
 	_header_row.visible = _notice != ""
 	_set_edge_margin(0.0)
 	_main_menu.attach(loaded.run, _body, _show_stop)
-	_main_menu.show(loaded.run, _continue_run.bind(loaded.run), _new_run.bind(_show_main_menu), func() -> void: exit_callable.call(),
-		_update_notice.user_enabled, _toggle_update_check, _update_notice, _open_tutorial)
+	var actions := MainMenuActions.new()
+	actions.on_continue = _continue_run.bind(loaded.run)
+	actions.on_new_run = _new_run.bind(_show_main_menu)
+	actions.on_exit = func() -> void: exit_callable.call()
+	actions.on_toggle_updates = _toggle_update_check
+	actions.on_how_to_play = _open_tutorial
+	actions.update_check_on = _update_notice.user_enabled
+	actions.update_notice = _update_notice
+	_main_menu.show(loaded.run, actions)
 
 
 ## The how-to-play pages over whatever screen is up; null while closed.
