@@ -37,9 +37,14 @@ static func play_turn(combat: Combat) -> bool:
 const REST_BELOW := 0.6
 
 
+## The rest-stop rule every sim tool shares: Rest while HP is under REST_BELOW of max or no card can be Remembered.
+static func prefers_rest(player: Combatant, can_remember_any: bool) -> bool:
+	return not can_remember_any or player.hp < REST_BELOW * player.max_hp
+
+
 static func rest_stop(run: RunState, smart: bool) -> bool:
 	var indices := run.rememberable_indices()
-	if indices.is_empty() or run.player.hp < REST_BELOW * run.player.max_hp:
+	if prefers_rest(run.player, not indices.is_empty()):
 		return run.rest() >= 0
 	var pick := SmartPolicy.remember_pick(run) if smart else indices[0]
 	if not smart:
@@ -513,6 +518,17 @@ static func _expose_sets_up_damage(combat: Combat, index: int) -> bool:
 		if j != index and is_damage_card(combat.piles.hand[j]) and combat.piles.hand[j].cost <= combat.energy - card.cost:
 			return true
 	return false
+
+
+## The start of every bot's vendor visit: buy a Heal when at least half of one is missing, then the relic. False,
+## after logging, when there is no vendor or the run refuses an affordable relic.
+static func shop_basics(run: RunState) -> bool:
+	if run.vendor() == null:
+		printerr("SimPolicy: no vendor at a vendor stop")
+		return false
+	if run.player.max_hp - run.player.hp >= Vendor.HEAL_AMOUNT / 2:
+		run.vendor_buy_heal()
+	return buy_relic(run)
 
 
 ## Vendor step shared by both bots: buys the visit's relic when it is affordable (the vendor stocks at

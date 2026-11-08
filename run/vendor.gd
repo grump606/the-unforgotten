@@ -196,7 +196,7 @@ static func _base_effect_value(effect: CardEffect, amount: int, added_depth: int
 ## Value of one copy of a created card: its own card_value, which is large and negative for a Dormant
 ## card (junk is a cost for whoever receives it, so a card adding one is worth less) and positive for a
 ## playable one. 0 for no card. Depth-limited so a card that adds itself cannot recurse forever.
-## dded_depth is how many created-card levels enclose this one (a parameter, so there is no shared state).
+## `added_depth` is how many created-card levels enclose this one (a parameter, so there is no shared state).
 static func _added_card_value(card: CardData, added_depth: int) -> int:
 	if card == null or added_depth >= 3:
 		return 0

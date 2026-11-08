@@ -719,14 +719,9 @@ static func remember_pick(run: RunState) -> int:
 
 ## Vendor visit per the header. False on a RunState failure.
 static func shop(run: RunState) -> bool:
+	if not SimPolicy.shop_basics(run):
+		return false
 	var vendor := run.vendor()
-	if vendor == null:
-		printerr("SmartPolicy: no vendor at a vendor stop")
-		return false
-	if run.player.max_hp - run.player.hp >= Vendor.HEAL_AMOUNT / 2:
-		run.vendor_buy_heal()
-	if not SimPolicy.buy_relic(run):
-		return false
 	while true:
 		var weights := _weights(run.deck)
 		var average := _average_score(run.deck, weights)

@@ -20,7 +20,11 @@ static func rarity_weights(tier: int) -> Array[int]:
 ## rarities that still have a card), then a random card of that rarity. Uses `rng`, so a seed repeats the picks.
 ## The pool is not changed. Fewer than `count` come back only when the pool is smaller.
 static func pick_by_rarity(pool: Array[CardData], count: int, weights: Array[int], rng: RandomNumberGenerator) -> Array[CardData]:
-	var left: Array[CardData] = pool.duplicate()
+	# A card whose rarity is outside CardData.Rarity can never be rolled (ContentRegistry refuses to load one).
+	var left: Array[CardData] = []
+	for card in pool:
+		if ContentRegistry.has_valid_rarity(card):
+			left.append(card)
 	var picks: Array[CardData] = []
 	while picks.size() < count and not left.is_empty():
 		var total := 0

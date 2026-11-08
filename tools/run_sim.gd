@@ -308,14 +308,9 @@ func _card_score(run: RunState, card: CardData) -> float:
 func _shop(run: RunState) -> bool:
 	if _smart:
 		return SmartPolicy.shop(run)
+	if not SimPolicy.shop_basics(run):
+		return false
 	var vendor := run.vendor()
-	if vendor == null:
-		printerr("run_sim: no vendor at a vendor stop")
-		return false
-	if run.player.max_hp - run.player.hp >= Vendor.HEAL_AMOUNT / 2:
-		run.vendor_buy_heal()
-	if not SimPolicy.buy_relic(run):
-		return false
 	while true:
 		var best_index := -1
 		var best_score := -INF
