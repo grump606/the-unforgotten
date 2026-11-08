@@ -238,12 +238,3 @@ func hide_preview() -> void:
 ## True while the inspection preview is on screen (read by tests).
 func preview_visible() -> bool:
 	return preview != null and preview.visible
-
-
-## How many cards in hand satisfy `test`.
-func count_where(test: Callable) -> int:
-	var count := 0
-	for card in _battle.combat().piles.hand:
-		if test.call(card):
-			count += 1
-	return count

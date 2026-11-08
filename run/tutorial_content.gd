@@ -4,7 +4,14 @@ extends RefCounted
 ## the drawing so tests can check every page without building any UI.
 ##
 ## Marker positions are in the pixels of art/tutorial/battle_layout.png (1152 x 648, a real battle screenshot).
-## If the battle layout changes, retake that picture and move the markers.
+## If the battle layout changes, retake that picture and move the markers. Tests keep the three in step:
+## tests/tutorial_markers_tests.gd (the picture is the base window's size, every marker is inside it and on
+## something drawn) and tests/ui_tutorial_layout_test.gd (every marker is on its part of the live layout).
+##
+## To retake the picture: start a run (or use tools/debug launch) in a real 1152 x 648 window, at a fight with
+## three enemies where one is Haunted, the player has some Block and a full hand, and (with a scratch script
+## outside the repo that waits a few frames) save `get_tree().root.get_texture().get_image()` with save_png as
+## art/tutorial/battle_layout.png. Then move the eight markers of the BATTLE page below onto what they describe.
 
 const BATTLE_IMAGE := "res://art/tutorial/battle_layout.png"
 const BATTLE_IMAGE_SIZE := MenuStyle.BASE_SIZE

@@ -8,9 +8,6 @@ const CARD_DIR := "res://art/layers/cards/%s/art.png"
 const ENEMY_DIR := "res://art/layers/%s/%s.png"
 const PLAYER_DIR := "res://art/layers/players/%s/figure.png"
 const SCREEN_DIR := "res://art/layers/screens/%s/bg.png"
-## Back to front, with how far each layer shifts in the idle sway (the old enemy portrait sway).
-const ENEMY_LAYERS: Array[StringName] = [&"bg", &"mid", &"figure", &"fg"]
-const ENEMY_DEPTHS := [0.1, 0.4, 0.8, 1.6]
 
 static var _cache := {}
 ## Stops entered so far, and the stop each cache key was last used in; entries unused for EVICT_AFTER_STOPS
@@ -41,24 +38,6 @@ static func advance_stop() -> int:
 
 static func card_texture(card_id: StringName) -> Texture2D:
 	return _load(CARD_DIR % card_id)
-
-
-## The four layer textures for an enemy art key, or [] when the set is incomplete.
-static func enemy_layers(key: StringName) -> Array:
-	var ck := "enemy:" + String(key)
-	if _cache.has(ck):
-		_touch(ck)
-		return _cache[ck]
-	_touch(ck)
-	var layers: Array = []
-	for layer in ENEMY_LAYERS:
-		var tex := _load(ENEMY_DIR % [key, layer])
-		if tex == null:
-			layers = []
-			break
-		layers.append(tex)
-	_cache[ck] = layers
-	return layers
 
 
 ## The enemy's figure layer and the tight box around its painted pixels, as {tex, region}, or {} when
@@ -138,28 +117,7 @@ static func draw_cover(ci: CanvasItem, tex: Texture2D, rect: Rect2, zoom := 1.0,
 	ci.draw_texture_rect_region(tex, rect, Rect2(origin, src), tint)
 
 
-## Warms the cache for a screen background (art/layers/screens/<name>/bg.png) so its first draw does
-## not decode and mipmap it on the main thread.
-static func preload_screen(screen_name: StringName) -> void:
-	_load(SCREEN_DIR % screen_name)
-
-
-## Warms the cache for each res:// path in `paths` (missing files cache as null, like _load).
-static func preload_paths(paths: Array) -> void:
-	for path in paths:
-		_load(String(path))
-
-
-## Warms what the screen after a run stop will draw. `stop_type` is a RunState.StopType value; `character_id`
-## picks the class backdrops and `story_beat` (a STORY stop's beat_index, else -1) its own window painting. Call it
-## when the previous screen is shown, so the decode cost is paid there and not when the next screen first draws.
-## The decode stays on the main thread: Texture2D.get_image() goes through the RenderingServer, and decoding the same
-## art from a worker thread and the main thread at once crashed intermittently (access violation).
-static func warm_for_stop(stop_type: int, character_id: StringName = &"", story_beat := -1) -> void:
-	preload_paths(paths_for_stop(stop_type, character_id, story_beat))
-
-
-## The art files the screen after a run stop will draw (see warm_for_stop for the arguments).
+## The art files the screen after a run stop will draw (`stop_type` is a RunState.StopType value; `character_id` picks the class backdrops and `story_beat`, a STORY stop's beat_index or -1, its own window painting).
 static func paths_for_stop(stop_type: int, character_id: StringName = &"", story_beat := -1) -> Array[String]:
 	var names: Array[StringName] = []
 	var extra: Array[String] = []
@@ -186,7 +144,7 @@ static func paths_for_stop(stop_type: int, character_id: StringName = &"", story
 
 # --- spreading the warm-up over frames ------------------------------------------------------------------
 # Decoding a ~3 MB screen takes long enough to hitch a frame, so the run queues the next stop's art and pumps the
-# queue a little each frame from its _process. Still all on the main thread (see warm_for_stop); a draw that needs a
+# queue a little each frame from its _process. Still all on the main thread (Texture2D.get_image() goes through the RenderingServer, and decoding the same art from a worker thread and the main thread at once crashed intermittently); a draw that needs a
 # queued path simply decodes it at once through _load, and the pump then skips it.
 
 ## Most milliseconds one pump() call keeps decoding after its first file.
@@ -246,7 +204,7 @@ static func _load(path: String) -> Texture2D:
 	return _store(path, _decode(path))
 
 
-## Reads, decompresses and mipmaps an image off disk (main thread only, see warm_for_stop).
+## Reads, decompresses and mipmaps an image off disk (main thread only, see the queue below).
 static func _decode(path: String) -> Image:
 	if not ResourceLoader.exists(path):
 		return null

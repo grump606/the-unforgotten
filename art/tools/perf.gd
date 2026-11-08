@@ -12,7 +12,7 @@ func _initialize() -> void:
 	var t_cards := Time.get_ticks_msec() - t
 	t = Time.get_ticks_msec()
 	for key in [&"warden", &"shade", &"wisp", &"colossus", &"whisperer", &"hound", &"crow", &"conductor", &"brakeman"]:
-		PaintedArt.enemy_layers(key)
+		PaintedArt.enemy_figure(key)
 	var t_enemy := Time.get_ticks_msec() - t
 	t = Time.get_ticks_msec()
 	var screens := 0

@@ -113,9 +113,9 @@ func sync_turn_controls() -> void:
 		# Anchor and Fading cards are not part of the 5: they cannot be marked and are not counted.
 		var keep := combat.piles.counted_in_hand() - marked
 		var text := "Choose cards to discard. You keep %d of up to %d." % [keep, Combat.HAND_SIZE]
-		if _battle._hand.count_where(func(c: CardData) -> bool: return c.anchor) > 0:
+		if combat.piles.hand.any(func(c: CardData) -> bool: return c.anchor):
 			text += " Anchor cards stay."
-		if _battle._hand.count_where(func(c: CardData) -> bool: return c.fading) > 0:
+		if combat.piles.hand.any(func(c: CardData) -> bool: return c.fading):
 			text += " Fading cards left in hand will be Forgotten."
 		_battle._result_label.text = text
 		_hint_shown = true

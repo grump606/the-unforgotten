@@ -32,10 +32,12 @@ func run() -> int:
 	_check(steps == 2, "two queued files take two single-file pumps")
 	_check(PaintedArt._cache.has(rest_key) and PaintedArt._cache.has("res://art/layers/screens/nope/bg.png"), "queued files, even a missing one, end up cached")
 	_check(PaintedArt.screen_texture(&"nope") == null, "a missing queued file stays a cached null")
-	# The synchronous warm-up still decodes at once, and eviction is unchanged.
+	# What a stop's art is: a rest with no class warms the neutral rest backdrop.
 	PaintedArt._cache.clear()
-	PaintedArt.warm_for_stop(RunState.StopType.REST, &"")
-	_check(PaintedArt._cache.has(rest_key), "warm_for_stop still fills the cache immediately")
+	PaintedArt.queue_for_stop(RunState.StopType.REST, &"")
+	while PaintedArt.pending() > 0:
+		PaintedArt.pump(0.0)
+	_check(PaintedArt._cache.has(rest_key), "a queued rest stop's art ends up cached")
 	_check(PaintedArt.paths_for_stop(RunState.StopType.STORY, &"", -1).is_empty(), "a story stop with no beat has no art to warm")
 	_test_queue_touches_cached_paths(vendor_key)
 	PaintedArt._cache.clear()
