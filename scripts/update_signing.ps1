@@ -66,6 +66,10 @@ function Find-MatchingPublicKey {
         [Parameter(Mandatory)][string]$SigPath
     )
     $files = @()
+    # openssl prints its reason to stderr when a key does not match; that is an expected "no", not an error, so it
+    # must not stop a caller running with $ErrorActionPreference = 'Stop' (Windows PowerShell 5.1 turns native stderr
+    # into a terminating error then).
+    $ErrorActionPreference = 'Continue'
     try {
         for ($i = 0; $i -lt $PublicPems.Count; $i++) {
             $f = Join-Path ([IO.Path]::GetTempPath()) "update_pub_${PID}_$i.pem"
@@ -73,7 +77,7 @@ function Find-MatchingPublicKey {
             $files += $f
         }
         for ($i = 0; $i -lt $files.Count; $i++) {
-            & $OpenSsl dgst -sha256 -verify $files[$i] -signature $SigPath $FilePath 2>$null | Out-Null
+            & $OpenSsl dgst -sha256 -verify $files[$i] -signature $SigPath $FilePath 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) { return $i }
         }
         return -1
