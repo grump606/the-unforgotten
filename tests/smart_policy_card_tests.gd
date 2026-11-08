@@ -208,14 +208,14 @@ func _test_estimates_use_the_pipeline() -> void:
 	var enemies: Array[EnemyData] = [_enemy(30, 8)]
 	var fight := _combat([_card(&"y", 1, CardEffect.Kind.BLOCK, 4)], enemies)
 	var foe := fight.enemies[0]
-	_check(SimPolicy._incoming_damage(fight) == 8 and SmartPolicy._incoming_damage(fight) == 8, "baseline incoming damage is the intent")
+	_check(fight.incoming_damage() == 8, "baseline incoming damage is the intent")
 	foe.apply_status(Combatant.Status.MALICE, 2)
-	_check(SimPolicy._incoming_damage(fight) == 10 and SmartPolicy._incoming_damage(fight) == 10, "incoming damage includes enemy Malice")
+	_check(fight.incoming_damage() == 10, "incoming damage includes enemy Malice")
 	foe.apply_status(Combatant.Status.SHAKEN, 1)
-	_check(SimPolicy._incoming_damage(fight) == 7 and SmartPolicy._incoming_damage(fight) == 7, "incoming damage includes enemy Shaken (10 x3/4 = 7)")
+	_check(fight.incoming_damage() == 7, "incoming damage includes enemy Shaken (10 x3/4 = 7)")
 	fight.player.apply_status(Combatant.Status.EXPOSED, 1)
 	var expected := Combatant.hit_damage(8, foe, fight.player)
-	_check(expected > 7 and SimPolicy._incoming_damage(fight) == expected and SmartPolicy._incoming_damage(fight) == expected, "incoming damage includes the player's Expose after Malice and Shaken")
+	_check(expected > 7 and fight.incoming_damage() == expected, "incoming damage includes the player's Expose after Malice and Shaken")
 	# Outgoing: the player's Malice and Shaken, then the enemy's Expose.
 	_check(Combatant.hits_outcome(combat.player, enemy, 3, 1)["lost"] == 3, "baseline card damage")
 	combat.player.apply_status(Combatant.Status.MALICE, 2)

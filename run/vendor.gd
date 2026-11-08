@@ -71,6 +71,15 @@ const TYPICAL_SCENT := 3
 const OATH_FIRINGS := 3
 ## A card's discard effects are worth this fraction (1 over the divisor) of the same effects played.
 const DISCARD_VALUE_DIVISOR := 2
+## Per point of effect: Expose, Thorns and a Heal per Haunted enemy are worth EXPOSE_VALUE_PER_TURN, THORNS_VALUE_PER_POINT
+## and HEAL_PER_HAUNTED_VALUE; damage equal to Block is valued at a typical Block (TYPICAL_BLOCK), damage per Haunt at a
+## typical Haunt (TYPICAL_HAUNT), and a per-play bonus at TYPICAL_EARLIER_PLAYS earlier cards.
+const EXPOSE_VALUE_PER_TURN := 2
+const THORNS_VALUE_PER_POINT := 2
+const HEAL_PER_HAUNTED_VALUE := 2
+const TYPICAL_BLOCK := 5
+const TYPICAL_HAUNT := 4
+const TYPICAL_EARLIER_PLAYS := 2
 
 
 ## Gold awarded for winning a fight against `enemy_count` enemies.
@@ -148,28 +157,28 @@ static func _base_effect_value(effect: CardEffect, amount: int, added_depth: int
 		CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK, CardEffect.Kind.HOLD:
 			return amount
 		CardEffect.Kind.EXPOSE:
-			return amount * 2
+			return amount * EXPOSE_VALUE_PER_TURN
 		CardEffect.Kind.DRAW:
 			return amount * DRAW_VALUE
 		CardEffect.Kind.DAMAGE_PER_BLOCK:
-			return amount * 5
+			return amount * TYPICAL_BLOCK
 		CardEffect.Kind.DAMAGE_IF_BLOCK:
 			return (amount + effect.bonus) / 2
 		CardEffect.Kind.THORNS:
-			return amount * 2
+			return amount * THORNS_VALUE_PER_POINT
 		CardEffect.Kind.GAIN_ENERGY:
 			return amount * ENERGY_VALUE
 		CardEffect.Kind.DAMAGE_PER_PLAY:
-			return amount + effect.bonus * 2
+			return amount + effect.bonus * TYPICAL_EARLIER_PLAYS
 		CardEffect.Kind.HAUNT:
 			# Total damage over its decay: amount + (amount - 1) + ... + 1.
 			return amount * (amount + 1) / 2
 		CardEffect.Kind.LOSE_HP:
 			return -amount
 		CardEffect.Kind.HEAL_PER_HAUNTED:
-			return amount * 2
+			return amount * HEAL_PER_HAUNTED_VALUE
 		CardEffect.Kind.DAMAGE_PER_HAUNT:
-			return amount * 4
+			return amount * TYPICAL_HAUNT
 		CardEffect.Kind.SHAKEN:
 			return amount * SHAKEN_VALUE_PER_TURN
 		CardEffect.Kind.FRAYED:

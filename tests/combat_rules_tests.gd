@@ -82,7 +82,6 @@ func _test_shared_rule_helpers() -> void:
 	_check(fight.hit_amount(per_play, fight.player, fight.enemies[0], fight.plays_this_turn + 1) == 2, "an unplayed per-play card does its base damage")
 	fight.plays_this_turn = 2
 	_check(fight.hit_amount(per_play, fight.player, fight.enemies[0], fight.plays_this_turn + 1) == 8, "each earlier play adds the bonus")
-	_check(SimPolicy._incoming_damage(fight) == fight.incoming_damage() and SmartPolicy._haunted_count(fight) == fight.haunted_count(), "the bots read the engine's rules")
 
 
 func _test_is_damage_kinds() -> void:
