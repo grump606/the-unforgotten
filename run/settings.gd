@@ -8,6 +8,10 @@ extends RefCounted
 
 const DEFAULT_PATH := "user://settings.json"
 const MAX_FILE_BYTES := 4096
+## Caps on the free-form parts, so that audio + extras + the known fields always fit MAX_FILE_BYTES: a larger
+## section in a loaded file is dropped (the defaults apply) instead of making the next save unreadable.
+const MAX_AUDIO_BYTES := 1024
+const MAX_EXTRAS_BYTES := 2048
 
 ## Defaults to on, which is how the game behaved before this setting existed.
 var update_check_enabled := true
@@ -38,10 +42,18 @@ static func from_dict(data: Variant) -> Settings:
 			settings.tutorial_seen = dict["tutorial_seen"]
 		if typeof(dict.get("audio")) == TYPE_DICTIONARY:
 			settings.audio = (dict["audio"] as Dictionary).duplicate(true)
+			if _json_size(settings.audio) > MAX_AUDIO_BYTES:
+				settings.audio = {}
 		for key in dict:
 			if key != "update_check_enabled" and key != "audio" and key != "tutorial_seen":
 				settings.extras[key] = dict[key]
+		if _json_size(settings.extras) > MAX_EXTRAS_BYTES:
+			settings.extras = {}
 	return settings
+
+
+static func _json_size(value: Variant) -> int:
+	return JSON.stringify(value).to_utf8_buffer().size()
 
 
 static func to_dict(settings: Settings) -> Dictionary:
@@ -86,11 +98,16 @@ static func _read(path: String) -> Settings:
 ## crash mid-write never leaves a half-written settings file. The temp file is removed on every
 ## failure, and a file that currently parses is kept as path.bak (a damaged one never replaces it).
 func save(path: String = DEFAULT_PATH) -> String:
+	var text := JSON.stringify(to_dict(self))
+	var text_bytes := text.to_utf8_buffer().size()
+	if text_bytes > MAX_FILE_BYTES:
+		# load_file would reject a file this big and silently reset every setting.
+		return "settings too large to save (%d bytes, limit %d)" % [text_bytes, MAX_FILE_BYTES]
 	var tmp := path + ".tmp"
 	var file := FileAccess.open(tmp, FileAccess.WRITE)
 	if file == null:
 		return "cannot write %s (error %d)" % [tmp, FileAccess.get_open_error()]
-	file.store_string(JSON.stringify(to_dict(self)))
+	file.store_string(text)
 	var write_error := file.get_error()
 	file.close()
 	if write_error != OK:
