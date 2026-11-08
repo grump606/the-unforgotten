@@ -138,8 +138,6 @@ const BRAKEMAN_PATH := "res://data/enemies/the_brakeman.tres"
 const EXTENDED_DECK_SIZE := 14
 ## The bosses, which only appear through boss_encounter() and mid_boss_encounter().
 const BOSS_ENEMY_PATHS: Array[String] = [CONDUCTOR_PATH, BRAKEMAN_PATH]
-## Regular enemies that never join a pair or trio (they only appear as a single).
-const SOLO_ONLY_ENEMY_PATHS: Array[String] = [COLOSSUS_PATH]
 ## Every card, in a fixed order. A card's `character` tag says who may take it (empty = everyone).
 const ALL_CARD_PATHS: Array[String] = [
 	SHOVE_PATH, SLIP_PAST_PATH, GLIMPSE_EXIT_PATH, BRACE_PATH, FLURRY_PATH, SWEEP_PATH,
@@ -220,6 +218,10 @@ const RAMP_PER_FIGHT := 0.012
 const TIER1_BIG_PAIR_CHANCE := 0.2
 
 
+## Rarity odds per run tier; the table lives in RarityPicker.
+const RARITY_WEIGHTS: Array[Array] = RarityPicker.RARITY_WEIGHTS
+
+
 ## The neutral 10-card deck (5 Shove, 4 Slip Past, 1 Glimpse the Exit) for standalone battles and tests with
 ## no character; runs use starter_deck(character_id).
 ## Card definitions are immutable data, so deck slots of the same card share one instance.
@@ -275,168 +277,11 @@ static func extended_deck() -> Array[CardData]:
 	return cards
 
 
-# Content caches. The resources are immutable shared data, so the lists derived from them are built once
-# and handed out as copies (callers may reorder or trim what they get). A failed load is never cached, so
-# its cause keeps being logged. Tests that swap content call clear_cache().
-static var _cards_cache: Array[CardData] = []
-static var _relics_cache: Array[RelicData] = []
-static var _pool_cache: Dictionary = {}
-static var _enemy_paths_by_id: Dictionary = {}
-
-
-## Drops every cached list so the next call rebuilds it from the resources.
-static func clear_cache() -> void:
-	_cards_cache = []
-	_relics_cache = []
-	_pool_cache = {}
-	_enemy_paths_by_id = {}
-
-
-## Every card that loads, in ALL_CARD_PATHS order. Empty (cause logged) if any fails to load.
-static func all_cards() -> Array[CardData]:
-	if _cards_cache.is_empty():
-		var cards: Array[CardData] = []
-		for path in ALL_CARD_PATHS:
-			var card := _load_card(path)
-			if card == null:
-				var empty: Array[CardData] = []
-				return empty
-			cards.append(card)
-		_cards_cache = cards
-	return _cards_cache.duplicate()
-
-
-## The distinct cards a character can be offered as rewards: every neutral card plus the cards tagged for
-## `character_id`, except the basic cards (Shove, Slip Past), which they start with and can buy but are never
-## offered. Empty (cause logged) if any card fails to load.
-static func reward_pool(character_id: StringName) -> Array[CardData]:
-	var key := "reward:%s" % character_id
-	if _pool_cache.has(key):
-		return (_pool_cache[key] as Array[CardData]).duplicate()
-	var pool: Array[CardData] = []
-	for card in all_cards():
-		if (card.character == &"" or card.character == character_id) and not card.basic:
-			pool.append(card)
-	if not pool.is_empty():
-		_pool_cache[key] = pool.duplicate()
-	return pool
-
-
-## Odds (Common, Uncommon, Rare, in percent) of each card slot in a reward or vendor stock, by how far into the
-## run it is: four tiers, from the first quarter of the stop line to the last.
-const RARITY_WEIGHTS: Array[Array] = [[70, 27, 3], [62, 32, 6], [52, 38, 10], [42, 42, 16]]
-
-
-## The weights for `tier` (clamped to the table).
-static func rarity_weights(tier: int) -> Array[int]:
-	var row: Array = RARITY_WEIGHTS[clampi(tier, 0, RARITY_WEIGHTS.size() - 1)]
-	var weights: Array[int] = []
-	weights.assign(row)
-	return weights
-
-
-## Picks up to `count` distinct cards from `pool`, one at a time: roll a rarity from `weights` (only among the
-## rarities that still have a card), then a random card of that rarity. Uses `rng`, so a seed repeats the picks.
-## The pool is not changed. Fewer than `count` come back only when the pool is smaller.
-static func pick_by_rarity(pool: Array[CardData], count: int, weights: Array[int], rng: RandomNumberGenerator) -> Array[CardData]:
-	var left: Array[CardData] = pool.duplicate()
-	var picks: Array[CardData] = []
-	while picks.size() < count and not left.is_empty():
-		var total := 0
-		for rarity in 3:
-			if _has_rarity(left, rarity):
-				total += maxi(weights[rarity], 1)
-		var roll := rng.randi_range(0, total - 1)
-		var chosen := CardData.Rarity.COMMON
-		for rarity in 3:
-			if not _has_rarity(left, rarity):
-				continue
-			var share := maxi(weights[rarity], 1)
-			if roll < share:
-				chosen = rarity as CardData.Rarity
-				break
-			roll -= share
-		var of_rarity: Array[CardData] = []
-		for card in left:
-			if card.rarity == chosen:
-				of_rarity.append(card)
-		var card: CardData = of_rarity[rng.randi_range(0, of_rarity.size() - 1)]
-		picks.append(card)
-		left.erase(card)
-	return picks
-
-
-static func _has_rarity(cards: Array[CardData], rarity: int) -> bool:
-	for card in cards:
-		if card.rarity == rarity:
-			return true
-	return false
-
-
-## The cards a vendor may stock for `character_id`: the reward pool plus the basic cards.
-static func vendor_pool(character_id: StringName) -> Array[CardData]:
-	var key := "vendor:%s" % character_id
-	if _pool_cache.has(key):
-		return (_pool_cache[key] as Array[CardData]).duplicate()
-	var pool: Array[CardData] = []
-	for card in all_cards():
-		if card.character == &"" or card.character == character_id:
-			pool.append(card)
-	if not pool.is_empty():
-		_pool_cache[key] = pool.duplicate()
-	return pool
-
-
-## Every relic that loads, in RELIC_PATHS order. Empty (cause logged) if any fails to load.
-static func all_relics() -> Array[RelicData]:
-	if _relics_cache.is_empty():
-		var relics: Array[RelicData] = []
-		for path in RELIC_PATHS:
-			var relic: RelicData = null
-			if ResourceLoader.exists(path):
-				relic = load(path) as RelicData
-			if relic == null:
-				push_error("StarterContent: missing or non-RelicData resource: %s" % path)
-				var empty: Array[RelicData] = []
-				return empty
-			relics.append(relic)
-		_relics_cache = relics
-	return _relics_cache.duplicate()
-
-
-## The relics a vendor may offer `character_id`: every neutral relic plus the ones tagged for them.
-static func relic_pool(character_id: StringName) -> Array[RelicData]:
-	var key := "relic:%s" % character_id
-	if _pool_cache.has(key):
-		return (_pool_cache[key] as Array[RelicData]).duplicate()
-	var pool: Array[RelicData] = []
-	for relic in all_relics():
-		if relic.character == &"" or relic.character == character_id:
-			pool.append(relic)
-	if not pool.is_empty():
-		_pool_cache[key] = pool.duplicate()
-	return pool
-
-
 static func character_ids() -> Array[StringName]:
 	var ids: Array[StringName] = []
 	for id in CHARACTER_PATHS:
 		ids.append(id)
 	return ids
-
-
-## The character with this id, or null (cause logged) for an unknown id or a resource that fails to load.
-static func character(character_id: StringName) -> Character:
-	if not CHARACTER_PATHS.has(character_id):
-		push_error("StarterContent.character: unknown character '%s'" % character_id)
-		return null
-	var path: String = CHARACTER_PATHS[character_id]
-	var loaded: Character = null
-	if ResourceLoader.exists(path):
-		loaded = load(path) as Character
-	if loaded == null:
-		push_error("StarterContent: missing or non-Character resource: %s" % path)
-	return loaded
 
 
 static func warden() -> EnemyData:
@@ -447,28 +292,99 @@ static func lost_shade() -> EnemyData:
 	return _load_enemy(LOST_SHADE_PATH)
 
 
+## Drops every cached list so the next call rebuilds it from the resources.
+static func clear_cache() -> void:
+	return ContentRegistry.clear_cache()
+
+
+## Every card that loads, in ALL_CARD_PATHS order. Empty (cause logged) if any fails to load.
+static func all_cards() -> Array[CardData]:
+	return ContentRegistry.all_cards()
+
+
+## The distinct cards a character can be offered as rewards: every neutral card plus the cards tagged for
+## `character_id`, except the basic cards (Shove, Slip Past), which they start with and can buy but are never
+## offered. Empty (cause logged) if any card fails to load.
+static func reward_pool(character_id: StringName) -> Array[CardData]:
+	return ContentRegistry.reward_pool(character_id)
+
+
+## The cards a vendor may stock for `character_id`: the reward pool plus the basic cards.
+static func vendor_pool(character_id: StringName) -> Array[CardData]:
+	return ContentRegistry.vendor_pool(character_id)
+
+
+## Every relic that loads, in RELIC_PATHS order. Empty (cause logged) if any fails to load.
+static func all_relics() -> Array[RelicData]:
+	return ContentRegistry.all_relics()
+
+
+## The relics a vendor may offer `character_id`: every neutral relic plus the ones tagged for them.
+static func relic_pool(character_id: StringName) -> Array[RelicData]:
+	return ContentRegistry.relic_pool(character_id)
+
+
+## The character with this id, or null (cause logged) for an unknown id or a resource that fails to load.
+static func character(character_id: StringName) -> Character:
+	return ContentRegistry.character(character_id)
+
+
+## Returns null (after logging an error) if the resource is missing or not a
+## CardData. Checked explicitly rather than with assert so debug and release
+## builds behave the same.
+## A status card by id (`dread` or `murmur`), or null (cause logged) for an unknown id or a bad resource.
+static func status_card(id: StringName) -> CardData:
+	return ContentRegistry.status_card(id)
+
+
+## A created card by id, or null (cause logged) for an unknown id or a bad resource.
+static func created_card(id: StringName) -> CardData:
+	return ContentRegistry.created_card(id)
+
+
+static func _load_card(path: String) -> CardData:
+	return ContentRegistry.load_card(path)
+
+
+## Enemies are deep-copied so each encounter slot owns its data, as before.
+## Returns null (after logging an error) if the resource is missing or not an EnemyData.
+static func _load_enemy(path: String) -> EnemyData:
+	return ContentRegistry.load_enemy(path)
+
+
+## Every enemy, regular and boss, by EnemyData id (debug launch and tools; encounters use the path lists).
+static func enemy_ids() -> Array[StringName]:
+	return ContentRegistry.enemy_ids()
+
+
+## A fresh copy of the enemy with this id (regular or boss), or null if there is none.
+static func enemy_by_id(enemy_id: StringName) -> EnemyData:
+	return ContentRegistry.enemy_by_id(enemy_id)
+
+
+## The weights for `tier` (clamped to the table).
+static func rarity_weights(tier: int) -> Array[int]:
+	return RarityPicker.rarity_weights(tier)
+
+
+## Picks up to `count` distinct cards from `pool`, one at a time: roll a rarity from `weights` (only among the
+## rarities that still have a card), then a random card of that rarity. Uses `rng`, so a seed repeats the picks.
+## The pool is not changed. Fewer than `count` come back only when the pool is smaller.
+static func pick_by_rarity(pool: Array[CardData], count: int, weights: Array[int], rng: RandomNumberGenerator) -> Array[CardData]:
+	return RarityPicker.pick_by_rarity(pool, count, weights, rng)
+
+
 ## An early-run encounter with `enemy_count` enemies (clamped to 1..MAX_ENEMIES).
 ## Enemies whose resource fails to load are left out (the cause is logged), so
 ## the result can be empty; Combat requires at least one enemy.
 static func early_encounter(enemy_count: int) -> Array[EnemyData]:
-	var count := clampi(enemy_count, 1, Combat.MAX_ENEMIES)
-	var enemies: Array[EnemyData] = []
-	for i in count:
-		var enemy := warden() if count == 1 else lost_shade()
-		if enemy != null:
-			enemies.append(enemy)
-	return enemies
+	return Encounters.early_encounter(enemy_count)
 
 
 ## All enemy types in a fixed order: warden, lost shade, wisp, colossus, whisperer, cinder hound, mourning crow.
 ## Enemies that fail to load are left out (the cause is logged).
 static func enemy_pool() -> Array[EnemyData]:
-	var pool: Array[EnemyData] = []
-	for path in ALL_ENEMY_PATHS:
-		var enemy := _load_enemy(path)
-		if enemy != null:
-			pool.append(enemy)
-	return pool
+	return Encounters.enemy_pool()
 
 
 ## An encounter of `enemy_count` (clamped to 1..MAX_ENEMIES) enemies, chosen
@@ -482,151 +398,31 @@ static func enemy_pool() -> Array[EnemyData]:
 ## regular fight's 0-based number, which sets the stat ramp (see RAMP_PER_FIGHT). The defaults give
 ## the unramped tier 0 encounter; tier and fight draw nothing extra from `rng`.
 static func varied_encounter(enemy_count: int, rng: RandomNumberGenerator, tier: int = 0, fight: int = 0) -> Array[EnemyData]:
-	var count := clampi(enemy_count, 1, Combat.MAX_ENEMIES)
-	var paths: Array[String] = []
-	var big_pair_chance := TIER1_BIG_PAIR_CHANCE if tier >= 1 else BIG_PAIR_CHANCE
-	match count:
-		1:
-			paths.append(_pick_path(ALL_ENEMY_PATHS, rng))
-		2:
-			if rng.randf() < big_pair_chance:
-				paths.append(_pick_path(PAIR_BIG_ENEMY_PATHS, rng))
-				paths.append(_pick_path(SMALL_ENEMY_PATHS, rng))
-			else:
-				paths.append(_pick_path(SMALL_ENEMY_PATHS, rng))
-				paths.append(_pick_path(SMALL_ENEMY_PATHS, rng))
-		_:
-			for i in count:
-				paths.append(_pick_path(_trio_paths(), rng))
-	var factor := ramp_factor(fight)
-	var enemies: Array[EnemyData] = []
-	for path in paths:
-		var enemy := _load_enemy(path)
-		if enemy != null:
-			enemies.append(scaled(enemy, factor))
-	return enemies
+	return Encounters.varied_encounter(enemy_count, rng, tier, fight)
 
 
 ## The stat multiplier for the regular fight numbered `fight` (0-based; below 0 counts as 0).
 static func ramp_factor(fight: int) -> float:
-	return 1.0 + RAMP_PER_FIGHT * maxi(fight, 0)
+	return Encounters.ramp_factor(fight)
 
 
 ## `enemy` with max HP and DAMAGE intents scaled by `factor` (rounded, never below 1). Returns a new
 ## EnemyData with new intents, so the shared resource is never touched; factor 1.0 returns `enemy` itself.
 static func scaled(enemy: EnemyData, factor: float) -> EnemyData:
-	if is_equal_approx(factor, 1.0):
-		return enemy
-	var scaled_enemy := EnemyData.make(enemy.display_name, maxi(roundi(enemy.max_hp * factor), 1), _scaled_intents(enemy.intents, factor), enemy.id, enemy.max_haunt)
-	# The second phase (its intents, threshold and banner) comes along; its attacks ramp like the first phase's.
-	scaled_enemy.phase_two_intents = _scaled_intents(enemy.phase_two_intents, factor)
-	scaled_enemy.phase_two_hp_percent = enemy.phase_two_hp_percent
-	scaled_enemy.phase_two_title = enemy.phase_two_title
-	return scaled_enemy
-
-
-static func _scaled_intents(source: Array[CardEffect], factor: float) -> Array[CardEffect]:
-	var intents: Array[CardEffect] = []
-	for intent in source:
-		if intent.kind == CardEffect.Kind.DAMAGE:
-			intents.append(CardEffect.make(intent.kind, maxi(roundi(intent.amount * factor), 1), intent.bonus, intent.threshold, intent.hits))
-		else:
-			intents.append(intent)
-	return intents
+	return Encounters.scaled(enemy, factor)
 
 
 ## SMALL_ENEMY_PATHS minus TRIO_EXCLUDED_PATHS, so a new small enemy joins trios by default.
 static func _trio_paths() -> Array[String]:
-	var paths: Array[String] = []
-	for path in SMALL_ENEMY_PATHS:
-		if not TRIO_EXCLUDED_PATHS.has(path):
-			paths.append(path)
-	return paths
+	return Encounters.trio_paths()
 
 
 ## The boss fight: the Conductor alone. Empty (cause logged) if it fails to load,
 ## and Combat needs at least one enemy, so callers must check.
 static func boss_encounter() -> Array[EnemyData]:
-	var enemies: Array[EnemyData] = []
-	var boss := _load_enemy(CONDUCTOR_PATH)
-	if boss != null:
-		enemies.append(boss)
-	return enemies
+	return Encounters.boss_encounter()
 
 
 ## The mid-run boss fight: the Brakeman alone. Empty (cause logged) if it fails to load.
 static func mid_boss_encounter() -> Array[EnemyData]:
-	var enemies: Array[EnemyData] = []
-	var boss := _load_enemy(BRAKEMAN_PATH)
-	if boss != null:
-		enemies.append(boss)
-	return enemies
-
-
-static func _pick_path(paths: Array[String], rng: RandomNumberGenerator) -> String:
-	return paths[rng.randi_range(0, paths.size() - 1)]
-
-
-## Returns null (after logging an error) if the resource is missing or not a
-## CardData. Checked explicitly rather than with assert so debug and release
-## builds behave the same.
-## A status card by id (`dread` or `murmur`), or null (cause logged) for an unknown id or a bad resource.
-static func status_card(id: StringName) -> CardData:
-	if not STATUS_CARD_PATHS.has(id):
-		push_error("StarterContent.status_card: unknown status card id %s" % id)
-		return null
-	return _load_card(STATUS_CARD_PATHS[id])
-
-
-## A created card by id, or null (cause logged) for an unknown id or a bad resource.
-static func created_card(id: StringName) -> CardData:
-	if not CREATED_CARD_PATHS.has(id):
-		push_error("StarterContent.created_card: unknown created card id %s" % id)
-		return null
-	return _load_card(CREATED_CARD_PATHS[id])
-
-
-static func _load_card(path: String) -> CardData:
-	var card: CardData = null
-	if ResourceLoader.exists(path):
-		card = load(path) as CardData
-	if card == null:
-		push_error("StarterContent: missing or non-CardData resource: %s" % path)
-	return card
-
-
-## Enemies are deep-copied so each encounter slot owns its data, as before.
-## Returns null (after logging an error) if the resource is missing or not an EnemyData.
-static func _load_enemy(path: String) -> EnemyData:
-	var template: EnemyData = null
-	if ResourceLoader.exists(path):
-		template = load(path) as EnemyData
-	if template == null:
-		push_error("StarterContent: missing or non-EnemyData resource: %s" % path)
-		return null
-	return template.duplicate(true) as EnemyData
-
-
-## Every enemy, regular and boss, by EnemyData id (debug launch and tools; encounters use the path lists).
-static func enemy_ids() -> Array[StringName]:
-	var ids: Array[StringName] = []
-	for path in ALL_ENEMY_PATHS + BOSS_ENEMY_PATHS:
-		var template := load(path) as EnemyData
-		if template != null:
-			ids.append(template.id)
-			_enemy_paths_by_id[template.id] = path
-	return ids
-
-
-## A fresh copy of the enemy with this id (regular or boss), or null if there is none.
-static func enemy_by_id(enemy_id: StringName) -> EnemyData:
-	if _enemy_paths_by_id.has(enemy_id):
-		var known := load(_enemy_paths_by_id[enemy_id]) as EnemyData
-		if known != null and known.id == enemy_id:
-			return known.duplicate(true) as EnemyData
-	for path in ALL_ENEMY_PATHS + BOSS_ENEMY_PATHS:
-		var template := load(path) as EnemyData
-		if template != null and template.id == enemy_id:
-			_enemy_paths_by_id[enemy_id] = path
-			return template.duplicate(true) as EnemyData
-	return null
+	return Encounters.mid_boss_encounter()
