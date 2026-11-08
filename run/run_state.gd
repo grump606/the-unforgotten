@@ -206,11 +206,25 @@ func boss_label() -> String:
 ## on. Beating the boss stop is the exception: it pays nothing (no later stop could
 ## spend it), offers no reward and ends the run as an escape. Only valid at a COMBAT stop that has no reward pending and is not finished
 ## (anything else is a caller bug: it is logged and changes nothing).
+## When the run built the fight (start_combat), a fight still in progress is refused (logged, nothing
+## changes), and one that ended on its own (Combat.outcome) decides the result: a disagreeing `victory` is
+## logged and the fight's outcome wins. An abandoned fight has no outcome, so the caller's `victory`
+## decides (the sims record a turn-cap stall as a defeat; tests use it as a shortcut). With no fight
+## started (tests, debug paths) the caller's `victory` is taken as given.
 func complete_combat(victory: bool) -> void:
 	var stop := current_stop()
 	if finished or _reward_pending or stop == null or stop.type != StopType.COMBAT:
 		push_error("RunState.complete_combat: not at a combat stop awaiting a result")
 		return
+	if _active_combat != null:
+		if _active_combat.phase != Combat.Phase.ENDED:
+			push_error("RunState.complete_combat: the fight is still in progress")
+			return
+		if _active_combat.outcome != Combat.Outcome.NONE:
+			var actual := _active_combat.outcome == Combat.Outcome.VICTORY
+			if actual != victory:
+				push_error("RunState.complete_combat: the caller reported %s but the fight ended in %s" % ["a victory" if victory else "a defeat", "a victory" if actual else "a defeat"])
+				victory = actual
 	_active_combat = null
 	if not victory:
 		finished = true

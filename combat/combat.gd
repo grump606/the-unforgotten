@@ -8,6 +8,8 @@ extends RefCounted
 ## it is appended last so the older phases keep their numeric values. CHOOSING is the pick step after a
 ## card with GLIMPSE or RECALL (see has_choice / resolve_choice); nothing else can happen until it resolves.
 enum Phase { NOT_STARTED, PLAYER_TURN, ENEMY_TURN, ENDED, DISCARDING, CHOOSING }
+## How the fight ended: NONE until it does, and still NONE after abandon() (an abandoned fight has no result).
+enum Outcome { NONE, VICTORY, DEFEAT }
 
 ## Hand rules (easy to change here):
 ##  - HAND_SIZE: the most cards you may KEEP at end of turn, and the hand each turn starts back up
@@ -40,6 +42,7 @@ var piles: CardPiles
 var energy: int = 0
 var turn: int = 0
 var phase: Phase = Phase.NOT_STARTED
+var outcome: Outcome = Outcome.NONE
 ## Cards played so far this turn (see MAX_PLAYS_PER_TURN).
 var plays_this_turn: int = 0
 ## Hand indices marked for discard while phase == DISCARDING (sorted, no duplicates).
@@ -58,6 +61,9 @@ var _relics: Array[RelicData] = []
 var _totals: Dictionary = {}
 # Once-per-fight relic triggers already spent (FIRST_FORGOTTEN_RETURN, FIRST_ATTACK_SHAKEN).
 var _forgotten_return_used := false
+## While a played card resolves: how many Oaths were Sworn before it, so the Oaths it swears do not
+## react to what it does (a quarry its own play kills). -1 outside a play: every Sworn Oath may react.
+var _play_oath_limit := -1
 var _first_attack_used := false
 ## The fight's seeded RNG (the same one the piles shuffle with); Scent uses it to pick an heir.
 var _rng: RandomNumberGenerator
@@ -207,6 +213,7 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 			targets = living_enemies()
 	# Only Oaths already Sworn react to this play, never the card being played.
 	var sworn_before := piles.sworn.size()
+	_play_oath_limit = sworn_before
 	var block_before := player.block
 	var card := piles.play(hand_index)
 	# Surge spends all the energy there is; other cards spend their cost.
@@ -221,6 +228,7 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 	_fire_play_oaths(card, scale, sworn_before, block_before)
 	card_played.emit(card, targets)
 	_check_phases()
+	_play_oath_limit = -1
 	if not _check_end():
 		# Queued Glimpse / Recall picks open only now, after everything else the card did.
 		_open_next_choice()
@@ -836,6 +844,7 @@ func _check_end() -> bool:
 	if not (victory or player.is_dead()):
 		return false
 	phase = Phase.ENDED
+	outcome = Outcome.VICTORY if victory else Outcome.DEFEAT
 	_clear_choices()
 	# Block and statuses are per-fight; clear them so callers between fights do
 	# not see them stale.
@@ -906,7 +915,7 @@ func _pass_on_scent() -> void:
 			var heir := living[0] if living.size() == 1 else living[_rng.randi_range(0, living.size() - 1)]
 			_give_scent(heir, carried)
 		if not living.is_empty():
-			_fire_oaths(CardData.OathTrigger.QUARRY_DIES)
+			_fire_oaths(CardData.OathTrigger.QUARRY_DIES, _play_oath_limit)
 
 
 ## Moves any enemy that has just crossed its phase threshold into phase two and announces it. Also passes
