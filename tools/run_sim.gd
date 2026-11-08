@@ -15,7 +15,7 @@ const TURN_CAP := 50 # a fight still running after this many turns is a stall
 const DEFAULT_RUNS := 300
 const DEFAULT_SEED := 1
 const POLICIES: Array[String] = ["greedy", "smart"]
-const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [--runs N] [--seed S] [--policy P] [--character C] [--help]\n  --runs N    number of whole runs, integer >= 1 (default 300)\n  --seed S    base random seed, integer (default 1)\n  --policy P  greedy (default) or smart (stronger lookahead player)\n  --character C  deserter (default), thief or medium\n  --help     print this usage and exit 0"
+const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [--runs N] [--seed S] [--policy P] [--character C] [--help]\n  --runs N    number of whole runs, integer >= 1 (default 300)\n  --seed S    base random seed, integer (default 1)\n  --policy P  greedy (default) or smart (stronger lookahead player)\n  --character C  deserter (default), thief, medium or stray\n  --help     print this usage and exit 0"
 
 var _smart := false
 var _card_stats := false
@@ -131,7 +131,8 @@ func _initialize() -> void:
 	print("Free reward alternatives used: Heal in %d/%d runs, Remove in %d/%d runs" % [heals_used, runs, removes_used, runs])
 	print("Runs that bought a relic: %d/%d (escape rate with a relic %s, without %s)" % [runs_with_relics, runs, _rate(escapes_with_relics, runs_with_relics), _rate(escapes - escapes_with_relics, runs - runs_with_relics)])
 	var relic_ids: Array = relics_bought.keys()
-	relic_ids.sort()
+	# By name: StringName order is by address, which shifts with the order names were first seen.
+	relic_ids.sort_custom(func(x: StringName, y: StringName) -> bool: return String(x) < String(y))
 	for id: StringName in relic_ids:
 		print("  relic %-18s held at the end of %d runs" % [id, relics_bought[id]])
 	print("Stalls (fight abandoned at turn cap, run counted lost): %d" % stalls)

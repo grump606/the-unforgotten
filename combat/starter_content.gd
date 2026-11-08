@@ -275,26 +275,50 @@ static func extended_deck() -> Array[CardData]:
 	return cards
 
 
+# Content caches. The resources are immutable shared data, so the lists derived from them are built once
+# and handed out as copies (callers may reorder or trim what they get). A failed load is never cached, so
+# its cause keeps being logged. Tests that swap content call clear_cache().
+static var _cards_cache: Array[CardData] = []
+static var _relics_cache: Array[RelicData] = []
+static var _pool_cache: Dictionary = {}
+static var _enemy_paths_by_id: Dictionary = {}
+
+
+## Drops every cached list so the next call rebuilds it from the resources.
+static func clear_cache() -> void:
+	_cards_cache = []
+	_relics_cache = []
+	_pool_cache = {}
+	_enemy_paths_by_id = {}
+
+
 ## Every card that loads, in ALL_CARD_PATHS order. Empty (cause logged) if any fails to load.
 static func all_cards() -> Array[CardData]:
-	var cards: Array[CardData] = []
-	for path in ALL_CARD_PATHS:
-		var card := _load_card(path)
-		if card == null:
-			var empty: Array[CardData] = []
-			return empty
-		cards.append(card)
-	return cards
+	if _cards_cache.is_empty():
+		var cards: Array[CardData] = []
+		for path in ALL_CARD_PATHS:
+			var card := _load_card(path)
+			if card == null:
+				var empty: Array[CardData] = []
+				return empty
+			cards.append(card)
+		_cards_cache = cards
+	return _cards_cache.duplicate()
 
 
 ## The distinct cards a character can be offered as rewards: every neutral card plus the cards tagged for
 ## `character_id`, except the basic cards (Shove, Slip Past), which they start with and can buy but are never
 ## offered. Empty (cause logged) if any card fails to load.
 static func reward_pool(character_id: StringName) -> Array[CardData]:
+	var key := "reward:%s" % character_id
+	if _pool_cache.has(key):
+		return (_pool_cache[key] as Array[CardData]).duplicate()
 	var pool: Array[CardData] = []
 	for card in all_cards():
 		if (card.character == &"" or card.character == character_id) and not card.basic:
 			pool.append(card)
+	if not pool.is_empty():
+		_pool_cache[key] = pool.duplicate()
 	return pool
 
 
@@ -351,34 +375,46 @@ static func _has_rarity(cards: Array[CardData], rarity: int) -> bool:
 
 ## The cards a vendor may stock for `character_id`: the reward pool plus the basic cards.
 static func vendor_pool(character_id: StringName) -> Array[CardData]:
+	var key := "vendor:%s" % character_id
+	if _pool_cache.has(key):
+		return (_pool_cache[key] as Array[CardData]).duplicate()
 	var pool: Array[CardData] = []
 	for card in all_cards():
 		if card.character == &"" or card.character == character_id:
 			pool.append(card)
+	if not pool.is_empty():
+		_pool_cache[key] = pool.duplicate()
 	return pool
 
 
 ## Every relic that loads, in RELIC_PATHS order. Empty (cause logged) if any fails to load.
 static func all_relics() -> Array[RelicData]:
-	var relics: Array[RelicData] = []
-	for path in RELIC_PATHS:
-		var relic: RelicData = null
-		if ResourceLoader.exists(path):
-			relic = load(path) as RelicData
-		if relic == null:
-			push_error("StarterContent: missing or non-RelicData resource: %s" % path)
-			var empty: Array[RelicData] = []
-			return empty
-		relics.append(relic)
-	return relics
+	if _relics_cache.is_empty():
+		var relics: Array[RelicData] = []
+		for path in RELIC_PATHS:
+			var relic: RelicData = null
+			if ResourceLoader.exists(path):
+				relic = load(path) as RelicData
+			if relic == null:
+				push_error("StarterContent: missing or non-RelicData resource: %s" % path)
+				var empty: Array[RelicData] = []
+				return empty
+			relics.append(relic)
+		_relics_cache = relics
+	return _relics_cache.duplicate()
 
 
 ## The relics a vendor may offer `character_id`: every neutral relic plus the ones tagged for them.
 static func relic_pool(character_id: StringName) -> Array[RelicData]:
+	var key := "relic:%s" % character_id
+	if _pool_cache.has(key):
+		return (_pool_cache[key] as Array[RelicData]).duplicate()
 	var pool: Array[RelicData] = []
 	for relic in all_relics():
 		if relic.character == &"" or relic.character == character_id:
 			pool.append(relic)
+	if not pool.is_empty():
+		_pool_cache[key] = pool.duplicate()
 	return pool
 
 
@@ -481,13 +517,22 @@ static func ramp_factor(fight: int) -> float:
 static func scaled(enemy: EnemyData, factor: float) -> EnemyData:
 	if is_equal_approx(factor, 1.0):
 		return enemy
+	var scaled_enemy := EnemyData.make(enemy.display_name, maxi(roundi(enemy.max_hp * factor), 1), _scaled_intents(enemy.intents, factor), enemy.id, enemy.max_haunt)
+	# The second phase (its intents, threshold and banner) comes along; its attacks ramp like the first phase's.
+	scaled_enemy.phase_two_intents = _scaled_intents(enemy.phase_two_intents, factor)
+	scaled_enemy.phase_two_hp_percent = enemy.phase_two_hp_percent
+	scaled_enemy.phase_two_title = enemy.phase_two_title
+	return scaled_enemy
+
+
+static func _scaled_intents(source: Array[CardEffect], factor: float) -> Array[CardEffect]:
 	var intents: Array[CardEffect] = []
-	for intent in enemy.intents:
+	for intent in source:
 		if intent.kind == CardEffect.Kind.DAMAGE:
 			intents.append(CardEffect.make(intent.kind, maxi(roundi(intent.amount * factor), 1), intent.bonus, intent.threshold, intent.hits))
 		else:
 			intents.append(intent)
-	return EnemyData.make(enemy.display_name, maxi(roundi(enemy.max_hp * factor), 1), intents, enemy.id, enemy.max_haunt)
+	return intents
 
 
 ## SMALL_ENEMY_PATHS minus TRIO_EXCLUDED_PATHS, so a new small enemy joins trios by default.
@@ -569,13 +614,19 @@ static func enemy_ids() -> Array[StringName]:
 		var template := load(path) as EnemyData
 		if template != null:
 			ids.append(template.id)
+			_enemy_paths_by_id[template.id] = path
 	return ids
 
 
 ## A fresh copy of the enemy with this id (regular or boss), or null if there is none.
 static func enemy_by_id(enemy_id: StringName) -> EnemyData:
+	if _enemy_paths_by_id.has(enemy_id):
+		var known := load(_enemy_paths_by_id[enemy_id]) as EnemyData
+		if known != null and known.id == enemy_id:
+			return known.duplicate(true) as EnemyData
 	for path in ALL_ENEMY_PATHS + BOSS_ENEMY_PATHS:
 		var template := load(path) as EnemyData
 		if template != null and template.id == enemy_id:
+			_enemy_paths_by_id[enemy_id] = path
 			return template.duplicate(true) as EnemyData
 	return null

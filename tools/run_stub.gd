@@ -7,7 +7,7 @@ extends SceneTree
 const PLAYER_START_HP: int = preload("res://battle.gd").PLAYER_START_HP # single source: battle.gd
 const REST_HEAL := 8
 const TURN_CAP := 50 # a fight still running after this many turns is a stall (treated as a loss)
-const USAGE := "Usage: godot --headless --path . -s res://tools/run_stub.gd -- [--seed S] [--character ID]\n  --seed S        run seed, integer (default 1)\n  --character ID  max HP and starting deck come from this character: deserter, thief or medium (default deserter)"
+const USAGE := "Usage: godot --headless --path . -s res://tools/run_stub.gd -- [--seed S] [--character ID]\n  --seed S        run seed, integer (default 1)\n  --character ID  max HP and starting deck come from this character: deserter, thief, medium or stray (default deserter)"
 
 var _outcome := 0 # 0 running, 1 victory, -1 defeat
 
