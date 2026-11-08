@@ -1,7 +1,7 @@
 extends RefCounted
 ## Phase 5a: Remembered (upgraded) cards. The variant model on CardData, the shipped remembered blocks,
 ## the rest stop's Remember choice in RunState, a Remembered card in a fight, and the vendor. Saves are
-## covered in run_save_tests.gd and the rest screen in ui_screen_scenes_test.gd. Registered by run_tests.gd.
+## covered in run_save_tests.gd and the rest screen in ui_screen_scenes_test.gd. Discovered by run_tests.gd.
 
 var _failures := 0
 

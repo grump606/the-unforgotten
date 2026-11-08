@@ -5,6 +5,8 @@ extends SceneTree
 ## a view that forgets to call into RunState (the rules tests cannot see that).
 ## Run via scripts/check.ps1.
 
+const TestBase := preload("res://tests/test_base.gd")
+
 ## Scratch save path: the developer's real user://run_save.json must never be touched.
 var test_save := "user://ui_flow_test_save_%d.json" % OS.get_process_id()
 
@@ -635,6 +637,7 @@ func _initialize() -> void:
 	RunSave.delete(test_save)
 
 	print("UI FLOW FAILURES: %d" % _failures)
+	TestBase.remove_scratch(test_save)
 	quit(1 if _failures > 0 else 0)
 
 

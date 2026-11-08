@@ -51,7 +51,7 @@ Files touched:
 - `run.gd`: `_show_reward` adds the alternative buttons and shows the gold for skip; remove picks reuse the existing remove list UI.
 - `run/vendor.gd`: only if the remove logic is factored out so it can be shared.
 - `tools/smart_policy.gd`, `tools/run_sim.gd`: teach the bots the new choices (greedy keeps taking a card); add a `--card-stats`-style print of skip and alt usage.
-- Tests: `tests/run_state_tests.gd` (no repeats across rewards with a seed, skip pays gold, alt applies and advances, rejected when not pending), `tests/run_save_tests.gd` (round-trip of new fields, old save loads), `tests/ui_flow_test.gd` (reward screen buttons).
+- Tests: `tests/run_state_*_tests.gd` (no repeats across rewards with a seed, skip pays gold, alt applies and advances, rejected when not pending), `tests/run_save_tests.gd` (round-trip of new fields, old save loads), `tests/ui_flow_test.gd` (reward screen buttons).
 
 Test strategy: run `scripts/check.ps1`, then compare escape rates before and after for all three characters (`--runs 600 --seed 1 --policy smart`) against the figures in NEXT_STEPS (greedy 40 to 50%; smart about 75/62/56). Accept only if the shift is deliberate; retune gold constants if not.
 

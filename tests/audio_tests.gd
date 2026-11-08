@@ -1,15 +1,8 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Tests for audio/audio_prefs.gd and the audio part of run/settings.gd. Scratch paths only.
 ## Returns the failure count.
 
-var _failures := 0
 var _path := "user://audio_tests_%d.json" % OS.get_process_id()
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _cleanup() -> void:

@@ -1,5 +1,5 @@
 extends RefCounted
-## Boss phases: the switch to an enemy's second intent cycle. Registered by run_tests.gd.
+## Boss phases: the switch to an enemy's second intent cycle. Discovered by run_tests.gd.
 ## Run on hand-made enemies (100 HP, switch at 50%), so the numbers are the rules, not the tuning.
 
 var _failures := 0

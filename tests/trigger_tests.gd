@@ -1,7 +1,7 @@
 extends RefCounted
 ## The five new Oath triggers (end of turn, Block gained, HP paid, each card played, a card discarded) and the
 ## "when discarded" card effects, plus the five Oaths and three Thief cards that use them (cards step 3).
-## Registered by run_tests.gd.
+## Discovered by run_tests.gd.
 
 const K := CardEffect.Kind
 const T := CardData.OathTrigger

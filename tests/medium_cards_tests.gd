@@ -1,6 +1,6 @@
 extends RefCounted
 ## Phase 4d: the Medium's Forgotten-pile cards. Seance and Bleed the Veil became Forgotten; Remember,
-## Chorus of the Lost and Hollow Bargain are new. Registered by run_tests.gd. Fixtures are built in
+## Chorus of the Lost and Hollow Bargain are new. Discovered by run_tests.gd. Fixtures are built in
 ## code; the cards under test come from their shipped .tres files.
 
 var _failures := 0

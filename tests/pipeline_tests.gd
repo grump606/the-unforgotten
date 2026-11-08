@@ -1,6 +1,6 @@
 extends RefCounted
 ## The damage and Block pipeline and the status table (Phase 2a): Malice, Ward, Shaken, Frayed,
-## temporary stacks and enemy-applied statuses. Registered by run_tests.gd. Fixtures are built in code.
+## temporary stacks and enemy-applied statuses. Discovered by run_tests.gd. Fixtures are built in code.
 
 const K := CardEffect.Kind
 const S := Combatant.Status

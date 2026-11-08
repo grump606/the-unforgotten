@@ -1,6 +1,6 @@
 extends RefCounted
 ## Phase 4b: the Thief retunes and new cards, played in the real engine. Fixtures build fights in code.
-## Registered by run_tests.gd.
+## Discovered by run_tests.gd.
 
 var _failures := 0
 

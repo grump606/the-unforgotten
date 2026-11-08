@@ -4,6 +4,8 @@ extends SceneTree
 ## screen, the run header, the pause menu and Continue all show the run's relics.
 ## Run via scripts/check.ps1.
 
+const TestBase := preload("res://tests/test_base.gd")
+
 var fails := 0
 var test_save := "user://ui_relic_view_test_save_%d.json" % OS.get_process_id()
 
@@ -207,6 +209,7 @@ func _initialize() -> void:
 	resumed.queue_free()
 	RunSave.delete(test_save)
 	print("DONE fails=", fails)
+	TestBase.remove_scratch(test_save)
 	quit(1 if fails > 0 else 0)
 
 

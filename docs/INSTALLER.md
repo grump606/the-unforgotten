@@ -6,7 +6,8 @@ Output: `build/TheUnforgotten-Setup-<version>.exe` and `build/TheUnforgotten-Set
 ## One-time setup on a build machine
 
 - Godot 4.7.2 export templates, installed under `%APPDATA%\Godot\export_templates\4.7.2.stable\` (Editor > Manage Export Templates, or extract the official `.tpz`).
-- Inno Setup 6: `winget install JRSoftware.InnoSetup`.
+- Inno Setup, pinned: `winget install JRSoftware.InnoSetup --version 6.7.3`. The pinned version is `INNO_SETUP_VERSION` in `scripts/engine_version.txt` (the build script's error message quotes it); to move to a newer Inno Setup, install it, build once, then change that line and this one.
+- The engine version is `GODOT_VERSION` in `scripts/engine_version.txt` (see `docs/CI.md`); the template folder name above follows it.
 
 ## Releasing a new version
 
