@@ -14,6 +14,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+. (Join-Path $PSScriptRoot 'engine_version.ps1')
 
 # Release from a clean, up-to-date main so the tag matches what was built.
 $branch = (git branch --show-current).Trim()
@@ -54,8 +55,8 @@ if (-not $KeyPath -or -not (Test-Path -LiteralPath $KeyPath)) {
 if (-not $env:GODOT_EXE) {
     $candidates = @(
         $env:GODOT,
-        (Join-Path $root 'Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe'),
-        (Join-Path $env:USERPROFILE 'Downloads\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe'),
+        (Join-Path $root (Join-Path $GodotFolder $GodotConsole)),
+        (Join-Path $env:USERPROFILE (Join-Path 'Downloads' (Join-Path $GodotFolder $GodotConsole))),
         (Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\GodotEngine.GodotEngine*" -Filter '*console.exe' -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName)
     )
     $found = $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1

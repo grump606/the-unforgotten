@@ -1,7 +1,7 @@
 extends RefCounted
 ## Oaths (docs/MECHANICS_PLAN.md, phase 6a): a card played once that stays Sworn for the fight and fires
 ## its oath_effects on a trigger. Fixtures are hand-made cards, so these are the rules, not card tuning.
-## Registered by run_tests.gd.
+## Discovered by run_tests.gd.
 
 const K := CardEffect.Kind
 const T := CardData.OathTrigger

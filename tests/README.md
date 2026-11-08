@@ -1,0 +1,55 @@
+# Tests
+
+Run everything with `scripts/check.ps1` (import, unit tests, smoke load, every UI test; see the
+README). Run only the unit tests with
+`godot --headless --path . -s res://tests/run_tests.gd` and expect `FAILURES: 0`.
+
+## Adding a test: no registration needed
+
+| You add | It is picked up by | Notes |
+| --- | --- | --- |
+| `tests/<topic>_tests.gd` with a `run() -> int` method | `tests/run_tests.gd` (discovery, name order) | returns its failure count; one process runs all of them |
+| `tests/ui_<topic>_test.gd` extending `SceneTree` | `scripts/check.ps1` (glob, name order) | one Godot process per file; call `quit(1)` on failure |
+| a new standalone step (own flags, such as the audio driver) | a named `Invoke-Step` in `check.ps1` | also list the file in `STANDALONE_STEPS` in `tests/test_wiring_tests.gd` |
+
+`tests/test_wiring_tests.gd` fails if a file in `tests/` looks like a test (`*_test.gd`, `*_tests.gd`,
+a `run()` method, or `extends SceneTree`) but is not wired one of those ways, so a test cannot be
+added and silently never run. Support files that are not tests (helpers, this README) are fine.
+`run_tests.gd` prints one `TEST FILE: <name>` line per discovered file, so a log shows exactly what
+ran. A suite that another suite already runs must not also be discovered: do not chain suites, give
+each its own file.
+
+## Writing a unit-test file
+
+```gdscript
+extends "res://tests/test_base.gd"
+## What this file covers, in a line or two.
+
+
+func run() -> int:
+	_failures = 0
+	_check(1 + 1 == 2, "arithmetic works")
+	return _failures
+```
+
+`test_base.gd` provides `_check(condition, label)` (counts the failure and prints
+`FAIL: <label> [<file>]`) and the `_failures` counter. It is a path-based base, not a global class,
+so it needs no import step. New files should use it; older files still carry their own copy of
+`_check` and are migrated when they are next touched, not in bulk.
+
+## Scratch files
+
+Tests that write to `user://` must use names ending in the process id
+(`user://thing_%d.json` with `OS.get_process_id()`), never the real `settings.json` or
+`run_save.json`, and must remove the file and its `.tmp`/`.bak` companions on every path out:
+`TestBase.remove_scratch(path)` does that. A saving object (such as the audio manager) may write
+once more when it is freed, so flush it before the cleanup. As a backstop, `run_tests.gd` sweeps
+`user://` at startup and deletes scratch files and folders older than a day that match the
+`<name>_<pid>` pattern; it never matches `settings.json` or `run_save.json`.
+
+## Layout of the larger suites
+
+Big topics are split by concern into several files named after the topic (for example
+`run_state_*_tests.gd`, `smart_policy_*_tests.gd`, `ui_battle_*_test.gd`). Helpers shared by the parts of a split suite live in a `*_support.gd` file (for example
+`smart_policy_support.gd`, `ui_battle_support.gd`); the wiring guard skips those, and the parts
+inherit from them with `extends "res://tests/<name>_support.gd"`.

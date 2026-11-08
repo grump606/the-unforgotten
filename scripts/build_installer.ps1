@@ -1,11 +1,12 @@
 # Exports the Windows build and wraps it in an Inno Setup installer.
 # Output: build/TheUnforgotten-Setup-<version>.exe, its .sha256 and, when a signing key is configured, its .manifest and .manifest.sig
-# Needs the Godot 4.7.2 export templates and Inno Setup 6 (see docs/INSTALLER.md).
+# Needs the Godot export templates and the Inno Setup version named in scripts/engine_version.txt (see docs/INSTALLER.md).
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+. (Join-Path $PSScriptRoot 'engine_version.ps1')
 
-$godot = if ($env:GODOT_EXE) { $env:GODOT_EXE } else { Join-Path $root 'Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe' }
+$godot = if ($env:GODOT_EXE) { $env:GODOT_EXE } else { Join-Path $root (Join-Path $GodotFolder $GodotConsole) }
 if (-not (Test-Path $godot)) { throw "Godot console exe not found: $godot" }
 
 $iscc = @(
@@ -13,7 +14,7 @@ $iscc = @(
     "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
     "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $iscc) { throw 'Inno Setup 6 (ISCC.exe) not found. Install it: winget install JRSoftware.InnoSetup' }
+if (-not $iscc) { throw "Inno Setup 6 (ISCC.exe) not found. Install the pinned version: winget install JRSoftware.InnoSetup --version $($EngineVersion.INNO_SETUP_VERSION)" }
 
 $version = (Select-String -Path 'project.godot' -Pattern '^config/version="([^"]+)"').Matches.Groups[1].Value
 if (-not $version) { throw 'config/version not found in project.godot' }
@@ -58,8 +59,9 @@ $manifestFile = "$setup.manifest"
 $manifestSigFile = "$setup.manifest.sig"
 . (Join-Path $PSScriptRoot 'update_signing.ps1')
 if ($publicPems.Count -gt 0) {
-    # Must match UpdateCheck.make_manifest in run/update_check.gd byte for byte: LF endings, UTF-8 without BOM.
-    $manifest = "the-unforgotten-update 1`nname=$(Split-Path -Leaf $setup)`nversion=$version`nsha256=$hash`n"
+    # New-UpdateManifestText (scripts/update_signing.ps1) must match UpdateCheck.make_manifest in run/update_check.gd
+    # byte for byte: LF endings, UTF-8 without BOM. tests/golden/update_manifest.txt pins both; check.ps1 runs the test.
+    $manifest = New-UpdateManifestText -Name (Split-Path -Leaf $setup) -Version $version -Sha256 $hash
     [System.IO.File]::WriteAllText($manifestFile, $manifest, (New-Object System.Text.UTF8Encoding($false)))
 
     # Every trusted key the game ships with (run/update_verifier.gd): a signature must verify against at least one.

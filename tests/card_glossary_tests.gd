@@ -1,8 +1,6 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## CardGlossary: every effect kind and keyword has an explanation, and a card lists each term once.
-## Registered by run_tests.gd.
-
-var _failures := 0
+## Discovered by run_tests.gd.
 
 
 func run() -> int:
@@ -10,12 +8,6 @@ func run() -> int:
 	_test_every_kind_and_keyword_explained()
 	_test_card_entries()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _test_every_kind_and_keyword_explained() -> void:

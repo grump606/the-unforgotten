@@ -1,6 +1,6 @@
 extends RefCounted
 ## Debug launch: parsing of --fight / --character / --hp and the run-state side of a debug fight.
-## Registered by run_tests.gd.
+## Discovered by run_tests.gd.
 
 var _failures := 0
 

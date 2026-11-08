@@ -1,7 +1,7 @@
 extends RefCounted
 ## Phase 4e: identity and keyword coverage. Every keyword and every effect kind the mechanics rework
 ## introduced is used by at least one shipped card, no temporary stack points at an enemy, and each
-## class still plays like itself. Uses the real card and enemy resources. Registered by run_tests.gd.
+## class still plays like itself. Uses the real card and enemy resources. Discovered by run_tests.gd.
 
 const K := CardEffect.Kind
 var _failures := 0

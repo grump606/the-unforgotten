@@ -1,6 +1,6 @@
 # The Unforgotten reskin (v0.5.0)
 
-The game is now presented as **The Unforgotten**: a memorial city in the rain instead of a train line. It is a presentation layer only. Card effects, combat numbers, enemy and relic IDs, the 21-stop route and the save signature are unchanged, so code, tests, the sim and older docs keep using the original IDs and names.
+The game is now presented as **The Unforgotten**: a memorial city in the rain instead of a train line. It is a presentation layer only. Card effects, combat numbers, enemy and relic IDs, the stop route and the save signature are unchanged, so code, tests, the sim and older docs keep using the original IDs and names.
 
 ## Name map
 
@@ -23,7 +23,7 @@ Display names changed; the file and ID on the left did not.
 
 ## What was added
 
-- `run/destination_art.gd`: the 21 stop labels (Shore of Names ... The Threshold) shown in the header, and `battle_key()`, which picks a destination backdrop for some fights.
+- `run/destination_art.gd`: the stop labels (one per stop) (Shore of Names ... The Threshold) shown in the header, and `battle_key()`, which picks a destination backdrop for some fights.
 - `run/menu_style.gd`: one shared slate and bone theme, serif headings and amber focus outlines for the menus. Menu wording: New Journey, "A moment of quiet" on the pause menu.
 - Five destination backdrops in `art/layers/screens/` (`battle_street`, `battle_bell_court`, `battle_garden`, `battle_archive`, `battle_threshold`) next to the class and boss ones. `Battle.destination_key` feeds `BattleBackdrop.set_variant`.
 - A painted Wisp sprite (`art/layers/wisp/sprite.png`).

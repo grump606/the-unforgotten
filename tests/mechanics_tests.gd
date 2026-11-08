@@ -1,6 +1,6 @@
 extends RefCounted
 ## Card mechanics beyond plain damage and block: Hold, damage from Block, thorns.
-## Registered by run_tests.gd. Each test builds tiny hand-made cards so the numbers
+## Discovered by run_tests.gd. Each test builds tiny hand-made cards so the numbers
 ## checked here are the rules themselves, not the tuning of any real card.
 
 var _failures := 0

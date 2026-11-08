@@ -1,6 +1,6 @@
 extends RefCounted
 ## How the two bots play Oaths (docs/MECHANICS_PLAN.md, phase 6c): swear early, not late, never twice, and only
-## when the lasting effect beats the cost. Fixtures are hand-made cards. Registered by run_tests.gd.
+## when the lasting effect beats the cost. Fixtures are hand-made cards. Discovered by run_tests.gd.
 
 const K := CardEffect.Kind
 
