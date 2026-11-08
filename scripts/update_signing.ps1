@@ -42,3 +42,46 @@ function Sign-FileWithPfx {
         if ($cert) { $cert.Dispose() }
     }
 }
+
+# The trusted public keys the game ships with, as PEM strings (LF endings): every -----BEGIN PUBLIC KEY----- block in
+# run/update_verifier.gd. build_installer.ps1 and verify_release.ps1 both read this list, so it has one source.
+function Get-EmbeddedPublicKeyPems {
+    param([string]$VerifierPath = (Join-Path (Split-Path -Parent $PSScriptRoot) 'run\update_verifier.gd'))
+    $source = Get-Content -Raw -LiteralPath $VerifierPath
+    return @([regex]::Matches($source, '-----BEGIN PUBLIC KEY-----[\s\S]*?-----END PUBLIC KEY-----') | ForEach-Object { $_.Value -replace "`r", '' })
+}
+
+# Path of an OpenSSL that can verify RSA signatures (it ships with Git for Windows), or $null.
+function Get-OpenSslPath {
+    return @((Get-Command openssl -ErrorAction SilentlyContinue).Source, "$env:ProgramFiles\Git\usr\bin\openssl.exe") | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+}
+
+# Index (0-based) of the first PEM in $PublicPems that verifies $SigPath over $FilePath (RSA PKCS#1 v1.5, SHA-256,
+# the same check as `openssl dgst -sha256 -verify`), or -1. The temporary key files are removed before returning.
+function Find-MatchingPublicKey {
+    param(
+        [Parameter(Mandatory)][string]$OpenSsl,
+        [Parameter(Mandatory)][string[]]$PublicPems,
+        [Parameter(Mandatory)][string]$FilePath,
+        [Parameter(Mandatory)][string]$SigPath
+    )
+    $files = @()
+    # openssl prints its reason to stderr when a key does not match; that is an expected "no", not an error, so it
+    # must not stop a caller running with $ErrorActionPreference = 'Stop' (Windows PowerShell 5.1 turns native stderr
+    # into a terminating error then).
+    $ErrorActionPreference = 'Continue'
+    try {
+        for ($i = 0; $i -lt $PublicPems.Count; $i++) {
+            $f = Join-Path ([IO.Path]::GetTempPath()) "update_pub_${PID}_$i.pem"
+            [System.IO.File]::WriteAllText($f, $PublicPems[$i] + "`n", (New-Object System.Text.UTF8Encoding($false)))
+            $files += $f
+        }
+        for ($i = 0; $i -lt $files.Count; $i++) {
+            & $OpenSsl dgst -sha256 -verify $files[$i] -signature $SigPath $FilePath 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) { return $i }
+        }
+        return -1
+    } finally {
+        foreach ($f in $files) { Remove-Item -LiteralPath $f -ErrorAction SilentlyContinue }
+    }
+}

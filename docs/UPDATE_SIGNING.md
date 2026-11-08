@@ -100,6 +100,36 @@ powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
 gh release create v<version> build\TheUnforgotten-Setup-<version>.exe build\TheUnforgotten-Setup-<version>.exe.sha256 build\TheUnforgotten-Setup-<version>.exe.manifest build\TheUnforgotten-Setup-<version>.exe.manifest.sig
 ```
 
+### Check the release before players can get it
+
+`scripts/release.ps1` pins the release to the commit it built (`--target <sha>`), and then checks what GitHub
+actually serves with `scripts/verify_release.ps1`: it downloads the four assets, recomputes the installer's
+SHA-256, compares it with the `.sha256` file and the manifest, checks that the manifest is exactly the text the
+signer writes, and verifies `.manifest.sig` with OpenSSL against the public keys in `run/update_verifier.gd`
+(the same check `build_installer.ps1` does). It prints PASS or FAIL per check and exits 1 on any failure.
+
+- After `-NoDraft` it runs by itself; if it fails, take the release down at once (`gh release edit v<version> --draft`).
+- For a **draft** (the default), run it **before clicking Publish release**:
+  `powershell -ExecutionPolicy Bypass -File scripts\verify_release.ps1 -Version <version> -Draft`
+  It needs `gh auth login` (drafts are private). Run without `-Draft` for a published release, or with
+  `-LocalDir build` to check the files on disk.
+
+### If a release fails halfway
+
+`gh release create` makes the draft first and then uploads the four files. If the upload fails (network, rate limit,
+closed laptop) you can be left with a **draft that has some or none of the files**.
+
+1. Do not click Publish on it. Players cannot see a draft, and the updater needs all four files.
+2. Rerun `scripts\release.ps1 -Publish -ReplaceDraft`. It notices the draft of the same tag, asks before deleting it
+   (`gh release delete v<version> --yes`) and then creates a fresh one. Without `-ReplaceDraft` it stops and tells you
+   instead of guessing. The script refuses outright if the tag is already published or the tag already exists on
+   origin; bump `config/version` in that case.
+3. By hand: `gh release list` shows drafts, `gh release delete v<version> --yes` removes one (add `--cleanup-tag`
+   only if a stray tag was created), and `gh release upload v<version> <file>... --clobber` can add the missing files
+   to a draft you want to keep. Either way finish with `verify_release.ps1 -Draft` before publishing.
+4. A release published without all four files is simply not installable in-game; take it back to a draft
+   (`gh release edit v<version> --draft`), fix it, verify, publish again.
+
 A release without the `.manifest` and `.manifest.sig` is simply not installable in-game: the update fails with a message and
 the bar falls back to the Download button.
 

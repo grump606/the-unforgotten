@@ -1,6 +1,6 @@
 # Next steps
 
-Last updated after the tagged v0.8.1 release plus the unreleased work on `main` (the version in
+Last updated after the second production review (see "Second review" below), on top of the tagged v0.8.1 release plus the unreleased work on `main` (the version in
 `project.godot` is now 0.8.2, bumped and ready for `scripts/release.ps1`). Numbers such as the stop count
 and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`SIM.md`](SIM.md).
 
@@ -18,6 +18,16 @@ and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`
   - Engine and UI review pass: the Forgotten-return relic and scaled-enemy fixes, bot rules shared with the engine, cached card pools (a 100-run sim went from 107 s to 6 s), route labels and backdrops stored on each stop, an idle-fighter redraw fix for defeated fighters only, and updater hardening (private launch copy of the installer, settings size cap, Skip cleans up, redirect limit, debug launch off in release builds). Still open from the review: the `battle.gd` and `card_view.gd` splits, rebuilding the hand without recreating every card view, Authenticode signing, and the repo size options in `docs/REPO_SIZE.md`.
 - Four characters (Deserter, Thief, Medium, Stray), a neutral pool, relics sold at vendors, a pause menu and crash-safe save/resume. Design notes are in `docs/CLASSES_PLAN.md` and `docs/RELICS_DESIGN.md`.
 - Windows installer (`scripts/build_installer.ps1`, `docs/INSTALLER.md`), in-game update check and self-install (`docs/UPDATE_CHECK.md`, `docs/UPDATE_SIGNING.md`), CI on every push (`docs/CI.md`). To ship: bump `config/version` (and `export_presets.cfg`), then `scripts/release.ps1`.
+
+- **Second review (tests, release tooling, docs):** `scripts/verify_release.ps1` checks a draft or published release from what GitHub serves (hash, manifest bytes, signature against the embedded keys) and `release.ps1` pins the release to the built commit, handles a half-created draft (`-ReplaceDraft`) and verifies after a non-draft publish; `build_installer.ps1` stops on a failed import and checks the exe and installer versions; CI is pinned to `windows-2022` and builds the export and an unsigned installer (unproven until the first pull request run); the installer's two big hashes run on a worker thread; every suite uses `TestBase`; content totals come from the registries with the intentional numbers in `tests/pinned_balance_tests.gd`; a signing-compat fixture, updater edge tests and RunSave/Settings edge tests were added; the smart-policy run test now plays all four characters; the Stray's cards are in `docs/CARDS.md`.
+
+## Decisions for the owner
+
+These were deliberately not done in the review round.
+
+1. **Authenticode signing of the installer.** Today the in-game update is protected by our own signature, but a first-time download from the releases page is an unsigned `.exe`, so SmartScreen warns and some antivirus products are suspicious. Fixing that needs a code-signing certificate (an EV certificate from a CA, or Azure Trusted Signing; roughly 100 to 400 USD a year, with identity checks) and a `signtool` step in `build_installer.ps1` plus the key kept off the dev machine. Recommendation: not worth it while the audience is friends and playtesters who get the link directly; revisit before any public launch (itch.io or Steam distribution removes most of the warning on its own), and then prefer Azure Trusted Signing over a hardware token.
+2. **Manifest freshness / expiry.** The signed manifest names the file, version and hash, which stops an old installer being replayed as an update, but a manifest never expires: a stolen older-but-newer-than-installed signed release could still be served to someone who is further behind, and there is no way to withdraw a bad release for already-offered clients. A `valid_until` or `min_version` field would change the manifest format (both writers, the golden file and the fixture) and needs a clock the game can trust, so it is a policy call. Recommendation: skip the expiry date (a player offline for weeks would be unable to update, and the game cannot trust the clock anyway) and, if withdrawal ever matters, add a signed `revoked_below` version instead.
+3. **History rewrite and repo size.** Rewriting git history to shrink the repo (see `docs/REPO_SIZE.md`) breaks every clone, tag and release link. Recommendation: do not rewrite; keep new binary art out of history by adding it once, finished, and revisit Git LFS only if clone time becomes a real problem.
 
 ## To do, in the order I would take it
 

@@ -1,12 +1,10 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Oaths (docs/MECHANICS_PLAN.md, phase 6a): a card played once that stays Sworn for the fight and fires
 ## its oath_effects on a trigger. Fixtures are hand-made cards, so these are the rules, not card tuning.
 ## Discovered by run_tests.gd.
 
 const K := CardEffect.Kind
 const T := CardData.OathTrigger
-
-var _failures := 0
 
 
 func run() -> int:
@@ -26,12 +24,6 @@ func run() -> int:
 	_test_text_and_variant()
 	_test_validity()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _fx(kind: K, amount: int) -> CardEffect:

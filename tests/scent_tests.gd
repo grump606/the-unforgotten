@@ -1,11 +1,9 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Scent, the Stray's mark (docs/CLASSES_PLAN.md, the Stray, phase 2): a stack of at most 8 on one enemy that
 ## adds to every hit the player's cards land on it. Fixtures are hand-made cards. Discovered by run_tests.gd.
 
 const K := CardEffect.Kind
 const SCENT := Combatant.Status.SCENT
-
-var _failures := 0
 
 
 func run() -> int:
@@ -23,12 +21,6 @@ func run() -> int:
 	_test_text_and_values()
 	_test_preview_context()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _fx(kind: K, amount: int, bonus: int = 0, hits: int = 1) -> CardEffect:

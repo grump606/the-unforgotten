@@ -3,13 +3,17 @@
 #   powershell -ExecutionPolicy Bypass -File scripts\release.ps1            # check + build + sign only
 #   powershell -ExecutionPolicy Bypass -File scripts\release.ps1 -Publish   # ...then ask to create the draft v<version>
 #   add -NoDraft to publish immediately instead of leaving a draft
+#   add -ReplaceDraft to delete a half-created draft of the same tag left by an earlier failed upload (asks first)
+# The release is pinned to the commit that was built and checked (gh release create --target <sha>). After a draft is
+# created, run scripts\verify_release.ps1 -Draft before clicking Publish; after -NoDraft it runs by itself.
 # The signing key's path comes from -KeyPath or $env:UPDATE_SIGNING_KEY (a .pfx or .pem; set it once with
 # setx UPDATE_SIGNING_KEY "<real path to your key file>", then open a new window). The passphrase is asked for here, kept only in this
 # process's environment for the build, and cleared afterwards. See docs/UPDATE_SIGNING.md.
 param(
     [string]$KeyPath = $env:UPDATE_SIGNING_KEY,
     [switch]$Publish,
-    [switch]$NoDraft
+    [switch]$NoDraft,
+    [switch]$ReplaceDraft
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -43,9 +47,17 @@ foreach ($key in 'application/short_version', 'application/version') {
 }
 $tag = "v$version"
 if (git tag --list $tag) { throw "Tag $tag already exists: bump config/version first." }
-$existing = @(gh release list --limit 200 --json tagName --jq '.[].tagName')
+$listJson = gh release list --limit 200 --json tagName,isDraft
 if ($LASTEXITCODE -ne 0) { throw 'gh release list failed: run "gh auth status".' }
-if ($existing -contains $tag) { throw "Release $tag already exists on GitHub: bump config/version first." }
+$sameTag = @($listJson | ConvertFrom-Json) | ForEach-Object { $_ } | Where-Object { $_.tagName -eq $tag }
+$staleDraft = $false
+if ($sameTag) {
+    if (-not $sameTag.isDraft) { throw "Release $tag is already published on GitHub: bump config/version first." }
+    # A draft left by an earlier run whose upload failed halfway (see docs/UPDATE_SIGNING.md, "If a release fails").
+    if (-not $ReplaceDraft) { throw "A draft release $tag already exists (probably from a failed upload). Look at it on GitHub, then rerun with -ReplaceDraft to delete it and create a fresh one, or delete it by hand." }
+    $staleDraft = $true
+}
+if (git ls-remote --tags origin "refs/tags/$tag") { throw "The tag $tag already exists on origin: bump config/version first, or delete the stray tag." }
 
 if (-not $KeyPath -or -not (Test-Path -LiteralPath $KeyPath)) {
     $tried = if ($KeyPath) { "'$KeyPath'" } else { '(nothing: $env:UPDATE_SIGNING_KEY is empty)' }
@@ -105,10 +117,24 @@ if (-not $Publish) {
 $what = if ($NoDraft) { 'PUBLISH' } else { 'create a draft of' }
 $answer = Read-Host "$what $tag on GitHub with these $($files.Count) files? (type yes)"
 if ($answer -ne 'yes') { Write-Host 'Not published.'; return }
+if ($staleDraft) {
+    $answer = Read-Host "Delete the existing DRAFT $tag (and its uploaded files) first? (type yes)"
+    if ($answer -ne 'yes') { Write-Host 'Draft kept, nothing published.'; return }
+    gh release delete $tag --yes
+    if ($LASTEXITCODE -ne 0) { throw "gh release delete $tag failed" }
+}
 # Build the extra flags with += : a one-item array returned from an `if` expression is unrolled into a plain
 # string, and splatting a string passes its characters one by one ("- - d r a f t").
 $extra = @()
 if (-not $NoDraft) { $extra += '--draft' }
-gh release create $tag @files --title $tag --generate-notes @extra
-if ($LASTEXITCODE -ne 0) { throw 'gh release create failed' }
-if ($NoDraft) { Write-Host "Published $tag" } else { Write-Host "Created the draft ${tag}: review it on GitHub, then click Publish release. Players only see it once it is published." }
+# --target pins the tag to the commit that was checked and built, not whatever the default branch is by the time
+# the release is published.
+gh release create $tag @files --title $tag --generate-notes --target $sha @extra
+if ($LASTEXITCODE -ne 0) { throw "gh release create failed. If it left a half-created draft, rerun with -ReplaceDraft (docs/UPDATE_SIGNING.md)." }
+if ($NoDraft) {
+    Write-Host "Published $tag; verifying what GitHub serves..."
+    powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'verify_release.ps1') -Version $version
+    if ($LASTEXITCODE -ne 0) { throw "verify_release.ps1 FAILED for the published ${tag}: take the release down (gh release edit $tag --draft) and investigate." }
+} else {
+    Write-Host "Created the draft ${tag}: run   powershell -ExecutionPolicy Bypass -File scripts\verify_release.ps1 -Version $version -Draft   then review it on GitHub and click Publish release. Players only see it once it is published."
+}
