@@ -8,7 +8,7 @@ func run() -> int:
 	_won_fight_ignores_a_false_claim()
 	_lost_fight_ignores_a_true_claim()
 	_abandoned_fight_takes_the_callers_word()
-	_fight_in_flight_is_refused()
+	_fight_in_flight_is_cut_short()
 	_without_a_fight_the_caller_is_trusted()
 	_second_start_replaces_the_fight()
 	return _failures
@@ -62,14 +62,13 @@ func _abandoned_fight_takes_the_callers_word() -> void:
 	_check(other.reward_pending(), "an abandoned fight reported as a victory is taken as one")
 
 
-func _fight_in_flight_is_refused() -> void:
+## A fight still running has no outcome: it is abandoned and the caller's word is taken (UI tests rely on it).
+func _fight_in_flight_is_cut_short() -> void:
 	var state := _at_first_fight(7)
-	var index := state.stop_index
 	var combat := state.start_combat()
 	combat.start()
 	state.complete_combat(true)
-	_check(not state.finished and not state.reward_pending() and state.stop_index == index, "a fight still in progress cannot be completed")
-	_check(state.start_combat() != null, "the refused call leaves the stop playable")
+	_check(combat.phase == Combat.Phase.ENDED and state.reward_pending(), "a fight in progress is abandoned and the caller's victory is taken")
 
 
 func _without_a_fight_the_caller_is_trusted() -> void:

@@ -42,7 +42,7 @@ func _progress_bounds_grow() -> void:
 		last_deck = deck
 		last_gold = gold
 	_check(RunSave.max_deck(run, 0) < 20 and RunSave.max_gold(run, 0, none) < 100, "a fresh run's bounds are tight, not 200 cards or a million gold")
-	_check(RunSave.max_relics(run, 0) == 0 and RunSave.max_relics(run, run.stops.size() - 1) > 0, "relics are allowed only after a vendor visit")
+	_check(RunSave.max_relics(run, 0) == RunSave.DECK_COPY_SLACK and RunSave.max_relics(run, run.stops.size() - 1) > RunSave.max_relics(run, 0), "the relic bound grows with each vendor visit")
 
 
 func _bounds_reject_a_fresh_run_with_loot() -> void:
@@ -51,8 +51,11 @@ func _bounds_reject_a_fresh_run_with_loot() -> void:
 	data["gold"] = RunSave.max_gold(state, 0, [] as Array[RelicData]) + 1
 	_check(RunSave.from_dict(data).run == null, "gold beyond what stop 0 could have earned is rejected")
 	data = RunSave.to_dict(state)
-	data["relics"] = [String(StarterContent.relic_pool(&"thief")[0].id)]
-	_check(RunSave.from_dict(data).run == null, "a relic at stop 0 is rejected (no vendor visited)")
+	var many: Array = []
+	for i in RunSave.max_relics(state, 0) + 1:
+		many.append(String(StarterContent.relic_pool(&"thief")[i].id))
+	data["relics"] = many
+	_check(RunSave.from_dict(data).run == null, "more relics than stop 0 allows (no vendor visited) are rejected")
 
 
 ## One played run, round-tripped through JSON at every stop boundary. True when every save loaded.

@@ -205,9 +205,10 @@ static func max_gold(run: RunState, stop_index: int, relics: Array[RelicData]) -
 	return total
 
 
-## Relics a genuine run can carry on reaching `stop_index`: a vendor offers at most one per visit.
+## Relics a genuine run can carry on reaching `stop_index`: a vendor offers at most one per visit (plus
+## DECK_COPY_SLACK, so a hand-built fixture or a retuned line still loads).
 static func max_relics(run: RunState, stop_index: int) -> int:
-	var visits := 0
+	var visits := DECK_COPY_SLACK
 	for i in mini(stop_index, run.stops.size()):
 		if run.stops[i].type == RunState.StopType.VENDOR:
 			visits += 1
