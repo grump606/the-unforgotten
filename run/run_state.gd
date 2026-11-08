@@ -83,7 +83,7 @@ var gold: int:
 	get:
 		return _wallet.gold
 	set(value):
-		_wallet.gold = value
+		_wallet.gold = maxi(value, 0)
 var _wallet := Vendor.Wallet.new()
 ## Ids of every card shown at a card reward so far this run; later rewards avoid them
 ## (see _roll_rewards). Saved with the run.
@@ -532,12 +532,3 @@ func _distinct_cards(cards: Array[CardData]) -> Array[CardData]:
 			seen[card.id] = true
 			distinct.append(card)
 	return distinct
-
-
-## Fisher-Yates with the run RNG, so a seeded run offers the same rewards.
-func _shuffle(cards: Array[CardData]) -> void:
-	for i in range(cards.size() - 1, 0, -1):
-		var j := _rng.randi_range(0, i)
-		var tmp := cards[i]
-		cards[i] = cards[j]
-		cards[j] = tmp
