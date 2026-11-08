@@ -148,18 +148,11 @@ func _check_pile_viewer(node: Control) -> void:
 	c.piles.forgotten.assign([_proto("forgotten_strike")])
 	node._refresh()
 	await process_frame
-	check(node._pile_label.mouse_filter == Control.MOUSE_FILTER_STOP and node._pile_label.mouse_default_cursor_shape == Control.CURSOR_POINTING_HAND, "the pile counters take clicks and show a hand cursor")
-	node._set_pile_hover(true)
-	check(node._pile_label.modulate != Color.WHITE, "the pile counters tint on hover")
-	node._set_pile_hover(false)
-	check(node._pile_label.modulate == Color.WHITE, "and clear the tint")
-	var press := InputEventMouseButton.new()
-	press.button_index = MOUSE_BUTTON_LEFT
-	press.pressed = true
-	var h: float = maxf(node._pile_label.size.y, 3.0)
-	press.position = Vector2(4, h * 0.2)
-	node._on_pile_label_input(press)
-	check(node.pile_viewer_open() and node._pile_viewer.pile == PileViewer.Pile.DRAW, "clicking the Draw line opens the Draw pile")
+	check(node._pile_buttons.size() == 4, "there is one button per pile")
+	check(node._pile_buttons[0].mouse_default_cursor_shape == Control.CURSOR_POINTING_HAND and node._pile_buttons[0].text == "Draw 6", "the pile counters are buttons with a hand cursor")
+	check(node._pile_buttons[3].tooltip_text.contains("W") and node._pile_buttons[0].tooltip_text.contains("D"), "each pile button names its key")
+	node._pile_buttons[0].pressed.emit()
+	check(node.pile_viewer_open() and node._pile_viewer.pile == PileViewer.Pile.DRAW, "clicking the Draw button opens the Draw pile")
 	var viewer: PileViewer = node._pile_viewer
 	var shown: Array = viewer.card_views().map(func(v: CardView) -> StringName: return v.card.id)
 	var expected: Array = draw.duplicate()

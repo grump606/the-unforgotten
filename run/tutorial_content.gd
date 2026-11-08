@@ -38,7 +38,7 @@ static func pages() -> Array[Dictionary]:
 				{"at": Vector2(752, 216), "text": "Omen: what that enemy will do on its next turn, as an icon and a number."},
 				{"at": Vector2(756, 470), "text": "Status pills under the HP bar, such as Haunt 3 here. Hover one for what it does."},
 				{"at": Vector2(120, 514), "text": "Energy: what you have left this turn out of what you get each turn. Cards cost energy."},
-				{"at": Vector2(142, 602), "text": "Your piles: Draw, Discard, Forgotten and Sworn. Click one to look inside."},
+				{"at": Vector2(142, 602), "text": "Your piles: Draw, Discard, Forgotten and Sworn. Click one, or press D, C, F or W, to look inside."},
 				{"at": Vector2(836, 520), "text": "Your hand. Click a card or press its number to play it. Drag a card onto an enemy to aim it."},
 				{"at": Vector2(1070, 510), "text": "End Turn (or press E) passes to the enemies. Log shows what happened."},
 			],
@@ -67,7 +67,7 @@ static func pages() -> Array[Dictionary]:
 				"3. Hover a card to see it larger. Rest the pointer on it a moment for a note on each of its keywords and effects.",
 				"4. When you are done, press End Turn (or E). You may keep up to %d cards in hand: mark the others to discard, then confirm. With %d or fewer you can just choose Keep all." % [Combat.HAND_SIZE, Combat.HAND_SIZE],
 				"5. The enemies act as their Omens showed. Your energy refills and you draw back up to %d cards (%d at most)." % [Combat.HAND_SIZE, Combat.HAND_MAX],
-				"6. Played cards go to the discard pile, which is reshuffled into the draw pile when that runs out. Defeat every enemy to win the fight.",
+				"6. Played cards go to the discard pile, which is reshuffled into the draw pile when that runs out. Press D, C, F or W to look at the Draw, Discard, Forgotten or Sworn pile. Defeat every enemy to win the fight.",
 			],
 		},
 		{
