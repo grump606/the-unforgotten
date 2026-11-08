@@ -368,7 +368,7 @@ func set_hovered(inside: bool) -> void:
 
 ## Tooltip width and text size: a narrow block of small wrapped lines, not one line across the screen.
 const TOOLTIP_WIDTH := 230.0
-const TOOLTIP_FONT_SIZE := 11
+const TOOLTIP_FONT_SIZE := 13
 
 
 ## The card tooltip as a small, wrapped text block (Godot's default tooltip never wraps).
@@ -536,14 +536,30 @@ static func _mute(c: Color) -> Color:
 	return Color(g, g, g).lerp(c, 0.45) * Color(0.88, 0.88, 0.88, 1.0)
 
 
-func _box(rect: Rect2, fill: Color, radius: int, border := 0, border_color := Color.WHITE) -> void:
+## Styles shared by every card, keyed by fill, radius and border: a card face draws a dozen boxes per redraw.
+static var _box_styles := {}
+const BOX_STYLE_CAP := 256
+
+
+static func _box_style(fill: Color, radius: int, border: int, border_color: Color) -> StyleBoxFlat:
+	var key := [fill, radius, border, border_color]
+	var cached: StyleBoxFlat = _box_styles.get(key)
+	if cached != null:
+		return cached
+	if _box_styles.size() >= BOX_STYLE_CAP:
+		_box_styles.clear()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = fill
 	sb.set_corner_radius_all(radius)
 	sb.set_border_width_all(border)
 	sb.border_color = border_color
 	sb.anti_aliasing = true
-	draw_style_box(sb, rect)
+	_box_styles[key] = sb
+	return sb
+
+
+func _box(rect: Rect2, fill: Color, radius: int, border := 0, border_color := Color.WHITE) -> void:
+	draw_style_box(_box_style(fill, radius, border, border_color), rect)
 	if fill.a >= 0.5 and rect.size.x > 30.0 and rect.size.y > 15.0:
 		TactileArt.draw_grain(self, rect.grow(-3.0), 0.12)
 

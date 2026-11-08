@@ -31,7 +31,9 @@ const CONFIRM_PULSE_TIME := 0.35
 ## rises, and the tint of the pile counters while the pointer is over them.
 const CUE_TIME := 1.4
 const CUE_RISE := 46.0
-const PILE_HOVER_TINT := Color(1.0, 0.86, 0.55)
+## Keys that open the Draw, Discard, Forgotten and Sworn piles (D, C, F and W; the letters are free of the
+## other hotkeys).
+const PILE_KEYS := [KEY_D, KEY_C, KEY_F, KEY_W]
 ## Layer of the choice overlay and the pile viewer (above the figures, below the phase banner).
 const OVERLAY_Z := 22
 
@@ -62,7 +64,10 @@ const ENTRANCE_START_SCALE := 0.8
 @onready var _backdrop: BattleBackdrop = %Backdrop
 @onready var _stage: Control = %Stage
 @onready var _left_box: VBoxContainer = %LeftBox
-@onready var _pile_label: Label = %PileLabel
+@onready var _pile_box: VBoxContainer = %PileBox
+## The four pile counters (Draw, Discard, Forgotten, Sworn), each a button that opens that pile, and the deck line.
+var _pile_buttons: Array[Button] = []
+var _deck_label: Label
 @onready var _hud: PanelContainer = %Hud
 
 
@@ -128,6 +133,7 @@ var _seen_player_hp := 0
 var _seen_player_block := 0
 ## Full-size look at the hovered hand card (created on first use), and the pulse on the confirm button.
 var _preview: CardView
+var _preview_view: CardView
 var _confirm_ready := false
 var _confirm_tween: Tween
 ## A drag in progress: the dragged hand card, the ghost that follows the pointer, the enemy index under it.
@@ -156,15 +162,8 @@ func _ready() -> void:
 	if get_parent() == get_tree().root:
 		MenuStyle.apply_theme_only(self)
 	_style_hud()
-	_pile_label.add_theme_font_size_override("font_size", 13)
-	_pile_label.add_theme_constant_override("line_spacing", -2)
 	_left_box.add_theme_constant_override("separation", 2)
-	_pile_label.mouse_filter = Control.MOUSE_FILTER_STOP
-	_pile_label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	_pile_label.tooltip_text = "Click Draw, Discard, Forgotten or Sworn to look at that pile"
-	_pile_label.gui_input.connect(_on_pile_label_input)
-	_pile_label.mouse_entered.connect(_set_pile_hover.bind(true))
-	_pile_label.mouse_exited.connect(_set_pile_hover.bind(false))
+	_build_pile_buttons()
 	_end_turn_button.theme_type_variation = MenuStyle.PRIMARY
 	_log_button.theme_type_variation = MenuStyle.QUIET
 	_backdrop.set_variant(boss_fight, character_id, destination_key)
@@ -297,10 +296,10 @@ func _refresh() -> void:
 	refresh_count += 1
 	_sync_player()
 	_energy_orb.set_energy(_combat.energy, Combat.ENERGY_PER_TURN)
-	_pile_label.text = _pile_text()
+	_sync_piles()
 	_keep_target_alive()
 	_sync_enemies()
-	_rebuild_hand()
+	_sync_hand()
 	_sync_turn_controls()
 	_sync_choice_overlay()
 	_sync_pile_viewer()
@@ -344,19 +343,24 @@ func _on_choice_confirmed(indices: Array[int]) -> void:
 
 ## --- the pile viewer --------------------------------------------------------------------------
 
-func _on_pile_label_input(event: InputEvent) -> void:
-	var click := event as InputEventMouseButton
-	if click == null or not click.pressed or click.button_index != MOUSE_BUTTON_LEFT:
-		return
-	var lines := maxi(_pile_label.get_line_count(), 1)
-	var line := int(click.position.y / (_pile_label.size.y / lines))
-	if line >= 0 and line < PileViewer.PILE_NAMES.size():
-		_pile_label.accept_event()
-		open_pile_viewer(line as PileViewer.Pile)
-
-
-func _set_pile_hover(inside: bool) -> void:
-	_pile_label.modulate = PILE_HOVER_TINT if inside else Color.WHITE
+## One small button per pile, so each has its own target, hover and key (see PILE_KEYS).
+func _build_pile_buttons() -> void:
+	for which in PileViewer.PILE_NAMES.size():
+		var button := Button.new()
+		button.theme_type_variation = MenuStyle.QUIET
+		button.add_theme_font_size_override("font_size", 13)
+		button.custom_minimum_size = Vector2(0, 22)
+		button.focus_mode = Control.FOCUS_NONE
+		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		button.tooltip_text = "Look at your %s pile (key %s)" % [String(PileViewer.PILE_NAMES[which]).to_lower(), OS.get_keycode_string(PILE_KEYS[which])]
+		button.pressed.connect(open_pile_viewer.bind(which as PileViewer.Pile))
+		_pile_box.add_child(button)
+		_pile_buttons.append(button)
+	_deck_label = Label.new()
+	_deck_label.add_theme_font_size_override("font_size", 13)
+	_deck_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_deck_label.visible = false
+	_pile_box.add_child(_deck_label)
 
 
 ## Opens the read-only viewer on a pile. Only during the player's turn and the discard step: not while a
@@ -536,6 +540,39 @@ func _enemy_tooltip(enemy: EnemyUnit) -> String:
 	return "\n".join(lines)
 
 
+## Brings the hand row up to date after a state change. The views are kept (so hover, drag, the tooltip and the
+## preview survive) and only their state, note, preview and marks are updated; the row is rebuilt from scratch
+## only when the hand size or a card at some index changed.
+func _sync_hand() -> void:
+	var hand := _combat.piles.hand
+	var views := _hand_views()
+	var same := views.size() == hand.size()
+	if same:
+		for i in views.size():
+			if views[i].card != hand[i]:
+				same = false
+				break
+	if not same:
+		_rebuild_hand()
+		return
+	var discarding := _combat.phase == Combat.Phase.DISCARDING
+	var hand_scale := _fit_hand()
+	for i in views.size():
+		_apply_hand_view(views[i], i, discarding, hand_scale)
+	if _preview != null and _preview.visible and _preview_view != null and is_instance_valid(_preview_view) and views.has(_preview_view):
+		_show_preview(_preview_view)
+
+
+## The hand row's card views in order.
+func _hand_views() -> Array[CardView]:
+	var out: Array[CardView] = []
+	for child in _hand_box.get_children():
+		var view := child as CardView
+		if view != null:
+			out.append(view)
+	return out
+
+
 func _rebuild_hand() -> void:
 	_end_drag()
 	_hide_preview()
@@ -544,35 +581,54 @@ func _rebuild_hand() -> void:
 	var discarding := _combat.phase == Combat.Phase.DISCARDING
 	var hand_scale := _fit_hand()
 	for i in _combat.piles.hand.size():
-		var card := _combat.piles.hand[i]
 		var view := CardView.new()
-		view.view_scale = hand_scale
 		view.auto_hover = true
 		view.clickable = true
 		view.live = _combat.player
-		view.set_card(card)
-		view.hotkey = i + 1 if i < MAX_HAND_KEYS else 0
-		view.preview = _damage_preview(card).strip_edges() if not discarding else ""
-		if discarding:
-			# Cards that can be discarded toggle; marked ones are dimmed and stamped. Anchor and Fading
-			# cards cannot be marked, and say what happens to them instead.
-			view.set_state(CardView.State.NORMAL, "" if _combat.can_discard_card(i) else _undiscardable_note(card))
-			view.discard_marked = _combat.discard_marks.has(i)
-		elif _combat.can_play(i):
-			view.set_state(CardView.State.NORMAL)
-		else:
-			view.set_state(CardView.State.UNPLAYABLE, _unplayable_note(card))
-		view.pressed.connect(_play_hand_card.bind(i))
-		# Only cards that target enemies can be dragged (to an enemy, whether or not it is selected).
-		view.draggable = not discarding and card.target_mode != CardData.TargetMode.SELF
+		# The handlers look the index up when they fire (the view's place in the row), so they stay right
+		# however the row changes around the view.
+		view.pressed.connect(func() -> void: _play_hand_card(view.get_index()))
 		view.drag_started.connect(_on_drag_started.bind(view))
 		view.drag_moved.connect(_on_drag_moved)
-		view.drag_ended.connect(_on_drag_ended.bind(i))
+		view.drag_ended.connect(func(pos: Vector2) -> void: _on_drag_ended(pos, view.get_index()))
 		view.drag_cancelled.connect(_end_drag)
 		view.hover_changed.connect(_on_card_hover.bind(view))
+		_apply_hand_view(view, i, discarding, hand_scale)
 		_hand_box.add_child(view)
 	# The new views start un-hovered; once laid out, light the one under the pointer.
 	_restore_hover.call_deferred()
+
+
+## Sets everything about hand view `i` that follows from the fight: its card, size, state and note, damage
+## preview, discard mark and hotkey. Writes only what differs, so an unchanged card is not redrawn.
+func _apply_hand_view(view: CardView, i: int, discarding: bool, hand_scale: float) -> void:
+	var card := _combat.piles.hand[i]
+	if view.card != card:
+		view.set_card(card)
+	if view.view_scale != hand_scale:
+		view.view_scale = hand_scale
+	var hotkey := i + 1 if i < MAX_HAND_KEYS else 0
+	if view.hotkey != hotkey:
+		view.hotkey = hotkey
+	var preview := _damage_preview(card).strip_edges() if not discarding else ""
+	if view.preview != preview:
+		view.preview = preview
+	var marked := discarding and _combat.discard_marks.has(i)
+	if view.discard_marked != marked:
+		view.discard_marked = marked
+	var new_state := CardView.State.NORMAL
+	var note := ""
+	if discarding:
+		# Cards that can be discarded toggle; marked ones are dimmed and stamped. Anchor and Fading
+		# cards cannot be marked, and say what happens to them instead.
+		note = "" if _combat.can_discard_card(i) else _undiscardable_note(card)
+	elif not _combat.can_play(i):
+		new_state = CardView.State.UNPLAYABLE
+		note = _unplayable_note(card)
+	if view.state != new_state or view.note != note:
+		view.set_state(new_state, note)
+	# Only cards that target enemies can be dragged (to an enemy, whether or not it is selected).
+	view.draggable = not discarding and card.target_mode != CardData.TargetMode.SELF
 
 
 ## Sizes the hand row so every card fits on one line: normal scale and gap when it fits, then
@@ -907,11 +963,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			_on_continue_pressed()
 		return
-	# The pile viewer is read-only and modal: Esc closes it, other keys do nothing behind it.
+	# The pile viewer is read-only and modal: Esc closes it, the pile keys switch piles, other keys do nothing.
 	if pile_viewer_open():
 		get_viewport().set_input_as_handled()
 		if key.keycode == KEY_ESCAPE:
 			_close_pile_viewer()
+		elif PILE_KEYS.has(key.keycode):
+			open_pile_viewer(PILE_KEYS.find(key.keycode) as PileViewer.Pile)
 		return
 	# A Glimpse / Recall pick: number keys mark cards, Enter confirms, and every other key does nothing.
 	# Esc is swallowed here so it cannot fall through to the run's pause menu; the player's turn controls
@@ -922,6 +980,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	# Same gate as the buttons: nothing happens outside the player's turn.
 	if _combat == null or (_combat.phase != Combat.Phase.PLAYER_TURN and _combat.phase != Combat.Phase.DISCARDING):
+		return
+	if PILE_KEYS.has(key.keycode):
+		get_viewport().set_input_as_handled()
+		open_pile_viewer(PILE_KEYS.find(key.keycode) as PileViewer.Pile)
 		return
 	var number := key.keycode - KEY_1
 	if key.keycode == KEY_0:
@@ -1013,7 +1075,7 @@ func _show_pile_cue(text: String) -> void:
 	add_child(cue)
 	# Above the energy orb, over the stage, so it never sits on top of the counters it is about.
 	var origin := _energy_orb.get_global_rect().position - get_global_rect().position
-	cue.position = Vector2(_pile_label.get_global_rect().position.x - get_global_rect().position.x, origin.y - 30.0 - 22.0 * _live_cues)
+	cue.position = Vector2(_pile_box.get_global_rect().position.x - get_global_rect().position.x, origin.y - 30.0 - 22.0 * _live_cues)
 	_live_cues += 1
 	var tween := create_tween()
 	tween.set_parallel(true)
@@ -1181,6 +1243,7 @@ func _on_card_hover(inside: bool, view: CardView) -> void:
 func _show_preview(view: CardView) -> void:
 	if view.card == null:
 		return
+	_preview_view = view
 	if _preview == null:
 		_preview = CardView.new()
 		_preview.view_scale = PREVIEW_SCALE
@@ -1287,9 +1350,24 @@ func set_journey(stop_title: String, journey: String, character_title: String, d
 	# Below the two lines of text, the relic badges keep the left edge.
 	_relic_strip.position = Vector2(4, _stage_info.position.y + 20 + 14 + 14)
 	if _combat != null:
-		_pile_label.text = _pile_text()
+		_sync_piles()
 
 
+## Updates the four counters (and the deck line when the run supplied one).
+func _sync_piles() -> void:
+	var counts := [_combat.piles.draw_pile.size(), _combat.piles.discard_pile.size(), _combat.piles.forgotten.size(), _combat.piles.sworn.size()]
+	for i in _pile_buttons.size():
+		_pile_buttons[i].text = "%s %d" % [PileViewer.PILE_NAMES[i], counts[i]]
+	_deck_label.visible = _deck_size >= 0
+	_deck_label.text = "Deck %d" % _deck_size
+
+
+## The counters as plain lines, one per pile (read by tests).
 func _pile_text() -> String:
-	var text := "Draw %d\nDiscard %d\nForgotten %d\nSworn %d" % [_combat.piles.draw_pile.size(), _combat.piles.discard_pile.size(), _combat.piles.forgotten.size(), _combat.piles.sworn.size()]
-	return text + "\nDeck %d" % _deck_size if _deck_size >= 0 else text
+	var lines: Array[String] = []
+	for button in _pile_buttons:
+		lines.append(button.text)
+	if _deck_size >= 0:
+		lines.append(_deck_label.text)
+	return "
+".join(lines)
