@@ -13,6 +13,11 @@ var forgotten: Array[CardData] = []
 ## Forgotten pile, are back in the deck next fight. Sworn twice, a card is listed twice and fires twice.
 var sworn: Array[CardData] = []
 
+## Where play() last sent a card. An Oath is Sworn even when it is also Forgotten, so a card's
+## `forgotten` flag alone does not say it landed in the Forgotten pile.
+enum Destination { DISCARD, FORGOTTEN, SWORN }
+var last_play_destination: Destination = Destination.DISCARD
+
 var _rng: RandomNumberGenerator
 
 
@@ -62,10 +67,13 @@ func play(hand_index: int) -> CardData:
 	hand.remove_at(hand_index)
 	if card.oath:
 		sworn.append(card)
+		last_play_destination = Destination.SWORN
 	elif card.forgotten:
 		forgotten.append(card)
+		last_play_destination = Destination.FORGOTTEN
 	else:
 		discard_pile.append(card)
+		last_play_destination = Destination.DISCARD
 	return card
 
 
