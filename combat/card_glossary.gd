@@ -5,42 +5,42 @@ extends RefCounted
 ## Numbers in the effect entries match the status tooltips in battle.gd; keep the two in step.
 
 const KEYWORD_TEXT := {
-	"Forgotten": "Once played, goes to the Forgotten pile for the rest of the fight instead of the discard pile. It returns to your deck after the fight.",
-	"Fading": "If still in your hand when the turn ends, it becomes Forgotten. It does not count toward the 5 cards you keep.",
+	"Forgotten": "Once played, leaves the fight for good (returns after).",
+	"Fading": "Still in hand at end of turn: becomes Forgotten. Not kept.",
 	"Ready": "Starts the fight in your opening hand.",
-	"Anchor": "Stays in your hand: it cannot be discarded and does not count toward the 5 you keep.",
-	"Dormant": "Cannot be played. Enemies shuffle these into your piles.",
-	"Surge": "Playing it spends all your remaining energy, and its effect grows with the energy spent.",
-	"Oath": "Played once, then it stays Sworn for the rest of the fight. Its Oath effect happens every time its trigger fires.",
-	"Discarded": "Has an effect when thrown away at the end-of-turn discard (not when played).",
-	"Remembered": "Upgraded at a rest stop. It stays Remembered for the rest of the run.",
+	"Anchor": "Can't be discarded. Doesn't count toward the 5 kept.",
+	"Dormant": "Can't be played. Enemies shuffle these in.",
+	"Surge": "Spends all your energy. Effect grows with it.",
+	"Oath": "Played once, then Sworn for the fight. Its Oath effect fires on its trigger.",
+	"Discarded": "Has an effect when thrown away at end of turn.",
+	"Remembered": "Upgraded at a rest stop, for the rest of the run.",
 }
 
 const EFFECT_TEXT := {
 	CardEffect.Kind.DAMAGE: ["Deal", "Damage to the target. Block absorbs it first."],
-	CardEffect.Kind.BLOCK: ["Block", "Absorbs damage until your next turn starts."],
-	CardEffect.Kind.DRAW: ["Draw", "Take cards from your draw pile into your hand (up to 10 in hand)."],
-	CardEffect.Kind.EXPOSE: ["Expose", "The target takes 1.5x damage, rounded down, for that many turns."],
-	CardEffect.Kind.HOLD: ["Hold", "Up to that much of the Block you have left is kept for your next turn."],
-	CardEffect.Kind.DAMAGE_PER_BLOCK: ["Your Block", "This card's damage is based on the Block you have now."],
-	CardEffect.Kind.DAMAGE_IF_BLOCK: ["Block bonus", "Deals the higher number while you have at least that much Block."],
-	CardEffect.Kind.THORNS: ["Thorns", "Each enemy attack on you also deals that much to the attacker this turn."],
-	CardEffect.Kind.GAIN_ENERGY: ["Energy", "Energy pays for cards. You gain it now, on top of this turn's energy."],
-	CardEffect.Kind.DAMAGE_PER_PLAY: ["Combo", "Deals more damage for each card you played earlier this turn."],
-	CardEffect.Kind.HAUNT: ["Haunt", "The target takes that much damage at the start of the enemy phase, ignoring Block, then Haunt falls by 1."],
-	CardEffect.Kind.LOSE_HP: ["Lose HP", "You pay this much of your own HP to play the card."],
-	CardEffect.Kind.HEAL_PER_HAUNTED: ["Heal per Haunted", "You heal for each enemy that currently has Haunt."],
-	CardEffect.Kind.DAMAGE_PER_HAUNT: ["Haunt damage", "Deals damage based on the target's current Haunt."],
-	CardEffect.Kind.SHAKEN: ["Shaken", "The target deals 25% less damage, rounded down, for that many turns."],
-	CardEffect.Kind.FRAYED: ["Frayed", "Gains 25% less Block from cards, rounded down, for that many turns."],
-	CardEffect.Kind.MALICE: ["Malice", "A flat bonus to every hit you deal. Stacks, and lasts the fight (one turn if the card says \"this turn\")."],
-	CardEffect.Kind.WARD: ["Ward", "A flat bonus to Block gained from cards (not Hold, Thorns or relic Block). Stacks, and lasts the fight."],
-	CardEffect.Kind.GLIMPSE: ["Glimpse", "Look at that many cards from the top of your draw pile and discard any of them."],
-	CardEffect.Kind.ADD_CARD: ["Add", "Puts new copies of a card into the pile named."],
-	CardEffect.Kind.RECALL: ["Recall", "Choose that many cards from the Forgotten pile and return them to your hand."],
-	CardEffect.Kind.DAMAGE_PER_FORGOTTEN: ["Forgotten damage", "Deals damage based on how many cards are in the Forgotten pile."],
-	CardEffect.Kind.SCENT: ["Scent", "Marks one enemy as your quarry: every hit your cards land on it deals more. Only one enemy holds Scent (up to 8); marking another moves it."],
-	CardEffect.Kind.DAMAGE_PER_SCENT: ["Scent damage", "Deals extra damage for each Scent on the target, then spends all of it."],
+	CardEffect.Kind.BLOCK: ["Block", "Absorbs damage until your next turn."],
+	CardEffect.Kind.DRAW: ["Draw", "Take cards into your hand (10 max)."],
+	CardEffect.Kind.EXPOSE: ["Expose", "Target takes 1.5x damage for N turns."],
+	CardEffect.Kind.HOLD: ["Hold", "Keep up to N leftover Block next turn."],
+	CardEffect.Kind.DAMAGE_PER_BLOCK: ["Your Block", "Damage scales with your current Block."],
+	CardEffect.Kind.DAMAGE_IF_BLOCK: ["Block bonus", "Deals the higher number with enough Block."],
+	CardEffect.Kind.THORNS: ["Thorns", "Attackers take N damage this turn."],
+	CardEffect.Kind.GAIN_ENERGY: ["Energy", "Gain energy now, on top of the turn's."],
+	CardEffect.Kind.DAMAGE_PER_PLAY: ["Combo", "More damage per card played earlier this turn."],
+	CardEffect.Kind.HAUNT: ["Haunt", "Target takes N at enemy phase (ignores Block), then Haunt drops by 1."],
+	CardEffect.Kind.LOSE_HP: ["Lose HP", "You pay this much HP to play it."],
+	CardEffect.Kind.HEAL_PER_HAUNTED: ["Heal per Haunted", "Heal for each Haunted enemy."],
+	CardEffect.Kind.DAMAGE_PER_HAUNT: ["Haunt damage", "Damage scales with the target's Haunt."],
+	CardEffect.Kind.SHAKEN: ["Shaken", "Target deals 25% less damage for N turns."],
+	CardEffect.Kind.FRAYED: ["Frayed", "Gains 25% less Block for N turns."],
+	CardEffect.Kind.MALICE: ["Malice", "Flat bonus to each hit you deal. Stacks; lasts the fight."],
+	CardEffect.Kind.WARD: ["Ward", "Flat bonus to Block from cards. Stacks; lasts the fight."],
+	CardEffect.Kind.GLIMPSE: ["Glimpse", "Look at the top N cards of your draw pile; discard any."],
+	CardEffect.Kind.ADD_CARD: ["Add", "Puts copies of a card into the pile named."],
+	CardEffect.Kind.RECALL: ["Recall", "Return N Forgotten cards to your hand."],
+	CardEffect.Kind.DAMAGE_PER_FORGOTTEN: ["Forgotten damage", "Damage scales with the Forgotten pile."],
+	CardEffect.Kind.SCENT: ["Scent", "Marks your quarry: your hits on it deal more. One enemy at a time (max 8)."],
+	CardEffect.Kind.DAMAGE_PER_SCENT: ["Scent damage", "Extra damage per Scent on the target, then spends it."],
 }
 
 
@@ -80,7 +80,7 @@ static func full_text(card: CardData) -> String:
 
 static func _keyword_text(card: CardData, keyword: String) -> String:
 	if keyword == "Oath" and not card.oath_effects.is_empty():
-		return "%s Trigger on this card: %s." % [KEYWORD_TEXT["Oath"], card.oath_trigger_text().to_lower()]
+		return "%s Trigger: %s." % [KEYWORD_TEXT["Oath"], card.oath_trigger_text().to_lower()]
 	return KEYWORD_TEXT.get(keyword, "")
 
 
