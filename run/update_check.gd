@@ -9,6 +9,8 @@ extends RefCounted
 ## never built from the reply.
 const LATEST_RELEASE_API := "https://api.github.com/repos/grump606/the-unforgotten/releases/latest"
 const RELEASES_PAGE := "https://github.com/grump606/the-unforgotten/releases/latest"
+## Redirects an updater request may follow (GitHub answers a release download with one or two).
+const MAX_REDIRECTS := 4
 ## A reply larger than this is ignored (HTTPRequest.body_size_limit is set to it too).
 const MAX_BODY_BYTES := 65536
 const TIMEOUT_SECONDS := 5.0

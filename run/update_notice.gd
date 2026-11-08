@@ -96,6 +96,10 @@ func start() -> bool:
 	_request = HTTPRequest.new()
 	_request.body_size_limit = UpdateCheck.MAX_BODY_BYTES
 	_request.timeout = UpdateCheck.TIMEOUT_SECONDS
+	# Godot's HTTPRequest follows redirects itself and does not expose where it ended up, so a redirect to plain
+	# http:// cannot be refused here. The cap keeps a redirect loop short; the reply is only ever read as a version
+	# tag (UpdateCheck validates it) and the installer is trusted only through the signed manifest (UpdateInstaller).
+	_request.max_redirects = UpdateCheck.MAX_REDIRECTS
 	_request.request_completed.connect(_on_request_completed)
 	add_child(_request)
 	var headers := PackedStringArray([
@@ -205,6 +209,7 @@ func _on_installer_changed() -> void:
 
 func _on_skip() -> void:
 	installer.cancel()
+	installer.discard() # a verified installer waiting in READY is removed too
 	revealed = false
 	_refresh()
 	skipped.emit()
