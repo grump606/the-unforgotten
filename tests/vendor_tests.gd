@@ -1,8 +1,6 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Tests for the vendor module.
 ## run() returns the failure count and prints a "FAIL: ..." line per failure.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -22,12 +20,6 @@ func run() -> int:
 	_test_exact_gold_and_price_boundaries()
 	_test_relic_offer_is_optional()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _vendor(seed_value: int, gold: int, deck: Array[CardData] = []) -> Vendor:

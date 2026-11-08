@@ -1,8 +1,6 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Phase 4b: the Thief retunes and new cards, played in the real engine. Fixtures build fights in code.
 ## Discovered by run_tests.gd.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -23,12 +21,6 @@ func run() -> int:
 	_test_reward_pools()
 	_test_describe_text()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _card(id: String) -> CardData:

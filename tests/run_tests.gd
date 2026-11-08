@@ -17,8 +17,11 @@ func _initialize() -> void:
 ## announced on stdout so a log shows exactly which files ran.
 func _run_discovered_files() -> int:
 	var total := 0
+	var checks := 0
 	for file_name in TestBase.discover_unit_test_files():
 		print("TEST FILE: ", file_name)
 		var suite: Object = load("res://tests/" + file_name).new()
 		total += int(suite.run())
+		checks += int(suite.get("_checks")) if suite.get("_checks") != null else 0
+	print("CHECKS: %d" % checks)
 	return total

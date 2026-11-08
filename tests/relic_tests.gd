@@ -1,8 +1,6 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Tests for relics (combat/relic_data.gd and its hooks in Combat, Vendor, RunState and
 ## RunSave). Returns the failure count; the suite in run_tests.gd adds it to its own.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -30,12 +28,6 @@ func run() -> int:
 	_test_save_round_trip()
 	_test_save_rejects_bad_relics()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _relic(kind: RelicData.Kind, amount: int) -> RelicData:
@@ -80,14 +72,14 @@ func _fight(relics: Array, card: CardData = null, player_hp: int = 40, enemy_cou
 
 func _test_content() -> void:
 	var relics := StarterContent.all_relics()
-	_check(relics.size() == 21, "twenty-one relics load (got %d)" % relics.size())
+	_check(relics.size() == StarterContent.RELIC_PATHS.size(), "every registered relic loads (got %d)" % relics.size())
 	var ids := {}
 	var kinds := {}
 	for relic in relics:
 		ids[relic.id] = true
 		kinds[relic.kind] = true
 		_check(relic.amount > 0 and relic.price > 0 and relic.display_name != "" and relic.description != "", "%s has an amount, a price, a name and a description" % relic.id)
-	_check(ids.size() == 21, "relic ids are unique")
+	_check(ids.size() == relics.size(), "relic ids are unique")
 	_check(kinds.size() == RelicData.Kind.size(), "every relic kind is used by exactly one relic")
 	for character_id in StarterContent.character_ids():
 		var pool := StarterContent.relic_pool(character_id)

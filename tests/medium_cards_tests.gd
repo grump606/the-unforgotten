@@ -1,9 +1,7 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Phase 4d: the Medium's Forgotten-pile cards. Seance and Bleed the Veil became Forgotten; Remember,
 ## Chorus of the Lost and Hollow Bargain are new. Discovered by run_tests.gd. Fixtures are built in
 ## code; the cards under test come from their shipped .tres files.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -15,12 +13,6 @@ func run() -> int:
 	_test_hollow_bargain()
 	_test_synergy()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _card(path: String) -> CardData:

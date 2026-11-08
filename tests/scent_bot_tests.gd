@@ -1,12 +1,10 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## How the two bots play Scent (docs/CLASSES_PLAN.md, the Stray, phase 4a): mark the quarry before the attacks
 ## that use it, keep every attack on that one enemy, spend a stack after the other attacks and not too early,
 ## and never waste a mark at the cap. Hand-made cards; registered by run_tests.gd.
 
 const K := CardEffect.Kind
 const SCENT := Combatant.Status.SCENT
-
-var _failures := 0
 
 
 func run() -> int:
@@ -21,12 +19,6 @@ func run() -> int:
 	_test_smart_skips_a_wasted_mark()
 	_test_the_real_starting_deck_is_played()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _fx(kind: K, amount: int, bonus: int = 0, hits: int = 1) -> CardEffect:

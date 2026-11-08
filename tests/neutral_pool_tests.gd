@@ -1,4 +1,4 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## The neutral pool split (docs/CLASSES_PLAN.md and docs/MECHANICS_PLAN.md): the basic cards (Shove, Slip Past)
 ## are starting cards and vendor stock but never reward offers, and eight shared cards join the neutral pool.
 ## Discovered by run_tests.gd.
@@ -6,8 +6,6 @@ extends RefCounted
 const SHARED: Array[StringName] = [
 	&"steady_hands", &"counter_step", &"second_look", &"downpour", &"hold_fast", &"pull_together", &"lucky_break", &"shake_them",
 ]
-
-var _failures := 0
 
 
 func run() -> int:
@@ -19,12 +17,6 @@ func run() -> int:
 	_test_shared_cards()
 	_test_sweep()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _load(id: StringName) -> CardData:

@@ -1,18 +1,8 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Rules-level checks for the rest stop's story card (run/rest_content.gd).
 
-var failures := 0
-
-
-func _check(condition: bool, message: String) -> void:
-	if condition:
-		print("ok: ", message)
-	else:
-		failures += 1
-		print("FAIL: ", message)
-
-
 func run() -> int:
+	_failures = 0
 	_check(RestContent.beat_count() == 5, "there is one card per rest on the line")
 	var rests := 0
 	for stop in RunState.new(1).stops:
@@ -30,4 +20,4 @@ func run() -> int:
 		_check(RestContent.beat(number, &"nobody").text == shared.text, "rest %d uses the shared passage for an unknown character" % number)
 	_check(texts.size() == RestContent.beat_count(), "every rest reads differently")
 	_check(RestContent.beat(0).title == RestContent.beat(1).title and RestContent.beat(9).title == RestContent.beat(5).title, "out-of-range rest numbers use the nearest card")
-	return failures
+	return _failures

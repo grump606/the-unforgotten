@@ -1,8 +1,6 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Review fixes in the combat layer: the first-Forgotten-return relic with Oath cards, ramp scaling that
 ## keeps phase two, the shared rule helpers the bots call, and the content cache. Registered by run_tests.gd.
-
-var _failures := 0
 
 
 func run() -> int:
@@ -13,12 +11,6 @@ func run() -> int:
 	_test_is_damage_kinds()
 	_test_content_cache()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _fight(card: CardData, relics: Array[RelicData], enemy_intents: Array[CardEffect] = [], enemy_count: int = 1) -> Combat:

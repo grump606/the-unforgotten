@@ -1,10 +1,9 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Phase 4e: identity and keyword coverage. Every keyword and every effect kind the mechanics rework
 ## introduced is used by at least one shipped card, no temporary stack points at an enemy, and each
 ## class still plays like itself. Uses the real card and enemy resources. Discovered by run_tests.gd.
 
 const K := CardEffect.Kind
-var _failures := 0
 
 
 func run() -> int:
@@ -17,12 +16,6 @@ func run() -> int:
 	_test_deserter_identity()
 	_test_medium_identity()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 ## Shipped cards plus the status and created cards.

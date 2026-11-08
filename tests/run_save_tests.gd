@@ -1,12 +1,10 @@
-extends RefCounted
+extends "res://tests/test_base.gd"
 ## Tests for run save/restore (run/run_save.gd). Returns the failure count; the
 ## suite in run_tests.gd adds it to its own. Files go to a scratch path under
 ## user://, never the real run_save.json.
 
 ## Per-process name so parallel test runs (separate checkouts, CI shards) never share a file.
 var test_path := "user://run_save_test_%d.json" % OS.get_process_id()
-
-var _failures := 0
 
 
 func run() -> int:
@@ -33,12 +31,6 @@ func run() -> int:
 	_test_delete_cleans_everything()
 	_cleanup()
 	return _failures
-
-
-func _check(condition: bool, label: String) -> void:
-	if not condition:
-		_failures += 1
-		printerr("FAIL: " + label)
 
 
 func _cleanup() -> void:
