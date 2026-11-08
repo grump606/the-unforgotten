@@ -9,3 +9,9 @@ Godot_*/
 .claude/
 build/
 art/work/
+
+# Signing keys must never be committed (see docs/UPDATE_SIGNING.md)
+*.pfx
+*.pem
+*.p12
+*.key
