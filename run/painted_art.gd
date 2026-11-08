@@ -124,18 +124,18 @@ static func preload_paths(paths: Array) -> void:
 ## is paid before the player moves on instead of as a stutter on the next screen.
 static func warm_for_stop(stop_type: int, character_id: StringName = &"") -> void:
 	match stop_type:
-		0: # RunState.StopType.COMBAT
+		RunState.StopType.COMBAT:
 			preload_screen(StringName("battle_" + String(character_id)) if character_id != &"" else &"battle_neutral")
 			preload_screen(&"battle_neutral")
 			preload_screen(&"battle_boss")
-		1: # REST
+		RunState.StopType.REST:
 			preload_screen(StringName("rest_" + String(character_id)) if character_id != &"" else &"rest")
 			preload_screen(&"rest")
-		2: # STORY
+		RunState.StopType.STORY:
 			for dir in DirAccess.get_directories_at("res://art/layers/screens"):
 				if dir.begins_with("story_"):
 					preload_screen(StringName(dir))
-		3: # VENDOR
+		RunState.StopType.VENDOR:
 			preload_screen(&"vendor")
 			preload_paths(["res://art/layers/screens/vendor/keeper.png"])
 
