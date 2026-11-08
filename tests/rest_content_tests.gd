@@ -13,7 +13,7 @@ func _check(condition: bool, message: String) -> void:
 
 
 func run() -> int:
-	_check(RestContent.beat_count() == 4, "there is one card per rest on the line")
+	_check(RestContent.beat_count() == 5, "there is one card per rest on the line")
 	var rests := 0
 	for stop in RunState.new(1).stops:
 		if stop.type == RunState.StopType.REST:
@@ -29,5 +29,5 @@ func run() -> int:
 			_check(own.text.begins_with(shared.text) and own.text.length() > shared.text.length(), "rest %d adds a line for %s" % [number, id])
 		_check(RestContent.beat(number, &"nobody").text == shared.text, "rest %d uses the shared passage for an unknown character" % number)
 	_check(texts.size() == RestContent.beat_count(), "every rest reads differently")
-	_check(RestContent.beat(0).title == RestContent.beat(1).title and RestContent.beat(9).title == RestContent.beat(4).title, "out-of-range rest numbers use the nearest card")
+	_check(RestContent.beat(0).title == RestContent.beat(1).title and RestContent.beat(9).title == RestContent.beat(5).title, "out-of-range rest numbers use the nearest card")
 	return failures

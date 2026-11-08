@@ -6,7 +6,7 @@ const LABELS := [
 	"Empty Tenements", "The Lost-Property Stall", "Petition Steps", "The Unanswered Hall",
 	"Caretaker's Alcove", "The Bell Court", "Garden of Unmarked Stones", "Glasshouse Shelter",
 	"Processional Garden", "The Listening Marsh", "The Bone Orchard Market", "Candlehouse",
-	"The Name Vault", "The Unwritten Causeway", "Last Keepsake Stall", "The Breathing Door", "The Threshold",
+	"The Name Vault", "The Unwritten Causeway", "Last Keepsake Stall", "The Last Hearth", "The Breathing Door", "The Threshold",
 ]
 
 static func label_at(index: int) -> String:
@@ -18,5 +18,5 @@ static func battle_key(index: int) -> StringName:
 		9: return &"battle_bell_court"
 		12, 13: return &"battle_garden"
 		16, 17: return &"battle_archive"
-		20: return &"battle_threshold"
+		21: return &"battle_threshold"
 	return &""

@@ -188,7 +188,7 @@ func _test_bad_fields() -> void:
 		"hp": [0, -5, 9999, "x", null, 3.5],
 		"max_hp": [0, -1, 100000, "x"],
 		"gold": [-1, 99999999, "x", null],
-		"stop_index": [-1, 21, 500, "x", null],
+		"stop_index": [-1, 22, 500, "x", null],
 		"rng_state": [12, "abc", "", null, "99999999999999999999", "-99999999999999999999", "007"],
 		"line": ["", "x", 5, null],
 		"deck": [[], "x", ["no_such_card"], [5], null],
@@ -269,8 +269,8 @@ func _test_old_line_rejected() -> void:
 	edited.stops[12].tier = 0
 	_check(RunSave.line_signature(edited) != RunSave.line_signature(RunState.new(3)), "the line signature covers the tier")
 	var bad_tail := RunSave.to_dict(RunState.new(3))
-	bad_tail["stop_index"] = 21
-	_check(RunSave.from_dict(bad_tail).run == null, "a stop index past the 21-stop line is rejected")
+	bad_tail["stop_index"] = 22
+	_check(RunSave.from_dict(bad_tail).run == null, "a stop index past the 22-stop line is rejected")
 
 
 ## A run saved in act 2 (past the mid-boss) restores with everything intact, including relics,

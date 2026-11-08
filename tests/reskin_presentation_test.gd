@@ -8,7 +8,7 @@ func check(ok: bool, label: String) -> void:
 
 func _initialize() -> void:
 	for id in StarterContent.character_ids():
-		for index in [6, 7, 8, 9, 10, 18, 19, 20]:
+		for index in [6, 7, 8, 9, 10, 18, 19, 20, 21]:
 			var state := RunState.new(811, id)
 			state.stop_index = index
 			var snapshot := RunSave.to_dict(state)
