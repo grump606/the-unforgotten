@@ -47,7 +47,9 @@ powershell -ExecutionPolicy Bypass -File scripts/check.ps1 -Godot 'C:\path\to\..
    `https://github.com/godotengine/godot-builds/releases/download/<version>/SHA512-SUMS.txt`
    into `GODOT_ZIP_SHA512`. The engine cache key and the import cache key both include the
    version, so a change refetches and re-imports.
-3. Install the matching export templates on the build machine (`docs/INSTALLER.md`).
+3. From the same `SHA512-SUMS.txt`, copy the SHA512 of `Godot_v<version>_export_templates.tpz` into
+   `GODOT_TEMPLATES_SHA512` (the installer-build job refuses templates that do not match it).
+4. Install the matching export templates on the build machine (`docs/INSTALLER.md`).
 
 Nothing else needs editing. The Inno Setup pin (`INNO_SETUP_VERSION`) is changed the same way; see
 `docs/INSTALLER.md`.

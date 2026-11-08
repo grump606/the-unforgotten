@@ -14,9 +14,9 @@ From outside the game: set the environment variable `THE_UNFORGOTTEN_NO_UPDATE_C
 
 ## Behaviour and safety
 
-- The request is asynchronous (a worker thread, 5 s timeout, reply capped at 64 KB), so the game never waits on it.
+- The request is asynchronous (an `HTTPRequest` node, which does its networking off the main thread; 5 s timeout, reply capped at 64 KB), so the game never waits on it.
 - Every failure is silent: offline, timeout, HTTP error or rate limit (anything but 200), a reply that is not JSON, a missing or odd `tag_name`. No notice, no dialog, no warning in the log.
-- The reply is untrusted. Only `tag_name` is read, and only if it matches `^[vV]?[0-9]{1,4}(\.[0-9]{1,4}){0,3}$`. The page Download opens is the constant `https://github.com/grump606/the-unforgotten/releases/latest`; no URL from the reply is ever used.
+- The reply is untrusted. Only `tag_name` is read, and only if it matches `^[vV]?[0-9]{1,4}(\.[0-9]{1,4}){0,3}\z` (`\z`, not `$`, which would also accept a trailing newline). The page Download opens is the constant `https://github.com/grump606/the-unforgotten/releases/latest`; no URL from the reply is ever used.
 
 ## Version comparison
 
