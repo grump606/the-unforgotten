@@ -195,9 +195,10 @@ func _ready() -> void:
 	_end_turn_button.get_parent().add_child(_cancel_button)
 	_end_turn_button.get_parent().move_child(_cancel_button, _end_turn_button.get_index() + 1)
 	if external_combat != null:
-		_new_fight_button.text = "Continue"
+		_new_fight_button.text = "Continue  [Enter]"
 		_attach(external_combat)
 	else:
+		_new_fight_button.text = "New Fight  [N]"
 		_start_combat()
 
 
@@ -902,7 +903,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_intro.skip()
 		return
 	if _new_fight_button.visible:
-		if key.keycode == KEY_N:
+		if key.keycode == KEY_N or key.keycode == KEY_E or key.keycode == KEY_ENTER or key.keycode == KEY_KP_ENTER:
 			get_viewport().set_input_as_handled()
 			_on_continue_pressed()
 		return
@@ -912,10 +913,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		if key.keycode == KEY_ESCAPE:
 			_close_pile_viewer()
 		return
-	# A Glimpse / Recall pick: number keys mark cards, Enter confirms, everything else (Esc included)
-	# does nothing, and the player's turn controls stay locked until it is resolved.
+	# A Glimpse / Recall pick: number keys mark cards, Enter confirms, and every other key does nothing.
+	# Esc is swallowed here so it cannot fall through to the run's pause menu; the player's turn controls
+	# stay locked until the pick is resolved.
 	if _combat != null and _combat.phase == Combat.Phase.CHOOSING:
-		if _choice_overlay != null and _choice_overlay.handle_key(key.keycode):
+		if key.keycode == KEY_ESCAPE or (_choice_overlay != null and _choice_overlay.handle_key(key.keycode)):
 			get_viewport().set_input_as_handled()
 		return
 	# Same gate as the buttons: nothing happens outside the player's turn.
@@ -1072,7 +1074,7 @@ func _start_boss_intro() -> void:
 	_intro.setup("MID-BOSS" if boss_label == "Mid-boss" else "FINAL BOSS", boss.display_name)
 	_intro.finished.connect(_on_intro_finished)
 	add_child(_intro)
-	if not CardView.reduced_motion and not _enemy_views.is_empty():
+	if not Motion.reduced and not _enemy_views.is_empty():
 		var view := _enemy_views[0]
 		view.entrance = ENTRANCE_START_SCALE
 		_entrance_tween = create_tween()
@@ -1124,7 +1126,7 @@ func _show_phase_banner(title: String) -> void:
 		_banner_tween.kill()
 	if not is_inside_tree():
 		return
-	var reduced := CardView.reduced_motion
+	var reduced := Motion.reduced
 	_banner_tween = create_tween()
 	if not reduced:
 		_banner.modulate.a = 0.0
@@ -1136,7 +1138,7 @@ func _show_phase_banner(title: String) -> void:
 
 ## A quick red flash over the whole screen (skipped under reduced motion).
 func _flash_screen() -> void:
-	if CardView.reduced_motion or not is_inside_tree():
+	if Motion.reduced or not is_inside_tree():
 		return
 	if _flash == null:
 		_flash = ColorRect.new()
@@ -1211,7 +1213,7 @@ func preview_visible() -> bool:
 
 
 ## When the discard step's confirm button first becomes available, pulses it amber twice (skipped
-## under CardView.reduced_motion). Becoming unavailable again clears any pulse.
+## under Motion.reduced). Becoming unavailable again clears any pulse.
 func _pulse_confirm(available: bool) -> void:
 	if available == _confirm_ready:
 		return
@@ -1220,7 +1222,7 @@ func _pulse_confirm(available: bool) -> void:
 		_confirm_tween.kill()
 		_confirm_tween = null
 	_end_turn_button.modulate = Color.WHITE
-	if not available or CardView.reduced_motion or not is_inside_tree():
+	if not available or Motion.reduced or not is_inside_tree():
 		return
 	var amber := Color(1.0, 0.82, 0.4)
 	_confirm_tween = create_tween()

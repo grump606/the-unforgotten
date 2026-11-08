@@ -54,11 +54,11 @@ func _check_preview(node: Control) -> void:
 	views[0].set_hovered(true)
 	node._refresh()
 	check(not node.preview_visible(), "a hand rebuild hides a stale preview")
-	CardView.reduced_motion = true
+	Motion.reduced = true
 	var v := CardView.find_all(node._hand_box)[0]
 	v.set_hovered(true)
 	check(v._lift == 1.0, "reduced motion snaps the hover lift")
-	CardView.reduced_motion = false
+	Motion.reduced = false
 
 
 ## The end-of-turn discard step on screen: marking, the confirm button's wording, Back, and a full
