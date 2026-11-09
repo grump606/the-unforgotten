@@ -621,22 +621,31 @@ static func _other_uses(combat: Combat, hand_index: int, energy_left: int, is_ma
 			continue
 		for effect in other.effects:
 			if is_malice and effect.is_damage():
-				total += maxi(effect.hits, 1)
+				total += combat.hit_count(other, effect)
 			elif not is_malice and effect.kind == CardEffect.Kind.BLOCK:
 				total += 1
 	return total
 
 
-## Raw damage of the other cards in hand (affordable or not): a rough "will the enemy die anyway" check.
+## Rough damage of the other cards in hand (affordable or not): a rough "will the enemy die anyway" check.
 static func _other_damage_total(combat: Combat, hand_index: int) -> int:
-	var total := 0
+	var total := 0.0
 	for j in combat.piles.hand.size():
 		if j == hand_index:
 			continue
-		for effect in combat.piles.hand[j].effects:
-			if effect.kind == CardEffect.Kind.DAMAGE:
-				total += effect.amount * maxi(effect.hits, 1)
-	return total
+		var other: CardData = combat.piles.hand[j]
+		for effect in other.effects:
+			total += _hand_damage(combat, other, effect)
+	return roundi(total)
+
+
+## Rough damage that `effect` of the hand card `card` would deal if played now: its per-hit estimate (exact for plain
+## DAMAGE, nominal for the scaling kinds) times the engine's hit count (multi-hit, and Surge energy for per_energy).
+## 0 for an effect that is not damage.
+static func _hand_damage(combat: Combat, card: CardData, effect: CardEffect) -> float:
+	if not effect.is_damage():
+		return 0.0
+	return _nominal_damage_once(effect, combat.piles.forgotten.size()) * combat.hit_count(card, effect)
 
 
 ## Energy a card gives back when played (Borrowed Time, Seance).
@@ -677,15 +686,14 @@ static func _attackers(combat: Combat) -> int:
 ## Sum of damage amounts of the other cards in hand that `energy_left` can pay for
 ## (each counted once; a rough measure of what an Expose would boost).
 static func _other_damage(combat: Combat, hand_index: int, energy_left: int) -> int:
-	var total := 0
+	var total := 0.0
 	for j in combat.piles.hand.size():
 		var other: CardData = combat.piles.hand[j]
 		if j == hand_index or other.cost > energy_left:
 			continue
 		for effect in other.effects:
-			if effect.kind == CardEffect.Kind.DAMAGE:
-				total += effect.amount * maxi(effect.hits, 1)
-	return total
+			total += _hand_damage(combat, other, effect)
+	return roundi(total)
 
 
 ## Reward pick: the best-scoring offered card, or null (skip) if even that is
@@ -916,10 +924,7 @@ static func _debuff_score(card: CardData, effect: CardEffect) -> float:
 ## Rough damage an effect is worth in a deck-scoring context (a typical Block, Haunt or number of
 ## earlier plays stands in for the state a real fight would supply). 0 for non-damage effects.
 static func _nominal_damage(effect: CardEffect, forgotten: int = TYPICAL_FORGOTTEN) -> float:
-	var multiplier := float(maxi(effect.hits, 1))
-	if effect.per_energy:
-		multiplier *= TYPICAL_SURGE_ENERGY
-	return _nominal_damage_once(effect, forgotten) * multiplier
+	return _nominal_damage_once(effect, forgotten) * float(effect.hit_count(TYPICAL_SURGE_ENERGY))
 
 
 static func _nominal_damage_once(effect: CardEffect, forgotten: int) -> float:
