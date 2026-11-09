@@ -105,6 +105,7 @@ try {
     Write-Host '== verify release =='
     powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_verify_release.ps1')
     if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: verify release'; exit 1 }
+    Write-Host '== sim exit codes =='; powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_sim_exit.ps1') -Godot $godot; if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: sim exit codes'; exit 1 }
 } finally { Pop-Location }
 foreach ($note in $script:notes) { Write-Host "$note" }
 Write-Host 'CHECK PASSED'

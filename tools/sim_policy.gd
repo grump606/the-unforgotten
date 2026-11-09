@@ -10,6 +10,9 @@ const TURN_CAP := 50
 ## Most choices one call settles (a card queues a handful at most); the cap only guards a stuck engine.
 const MAX_CHOICES_PER_CALL := 32
 
+## Greedy never pays HP that would leave it under 1/this of its max HP (see _too_costly_in_hp).
+const HP_COST_FLOOR_DIVISOR := 4
+
 ## Rest stop (both bots): Rest while HP is under this share of max HP, else Remember a card (see prefers_rest).
 const REST_BELOW := 0.6
 
@@ -57,6 +60,9 @@ static func bot_error(message: String) -> void:
 	push_error(message)
 
 
+## Environment variable that forces play_turn to fail (a test seam, see play_turn); unset in normal use.
+const SIM_FAIL_ENV := "THE_UNFORGOTTEN_SIM_FAIL"
+
 ## Result of run_fight when the policy could not play a turn (the others: 1 win, -1 loss, 0 stall).
 const FIGHT_FAILED := -2
 
@@ -73,6 +79,7 @@ static func run_fight(combat: Combat, play_turn: Callable = play_turn_callable()
 			combat.abandon()
 			return 0
 		if not play_turn.call(combat):
+			combat.abandon() # release the player from a fight nobody will finish
 			return FIGHT_FAILED
 	return outcome[0]
 
@@ -81,7 +88,12 @@ static func play_turn_callable() -> Callable:
 	return play_turn
 
 
-## The process exit code of a sim run that hit ailures policy failures or bot errors: 1 for any, else 0.
+## Bot errors plus engine errors (Combat.engine_errors) so far in this process: what the sim tools turn into exit 1.
+static func failure_count() -> int:
+	return bot_errors + Combat.engine_errors
+
+
+## The process exit code of a sim run that hit policy failures, bot errors or engine errors: 1 for any, else 0.
 ## Stalls (fights abandoned at TURN_CAP) are reported by the tools but are not failures.
 static func exit_code(failures: int) -> int:
 	return 1 if failures > 0 else 0
@@ -92,6 +104,11 @@ static func exit_code(failures: int) -> int:
 ## playable once it is hit), so this always terminates. Returns false (after
 ## logging) if the policy picked an unplayable card.
 static func play_turn(combat: Combat) -> bool:
+	# Test seam (scripts/check_sim_exit.ps1): THE_UNFORGOTTEN_SIM_FAIL=1 makes the policy fail every turn so the
+	# tools' exit code 1 can be proven end to end. Inert when unset.
+	if OS.get_environment(SIM_FAIL_ENV) == "1":
+		printerr("SimPolicy: forced failure (%s=1)" % SIM_FAIL_ENV)
+		return false
 	while true:
 		# An open Glimpse / Recall pick blocks everything else, so it is settled before each decision.
 		if not resolve_choices(combat):
@@ -208,7 +225,7 @@ static func _average_glimpse_score(combat: Combat) -> float:
 ## keep_score without this moment's state (pointless now, too costly in HP): how good the card is in
 ## the deck, which is what matters for a card that would only be drawn later.
 static func glimpse_score(card: CardData) -> float:
-	return _base_tier(card) * 10.0 - card.cost
+	return _base_tier(card) * KEEP_TIER_WEIGHT - card.cost
 
 
 ## End-of-turn discard: keeps the Combat.HAND_SIZE best counted cards by keep_score and discards the rest.
@@ -625,7 +642,7 @@ static func is_block_card(card: CardData) -> bool:
 ## charges (a Surge card's per_energy HP loss scales with the energy it would spend, as in Combat.can_play).
 static func _too_costly_in_hp(combat: Combat, card: CardData) -> bool:
 	var cost := card.hp_cost(combat.surge_scale(card))
-	return cost > 0 and combat.player.hp - cost < combat.player.max_hp / 4
+	return cost > 0 and combat.player.hp - cost < combat.player.max_hp / HP_COST_FLOOR_DIVISOR
 
 
 static func _has_effect(card: CardData, kind: CardEffect.Kind) -> bool:

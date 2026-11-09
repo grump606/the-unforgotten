@@ -76,7 +76,7 @@ static func all_relics() -> Array[RelicData]:
 			if ResourceLoader.exists(path):
 				relic = load(path) as RelicData
 			if relic == null:
-				push_error("StarterContent: missing or non-RelicData resource: %s" % path)
+				Combat.engine_error("StarterContent: missing or non-RelicData resource: %s" % path)
 				var empty: Array[RelicData] = []
 				return empty
 			relics.append(relic)
@@ -101,21 +101,21 @@ static func relic_pool(character_id: StringName) -> Array[RelicData]:
 ## The character with this id, or null (cause logged) for an unknown id or a resource that fails to load.
 static func character(character_id: StringName) -> Character:
 	if not StarterContent.CHARACTER_PATHS.has(character_id):
-		push_error("StarterContent.character: unknown character '%s'" % character_id)
+		Combat.engine_error("StarterContent.character: unknown character '%s'" % character_id)
 		return null
 	var path: String = StarterContent.CHARACTER_PATHS[character_id]
 	var loaded: Character = null
 	if ResourceLoader.exists(path):
 		loaded = load(path) as Character
 	if loaded == null:
-		push_error("StarterContent: missing or non-Character resource: %s" % path)
+		Combat.engine_error("StarterContent: missing or non-Character resource: %s" % path)
 	return loaded
 
 
 ## A status card by id (`dread` or `murmur`), or null (cause logged) for an unknown id or a bad resource.
 static func status_card(id: StringName) -> CardData:
 	if not StarterContent.STATUS_CARD_PATHS.has(id):
-		push_error("StarterContent.status_card: unknown status card id %s" % id)
+		Combat.engine_error("StarterContent.status_card: unknown status card id %s" % id)
 		return null
 	return load_card(StarterContent.STATUS_CARD_PATHS[id])
 
@@ -123,7 +123,7 @@ static func status_card(id: StringName) -> CardData:
 ## A created card by id, or null (cause logged) for an unknown id or a bad resource.
 static func created_card(id: StringName) -> CardData:
 	if not StarterContent.CREATED_CARD_PATHS.has(id):
-		push_error("StarterContent.created_card: unknown created card id %s" % id)
+		Combat.engine_error("StarterContent.created_card: unknown created card id %s" % id)
 		return null
 	return load_card(StarterContent.CREATED_CARD_PATHS[id])
 
@@ -136,10 +136,10 @@ static func load_card(path: String) -> CardData:
 	if ResourceLoader.exists(path):
 		card = load(path) as CardData
 	if card == null:
-		push_error("StarterContent: missing or non-CardData resource: %s" % path)
+		Combat.engine_error("StarterContent: missing or non-CardData resource: %s" % path)
 		return null
 	if not has_valid_rarity(card):
-		push_error("StarterContent: card %s has rarity %d, outside CardData.Rarity: %s" % [card.id, card.rarity, path])
+		Combat.engine_error("StarterContent: card %s has rarity %d, outside CardData.Rarity: %s" % [card.id, card.rarity, path])
 		return null
 	return card
 
@@ -156,7 +156,7 @@ static func load_enemy(path: String) -> EnemyData:
 	if ResourceLoader.exists(path):
 		template = load(path) as EnemyData
 	if template == null:
-		push_error("StarterContent: missing or non-EnemyData resource: %s" % path)
+		Combat.engine_error("StarterContent: missing or non-EnemyData resource: %s" % path)
 		return null
 	return template.duplicate(true) as EnemyData
 

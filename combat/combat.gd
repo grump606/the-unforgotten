@@ -64,6 +64,9 @@ var _forgotten_return_used := false
 ## While a played card resolves: how many Oaths were Sworn before it, so the Oaths it swears do not
 ## react to what it does (a quarry its own play kills). -1 outside a play: every Sworn Oath may react.
 var _play_oath_limit := -1
+## Quarries a Scent-spending hit killed this play: they died holding Scent that was spent, so they count as a
+## quarry's death (kill heal, QUARRY_DIES Oaths) but pass no Scent on. Drained by _pass_on_scent.
+var _spent_quarries: Array[EnemyUnit] = []
 var _first_attack_used := false
 ## The fight's seeded RNG (the same one the piles shuffle with); Scent uses it to pick an heir.
 var _rng: RandomNumberGenerator
@@ -87,6 +90,18 @@ var _choice: Choice = null
 # A null-card ADD_CARD logs once per fight, not once per play.
 var _warned_null_card := false
 
+## How many engine errors (Combat.engine_error) this process has logged. The sim tools exit 1 when it is not zero:
+## an engine fault would otherwise only be a line in the log next to a quiet, wrong result.
+static var engine_errors := 0
+
+
+## The engine's own error sites (here, in StarterContent, RunState and Vendor) log through this: it is push_error
+## plus a count the sim tools read.
+static func engine_error(message: String) -> void:
+	engine_errors += 1
+	push_error(message)
+
+
 # Duration statuses (EXPOSED, SHAKEN, FRAYED: Status -> turns) that enemy intents applied to the
 # player this enemy phase. They are held back until the player's statuses have ticked, so they start
 # counting from the next enemy phase instead of ticking away unused.
@@ -104,17 +119,17 @@ var _player_changed_link: Callable = state_changed.emit
 ## `new()` only asserts, which release builds skip.
 static func create(player_combatant: Combatant, deck: Array[CardData], enemy_datas: Array[EnemyData], rng_seed: int = 0, owned_relics: Array[RelicData] = []) -> Combat:
 	if enemy_datas.size() < 1 or enemy_datas.size() > MAX_ENEMIES:
-		push_error("Combat.create: needs 1 to %d enemies, got %d" % [MAX_ENEMIES, enemy_datas.size()])
+		Combat.engine_error("Combat.create: needs 1 to %d enemies, got %d" % [MAX_ENEMIES, enemy_datas.size()])
 		return null
 	if player_combatant.is_dead():
-		push_error("Combat.create: the player is already dead")
+		Combat.engine_error("Combat.create: the player is already dead")
 		return null
 	if deck.is_empty():
-		push_error("Combat.create: the deck is empty")
+		Combat.engine_error("Combat.create: the deck is empty")
 		return null
 	for enemy_data in enemy_datas:
 		if enemy_data == null:
-			push_error("Combat.create: an enemy entry is null (its data failed to load)")
+			Combat.engine_error("Combat.create: an enemy entry is null (its data failed to load)")
 			return null
 	return Combat.new(player_combatant, deck, enemy_datas, rng_seed, owned_relics)
 
@@ -140,7 +155,7 @@ func start() -> void:
 	if phase != Phase.NOT_STARTED:
 		# Checked explicitly (not assert) so a release build cannot resurrect an
 		# ended or abandoned fight.
-		push_error("Combat.start: the fight was already started or has ended")
+		Combat.engine_error("Combat.start: the fight was already started or has ended")
 		return
 	# Connected here, not in _init, so a fight that is built and never started holds no listener.
 	if not player.changed.is_connected(_player_changed_link):
@@ -722,7 +737,7 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 		CardEffect.Kind.DRAW, CardEffect.Kind.GLIMPSE, CardEffect.Kind.RECALL, CardEffect.Kind.ADD_CARD:
 			_apply_pile_effect(effect, source, amount)
 		_:
-			push_error("Combat._apply: no handler for CardEffect kind %d" % effect.kind)
+			Combat.engine_error("Combat._apply: no handler for CardEffect kind %d" % effect.kind)
 
 
 ## Damage family: every hit goes through hit_amount (the shared pipeline), then Block and HP. The hit
@@ -738,8 +753,12 @@ func _apply_damage(effect: CardEffect, source: Combatant, target: Combatant, ene
 		# Thorns: an enemy attack on the player also hurts the attacker, once per hit.
 		if effect.kind == CardEffect.Kind.DAMAGE and target == player and source != player and player.thorns > 0:
 			source.take_damage(player.thorns)
-	# A spender uses up the Scent it hit with, after every hit of the effect.
+	# A spender uses up the Scent it hit with, after every hit of the effect. If it killed a quarry that held
+	# Scent, the death is remembered (the Scent itself is gone: there is nothing to pass on).
 	if effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
+		var quarry := target as EnemyUnit
+		if quarry != null and quarry.is_dead() and quarry.stacks(Combatant.Status.SCENT) > 0:
+			_spent_quarries.append(quarry)
 		target.remove_status(Combatant.Status.SCENT)
 
 
@@ -787,7 +806,7 @@ func _apply_pile_effect(effect: CardEffect, source: Combatant, amount: int) -> v
 			if effect.card == null:
 				if not _warned_null_card:
 					_warned_null_card = true
-					push_error("Combat._apply: ADD_CARD effect has no card")
+					Combat.engine_error("Combat._apply: ADD_CARD effect has no card")
 			else:
 				for _copy in maxi(amount, 0):
 					piles.add_card(effect.card, effect.pile, HAND_MAX)
@@ -916,17 +935,28 @@ func _pass_on_scent() -> void:
 		if not enemy.is_dead() or enemy.stacks(Combatant.Status.SCENT) <= 0:
 			continue
 		var held := enemy.stacks(Combatant.Status.SCENT)
-		player.heal(_relic_total(RelicData.Kind.QUARRY_KILL_HEAL))
 		var carried := held / 2
 		if carried > 0 or _relic_total(RelicData.Kind.SCENT_HEIR) > 0:
 			carried = mini(held, carried + _relic_total(RelicData.Kind.SCENT_HEIR))
 		enemy.remove_status(Combatant.Status.SCENT)
-		var living := living_enemies()
-		if carried > 0 and not living.is_empty():
-			var heir := living[0] if living.size() == 1 else living[_rng.randi_range(0, living.size() - 1)]
-			_give_scent(heir, carried)
-		if not living.is_empty():
-			_fire_oaths(CardData.OathTrigger.QUARRY_DIES, _play_oath_limit)
+		_quarry_died(carried)
+	# A quarry killed by a Scent spender: the same death effects, with nothing to pass on.
+	var spent := _spent_quarries.size()
+	_spent_quarries.clear()
+	for _i in spent:
+		_quarry_died(0)
+
+
+## The quarry has died: the kill heal, then `carried` Scent to a random living enemy (the fight's seeded RNG;
+## no draw when only one is left; lost with nobody left), then the QUARRY_DIES Oaths while any enemy lives.
+func _quarry_died(carried: int) -> void:
+	player.heal(_relic_total(RelicData.Kind.QUARRY_KILL_HEAL))
+	var living := living_enemies()
+	if carried > 0 and not living.is_empty():
+		var heir := living[0] if living.size() == 1 else living[_rng.randi_range(0, living.size() - 1)]
+		_give_scent(heir, carried)
+	if not living.is_empty():
+		_fire_oaths(CardData.OathTrigger.QUARRY_DIES, _play_oath_limit)
 
 
 ## Moves any enemy that has just crossed its phase threshold into phase two and announces it. Also passes
