@@ -80,3 +80,7 @@ WARNING: Save recovered from user://ui_flow_test_save_30472.json.bak.
    at: push_warning (core/variant/variant_utility.cpp:1033)
 WARNING: Saved run could not be loaded (the save file is damaged (not valid JSON)).
    at: push_warning (core/variant/variant_utility.cpp:1033)
+ERROR: sim_exit_tests: deliberate bot error (expected in this log)
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: SmartPolicy._effect_score: no valuation for CardEffect.Kind 9999
+   at: push_error (core/variant/variant_utility.cpp:1023)
