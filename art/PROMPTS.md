@@ -34,3 +34,14 @@ Card art subjects follow each card's effect (see `CardView.icon_variant` and `do
 ## Consistency tips
 
 Reuse one seed or reference image per enemy across its four layers, keep the light direction fixed (from lower centre), and review at the real display size (about 200x66 for portraits) before committing a set.
+
+## Touch-ups still open
+
+Two details are missing from otherwise finished enemies. Attach the current file as the edit reference, and the stage sprite too when editing a portrait layer. The style prefix is the same for both: "Dark painterly illustration, gouache and oil texture, visible brush strokes, soot-black and oxblood shadows, tarnished brass highlights, single warm ember light source, cool desaturated shadows, gothic rail-station mood, no text, no border, no UI."
+
+| File | Prompt (after the style prefix) |
+|---|---|
+| `art/layers/warden/sprite.png` (trimmed, about 900 px tall) | Edit the attached Threshold Keeper: preserve its pale closed mask, ragged slate-and-bone robes, gate-like shield, proportions and left-facing pose. Add a long iron halberd held convincingly in the free hand, with a distinct axe blade, hook and spear point readable at small size. Match the existing lighting. Real transparent background, whole figure and weapon with clear space around every extremity, no scenery or ground. |
+| `art/layers/conductor/sprite.png` (trimmed, about 900 px tall) | Edit the attached Eraser: preserve its blank pale face, tall slate coat, book, hanging tags, proportions and left-facing pose. Add a clearly legible tarnished-brass pocket-watch chain draped in a shallow curve across the waist, attached to a coat pocket and distinct from the tags. Keep highlights broad enough to survive downscaling. Real transparent background, full body, no passengers or scenery. |
+| `art/layers/warden/figure.png` (960x320) | Edit the attached Warden figure layer to include the same halberd. Preserve character, position, scale and silhouette. Character centred, whole silhouette and weapon inside the frame, readable at about 200x66. Real transparent background, no arch, platform, fog or foreground. |
+| `art/layers/conductor/figure.png` (960x320) | Edit the attached Conductor figure layer: add the same brass watch chain between coat attachment and pocket. Preserve identity, pose, placement and lighting. Centred, whole silhouette inside the frame, real transparent background, no ghost passengers, backdrop or foreground. |
