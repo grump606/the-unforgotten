@@ -8,10 +8,30 @@ extends Node
 ## (UpdateCheck.installer_url); the downloads are size-capped; and the installer is run ONLY if
 ## (1) the manifest's detached RSA signature verifies against the public key built into the game,
 ## (2) the manifest names this release's file and version and is newer than the running game, and
-## (3) the installer's SHA-256 equals the one in the manifest (UpdateVerifier). (3) is checked on
-## arrival and again, on a private copy, right before launch. Both hashes (and the copy) run on a worker thread
-## in the real game so the UI keeps drawing; tests run them inline unless force_worker is set. Signing name and version, not just bytes, is what stops an
-## older genuinely signed installer being replayed as an update.
+## (3) the installer's SHA-256 equals the one in the manifest (UpdateVerifier).
+## (3) is checked on arrival and again, on a private copy, right before launch. Signing the name and version, not
+## just the bytes, is what stops an older genuinely signed installer being replayed as an update.
+##
+## Threads: both hashes (and the copy) run on a worker thread in the real game so the UI keeps drawing; tests run
+## them inline unless force_worker is set.
+##
+## States and flags (every way a job ends goes through _abandon, except a normal finish):
+##   IDLE         nothing held. start() -> DOWNLOADING.
+##   DOWNLOADING  requests in flight, then (threaded) a hash job; _thread is set only during that hash job.
+##                _complete_download -> READY (or FAILED); cancel() -> IDLE and removes the files.
+##   READY        a verified installer sits in work_dir. install_and_restart() sets _installing while a copy job
+##                runs (_thread set, _thread_dir = its run_* folder), then _launch_copy -> _launched (the game quits)
+##                or FAILED. cancel() KEEPS the installer (and READY); discard() removes it -> IDLE.
+##   FAILED       `error` is set; start() tries again.
+## Flags:
+##   _job_serial  bumped when a job starts and whenever one is abandoned; a finished job counts only if its serial
+##                is still current.
+##   _installing  a launch copy is being prepared; a second install_and_restart() is ignored.
+##   _launched    the installer process was started; set by _launch_copy, cleared only by start(), so cancel(),
+##                discard() and a late click cannot start a second installer.
+##   _thread      the current worker (null when none). _retire_worker moves it, with its _thread_dir, to _retired
+##                without waiting; _process joins finished ones and removes their run_* folder (_reap_retired).
+##   _retired     abandoned workers not yet joined. The node being freed joins them all (the only blocking place).
 
 signal changed
 
@@ -133,11 +153,7 @@ func start(release_tag: String) -> bool:
 ## has not discarded is KEPT (only discard() removes it), so "Update & restart" works again afterwards. Never
 ## waits for the worker (see _retire_worker).
 func cancel() -> void:
-	_drop_request()
-	_job_serial += 1
-	_installing = false
-	_launched = false
-	_retire_worker()
+	_abandon()
 	if state == State.DOWNLOADING:
 		cleanup(work_dir)
 		state = State.IDLE
@@ -211,11 +227,7 @@ func _complete_download(why: String) -> void:
 ## Removes a downloaded installer that is waiting (READY) or leftovers of a failed attempt, and returns to
 ## IDLE. The Skip button uses it; cancel() only handles a download in flight.
 func discard() -> void:
-	_drop_request()
-	_job_serial += 1
-	_installing = false
-	_launched = false
-	var had_worker := _retire_worker()
+	var had_worker := _abandon()
 	# Best effort now (a file the worker still has open may survive); the run_* folder of a retired copy is removed
 	# for sure when the worker has been joined (_reap_retired).
 	if state == State.READY or had_worker:
@@ -294,6 +306,16 @@ func _start_job(serial: int, work: Callable, launch_dir_abs := "") -> void:
 	_thread_dir = launch_dir_abs
 	_thread = Thread.new()
 	_thread.start(work)
+
+
+## The shared first half of cancel(), discard() and freeing the node: drops the request, invalidates the running job
+## (a late result is ignored) and retires its worker without waiting. Leaves `state` and `_launched` alone: once the
+## installer has started, nothing may re-arm a second launch. True if a worker was there.
+func _abandon() -> bool:
+	_drop_request()
+	_job_serial += 1
+	_installing = false
+	return _retire_worker()
 
 
 ## Abandons the current worker WITHOUT waiting for it: callers have already bumped _job_serial, so its result is
@@ -377,8 +399,7 @@ func finish_worker() -> void:
 ## earlier has normally been reaped by _process already. Also covers a node that was never in the tree.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
-		_job_serial += 1
-		_retire_worker()
+		_abandon()
 		for entry in _retired:
 			(entry["thread"] as Thread).wait_to_finish()
 			if entry["dir"] != "":

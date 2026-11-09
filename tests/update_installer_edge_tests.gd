@@ -238,6 +238,10 @@ func _test_double_install(key: CryptoKey, pem: String) -> void:
 	var installer := _ready_installer(pem, probe, key)
 	_check(installer.install_and_restart() and probe.launched.size() == 1 and probe.quits == 1, "the first install_and_restart launches once")
 	_check(not installer.install_and_restart() and probe.launched.size() == 1 and probe.quits == 1, "a second one (a double click before the game quits) does not start another installer")
+	installer.cancel()
+	_check(not installer.install_and_restart() and probe.launched.size() == 1 and probe.quits == 1, "cancel() after the launch does not re-arm a second installer")
+	installer.discard()
+	_check(probe.launched.size() == 1, "discard() after the launch starts nothing either")
 	installer.free()
 	UpdateInstaller.cleanup(_dir)
 
