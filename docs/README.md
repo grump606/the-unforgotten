@@ -15,6 +15,7 @@ Numbers (stops, characters, relics, cards per class) are stated in one place: [`
 | [`../README.md`](../README.md) | Current | Overview, how to run, test, build and release |
 | [`GAME_FACTS.md`](GAME_FACTS.md) | Current | The one place for counts and stats |
 | [`NEXT_STEPS.md`](NEXT_STEPS.md) | Current | Released vs unreleased work, and what to do next |
+| [`HISTORY.md`](HISTORY.md) | Historical | The earlier review fix passes, all shipped |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Current | Code layout |
 | [`RULES.md`](RULES.md) | Current | Hand, discard, target modes, statuses and keywords |
 | [`CARDS.md`](CARDS.md) | Current | Card list by class |

@@ -14,6 +14,9 @@ static var _cache := {}
 ## stops are dropped by advance_stop() (a screen that needs one again simply decodes it again).
 static var _stop_serial := 0
 static var _last_used := {}
+## Painted-pixel box of each decoded image, measured on the decoded Image when it is stored, so showing a
+## figure never reads a texture back from the GPU.
+static var _used_rects := {}
 const EVICT_AFTER_STOPS := 2
 
 
@@ -33,6 +36,7 @@ static func advance_stop() -> int:
 	for key in stale:
 		_cache.erase(key)
 		_last_used.erase(key)
+		_used_rects.erase(key)
 	return stale.size()
 
 
@@ -56,8 +60,7 @@ static func enemy_figure(key: StringName) -> Dictionary:
 		return out
 	var tex := _load(ENEMY_DIR % [key, "figure"])
 	if tex != null:
-		var img := tex.get_image()
-		var used := img.get_used_rect() if img != null else Rect2i()
+		var used: Rect2i = _used_rects.get(ENEMY_DIR % [key, "figure"], Rect2i())
 		if used.size.x > 0 and used.size.y > 0:
 			out = {"tex": tex, "region": Rect2(used)}
 	_cache[ck] = out
@@ -89,8 +92,7 @@ static func keeper_figure() -> Dictionary:
 	var out := {}
 	var tex := _load("res://art/layers/screens/vendor/keeper.png")
 	if tex != null:
-		var img := tex.get_image()
-		var used := img.get_used_rect() if img != null else Rect2i()
+		var used: Rect2i = _used_rects.get("res://art/layers/screens/vendor/keeper.png", Rect2i())
 		if used.size.x > 0 and used.size.y > 0:
 			out = {"tex": tex, "region": Rect2(used)}
 	_cache["keeper"] = out
@@ -225,6 +227,8 @@ static func _decode(path: String) -> Image:
 ## Makes the texture from a decoded image and caches it; a missing file caches null.
 static func _store(path: String, img: Image) -> Texture2D:
 	var tex: Texture2D = ImageTexture.create_from_image(img) if img != null else null
+	if img != null:
+		_used_rects[path] = img.get_used_rect()
 	_cache[path] = tex
 	return tex
 

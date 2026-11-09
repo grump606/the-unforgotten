@@ -170,6 +170,7 @@ func abandon() -> void:
 	if phase == Phase.ENDED:
 		return
 	phase = Phase.ENDED
+	_spent_quarries.clear()
 	_clear_choices()
 	_disconnect_player()
 	player.clear_block()
