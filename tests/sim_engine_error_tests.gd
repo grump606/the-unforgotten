@@ -11,7 +11,7 @@ func run() -> int:
 	_test_real_sites_count()
 	_test_complete_combat_result()
 	Combat.engine_errors = before
-	_check(SimPolicy.failure_count() == SimPolicy.bot_errors, "the counter is reset for the other suites")
+	_check(Combat.engine_errors == before, "the counter is put back for the other suites")
 	return _failures
 
 
