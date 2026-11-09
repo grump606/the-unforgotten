@@ -86,7 +86,7 @@ const TYPICAL_EARLIER_PLAYS := 2
 ## Fails loudly (and awards nothing) for a count below 1.
 static func gold_for_win(enemy_count: int) -> int:
 	if enemy_count < 1:
-		push_error("Vendor.gold_for_win: enemy_count must be >= 1, got %d" % enemy_count)
+		Combat.engine_error("Vendor.gold_for_win: enemy_count must be >= 1, got %d" % enemy_count)
 		return 0
 	return enemy_count * GOLD_PER_ENEMY + GOLD_WIN_BONUS
 
@@ -112,7 +112,7 @@ static func card_value(card: CardData, added_depth: int = 0) -> int:
 	for effect in card.effects:
 		var effect_points := effect_value(effect, added_depth)
 		if effect_points == UNVALUED:
-			push_error("Vendor.card_value: no valuation for CardEffect kind %d" % effect.kind)
+			Combat.engine_error("Vendor.card_value: no valuation for CardEffect kind %d" % effect.kind)
 			continue
 		value += effect_points
 	# What a card does when thrown away at the end of the turn counts for half: it only fires if it is discarded.
@@ -125,7 +125,7 @@ static func card_value(card: CardData, added_depth: int = 0) -> int:
 		for effect in card.oath_effects:
 			var oath_points := effect_value(effect, added_depth)
 			if oath_points == UNVALUED:
-				push_error("Vendor.card_value: no valuation for oath CardEffect kind %d" % effect.kind)
+				Combat.engine_error("Vendor.card_value: no valuation for oath CardEffect kind %d" % effect.kind)
 				continue
 			value += oath_points * OATH_FIRINGS
 	return value
@@ -272,10 +272,10 @@ func _init(deck: Array[CardData], rng: RandomNumberGenerator, starting_gold: int
 		_wallet = wallet  # shared: `starting_gold` is ignored
 	else:
 		if starting_gold < 0:
-			push_error("Vendor: starting gold must be >= 0, got %d" % starting_gold)
+			Combat.engine_error("Vendor: starting gold must be >= 0, got %d" % starting_gold)
 		_wallet = Wallet.new(maxi(starting_gold, 0))
 	if rng == null:
-		push_error("Vendor: rng is required")
+		Combat.engine_error("Vendor: rng is required")
 		return
 	# Distinct card types by id, in deck order, then a seeded Fisher-Yates shuffle.
 	var pool: Array[CardData] = []
@@ -288,7 +288,7 @@ func _init(deck: Array[CardData], rng: RandomNumberGenerator, starting_gold: int
 	for card in StarterContent.pick_by_rarity(pool, STOCK_CARDS, rarity_weights if not rarity_weights.is_empty() else StarterContent.rarity_weights(0), rng):
 		_offers.append({"card": card, "price": card_price(card), "sold": false})
 	if _offers.size() < STOCK_CARDS:
-		push_error("Vendor: could only stock %d of %d cards" % [_offers.size(), STOCK_CARDS])
+		Combat.engine_error("Vendor: could only stock %d of %d cards" % [_offers.size(), STOCK_CARDS])
 	# After the card shuffle, so the card stock never depends on whether a relic is offered.
 	if not relic_pool.is_empty():
 		var relic := relic_pool[rng.randi_range(0, relic_pool.size() - 1)] if relic_pool.size() > 1 else relic_pool[0]
@@ -321,7 +321,7 @@ func has_healed() -> bool:
 ## starter deck) to the deck and deducts the price.
 func buy_card(index: int) -> Result:
 	if index < 0 or index >= _offers.size():
-		push_error("Vendor.buy_card: bad offer index %d" % index)
+		Combat.engine_error("Vendor.buy_card: bad offer index %d" % index)
 		return Result.fail("no such offer")
 	var offer := _offers[index]
 	if offer["sold"]:
@@ -343,7 +343,7 @@ func buy_card(index: int) -> Result:
 ## HP here, once; the caller keeps the relic (Result.relic) for its other effects.
 func buy_relic(player: Combatant) -> Result:
 	if player == null:
-		push_error("Vendor.buy_relic: player is required")
+		Combat.engine_error("Vendor.buy_relic: player is required")
 		return Result.fail("no player")
 	if _relic_offer.is_empty():
 		return Result.fail("no relic for sale")
@@ -370,7 +370,7 @@ func buy_relic(player: Combatant) -> Result:
 ## can never be removed so the deck is never emptied.
 func remove_card(deck_index: int) -> Result:
 	if deck_index < 0 or deck_index >= _deck.size():
-		push_error("Vendor.remove_card: bad deck index %d" % deck_index)
+		Combat.engine_error("Vendor.remove_card: bad deck index %d" % deck_index)
 		return Result.fail("no such card")
 	if _removed:
 		return Result.fail("already removed a card")
@@ -393,7 +393,7 @@ func remove_card(deck_index: int) -> Result:
 ## actually regained.
 func buy_heal(player: Combatant) -> Result:
 	if player == null:
-		push_error("Vendor.buy_heal: player is required")
+		Combat.engine_error("Vendor.buy_heal: player is required")
 		return Result.fail("no player")
 	if _healed:
 		return Result.fail("already healed")

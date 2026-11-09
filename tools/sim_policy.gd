@@ -81,7 +81,12 @@ static func play_turn_callable() -> Callable:
 	return play_turn
 
 
-## The process exit code of a sim run that hit ailures policy failures or bot errors: 1 for any, else 0.
+## Bot errors plus engine errors (Combat.engine_errors) so far in this process: what the sim tools turn into exit 1.
+static func failure_count() -> int:
+	return bot_errors + Combat.engine_errors
+
+
+## The process exit code of a sim run that hit policy failures, bot errors or engine errors: 1 for any, else 0.
 ## Stalls (fights abandoned at TURN_CAP) are reported by the tools but are not failures.
 static func exit_code(failures: int) -> int:
 	return 1 if failures > 0 else 0

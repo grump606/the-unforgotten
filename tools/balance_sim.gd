@@ -65,9 +65,9 @@ func _initialize() -> void:
 			var player := Combatant.new("Sim", _player_hp)
 			var combat := Combat.new(player, deck, enemy_datas, fight_seed)
 			var result := SimPolicy.run_fight(combat, _play_turn)
-			if result == SimPolicy.FIGHT_FAILED or SimPolicy.bot_errors > 0:
+			if result == SimPolicy.FIGHT_FAILED or SimPolicy.failure_count() > 0:
 				# Stop on the first failure: later fights would only repeat it.
-				printerr("balance_sim: the policy failed (encounter of %d enemies, fight seed %d, bot errors %d)" % [count, fight_seed, SimPolicy.bot_errors])
+				printerr("balance_sim: the policy failed (encounter of %d enemies, fight seed %d, bot errors %d, engine errors %d)" % [count, fight_seed, SimPolicy.bot_errors, Combat.engine_errors])
 				quit(SimPolicy.exit_code(1))
 				return
 			total_turns += combat.turn
@@ -103,7 +103,7 @@ func _initialize() -> void:
 		for enemy_name: String in names:
 			var tally: Array = breakdown[size][enemy_name]
 			print("%-8d %-20s %8d %7.1f%%" % [size + 1, enemy_name, tally[0], 100.0 * tally[1] / tally[0]])
-	quit(SimPolicy.exit_code(SimPolicy.bot_errors))
+	quit(SimPolicy.exit_code(SimPolicy.failure_count()))
 
 
 ## Returns {fights, seed, character} or an empty dictionary (after printing usage) on bad input.

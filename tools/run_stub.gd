@@ -6,15 +6,16 @@ extends SceneTree
 
 const USAGE := "Usage: godot --headless --path . -s res://tools/run_stub.gd -- [--seed S] [--character ID]\n  --seed S        run seed, integer (default 1)\n  --character ID  max HP and starting deck come from this character: deserter, thief, medium or stray (default deserter)"
 
-var _outcome := 0 # 0 running, 1 victory, -1 defeat
-
-
 func _initialize() -> void:
 	var opts := _parse_args(OS.get_cmdline_user_args())
 	if opts.is_empty():
 		quit(2)
 		return
-	quit(_run(opts["seed"], StringName(opts["character"])))
+	var code := _run(opts["seed"], StringName(opts["character"]))
+	if code == 0 and SimPolicy.failure_count() > 0:
+		printerr("run_stub: %d bot error(s) and %d engine error(s) were logged; the result would be wrong" % [SimPolicy.bot_errors, Combat.engine_errors])
+		code = SimPolicy.exit_code(SimPolicy.failure_count())
+	quit(code)
 
 
 ## Returns {seed, character} or an empty dictionary (after printing usage) on bad input.
@@ -74,23 +75,27 @@ func _run(run_seed: int, character_id: StringName) -> int:
 		var hp_before := player.hp
 		var deck_before := deck.duplicate()
 		var combat := Combat.new(player, deck, enemy_datas, rng.randi())
-		combat.combat_ended.connect(func(victory: bool) -> void: _outcome = 1 if victory else -1)
-		_outcome = 0
-		combat.start()
-		# Per-fight state must start clean even though the Combatant is reused.
-		var leaked := leaked_state(player)
-		if leaked != "":
-			printerr("run_stub: state leaked into fight %d (%s)" % [fight_no, leaked])
-			return 1
-		if not _play(combat):
+		# Per-fight state must start clean even though the Combatant is reused: checked on the fight's first turn,
+		# before anything is played.
+		var checked := [false]
+		var turn := func(c: Combat) -> bool:
+			if not checked[0]:
+				checked[0] = true
+				var leaked := leaked_state(player)
+				if leaked != "":
+					printerr("run_stub: state leaked into fight %d (%s)" % [fight_no, leaked])
+					return false
+			return _play_turn(c)
+		var result := SimPolicy.run_fight(combat, turn)
+		if result == SimPolicy.FIGHT_FAILED:
 			return 1
 		# Cards a fight creates (Add card effects, enemy status cards) live in its piles only; the deck is untouched.
 		if deck != deck_before:
 			printerr("run_stub: fight %d changed the deck (a created card leaked)" % fight_no)
 			return 1
-		var result := "WIN" if _outcome == 1 else ("LOSS" if _outcome == -1 else "STALL")
-		var line := "Fight %d [%s] HP %d -> %d, %d turns, %s" % [fight_no, ", ".join(names), hp_before, player.hp, combat.turn, result]
-		if _outcome != 1:
+		var outcome := "WIN" if result == 1 else ("LOSS" if result == -1 else "STALL")
+		var line := "Fight %d [%s] HP %d -> %d, %d turns, %s" % [fight_no, ", ".join(names), hp_before, player.hp, combat.turn, outcome]
+		if result != 1:
 			print(line)
 			print("Run result: DEFEAT in fight %d" % fight_no)
 			return 0
@@ -130,29 +135,26 @@ static func leaked_state(player: Combatant) -> String:
 	return ", ".join(parts)
 
 
-## Plays the fight to its end with the trivial policy. Returns false on an internal failure.
-func _play(combat: Combat) -> bool:
-	while SimPolicy.is_acting(combat):
-		if combat.turn > SimPolicy.TURN_CAP:
-			combat.abandon() # release the persistent player from the stalled fight
-			return true
+## One turn of the trivial policy (the stub's play_turn for SimPolicy.run_fight): plays the first affordable card
+## until none is left, then ends the turn. Returns false on an internal failure.
+func _play_turn(combat: Combat) -> bool:
+	if not SimPolicy.resolve_choices(combat):
+		return false
+	if combat.phase != Combat.Phase.PLAYER_TURN:
+		return true
+	var hand_index := _first_affordable(combat)
+	while hand_index != -1:
+		if not combat.play_card(hand_index, -1):
+			printerr("run_stub: play_card rejected affordable card at index %d" % hand_index)
+			return false
 		if not SimPolicy.resolve_choices(combat):
 			return false
 		if combat.phase != Combat.Phase.PLAYER_TURN:
-			continue
-		var hand_index := _first_affordable(combat)
-		while hand_index != -1:
-			if not combat.play_card(hand_index, -1):
-				printerr("run_stub: play_card rejected affordable card at index %d" % hand_index)
-				return false
-			if not SimPolicy.resolve_choices(combat):
-				return false
-			if combat.phase != Combat.Phase.PLAYER_TURN:
-				break
-			hand_index = _first_affordable(combat)
-		if combat.phase == Combat.Phase.PLAYER_TURN and not combat.end_player_turn(SimPolicy.discards_for(combat)):
-			printerr("run_stub: end_player_turn rejected the discard")
-			return false
+			break
+		hand_index = _first_affordable(combat)
+	if combat.phase == Combat.Phase.PLAYER_TURN and not combat.end_player_turn(SimPolicy.discards_for(combat)):
+		printerr("run_stub: end_player_turn rejected the discard")
+		return false
 	return true
 
 
