@@ -10,6 +10,9 @@ const TURN_CAP := 50
 ## Most choices one call settles (a card queues a handful at most); the cap only guards a stuck engine.
 const MAX_CHOICES_PER_CALL := 32
 
+## Greedy never pays HP that would leave it under 1/this of its max HP (see _too_costly_in_hp).
+const HP_COST_FLOOR_DIVISOR := 4
+
 ## Rest stop (both bots): Rest while HP is under this share of max HP, else Remember a card (see prefers_rest).
 const REST_BELOW := 0.6
 
@@ -76,6 +79,7 @@ static func run_fight(combat: Combat, play_turn: Callable = play_turn_callable()
 			combat.abandon()
 			return 0
 		if not play_turn.call(combat):
+			combat.abandon() # release the player from a fight nobody will finish
 			return FIGHT_FAILED
 	return outcome[0]
 
@@ -221,7 +225,7 @@ static func _average_glimpse_score(combat: Combat) -> float:
 ## keep_score without this moment's state (pointless now, too costly in HP): how good the card is in
 ## the deck, which is what matters for a card that would only be drawn later.
 static func glimpse_score(card: CardData) -> float:
-	return _base_tier(card) * 10.0 - card.cost
+	return _base_tier(card) * KEEP_TIER_WEIGHT - card.cost
 
 
 ## End-of-turn discard: keeps the Combat.HAND_SIZE best counted cards by keep_score and discards the rest.
@@ -638,7 +642,7 @@ static func is_block_card(card: CardData) -> bool:
 ## charges (a Surge card's per_energy HP loss scales with the energy it would spend, as in Combat.can_play).
 static func _too_costly_in_hp(combat: Combat, card: CardData) -> bool:
 	var cost := card.hp_cost(combat.surge_scale(card))
-	return cost > 0 and combat.player.hp - cost < combat.player.max_hp / 4
+	return cost > 0 and combat.player.hp - cost < combat.player.max_hp / HP_COST_FLOOR_DIVISOR
 
 
 static func _has_effect(card: CardData, kind: CardEffect.Kind) -> bool:

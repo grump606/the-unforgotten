@@ -68,7 +68,7 @@ func _initialize() -> void:
 			if result == SimPolicy.FIGHT_FAILED or SimPolicy.failure_count() > 0:
 				# Stop on the first failure: later fights would only repeat it.
 				printerr("balance_sim: the policy failed (encounter of %d enemies, fight seed %d, bot errors %d, engine errors %d)" % [count, fight_seed, SimPolicy.bot_errors, Combat.engine_errors])
-				quit(SimPolicy.exit_code(1))
+				quit(1)
 				return
 			total_turns += combat.turn
 			var seen := {}

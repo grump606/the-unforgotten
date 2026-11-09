@@ -48,6 +48,13 @@ extends RefCounted
 ## free Heal or Remove (see take_reward).
 
 const DAMAGE_SHARE := 0.55
+## The damage and block reward weights move this much per unit of damage share away from DAMAGE_SHARE, kept within
+## WEIGHT_MIN to WEIGHT_MAX (see _weights).
+const WEIGHT_SWING := 2.0
+const WEIGHT_MIN := 0.5
+const WEIGHT_MAX := 1.5
+## A damage-per-play card is valued at its amount plus this many plays' worth of its bonus.
+const PER_PLAY_TYPICAL_PLAYS := 2
 const DRAW_VALUE := 2.5
 const EXPOSE_VALUE := 2.0
 const EXPOSE_FIRST := 8.0 # ordering bonus for an Expose that has damage to boost
@@ -796,8 +803,8 @@ static func _weights(deck: Array[CardData]) -> Dictionary:
 				block += effect.amount
 	var share := DAMAGE_SHARE if damage + block == 0 else float(damage) / (damage + block)
 	var weights := {
-		"damage": clampf(1.0 + (DAMAGE_SHARE - share) * 2.0, 0.5, 1.5),
-		"block": clampf(1.0 + (share - DAMAGE_SHARE) * 2.0, 0.5, 1.5),
+		"damage": clampf(1.0 + (DAMAGE_SHARE - share) * WEIGHT_SWING, WEIGHT_MIN, WEIGHT_MAX),
+		"block": clampf(1.0 + (share - DAMAGE_SHARE) * WEIGHT_SWING, WEIGHT_MIN, WEIGHT_MAX),
 	}
 	# Forgotten cards in the deck decide what a Forgotten payoff (Chorus of the Lost) and a Recall are worth.
 	var lost: Array[CardData] = []
@@ -936,7 +943,7 @@ static func _nominal_damage_once(effect: CardEffect, forgotten: int) -> float:
 		CardEffect.Kind.DAMAGE_IF_BLOCK:
 			return (effect.amount + effect.bonus) / 2.0
 		CardEffect.Kind.DAMAGE_PER_PLAY:
-			return float(effect.amount + 2 * effect.bonus)
+			return float(effect.amount + PER_PLAY_TYPICAL_PLAYS * effect.bonus)
 		CardEffect.Kind.DAMAGE_PER_HAUNT:
 			return float(TYPICAL_HAUNT * effect.amount)
 		CardEffect.Kind.DAMAGE_PER_FORGOTTEN:
