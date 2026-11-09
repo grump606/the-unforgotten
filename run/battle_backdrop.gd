@@ -84,12 +84,17 @@ func set_variant(is_boss: bool, id: StringName, location: StringName = &"") -> v
 	queue_redraw()
 
 
+## Paces the ambient redraws.
+var _throttle := RedrawThrottle.new()
+
+
 ## Steps the animation. Does nothing unless the backdrop is on screen.
 func advance(delta: float) -> void:
 	if not is_visible_in_tree() or Motion.reduced:
 		return # reduced motion: the picture holds still
 	time += delta
-	queue_redraw()
+	if _throttle.due(delta):
+		queue_redraw() # ambient motion: 30 Hz is plenty (RedrawThrottle)
 
 
 ## Smooth pseudo-random value in 0..1, changing `speed` times a second; `offset` decorrelates users.

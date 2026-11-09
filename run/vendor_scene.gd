@@ -87,9 +87,8 @@ func _process(delta: float) -> void:
 	advance(delta)
 
 
-## Redraws per second while the shop animates (the motion is slow, so half a typical frame rate is enough).
-const ANIMATION_HZ := 30.0
-var _redraw_accum := 0.0
+## Paces the redraws while the shop animates (the motion is slow, so 30 Hz is enough).
+var _throttle := RedrawThrottle.new()
 
 
 ## Steps the animation. Does nothing unless the scene is on screen.
@@ -97,10 +96,7 @@ func advance(delta: float) -> void:
 	if not is_visible_in_tree() or Motion.reduced:
 		return # reduced motion: motes, lantern sway, flame glow and the till pulse hold still
 	time += delta
-	_redraw_accum += delta
-	if _redraw_accum >= 1.0 / ANIMATION_HZ:
-		# Subtract the interval so the rate stays 30 Hz on average; a long frame catches up by one redraw at most.
-		_redraw_accum = minf(_redraw_accum - 1.0 / ANIMATION_HZ, 1.0 / ANIMATION_HZ)
+	if _throttle.due(delta):
 		queue_redraw()
 
 

@@ -68,18 +68,17 @@ func _initialize() -> void:
 	scene.queue_free()
 	await process_frame
 
-	# The vendor scene keeps the remainder of its redraw interval.
-	var vendor := VendorScene.new()
-	vendor.size = Vector2(1120, 590)
-	root.add_child(vendor)
-	await process_frame
-	vendor._redraw_accum = 0.0
-	vendor.advance(0.05)
-	check(is_equal_approx(vendor._redraw_accum, 0.05 - 1.0 / VendorScene.ANIMATION_HZ), "a redraw subtracts the interval instead of zeroing the accumulator")
-	vendor._redraw_accum = 0.0
-	vendor.advance(1.0)
-	check(vendor._redraw_accum <= 1.0 / VendorScene.ANIMATION_HZ, "a long frame catches up by at most one interval")
-	vendor.queue_free()
+	# The redraw throttle (vendor scene, backdrops) keeps the remainder of its interval.
+	var throttle := RedrawThrottle.new()
+	var step := 1.0 / RedrawThrottle.HZ
+	check(not throttle.due(step * 0.6) and throttle.due(step * 0.6), "the throttle fires once the interval has built up")
+	var fired := 0
+	for i in 600:
+		if throttle.due(1.0 / 144.0):
+			fired += 1
+	check(absi(fired - 125) <= 2, "at 144 fps it repaints about 30 times a second, no drift (%d of 600 frames)" % fired)
+	var late := RedrawThrottle.new()
+	check(late.due(1.0) and late.due(0.0) and not late.due(0.0), "a long frame catches up by at most one extra repaint")
 
 	# A fighter that went idle under reduced motion follows the setting when it flips.
 	Motion.reduced = true
