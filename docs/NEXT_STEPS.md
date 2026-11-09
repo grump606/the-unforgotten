@@ -1,6 +1,6 @@
 # Next steps
 
-Last updated after the v0.8.2 release (2026-11-08) and the repository history rewrite. `main` is at v0.8.2; the next release needs a version bump.
+Last updated for the v0.8.3 release prep (2026-11-09). `main` is at v0.8.2 plus the sixth fix pass; v0.8.3 is versioned and ready to cut.
 Numbers such as the stop count and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`SIM.md`](SIM.md).
 
 ## State
