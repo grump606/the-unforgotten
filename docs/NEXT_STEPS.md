@@ -1,11 +1,11 @@
 # Next steps
 
-Last updated for the v0.8.3 release prep (2026-11-09). `main` is at v0.8.2 plus the sixth fix pass; v0.8.3 is versioned and ready to cut.
+Last updated after the v0.8.3 release (2026-11-09). `main` is at v0.8.3; the next release needs a version bump.
 Numbers such as the stop count and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`SIM.md`](SIM.md).
 
 ## State
 
-- **Released:** v0.8.2 (tag `v0.8.2`, 2026-11-08, Windows installer only), on top of v0.8.1 (card tooltips) and v0.8.0. Earlier milestones: v0.8.0 and before brought the Stray (fourth class, Scent engine), v0.6.0 the rename to The Unforgotten, v0.5.0 the reskin, v0.4.0 painted art and the battle stage, v0.3.2 the in-game update check. `git tag` and the GitHub releases have the full list.
+- **Released:** v0.8.3 (tag `v0.8.3`, 2026-11-09, Windows installer only: combat-log key L, keyboard focus fixes, the Scent-finisher and Block rules, the updater guard), on top of v0.8.2 (tag `v0.8.2`, 2026-11-08), on top of v0.8.1 (card tooltips) and v0.8.0. Earlier milestones: v0.8.0 and before brought the Stray (fourth class, Scent engine), v0.6.0 the rename to The Unforgotten, v0.5.0 the reskin, v0.4.0 painted art and the battle stage, v0.3.2 the in-game update check. `git tag` and the GitHub releases have the full list.
 - **What v0.8.2 contains (all of it is released):**
   - The Stray on the title screen.
   - A fifth rest before the Conductor (22 stops instead of 21; `docs/LEVELS_DESIGN.md`, "Pre-finale rest"). It lifts escape rates and has not been playtested.
