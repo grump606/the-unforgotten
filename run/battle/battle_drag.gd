@@ -30,7 +30,7 @@ func started(source: CardView) -> void:
 	if combat == null or combat.phase != Combat.Phase.PLAYER_TURN:
 		source.cancel_drag()
 		return
-	_battle._hand.hide_preview()
+	_battle.hand().hide_preview()
 	view = source
 	source.modulate.a = 0.35
 	ghost = CardView.new()
@@ -56,10 +56,10 @@ func moved(pos: Vector2) -> void:
 		_clear_hover()
 		hover = index
 	if index >= 0:
-		var info := _battle._damage.for_target(view.card, _battle.combat().enemies[index])
+		var info := _battle.damage_preview().for_target(view.card, _battle.combat().enemies[index])
 		_battle.enemy_views()[index].set_drop_hover(true, info.get("text", ""), info.get("lost", -1))
 		# A boss has no HP bar of its own, so its ghost goes on the wide bar at the top.
-		var bar := _battle._boss_bar
+		var bar := _battle.boss_bar()
 		if bar != null and bar.unit == _battle.combat().enemies[index]:
 			bar.set_drop_lost(info.get("lost", -1))
 
@@ -70,10 +70,10 @@ func ended(pos: Vector2, hand_index: int) -> void:
 	var combat := _battle.combat()
 	if index < 0 or combat == null:
 		return
-	_battle._begin_batch()
+	_battle.begin_batch()
 	if not combat.play_card(hand_index, index):
 		RunScreen.sfx(&"unavailable")
-	_battle._end_batch()
+	_battle.end_batch()
 
 
 ## Index of the living enemy whose figure is under `pos` (viewport coordinates), or -1.
@@ -92,8 +92,8 @@ func _clear_hover() -> void:
 	var views := _battle.enemy_views()
 	if hover >= 0 and hover < views.size():
 		views[hover].set_drop_hover(false)
-	if _battle._boss_bar != null:
-		_battle._boss_bar.set_drop_lost(-1)
+	if _battle.boss_bar() != null:
+		_battle.boss_bar().set_drop_lost(-1)
 	hover = -1
 
 

@@ -1,6 +1,7 @@
 class_name CardTilt
 extends RefCounted
-## Tilts any Control toward the mouse while hovered and eases back on exit.
+## Tilts any Control toward the mouse while hovered and eases back on exit (no tilt under Motion.reduced).
+## Dev-only: used by art/preview.gd, not by the game.
 ##   CardTilt.attach(card_control)
 
 const SHADER := preload("res://art/fx/card_tilt.gdshader")
@@ -16,7 +17,7 @@ static func attach(target: Control) -> void:
 	tick.autostart = true
 	tick.timeout.connect(func():
 		var goal := Vector2.ZERO
-		if Rect2(Vector2.ZERO, target.size).has_point(target.get_local_mouse_position()):
+		if not Motion.reduced and Rect2(Vector2.ZERO, target.size).has_point(target.get_local_mouse_position()):
 			goal = ((target.get_local_mouse_position() / target.size) - Vector2(0.5, 0.5)) * 2.0
 		state.tilt = state.tilt.lerp(goal, 0.2)
 		mat.set_shader_parameter("tilt", state.tilt)

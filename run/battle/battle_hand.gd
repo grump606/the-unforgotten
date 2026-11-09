@@ -72,7 +72,7 @@ func rebuild() -> void:
 	_battle.drag().end()
 	hide_preview()
 	for child in _box.get_children():
-		_battle._discard_node(child)
+		_battle.discard_node(child)
 	var combat := _battle.combat()
 	var discarding := combat.phase == Combat.Phase.DISCARDING
 	var hand_scale := fit()
@@ -107,7 +107,7 @@ func _apply_view(view: CardView, i: int, discarding: bool, hand_scale: float) ->
 	var hotkey := i + 1 if i < MAX_HAND_KEYS else 0
 	if view.hotkey != hotkey:
 		view.hotkey = hotkey
-	var damage_line := _battle._damage.line_for(card, _battle._target_index).strip_edges() if not discarding else ""
+	var damage_line := _battle.damage_preview().line_for(card, _battle.target_index()).strip_edges() if not discarding else ""
 	if view.preview != damage_line:
 		view.preview = damage_line
 	var marked := discarding and combat.discard_marks.has(i)
@@ -169,15 +169,15 @@ func _unplayable_note(card: CardData) -> String:
 ## Plays (or, in the discard step, marks) the hand card at `hand_index` on the selected enemy.
 func play_card(hand_index: int) -> void:
 	var combat := _battle.combat()
-	if combat == null or combat.phase == Combat.Phase.CHOOSING or _battle._overlays.pile_viewer_open():
+	if combat == null or combat.phase == Combat.Phase.CHOOSING or _battle.overlays().pile_viewer_open():
 		return # a Glimpse / Recall pick must be finished first; the pile viewer sits over the hand
-	_battle._begin_batch()
+	_battle.begin_batch()
 	if combat.phase == Combat.Phase.DISCARDING:
 		if combat.toggle_discard(hand_index):
 			RunScreen.sfx(&"card_select")
-	elif not combat.play_card(hand_index, _battle._target_index) and combat.phase == Combat.Phase.PLAYER_TURN and hand_index < combat.piles.hand.size():
+	elif not combat.play_card(hand_index, _battle.target_index()) and combat.phase == Combat.Phase.PLAYER_TURN and hand_index < combat.piles.hand.size():
 		RunScreen.sfx(&"unavailable")  # a card that cannot be played right now
-	_battle._end_batch()
+	_battle.end_batch()
 
 
 ## Re-applies the hover look to the hand card under the pointer after a rebuild (the new views

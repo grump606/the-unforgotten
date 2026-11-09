@@ -12,6 +12,9 @@ extends RefCounted
 ## Godot 4.7 exposes no operating-system "reduce motion" preference, so only the in-game setting is read.
 
 static var reduced := false
+## Nodes that stop processing when they have nothing to animate (the fighters) join this group and get
+## `_on_motion_changed()` when the setting flips at runtime.
+const FOLLOWERS := &"motion_followers"
 
 
 ## Reads the saved preference into `reduced`.
@@ -19,9 +22,21 @@ static func load_from(settings_path: String) -> void:
 	reduced = Settings.load_file(settings_path).reduced_motion
 
 
+## Sets `reduced` and tells the followers to pick the new setting up (a fighter that went idle under reduced
+## motion starts breathing again; one that is breathing stops on its next frame). Tests may still assign
+## `reduced` directly.
+static func set_reduced(on: bool) -> void:
+	if reduced == on:
+		return
+	reduced = on
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null:
+		tree.call_group(FOLLOWERS, "_on_motion_changed")
+
+
 ## Sets `reduced` and saves it, keeping every other setting as it is. Returns "" or why saving failed.
 static func set_and_save(on: bool, settings_path: String) -> String:
-	reduced = on
+	set_reduced(on)
 	var settings := Settings.load_file(settings_path)
 	if settings.reduced_motion == on:
 		return ""
