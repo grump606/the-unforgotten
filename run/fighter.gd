@@ -185,6 +185,7 @@ func _is_busy() -> bool:
 
 
 func _process(delta: float) -> void:
+	# motion-ok: advance() holds still under Motion.reduced (ui_reduced_motion_test checks it)
 	advance(delta)
 
 

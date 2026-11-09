@@ -1,11 +1,15 @@
 extends SceneTree
 ## Headless test that every animated class and scene honours Motion.reduced. Two parts: a behaviour check
 ## per animated class (advance it under reduced motion and see that nothing moves), and a source scan that
-## fails when a script under run/, art/fx/, audio/ or battle.gd uses a timer, a tween or a per-frame callback without mentioning
-## Motion.reduced, so a new animation cannot forget the setting. Run via scripts/check.ps1.
+## fails when a function under run/, art/fx/, audio/ or battle.gd starts a timer, a tween, an AnimationPlayer or a
+## particle node, or is a per-frame callback, without mentioning Motion.reduced (or a `# motion-ok:` marker), so a new
+## animation cannot forget the setting. Run via scripts/check.ps1.
+
+const Scan := preload("res://tests/motion_scan_support.gd")
 
 ## Scripts that use a timer, a tween or a per-frame callback without it being visual motion, and why they need no
-## Motion check. Anything else flagged must mention Motion.reduced.
+## Motion check at all (every function in them is skipped). A single function that needs no check is better marked
+## in the source with `# motion-ok: <reason>`; see tests/motion_scan_support.gd.
 const EXEMPT := {
 	"res://run.gd": "_process only pumps the background art loader (PaintedArt.pump); no motion",
 	"res://run/update_installer.gd": "_process polls the download and fills a progress bar; no decorative motion",
@@ -13,8 +17,6 @@ const EXEMPT := {
 	"res://audio/audio_manager.gd": "_process steps the music scheduler and a volume duck tween; sound only",
 }
 const SCAN_DIRS := ["res://run", "res://run/battle", "res://run/screens", "res://art/fx", "res://audio"]
-## What counts as animating or polling: a timer, a tween, or a per-frame callback.
-const MARKERS := ["create_timer", "Timer.new", "Timer ", "Tween", "create_tween(", ".tween_", "func _process(", "func _physics_process("]
 
 var fails := 0
 
@@ -34,28 +36,35 @@ func _scan_sources() -> void:
 			if f.ends_with(".gd"):
 				files.append(dir_path + "/" + f)
 	for path in files:
-		var src := FileAccess.get_file_as_string(path)
-		var animates := MARKERS.any(func(m: String) -> bool: return src.contains(m))
-		if not animates:
+		var sites := Scan.sites(FileAccess.get_file_as_string(path))
+		if sites.is_empty() or EXEMPT.has(path):
 			continue
-		var honours := _code_only(src).contains("Motion.reduced") # a mention in a comment does not count
-		check(honours or EXEMPT.has(path), "%s animates and mentions Motion.reduced (or is exempt)" % path)
+		var bad := Scan.unguarded(FileAccess.get_file_as_string(path))
+		check(bad.is_empty(), "%s: every function that animates mentions Motion.reduced or carries a motion-ok marker (unguarded: %s)" % [path, ", ".join(bad)])
 	for path in EXEMPT:
 		var exists := FileAccess.file_exists(path)
-		check(exists and MARKERS.any(func(m: String) -> bool: return FileAccess.get_file_as_string(path).contains(m)),
+		check(exists and not Scan.sites(FileAccess.get_file_as_string(path)).is_empty(),
 			"the exemption for %s is not stale (the file exists and still animates or polls)" % path)
 		check(String(EXEMPT[path]).length() > 10, "the exemption for %s states a reason" % path)
+	_scan_samples()
 
 
-## The source without its whole-line comments.
-func _code_only(src: String) -> String:
-	var lines: Array[String] = []
-	for line in src.split("
-"):
-		if not line.strip_edges().begins_with("#"):
-			lines.append(line)
-	return "
-".join(lines)
+## Proves the scan on small samples: what it flags and what it accepts.
+func _scan_samples() -> void:
+	var two_tweens := "func a() -> void:\n\tif Motion.reduced:\n\t\treturn\n\tcreate_tween()\n\nfunc b() -> void:\n\tcreate_tween()\n"
+	check(Scan.unguarded(two_tweens) == ["b (line 6)"], "one function's Motion.reduced does not clear another function's tween")
+	check(Scan.unguarded("func _process(delta: float) -> void:\n\tpass\n") == ["_process (line 1)"], "an unguarded _process is flagged")
+	check(Scan.unguarded("func _process(delta: float) -> void:\n\tif Motion.reduced:\n\t\treturn\n").is_empty(), "a guarded _process passes")
+	check(Scan.unguarded("func t() -> void:\n\t# Motion.reduced is not checked here\n\tcreate_timer(1.0)\n") == ["t (line 1)"], "a mention in a comment does not count")
+	check(Scan.unguarded("func t() -> void:\n\tcreate_timer(1.0) # Motion.reduced later\n") == ["t (line 1)"], "a trailing comment does not count either")
+	check(Scan.unguarded("func t() -> void:\n\t# motion-ok: polls a download, no motion\n\tcreate_timer(1.0)\n").is_empty(), "a motion-ok marker with a reason passes")
+	check(Scan.unguarded("func t() -> void:\n\t# motion-ok: x\n\tcreate_timer(1.0)\n") == ["t (line 1)"], "a motion-ok marker without a real reason is flagged")
+	check(Scan.unguarded("func p() -> void:\n\tvar a := AnimationPlayer.new()\n") == ["p (line 1)"], "an AnimationPlayer is flagged")
+	check(Scan.unguarded("func p() -> void:\n\tvar a := GPUParticles2D.new()\n") == ["p (line 1)"], "GPUParticles are flagged")
+	check(Scan.unguarded("func p() -> void:\n\tvar a := CPUParticles2D.new()\n") == ["p (line 1)"], "CPUParticles are flagged")
+	check(Scan.unguarded("var _t: Tween\nfunc p() -> void:\n\tpass\n").is_empty(), "a Tween type annotation alone is not an animation")
+	check(Scan.unguarded("func p() -> void:\n\tvar f := func() -> void:\n\t\tcreate_tween()\n") == ["p (line 1)"], "a tween in a lambda counts for its enclosing function")
+	check(Scan.sites("func a() -> void:\n\tcreate_tween()\n\tcreate_tween()\n")[0].hits == 2, "the sites count every tween in a function")
 
 
 func _frozen_scene(node: Control, holder: Control, label: String) -> void:

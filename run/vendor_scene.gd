@@ -84,6 +84,7 @@ func _on_visibility_changed() -> void:
 
 
 func _process(delta: float) -> void:
+	# motion-ok: advance() holds still under Motion.reduced (ui_reduced_motion_test checks it)
 	advance(delta)
 
 
