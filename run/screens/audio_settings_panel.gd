@@ -60,7 +60,7 @@ func build(box: Container, on_back: Callable) -> void:
 	mute_button.text = "Mute all sound"
 	mute_button.button_pressed = audio != null and audio.prefs.muted
 	mute_button.toggled.connect(_on_mute)
-	mute_button.focus_mode = Control.FOCUS_NONE
+	_style_focus(mute_button)
 	box.add_child(mute_button)
 	credits_button = Button.new()
 	credits_button.text = "Audio credits"
@@ -83,7 +83,7 @@ func build(box: Container, on_back: Callable) -> void:
 	reduce_button.tooltip_text = "Holds the animated backdrops still and skips card tilt, flashes and long entrances."
 	reduce_button.button_pressed = Motion.reduced
 	reduce_button.toggled.connect(_on_reduce_motion)
-	reduce_button.focus_mode = Control.FOCUS_NONE
+	_style_focus(reduce_button)
 	box.add_child(reduce_button)
 	if box.is_inside_tree():
 		(sliders["master"] as HSlider).grab_focus()
@@ -140,6 +140,19 @@ static func _save() -> void:
 	var audio := _audio()
 	if audio != null:
 		audio.save_now()
+
+
+## Keyboard focus for a check button: reachable with Tab (in tree order, between the sliders, the credits button
+## and Back) and drawn with the same amber outline as the plaque buttons. CheckButton has its own default focus
+## box, so the theme's Button one does not reach it.
+static func _style_focus(button: CheckButton) -> void:
+	button.focus_mode = Control.FOCUS_ALL
+	var focus := StyleBoxFlat.new()
+	focus.draw_center = false
+	focus.border_color = MenuStyle.AMBER
+	focus.set_border_width_all(2)
+	focus.set_corner_radius_all(3)
+	button.add_theme_stylebox_override("focus", focus)
 
 
 ## Dark track, brass-edged knob: the same colours as the buttons around it.

@@ -14,9 +14,9 @@ From outside the game: set the environment variable `THE_UNFORGOTTEN_NO_UPDATE_C
 
 ## Behaviour and safety
 
-- The request is asynchronous (a worker thread, 5 s timeout, reply capped at 64 KB), so the game never waits on it.
+- The request is asynchronous (an `HTTPRequest` node, which does its networking off the main thread; 5 s timeout, reply capped at 64 KB), so the game never waits on it.
 - Every failure is silent: offline, timeout, HTTP error or rate limit (anything but 200), a reply that is not JSON, a missing or odd `tag_name`. No notice, no dialog, no warning in the log.
-- The reply is untrusted. Only `tag_name` is read, and only if it matches `^[vV]?[0-9]{1,4}(\.[0-9]{1,4}){0,3}$`. The page Download opens is the constant `https://github.com/grump606/the-unforgotten/releases/latest`; no URL from the reply is ever used.
+- The reply is untrusted. Only `tag_name` is read, and only if it matches `^[vV]?[0-9]{1,4}(\.[0-9]{1,4}){0,3}\z` (`\z`, not `$`, which would also accept a trailing newline). The page Download opens is the constant `https://github.com/grump606/the-unforgotten/releases/latest`; no URL from the reply is ever used.
 
 ## Version comparison
 
@@ -45,9 +45,13 @@ Files downloaded this way carry no Windows "downloaded from the internet" mark, 
 
 Code: `run/update_installer.gd` (`UpdateInstaller`, the download/verify/launch state machine), `run/update_verifier.gd` (`UpdateVerifier`), URL builders in `run/update_check.gd`. Tests: `tests/update_installer_tests.gd`, `tests/update_verifier_tests.gd`, the in-game-install section of `tests/ui_update_notice_test.gd`.
 
+## Cancel, Skip and the worker
+
+The copy and hash of the installer run on a worker thread. `cancel()` (the player turned update checks off) abandons work in flight: a download goes back to idle, and a launch copy that is being made is dropped while the verified installer is kept, so "Update & restart" still works afterwards. `discard()` (Skip) removes the installer too. Neither waits for the worker: the result is ignored and a reaper in `_process` joins the thread once it has finished and deletes its `run_*` folder. Only freeing the node joins a running worker, since a `Thread` must be joined before it is freed.
+
 ## Installer size cap
 
 `UpdateCheck.MAX_INSTALLER_BYTES` (300 MiB) is the most the game will download for an installer; a larger body is refused by the HTTP node and the update fails with "could not be downloaded". The real installer is about 123 MiB (v0.8.2: 129,156,777 bytes), so the cap has room for the art to roughly double. Two guards keep it that way:
 
 - `tests/golden/latest_installer_size.txt` holds the byte size of the latest published installer, and `tests/update_check_tests.gd` fails if the cap is below 1.5x of it. After each release, put the size that `release.ps1` prints ("Installer size: ...") in that file in the next commit.
-- `scripts/build_installer.ps1` fails when the installer it just built is over 2/3 of the cap, before the release is made. To raise the cap, change the constant (it is read from `run/update_check.gd` by the script) and ship the game with the new cap one release before the installer needs it, because already-installed games keep their old cap.
+- `scripts/build_installer.ps1` also fails when the installer is over `LEGACY_CLIENT_CAP_MIB` (150 MiB): games released up to v0.8.2 carry the OLD 150 MiB cap and cannot install anything larger in-game. **The next release must stay under 150 MiB** until a release containing the 300 MiB cap has shipped and been out long enough; then remove that check. `release.ps1` prints the margin to both caps. The script also fails when the installer is over 2/3 of the cap, before the release is made. To raise the cap, change the constant (it is read from `run/update_check.gd` by the script) and ship the game with the new cap one release before the installer needs it, because already-installed games keep their old cap.

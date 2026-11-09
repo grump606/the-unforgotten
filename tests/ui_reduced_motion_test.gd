@@ -1,15 +1,20 @@
 extends SceneTree
 ## Headless test that every animated class and scene honours Motion.reduced. Two parts: a behaviour check
 ## per animated class (advance it under reduced motion and see that nothing moves), and a source scan that
-## fails when a script under run/ or battle.gd animates (a _process, a tween) without mentioning
+## fails when a script under run/, art/fx/, audio/ or battle.gd uses a timer, a tween or a per-frame callback without mentioning
 ## Motion.reduced, so a new animation cannot forget the setting. Run via scripts/check.ps1.
 
-## Scripts that animate (or poll) without being presentation motion, and why they need no Motion check.
+## Scripts that use a timer, a tween or a per-frame callback without it being visual motion, and why they need no
+## Motion check. Anything else flagged must mention Motion.reduced.
 const EXEMPT := {
-	"res://run.gd": "polls the background art loader; no motion",
-	"res://run/update_installer.gd": "polls a download and shows a progress bar; no decorative motion",
+	"res://run.gd": "_process only pumps the background art loader (PaintedArt.pump); no motion",
+	"res://run/update_installer.gd": "_process polls the download and fills a progress bar; no decorative motion",
+	"res://audio/audio_channel.gd": "tweens a volume (a crossfade), which is sound, not picture",
+	"res://audio/audio_manager.gd": "_process steps the music scheduler and a volume duck tween; sound only",
 }
-const SCAN_DIRS := ["res://run", "res://run/battle", "res://run/screens"]
+const SCAN_DIRS := ["res://run", "res://run/battle", "res://run/screens", "res://art/fx", "res://audio"]
+## What counts as animating or polling: a timer, a tween, or a per-frame callback.
+const MARKERS := ["create_timer", "Timer.new", "Timer ", "Tween", "create_tween(", ".tween_", "func _process(", "func _physics_process("]
 
 var fails := 0
 
@@ -23,20 +28,34 @@ func check(c: bool, msg: String) -> void:
 
 
 func _scan_sources() -> void:
-	var files: Array[String] = ["res://battle.gd"]
+	var files: Array[String] = ["res://battle.gd", "res://run.gd"]
 	for dir_path in SCAN_DIRS:
 		for f in DirAccess.get_files_at(dir_path):
 			if f.ends_with(".gd"):
 				files.append(dir_path + "/" + f)
 	for path in files:
 		var src := FileAccess.get_file_as_string(path)
-		var animates := src.contains("func _process(") or src.contains("create_tween(") or src.contains(".tween_")
+		var animates := MARKERS.any(func(m: String) -> bool: return src.contains(m))
 		if not animates:
 			continue
-		var honours := src.contains("Motion.reduced")
+		var honours := _code_only(src).contains("Motion.reduced") # a mention in a comment does not count
 		check(honours or EXEMPT.has(path), "%s animates and mentions Motion.reduced (or is exempt)" % path)
 	for path in EXEMPT:
-		check(FileAccess.file_exists(path), "the exemption for %s is not stale" % path)
+		var exists := FileAccess.file_exists(path)
+		check(exists and MARKERS.any(func(m: String) -> bool: return FileAccess.get_file_as_string(path).contains(m)),
+			"the exemption for %s is not stale (the file exists and still animates or polls)" % path)
+		check(String(EXEMPT[path]).length() > 10, "the exemption for %s states a reason" % path)
+
+
+## The source without its whole-line comments.
+func _code_only(src: String) -> String:
+	var lines: Array[String] = []
+	for line in src.split("
+"):
+		if not line.strip_edges().begins_with("#"):
+			lines.append(line)
+	return "
+".join(lines)
 
 
 func _frozen_scene(node: Control, holder: Control, label: String) -> void:

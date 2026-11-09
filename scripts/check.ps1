@@ -65,15 +65,26 @@ try {
     # one of the named steps in this script.)
     $uiTests = @(Get-ChildItem -LiteralPath (Join-Path $root 'tests') -Filter 'ui_*_test.gd' -File | Sort-Object Name)
     if ($uiTests.Count -eq 0) { Write-Host 'CHECK FAILED: no tests/ui_*_test.gd files found'; exit 1 }
+    # The recorded minimum (tests/golden/min_checks.txt, UI_STEPS): a UI test that was deleted or stopped being found fails the check.
+    $uiFloor = [int](([regex]::Match((Get-Content -Raw -LiteralPath (Join-Path $root 'tests\golden\min_checks.txt')), '(?m)^UI_STEPS=(\d+)\s*$')).Groups[1].Value)
+    if ($uiFloor -le 0) { Write-Host 'CHECK FAILED: UI_STEPS is missing from tests/golden/min_checks.txt'; exit 1 }
+    if ($uiTests.Count -lt $uiFloor) { Write-Host "CHECK FAILED: only $($uiTests.Count) tests/ui_*_test.gd files, fewer than the recorded UI_STEPS ($uiFloor)"; exit 1 }
+    $uiRan = 0
     foreach ($ui in $uiTests) {
         $stepName = ($ui.BaseName -replace '_test$', '') -replace '_', ' '
         Invoke-Step $stepName @('--headless', '--path', '.', '-s', "res://tests/$($ui.Name)")
+        $uiRan++
     }
+    if ($uiRan -lt $uiFloor) { Write-Host "CHECK FAILED: only $uiRan ui test steps ran, fewer than the recorded UI_STEPS ($uiFloor)"; exit 1 }
     Invoke-Step 'reskin restoration' @('--headless', '--path', '.', '-s', 'res://tests/reskin_presentation_test.gd')
     # The rules that decide what a clean log is: bad logs must fail, the suite's known noise must pass.
     Write-Host '== check log patterns =='
     powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_log_patterns_test.ps1')
     if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: check log patterns'; exit 1 }
+    # The choice of the Inno Setup compiler (newest 6.x; any other major version stops the build).
+    Write-Host '== inno setup choice =='
+    powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'inno_setup_test.ps1')
+    if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: inno setup choice'; exit 1 }
     # PowerShell side of the update manifest golden test (the GDScript side runs inside 'tests').
     Write-Host '== manifest golden =='
     powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_manifest_golden.ps1')

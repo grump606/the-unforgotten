@@ -139,8 +139,8 @@ func show_pile_cue(text: String) -> void:
 	cue.add_theme_constant_override("outline_size", 5)
 	_battle.add_child(cue)
 	# Above the energy orb, over the stage, so it never sits on top of the counters it is about.
-	var origin := _battle._energy_orb.get_global_rect().position - _battle.get_global_rect().position
-	cue.position = Vector2(_battle._pile_box.get_global_rect().position.x - _battle.get_global_rect().position.x, origin.y - 30.0 - 22.0 * _live_cues)
+	var origin := _battle.energy_orb().get_global_rect().position - _battle.get_global_rect().position
+	cue.position = Vector2(_battle.pile_box().get_global_rect().position.x - _battle.get_global_rect().position.x, origin.y - 30.0 - 22.0 * _live_cues)
 	_live_cues += 1
 	var tween := _battle.create_tween()
 	if Motion.reduced: # the cue stays where it is, at full strength, for the same time, then goes
