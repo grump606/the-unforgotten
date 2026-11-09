@@ -281,37 +281,38 @@ func enemy_views() -> Array[Fighter]:
 	return _enemy_views.duplicate()
 
 
-## The card-drag handler.
+## The card-drag handler. Null before _ready.
 func drag() -> BattleDrag:
 	return _drag
 
 
-## The hand's card views and previews.
+## The hand's card views and previews. Null before _ready.
 func hand() -> BattleHand:
 	return _hand
 
 
-## The HUD builder (turn controls, pile counters, journey line).
+## The HUD builder (turn controls, pile counters, journey line). Null before _ready.
 func hud() -> BattleHud:
 	return _hud
 
 
-## The choice overlay and the pile viewer.
+## The choice overlay and the pile viewer. Null before _ready.
 func overlays() -> BattleOverlays:
 	return _overlays
 
 
-## Cues, banners, the boss entrance and the screen flash.
+## Cues, banners, the boss entrance and the screen flash. Null before _ready.
 func fx() -> BattleFx:
 	return _fx
 
 
-## The damage preview text of a card on a target.
+## The damage preview text of a card on a target. Null before _ready.
 func damage_preview() -> BattleDamagePreview:
 	return _damage
 
 
-## The stage the figures stand on, the left column, the pile counters and the HUD panel.
+## The stage the figures stand on, the left column, the pile counters and the HUD panel. These node getters
+## (stage, left_box, pile_box, hud_panel, the buttons, labels, orb and strip) are null before _ready.
 func stage() -> Control:
 	return _stage
 

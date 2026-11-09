@@ -20,6 +20,31 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
 
 
+func _ready() -> void:
+	add_to_group(Motion.FOLLOWERS) # told when Reduce motion flips (see _on_motion_changed)
+	visibility_changed.connect(_update_processing)
+	_update_processing()
+
+
+## The per-frame sway and parallax run only while the art is on screen and motion is allowed.
+func _update_processing() -> void:
+	set_process(is_visible_in_tree() and not Motion.reduced)
+
+
+## Reduce motion flipped at runtime: under it the layers go back to rest once and processing stops; without it
+## processing resumes.
+func _on_motion_changed() -> void:
+	if Motion.reduced:
+		_rest()
+	_update_processing()
+
+
+func _rest() -> void:
+	_offset = Vector2.ZERO
+	for i in _rects.size():
+		_rects[i].position = -_margin()
+
+
 func set_layers(paths: Array, depths: Array) -> void:
 	for r in _rects:
 		r.queue_free()
@@ -53,10 +78,9 @@ func _layout() -> void:
 
 
 func _process(delta: float) -> void:
-	if Motion.reduced: # no sway and no mouse parallax: the layers rest at depth zero
-		_offset = Vector2.ZERO
-		for i in _rects.size():
-			_rects[i].position = -_margin()
+	if Motion.reduced: # set directly (tests): rest at depth zero and stop; set_reduced() does this through the group
+		_rest()
+		set_process(false)
 		return
 	_time += delta
 	var mouse := get_local_mouse_position()
