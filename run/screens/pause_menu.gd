@@ -18,6 +18,8 @@ var _get_run: Callable
 var _save_and_exit: Callable
 ## Called after the player confirms abandoning the run (the menu is already closed).
 var _on_new_run: Callable
+## The control that had keyboard focus when the menu opened (null when none); resuming gives it focus back.
+var _focus_before: Control
 
 
 func _init(host: Control, get_run: Callable, save_and_exit: Callable, on_new_run: Callable) -> void:
@@ -70,6 +72,8 @@ func handle_key(event: InputEvent) -> void:
 
 
 func set_paused(on: bool) -> void:
+	if on and not overlay.visible:
+		_focus_before = _host.get_viewport().gui_get_focus_owner()
 	_host.get_tree().paused = on
 	overlay.visible = on
 	var audio := Audio.manager()
@@ -79,6 +83,36 @@ func set_paused(on: bool) -> void:
 		var run: RunState = _get_run.call()
 		backdrop.set_character(run.character.id if run != null and run.character != null else &"")
 		show_options("")
+	else:
+		_restore_focus()
+
+
+## Gives focus back to what had it before the menu opened. That control may be gone (a page that rebuilt, or the
+## menu's own buttons), so it falls back to the first focusable control of the screen behind the menu.
+func _restore_focus() -> void:
+	var target := _focus_before
+	_focus_before = null
+	if target == null or not is_instance_valid(target) or target.is_queued_for_deletion() 			or not target.is_inside_tree() or not target.is_visible_in_tree() 			or target.focus_mode == Control.FOCUS_NONE or overlay.is_ancestor_of(target):
+		target = _first_focusable(_host)
+	if target != null:
+		target.grab_focus()
+
+
+## The first visible control in tree order that can take focus, outside the pause menu itself.
+func _first_focusable(node: Node) -> Control:
+	if node == overlay or node == button:
+		return null
+	var control := node as Control
+	if control != null:
+		if not control.visible:
+			return null
+		if control.focus_mode == Control.FOCUS_ALL and not (control is BaseButton and (control as BaseButton).disabled):
+			return control
+	for child in node.get_children():
+		var found := _first_focusable(child)
+		if found != null:
+			return found
+	return null
 
 
 func show_options(message: String) -> void:
