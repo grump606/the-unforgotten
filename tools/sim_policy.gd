@@ -57,6 +57,9 @@ static func bot_error(message: String) -> void:
 	push_error(message)
 
 
+## Environment variable that forces play_turn to fail (a test seam, see play_turn); unset in normal use.
+const SIM_FAIL_ENV := "THE_UNFORGOTTEN_SIM_FAIL"
+
 ## Result of run_fight when the policy could not play a turn (the others: 1 win, -1 loss, 0 stall).
 const FIGHT_FAILED := -2
 
@@ -97,6 +100,11 @@ static func exit_code(failures: int) -> int:
 ## playable once it is hit), so this always terminates. Returns false (after
 ## logging) if the policy picked an unplayable card.
 static func play_turn(combat: Combat) -> bool:
+	# Test seam (scripts/check_sim_exit.ps1): THE_UNFORGOTTEN_SIM_FAIL=1 makes the policy fail every turn so the
+	# tools' exit code 1 can be proven end to end. Inert when unset.
+	if OS.get_environment(SIM_FAIL_ENV) == "1":
+		printerr("SimPolicy: forced failure (%s=1)" % SIM_FAIL_ENV)
+		return false
 	while true:
 		# An open Glimpse / Recall pick blocks everything else, so it is settled before each decision.
 		if not resolve_choices(combat):
