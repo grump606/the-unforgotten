@@ -234,6 +234,27 @@ func _test_in_game_install() -> void:
 	notice.download_button.pressed.emit()
 	_check(launched.size() == 1 and quits[0] == 1, "Restart now installs")
 
+	# A verified installer kept by stop() (cancel keeps it) must not be run once the bar names a newer tag.
+	launched.clear()
+	quits[0] = 0
+	notice.installer.state = UpdateInstaller.State.IDLE
+	notice.set_allowed(false)
+	notice.download_button.disabled = false
+	notice.download_button.pressed.emit()
+	file = FileAccess.open(work.path_join("TheUnforgotten-Setup-0.3.1.exe.part"), FileAccess.WRITE)
+	file.store_string("new version")
+	file.close()
+	notice.installer.handle_manifest_signature(HTTPRequest.RESULT_SUCCESS, 200, UpdateVerifierTests.sign_bytes(manifest, key))
+	notice.installer.handle_manifest(HTTPRequest.RESULT_SUCCESS, 200, manifest)
+	notice.installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
+	notice.stop()
+	_check(notice.installer.state == UpdateInstaller.State.READY and notice.installer.tag == "v0.3.1", "stop() keeps the verified installer")
+	notice.set_allowed(true)
+	notice.handle_response(200, _release("v0.3.2"))
+	notice.download_button.pressed.emit()
+	_check(launched.is_empty() and quits[0] == 0, "a kept installer for v0.3.1 is not run while the bar offers v0.3.2")
+	_check(notice.installer.state == UpdateInstaller.State.DOWNLOADING and notice.installer.tag == "v0.3.2", "the newer tag is downloaded instead")
+
 	# A failure falls back to the plain Download button.
 	notice.installer.state = UpdateInstaller.State.IDLE
 	notice.use_installer = true

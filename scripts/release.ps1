@@ -19,6 +19,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 . (Join-Path $PSScriptRoot 'engine_version.ps1')
+. (Join-Path $PSScriptRoot 'check_floor_record.ps1')
 
 # Release from a clean, up-to-date main so the tag matches what was built.
 $branch = (git branch --show-current).Trim()
@@ -80,8 +81,14 @@ Write-Host "Releasing $tag with $env:GODOT_EXE"
 
 # Never release a commit that has not passed the full check, both here and on GitHub.
 Write-Host 'Running the full check (scripts\check.ps1)...'
-powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check.ps1')
+powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check.ps1') | Tee-Object -Variable checkOutput
 if ($LASTEXITCODE -ne 0) { throw 'scripts\check.ps1 failed: fix it before releasing.' }
+# The record behind the check floor must not lag the suite by more than 5% (else the floor protects nothing).
+$liveChecks = Get-LiveCheckTotal @($checkOutput | ForEach-Object { "$_" })
+$recordedChecks = Get-CheckRecord (Join-Path $root 'tests\golden\min_checks.txt') 'TOTAL_CHECKS'
+$recordState = Get-CheckRecordStatus $recordedChecks $liveChecks
+if ($recordState -eq 'missing') { throw "Could not read the check totals (live $liveChecks, TOTAL_CHECKS $recordedChecks in tests/golden/min_checks.txt)." }
+if ($recordState -eq 'stale') { throw "tests/golden/min_checks.txt records TOTAL_CHECKS=$recordedChecks but the suite ran $liveChecks checks (more than 5% above the record): set TOTAL_CHECKS to $liveChecks, commit and merge, then release." }
 $sha = (git rev-parse HEAD).Trim()
 $runsJson = gh run list --commit $sha --json status,conclusion,name --limit 20
 if ($LASTEXITCODE -ne 0) { throw 'gh run list failed: run "gh auth status".' }
@@ -112,9 +119,9 @@ foreach ($f in $files) { if (-not (Test-Path -LiteralPath $f)) { throw "Missing 
 $installerBytes = (Get-Item -LiteralPath $files[0]).Length
 $newCapMatch = Select-String -Path 'run/update_check.gd' -Pattern '^const MAX_INSTALLER_BYTES := (\d+) \* 1024 \* 1024'
 $newCapMiB = [int64]$newCapMatch.Matches.Groups[1].Value
-$legacyCapMiB = 150  # the cap inside released v0.8.2 clients; keep equal to $LEGACY_CLIENT_CAP_MIB in build_installer.ps1
+$legacyCapMiB = $LEGACY_CLIENT_CAP_MIB  # from scripts/engine_version.txt (the cap inside released v0.8.2 clients)
 $installerMiB = [math]::Round($installerBytes / 1MB, 1)
-Write-Host "Installer is $installerMiB MiB: margin $([math]::Round($legacyCapMiB - $installerMiB, 1)) MiB to the legacy 150 MiB client cap, $([math]::Round($newCapMiB - $installerMiB, 1)) MiB to the current $newCapMiB MiB cap."
+Write-Host "Installer is $installerMiB MiB: margin $([math]::Round($legacyCapMiB - $installerMiB, 1)) MiB to the legacy $legacyCapMiB MiB client cap, $([math]::Round($newCapMiB - $installerMiB, 1)) MiB to the current $newCapMiB MiB cap."
 Write-Host "Installer size: $installerBytes bytes. Put this number in tests/golden/latest_installer_size.txt in the next commit (a test keeps the in-game download cap at least 1.5x of it)."
 
 if (-not $Publish) {
