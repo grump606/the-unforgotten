@@ -55,6 +55,11 @@ var _expected_sha256 := ""
 var _installer_path := ""
 var _request: HTTPRequest
 var _thread: Thread
+## The absolute run_* folder the current job is writing to ("" for a hash job).
+var _thread_dir := ""
+## Workers whose result was abandoned (cancel, discard, a newer job) but that are still running or not joined yet:
+## [{thread, dir}]. _process joins each one once it has finished, so the main thread never waits for a copy.
+var _retired: Array = []
 ## Bumped whenever a job starts or is abandoned (cancel, discard): a finished job only counts if its serial is current.
 var _job_serial := 0
 ## True while the launch copy is being prepared (state stays READY); a second call is ignored.
@@ -123,10 +128,15 @@ func start(release_tag: String) -> bool:
 	return true
 
 
-## Cancels a download in flight and returns to IDLE.
+## Cancels work in flight: a download returns to IDLE, and a launch copy being prepared is abandoned (its run_*
+## folder is removed once the worker has finished) with the state staying READY. A verified installer the player
+## has not discarded is KEPT (only discard() removes it), so "Update & restart" works again afterwards. Never
+## waits for the worker (see _retire_worker).
 func cancel() -> void:
 	_drop_request()
 	_job_serial += 1
+	_installing = false
+	_launched = false
 	_retire_worker()
 	if state == State.DOWNLOADING:
 		cleanup(work_dir)
@@ -206,6 +216,8 @@ func discard() -> void:
 	_installing = false
 	_launched = false
 	var had_worker := _retire_worker()
+	# Best effort now (a file the worker still has open may survive); the run_* folder of a retired copy is removed
+	# for sure when the worker has been joined (_reap_retired).
 	if state == State.READY or had_worker:
 		cleanup(work_dir)
 	if state == State.READY:
@@ -229,7 +241,7 @@ func install_and_restart() -> bool:
 	if _threaded():
 		# Returns true = started. A failure arrives later as state FAILED (UpdateNotice listens to `changed`).
 		_installing = true
-		_start_job(_job_serial + 1, _copy_job.bind(_job_serial + 1, source_abs, dir_abs, copy_abs, _expected_sha256))
+		_start_job(_job_serial + 1, _copy_job.bind(_job_serial + 1, source_abs, dir_abs, copy_abs, _expected_sha256), dir_abs)
 		return true
 	return _launch_copy(_prepare_copy(source_abs, dir_abs, copy_abs, _expected_sha256), copy_path)
 
@@ -276,34 +288,71 @@ func _threaded() -> bool:
 	return force_worker or (use_worker and not dry_run)
 
 
-func _start_job(serial: int, work: Callable) -> void:
-	_reap(true)
+func _start_job(serial: int, work: Callable, launch_dir_abs := "") -> void:
+	_retire_worker()
 	_job_serial = serial
+	_thread_dir = launch_dir_abs
 	_thread = Thread.new()
 	_thread.start(work)
 
 
-## Waits for a running worker (it only does file work and hashing, so this is at most a second or two) and
-## throws its result away. cancel() and discard() call it BEFORE cleanup(): otherwise a copy job could still be
-## writing its run_* folder while that folder is being deleted, or create it afterwards, and leave a stray copy of
-## the installer behind until the next launch. Callers have already bumped _job_serial. True if a worker was there.
+## Abandons the current worker WITHOUT waiting for it: callers have already bumped _job_serial, so its result is
+## dropped, and the Thread object is kept in _retired until _process sees it finished (a Thread must be joined
+## with wait_to_finish() before it is freed, but joining a running copy of ~123 MiB would freeze the UI). The
+## worker only does file I/O and hashing, so it needs nothing from the scene. True if a worker was there.
 func _retire_worker() -> bool:
 	if _thread == null:
 		return false
-	_reap(true)
+	_retired.append({"thread": _thread, "dir": _thread_dir})
+	_thread = null
+	_thread_dir = ""
 	return true
 
 
-## Collects a finished job (or, with `block`, waits for a running one and drops its result unless `apply`). A result
-## is acted on only if no cancel/discard/new job happened since it started.
-func _reap(block: bool, apply := false) -> void:
+## Joins the retired workers that have finished and removes the run_* folder each one wrote (so a copy that
+## finished after cancel/discard cannot leave a stray installer behind). Never blocks.
+func _reap_retired() -> void:
+	var hash_reaped := false
+	for entry in _retired.duplicate():
+		var thread: Thread = entry["thread"]
+		if thread.is_alive():
+			continue
+		thread.wait_to_finish()
+		_retired.erase(entry)
+		if entry["dir"] != "":
+			_remove_folder(entry["dir"])
+		else:
+			hash_reaped = true
+	# A download hash that was abandoned may have kept the file open when cleanup ran: try again when nothing is active.
+	if hash_reaped and _thread == null and state != State.DOWNLOADING and state != State.READY:
+		cleanup(work_dir)
+
+
+static func _remove_folder(dir_abs: String) -> void:
+	var access := DirAccess.open(dir_abs)
+	if access == null:
+		return
+	for file_name in access.get_files():
+		access.remove(file_name)
+	DirAccess.remove_absolute(dir_abs)
+
+
+## True while an abandoned or current worker has not been joined yet (tests wait for it to drop to 0).
+func pending_workers() -> int:
+	return _retired.size() + (1 if _thread != null else 0)
+
+
+## Collects the current job if it has finished (or, with `block`, waits for it) and acts on its result, but only
+## if no cancel/discard/new job happened since it started.
+func _reap(block: bool) -> void:
 	if _thread == null:
 		return
 	if not block and _thread.is_alive():
 		return
 	var outcome: Variant = _thread.wait_to_finish()
 	_thread = null
-	if (block and not apply) or not (outcome is Dictionary) or int(outcome["serial"]) != _job_serial:
+	_thread_dir = ""
+	if not (outcome is Dictionary) or int(outcome["serial"]) != _job_serial:
 		return
 	if outcome["kind"] == "hash":
 		if state == State.DOWNLOADING:
@@ -313,20 +362,33 @@ func _reap(block: bool, apply := false) -> void:
 
 
 ## Tests: waits for the running worker and acts on its result exactly as the next frame step would, so a test
-## needs no timer or polling (the thread is joined, however slow the machine is).
+## needs no timer or polling (the thread is joined, however slow the machine is). Retired workers are joined too.
 func finish_worker() -> void:
-	_reap(true, true)
+	_reap(true)
+	for entry in _retired.duplicate():
+		(entry["thread"] as Thread).wait_to_finish()
+		_retired.erase(entry)
+		if entry["dir"] != "":
+			_remove_folder(entry["dir"])
 
 
-## Never free the node with a worker still running (also covers a node that was never in the tree).
+## A Thread must be joined before it is freed, so freeing the node (the game closing, or a test) joins every worker
+## still around. That is the one place that can wait: nothing is on screen by then, and a worker that was retired
+## earlier has normally been reaped by _process already. Also covers a node that was never in the tree.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
 		_job_serial += 1
-		_reap(true)
+		_retire_worker()
+		for entry in _retired:
+			(entry["thread"] as Thread).wait_to_finish()
+			if entry["dir"] != "":
+				_remove_folder(entry["dir"])
+		_retired.clear()
 
 
 func _process(_delta: float) -> void:
 	_reap(false)
+	_reap_retired()
 	if state != State.DOWNLOADING or _request == null:
 		return
 	var total := _request.get_body_size()

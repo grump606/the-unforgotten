@@ -221,7 +221,7 @@ func _build_confirm_row(column: VBoxContainer) -> void:
 	confirm_button = Button.new()
 	confirm_button.theme_type_variation = MenuStyle.PRIMARY
 	confirm_button.custom_minimum_size = Vector2(190, 40)
-	confirm_button.focus_mode = Control.FOCUS_NONE
+	confirm_button.focus_mode = Control.FOCUS_ALL # Tab reaches it; a focused Enter presses it
 	confirm_button.pressed.connect(confirm)
 	row.add_child(confirm_button)
 

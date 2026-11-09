@@ -23,10 +23,11 @@ Cards carry keywords that change how they cycle or what they do (the full rules 
 - **Ready:** the card starts the fight in the opening hand.
 - **Anchor:** the card stays in hand and does not count toward the 5 you keep (it still counts toward the hand cap of 10).
 - **Dormant:** cannot be played. Enemies shuffle these into your piles (Dread, Murmur).
-- **Surge:** spends all remaining energy, and the effect scales with the energy spent.
+- **Surge:** spends all remaining energy, and the effect scales with the energy spent. A Surge card can be played at 0 energy; it then does nothing and counts as a play, like any other 0-cost card.
 - **Glimpse X:** look at the top X cards of the draw pile and discard any of them.
 - **Malice:** a stacking flat bonus to each hit you deal (lasts the fight, or one turn when the card says "this turn").
 - **Ward:** a stacking flat bonus to each Block gained from cards (not Hold, Barbs or relic Block).
+- **Block-gained trigger (`ON_BLOCK_GAINED`):** counts only Block gained by the played card's own effects, not Block from an Oath effect or relic that fires during the same play.
 - **Shaken:** the target deals 25% less damage for N turns.
 - **Frayed:** gains 25% less Block for N turns. Only enemies apply it (Threshold Keeper, Memorial Giant).
 - **Remembered:** the rest-stop upgrade. At a rest stop choose Remember instead of the heal, then pick one card in your deck that has a Remembered form. It becomes a `+` card (gold title, upgraded text) for the rest of the run; a card can be Remembered once. Cards without a Remembered form cannot be picked. See `docs/MECHANICS_PLAN.md` for the list.

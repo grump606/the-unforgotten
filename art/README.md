@@ -30,7 +30,7 @@ Paint a little beyond the frame (about 5%) so shifting never reveals an edge.
 | Battle backdrop | 2304x1296 (16:9 at 2x) | full window | `layers/backdrop/<class>/` |
 | Screens (vendor, rest, story, menu) | 2304x1296 | full window | `layers/screens/<name>/` |
 
-Enemies: warden, shade, wisp, colossus, whisperer, hound, crow, conductor, brakeman. `layers/warden/` holds procedural stand-ins made by `tools/make_placeholders.gd`; overwrite them with painted PNGs of the same names and the preview picks them up.
+Enemies: warden, shade, wisp, colossus, whisperer, hound, crow, conductor, brakeman. `layers/warden/` holds procedural stand-ins made by `art/tools/make_placeholders.gd`; overwrite them with painted PNGs of the same names and the preview picks them up.
 
 ## Applying it later
 

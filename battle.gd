@@ -268,19 +268,127 @@ func _discard_node(node: Node) -> void:
 
 # --- the screen's public face for its helper classes (run/battle/) ---------------------------------
 
-## The fight on screen (null before the first fight is attached).
+## The LIVE fight on screen, not a copy (null before the first fight is attached). Callers that change it must
+## do so between begin_batch() and end_batch() so the screen refreshes once.
 func combat() -> Combat:
 	return _combat
 
 
-## The enemies' figures on the stage, in the order of combat().enemies.
+## The enemies' figures on the stage, in the order of combat().enemies. A copy: the list the screen keeps cannot be
+## changed through it (the figures themselves are the live nodes).
 func enemy_views() -> Array[Fighter]:
-	return _enemy_views
+	return _enemy_views.duplicate()
 
 
 ## The card-drag handler.
 func drag() -> BattleDrag:
 	return _drag
+
+
+## The hand's card views and previews.
+func hand() -> BattleHand:
+	return _hand
+
+
+## The HUD builder (turn controls, pile counters, journey line).
+func hud() -> BattleHud:
+	return _hud
+
+
+## The choice overlay and the pile viewer.
+func overlays() -> BattleOverlays:
+	return _overlays
+
+
+## Cues, banners, the boss entrance and the screen flash.
+func fx() -> BattleFx:
+	return _fx
+
+
+## The damage preview text of a card on a target.
+func damage_preview() -> BattleDamagePreview:
+	return _damage
+
+
+## The stage the figures stand on, the left column, the pile counters and the HUD panel.
+func stage() -> Control:
+	return _stage
+
+
+func left_box() -> VBoxContainer:
+	return _left_box
+
+
+func pile_box() -> VBoxContainer:
+	return _pile_box
+
+
+func hud_panel() -> PanelContainer:
+	return _hud_panel
+
+
+func end_turn_button() -> Button:
+	return _end_turn_button
+
+
+func new_fight_button() -> Button:
+	return _new_fight_button
+
+
+func result_label() -> Label:
+	return _result_label
+
+
+func energy_orb() -> EnergyOrb:
+	return _energy_orb
+
+
+## The boss health bar (null outside a boss fight) and the relic strip.
+func boss_bar() -> BossBar:
+	return _boss_bar
+
+
+func relic_strip() -> RelicStrip:
+	return _relic_strip
+
+
+## Index into combat().enemies of the selected target.
+func target_index() -> int:
+	return _target_index
+
+
+## Starts a group of changes that refresh the screen once, when the outermost group ends. Nests.
+func begin_batch() -> void:
+	_begin_batch()
+
+
+func end_batch() -> void:
+	_end_batch()
+
+
+## Removes a stale child at once (see _discard_node) and frees it.
+func discard_node(node: Node) -> void:
+	_discard_node(node)
+
+
+## The End Turn button's action (also E and Enter): opens or confirms the discard step.
+func end_turn() -> void:
+	_on_end_turn_pressed()
+
+
+## Backs out of the discard step.
+func cancel_discard() -> void:
+	_on_cancel_discard_pressed()
+
+
+## The New Fight / Continue button's action (also N, E and Enter after the fight).
+func continue_pressed() -> void:
+	_on_continue_pressed()
+
+
+## Moves the target to the next living enemy in `direction` (+1 or -1).
+func cycle_target(direction: int) -> void:
+	_cycle_target(direction)
 
 
 ## Asks for a refresh: it runs when the current batch ends, or at once outside one.

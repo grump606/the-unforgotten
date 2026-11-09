@@ -70,8 +70,11 @@ func card_views() -> Array[CardView]:
 
 
 func show_pile(which: Pile) -> void:
+	var changed := which != pile
 	pile = which
 	_fill()
+	if changed:
+		_scroll.scroll_vertical = 0 # a new tab starts at the top, not at the old tab's offset
 
 
 ## Re-reads the pile (the counts on the tabs and the cards), keeping the open tab.
@@ -135,7 +138,7 @@ func _build_tabs(column: VBoxContainer) -> void:
 	for i in PILE_NAMES.size():
 		var tab := Button.new()
 		tab.toggle_mode = true
-		tab.focus_mode = Control.FOCUS_NONE
+		tab.focus_mode = Control.FOCUS_ALL # Tab reaches the tabs; the pile keys still work (see BattleKeys)
 		tab.theme_type_variation = MenuStyle.QUIET
 		tab.custom_minimum_size = Vector2(130, 34)
 		tab.pressed.connect(show_pile.bind(i as Pile))
@@ -146,7 +149,7 @@ func _build_tabs(column: VBoxContainer) -> void:
 	tabs.add_child(spacer)
 	close_button = Button.new()
 	close_button.text = "Close (Esc)"
-	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.focus_mode = Control.FOCUS_ALL
 	close_button.custom_minimum_size = Vector2(110, 34)
 	close_button.pressed.connect(close)
 	tabs.add_child(close_button)
@@ -169,10 +172,12 @@ func _build_card_area(column: VBoxContainer) -> void:
 ## (like BattleHand.sync): a view is rewritten only when its card or the scale differs, views are added or removed
 ## only when the card count changes, so a refresh with nothing new does no work and a switch of tab keeps the nodes.
 func _fill() -> void:
-	var cards := shown_cards(_combat.piles, pile)
+	var cards: Array[CardData] = []
 	for i in tab_buttons.size():
-		var count := shown_cards(_combat.piles, i as Pile).size()
-		tab_buttons[i].text = "%s %d" % [PILE_NAMES[i], count]
+		var listed := shown_cards(_combat.piles, i as Pile) # each pile once (the Draw sort is the costly one)
+		if i == pile:
+			cards = listed
+		tab_buttons[i].text = "%s %d" % [PILE_NAMES[i], listed.size()]
 		tab_buttons[i].button_pressed = i == pile
 	note_label.text = NOTES[pile] if not cards.is_empty() else "%s This pile is empty." % NOTES[pile]
 	var width := minf(_area.x - 80.0, 980.0) - 50.0

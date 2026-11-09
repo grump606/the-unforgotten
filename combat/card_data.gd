@@ -33,7 +33,7 @@ enum TargetMode { SINGLE_ENEMY, ALL_ENEMIES, SELF }
 ## fight. `effects` still happen when it is played (its cost: lose HP, add a Dread); `oath_effects` happen
 ## each time `oath_trigger` fires while it is Sworn. Oath effects land on the player when their reach is
 ## SELF and on every living enemy otherwise. A Dormant or Fading card cannot be an Oath.
-## END_OF_TURN: as the player ends the turn, before the enemies act. ON_BLOCK_GAINED: after a card that gained Block.
+## END_OF_TURN: as the player ends the turn, before the enemies act. ON_BLOCK_GAINED: after a card whose OWN effects gained Block (Block from a relic or another Oath never counts).
 ## ON_HP_LOST: after a card that cost HP. EACH_PLAY: after every card played. ON_DISCARD: for each card thrown away at
 ## the end-of-turn discard. Rules as implemented: ON_HP_LOST fires after a card the PLAYER played whose own
 ## LOSE_HP effects cost HP (hp_cost() > 0); damage taken from enemies, Haunt-style losses and Oath effects never

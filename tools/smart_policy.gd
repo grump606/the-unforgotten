@@ -102,6 +102,16 @@ const OATH_FIRING_SHARE := {
 }
 ## Damage hits (and Block effects) the player lands per turn, for the same estimate.
 const TYPICAL_HITS_PER_TURN := 2
+const SCENT_TARGET_HP_COST := 0.01 # per HP the Scent target has left: a weaker target is the better quarry
+const UNWANTED_BLOCK_SHARE := 0.25 # share of a Malice/Ward still worth it when no Block is needed this turn
+const READY_GAIN_BONUS := 0.5 # Remembering a card that makes it playable right away
+const REMEMBER_TIE_EPSILON := 0.0001 # a Remember choice must beat the best gain by more than this
+const FORGOTTEN_WEIGHT_MIN := 3
+const FORGOTTEN_WEIGHT_MAX := 5
+const MALICE_CUT_FACTOR := 2.0 # a Malice cut counts double what a Ward cut does
+const DEBUFF_HIT_SHARE := 0.25 # a Shaken / Frayed turn is worth this share of a typical hit (or Block)
+const SHAKEN_PREVENTED_FACTOR := 2.0
+const FRAYED_BLOCK_FACTOR := 0.5
 ## Value per extra damage point of Malice, per Block point of Ward (half a useful Block point: it can be wasted).
 const MALICE_VALUE := 1.0
 const WARD_VALUE := 1.0
@@ -423,7 +433,7 @@ static func _effect_value(combat: Combat, card: CardData, hand_index: int, effec
 			value += _added_value(combat, effect, energy_left)
 		_:
 			# BLOCK is priced by _play_value and never reaches here, so any kind landing here is new.
-			push_error("SmartPolicy._effect_value: no valuation for CardEffect.Kind %d" % effect.kind)
+			SimPolicy.bot_error("SmartPolicy._effect_value: no valuation for CardEffect.Kind %d" % effect.kind)
 	return value
 
 
@@ -520,7 +530,7 @@ static func _scent_value(combat: Combat, hand_index: int, effect: CardEffect, hi
 		total += SCENT_FIRST
 	if target.stacks(Combatant.Status.SCENT) > 0:
 		total += SCENT_FOCUS
-	return total - 0.01 * target.hp
+	return total - SCENT_TARGET_HP_COST * target.hp
 
 
 ## What spending `enemy`'s Scent costs: the extra damage that stack would still have added, on the other cards
@@ -543,7 +553,7 @@ static func _stack_value(combat: Combat, hand_index: int, effect: CardEffect, hi
 		var total := float(effect.amount) * (uses_now + future) * (MALICE_VALUE if is_malice else WARD_VALUE)
 		var wanted_now := is_malice or incoming > combat.player.block
 		if not wanted_now:
-			total *= 0.25 # no Block is needed this turn, so only the later uses count for much
+			total *= UNWANTED_BLOCK_SHARE # no Block is needed this turn, so only the later uses count for much
 		if uses_now > 0 and wanted_now:
 			total += MALICE_FIRST if is_malice else WARD_FIRST
 		return total
@@ -611,22 +621,31 @@ static func _other_uses(combat: Combat, hand_index: int, energy_left: int, is_ma
 			continue
 		for effect in other.effects:
 			if is_malice and effect.is_damage():
-				total += maxi(effect.hits, 1)
+				total += combat.hit_count(other, effect)
 			elif not is_malice and effect.kind == CardEffect.Kind.BLOCK:
 				total += 1
 	return total
 
 
-## Raw damage of the other cards in hand (affordable or not): a rough "will the enemy die anyway" check.
+## Rough damage of the other cards in hand (affordable or not): a rough "will the enemy die anyway" check.
 static func _other_damage_total(combat: Combat, hand_index: int) -> int:
-	var total := 0
+	var total := 0.0
 	for j in combat.piles.hand.size():
 		if j == hand_index:
 			continue
-		for effect in combat.piles.hand[j].effects:
-			if effect.kind == CardEffect.Kind.DAMAGE:
-				total += effect.amount * maxi(effect.hits, 1)
-	return total
+		var other: CardData = combat.piles.hand[j]
+		for effect in other.effects:
+			total += _hand_damage(combat, other, effect)
+	return roundi(total)
+
+
+## Rough damage that `effect` of the hand card `card` would deal if played now: its per-hit estimate (exact for plain
+## DAMAGE, nominal for the scaling kinds) times the engine's hit count (multi-hit, and Surge energy for per_energy).
+## 0 for an effect that is not damage.
+static func _hand_damage(combat: Combat, card: CardData, effect: CardEffect) -> float:
+	if not effect.is_damage():
+		return 0.0
+	return _nominal_damage_once(effect, combat.piles.forgotten.size()) * combat.hit_count(card, effect)
 
 
 ## Energy a card gives back when played (Borrowed Time, Seance).
@@ -667,15 +686,14 @@ static func _attackers(combat: Combat) -> int:
 ## Sum of damage amounts of the other cards in hand that `energy_left` can pay for
 ## (each counted once; a rough measure of what an Expose would boost).
 static func _other_damage(combat: Combat, hand_index: int, energy_left: int) -> int:
-	var total := 0
+	var total := 0.0
 	for j in combat.piles.hand.size():
 		var other: CardData = combat.piles.hand[j]
 		if j == hand_index or other.cost > energy_left:
 			continue
 		for effect in other.effects:
-			if effect.kind == CardEffect.Kind.DAMAGE:
-				total += effect.amount * maxi(effect.hits, 1)
-	return total
+			total += _hand_damage(combat, other, effect)
+	return roundi(total)
 
 
 ## Reward pick: the best-scoring offered card, or null (skip) if even that is
@@ -721,8 +739,8 @@ static func remember_pick(run: RunState) -> int:
 		var upgraded := card.remembered_card()
 		var gain := card_score(upgraded, weights) - card_score(card, weights)
 		if upgraded.ready and not card.ready:
-			gain += 0.5
-		if gain > best_gain + 0.0001:
+			gain += READY_GAIN_BONUS
+		if gain > best_gain + REMEMBER_TIE_EPSILON:
 			best_gain = gain
 			best = i
 	return best
@@ -786,7 +804,7 @@ static func _weights(deck: Array[CardData]) -> Dictionary:
 	for card in deck:
 		if (card.forgotten or card.fading) and not card.dormant:
 			lost.append(card)
-	weights["forgotten"] = clampi(lost.size(), 3, 5)
+	weights["forgotten"] = clampi(lost.size(), FORGOTTEN_WEIGHT_MIN, FORGOTTEN_WEIGHT_MAX)
 	var total := 0.0
 	for card in lost:
 		total += maxf(card_score(card, weights), 0.0) * (card.cost + 1)
@@ -854,7 +872,7 @@ static func _effect_score(card: CardData, effect: CardEffect, weights: Dictionar
 		_:
 			# Damage kinds (and Haunt) were priced above by _nominal_damage; a zero-damage one lands here.
 			if not effect.is_damage() and effect.kind != CardEffect.Kind.HAUNT:
-				push_error("SmartPolicy._effect_score: no valuation for CardEffect.Kind %d" % effect.kind)
+				SimPolicy.bot_error("SmartPolicy._effect_score: no valuation for CardEffect.Kind %d" % effect.kind)
 	return total
 
 
@@ -888,7 +906,7 @@ static func _stack_score(card: CardData, effect: CardEffect, weights: Dictionary
 	if effect.temporary:
 		return 0.0
 	var cut := float(-effect.amount) * (TYPICAL_REMAINING_TURNS + 1)
-	return cut * PREVENTED_VALUE_COVERED * (2.0 if is_malice else 1.0)
+	return cut * PREVENTED_VALUE_COVERED * (MALICE_CUT_FACTOR if is_malice else 1.0)
 
 
 ## Deck-scoring value of a Shaken / Frayed effect: on enemies, SHAKEN_TURNS_CAP turns of a quarter of a
@@ -899,17 +917,14 @@ static func _debuff_score(card: CardData, effect: CardEffect) -> float:
 		return -(SELF_SHAKEN_COST if shaken else SELF_FRAYED_COST) * effect.amount
 	var turns := mini(effect.amount, SHAKEN_TURNS_CAP)
 	if shaken:
-		return turns * 0.25 * TYPICAL_ENEMY_HIT * PREVENTED_VALUE_COVERED * 2.0
-	return turns * 0.25 * TYPICAL_BLOCK * ENEMY_BLOCK_VALUE * 0.5
+		return turns * DEBUFF_HIT_SHARE * TYPICAL_ENEMY_HIT * PREVENTED_VALUE_COVERED * SHAKEN_PREVENTED_FACTOR
+	return turns * DEBUFF_HIT_SHARE * TYPICAL_BLOCK * ENEMY_BLOCK_VALUE * FRAYED_BLOCK_FACTOR
 
 
 ## Rough damage an effect is worth in a deck-scoring context (a typical Block, Haunt or number of
 ## earlier plays stands in for the state a real fight would supply). 0 for non-damage effects.
 static func _nominal_damage(effect: CardEffect, forgotten: int = TYPICAL_FORGOTTEN) -> float:
-	var multiplier := float(maxi(effect.hits, 1))
-	if effect.per_energy:
-		multiplier *= TYPICAL_SURGE_ENERGY
-	return _nominal_damage_once(effect, forgotten) * multiplier
+	return _nominal_damage_once(effect, forgotten) * float(effect.hit_count(TYPICAL_SURGE_ENERGY))
 
 
 static func _nominal_damage_once(effect: CardEffect, forgotten: int) -> float:
@@ -932,7 +947,7 @@ static func _nominal_damage_once(effect: CardEffect, forgotten: int) -> float:
 			return HAUNT_VALUE * _haunt_total(effect.amount)
 	# Every other kind is no damage at all; a new damage kind must be priced above.
 	if effect.is_damage():
-		push_error("SmartPolicy._nominal_damage_once: no estimate for damage CardEffect.Kind %d" % effect.kind)
+		SimPolicy.bot_error("SmartPolicy._nominal_damage_once: no estimate for damage CardEffect.Kind %d" % effect.kind)
 	return 0.0
 
 

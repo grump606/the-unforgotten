@@ -53,7 +53,7 @@ func _style_bar() -> void:
 	box.content_margin_bottom = 8
 	box.shadow_color = Color(0, 0, 0, 0.45)
 	box.shadow_size = 8
-	_battle._hud_panel.add_theme_stylebox_override("panel", box)
+	_battle.hud_panel().add_theme_stylebox_override("panel", box)
 
 
 ## One small button per pile, so each has its own target, hover and key (see BattleOverlays.PILE_KEYS).
@@ -67,17 +67,17 @@ func _build_pile_buttons() -> void:
 		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		button.tooltip_text = "Look at your %s pile (key %s)" % [String(PileViewer.PILE_NAMES[which]).to_lower(), OS.get_keycode_string(BattleOverlays.PILE_KEYS[which])]
 		button.pressed.connect(_battle.open_pile_viewer.bind(which as PileViewer.Pile))
-		_battle._pile_box.add_child(button)
+		_battle.pile_box().add_child(button)
 		pile_buttons.append(button)
 	deck_label = Label.new()
 	deck_label.add_theme_font_size_override("font_size", 13)
 	deck_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	deck_label.visible = false
-	_battle._pile_box.add_child(deck_label)
+	_battle.pile_box().add_child(deck_label)
 
 
 func _build_cancel_button() -> void:
-	var end_turn := _battle._end_turn_button
+	var end_turn := _battle.end_turn_button()
 	cancel_button = Button.new()
 	cancel_button.text = "Back"
 	cancel_button.theme_type_variation = MenuStyle.QUIET
@@ -85,7 +85,7 @@ func _build_cancel_button() -> void:
 	cancel_button.custom_minimum_size = Vector2(0, 36)
 	cancel_button.focus_mode = Control.FOCUS_NONE
 	cancel_button.visible = false
-	cancel_button.pressed.connect(_battle._on_cancel_discard_pressed)
+	cancel_button.pressed.connect(_battle.cancel_discard)
 	end_turn.get_parent().add_child(cancel_button)
 	end_turn.get_parent().move_child(cancel_button, end_turn.get_index() + 1)
 
@@ -95,7 +95,7 @@ func _build_cancel_button() -> void:
 ## "Discard N more" while too many would stay) and Back returns to playing cards.
 func sync_turn_controls() -> void:
 	var combat := _battle.combat()
-	var end_turn := _battle._end_turn_button
+	var end_turn := _battle.end_turn_button()
 	var phase := combat.phase
 	var discarding := phase == Combat.Phase.DISCARDING
 	cancel_button.visible = discarding
@@ -117,14 +117,14 @@ func sync_turn_controls() -> void:
 			text += " Anchor cards stay."
 		if combat.piles.hand.any(func(c: CardData) -> bool: return c.fading):
 			text += " Fading cards left in hand will be Forgotten."
-		_battle._result_label.text = text
+		_battle.result_label().text = text
 		_hint_shown = true
 		return
 	_pulse_confirm(false)
 	end_turn.text = "End Turn"
 	end_turn.disabled = phase != Combat.Phase.PLAYER_TURN
 	if _hint_shown and phase != Combat.Phase.ENDED:
-		_battle._result_label.text = ""
+		_battle.result_label().text = ""
 	_hint_shown = false
 
 
@@ -137,7 +137,7 @@ func _pulse_confirm(available: bool) -> void:
 	if _confirm_tween != null:
 		_confirm_tween.kill()
 		_confirm_tween = null
-	var end_turn := _battle._end_turn_button
+	var end_turn := _battle.end_turn_button()
 	end_turn.modulate = Color.WHITE
 	if not available or Motion.reduced or not _battle.is_inside_tree():
 		return
@@ -191,18 +191,18 @@ func set_journey(stop_title: String, journey: String, character_title: String, d
 		_stage_info.add_child(_stage_journey)
 		for label in [_stage_title, _stage_journey]:
 			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_battle._stage.add_child(_stage_info)
+		_battle.stage().add_child(_stage_info)
 		_character_label = Label.new()
 		_character_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_character_label.add_theme_font_size_override("font_size", 12)
 		_character_label.add_theme_color_override("font_color", MenuStyle.TEXT_DIM)
-		_battle._left_box.add_child(_character_label)
-		_battle._left_box.move_child(_character_label, 0)
+		_battle.left_box().add_child(_character_label)
+		_battle.left_box().move_child(_character_label, 0)
 	_stage_title.text = stop_title
 	_stage_journey.text = journey
 	_character_label.text = character_title
 	_deck_size = deck_size
 	# Below the two lines of text, the relic badges keep the left edge.
-	_battle._relic_strip.position = Vector2(RELIC_STRIP_X, _stage_info.position.y + STAGE_TITLE_FONT + STAGE_JOURNEY_FONT + RELIC_STRIP_GAP)
+	_battle.relic_strip().position = Vector2(RELIC_STRIP_X, _stage_info.position.y + STAGE_TITLE_FONT + STAGE_JOURNEY_FONT + RELIC_STRIP_GAP)
 	if _battle.combat() != null:
 		sync_piles()

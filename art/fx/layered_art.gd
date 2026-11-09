@@ -6,7 +6,7 @@ extends Control
 ##   var art := LayeredArt.new(); art.set_layers(["bg.png", "mid.png", ...], [0.0, 0.3, 0.6, 1.2])
 
 @export var strength := 14.0  ## pixels of shift for depth 1.0
-@export var sway := 0.35  ## idle sway amount, 0 turns it off
+@export var sway := 0.35  ## idle sway amount, 0 turns it off (both stop under Motion.reduced)
 
 var _rects: Array[TextureRect] = []
 var _depths: Array[float] = []
@@ -53,6 +53,11 @@ func _layout() -> void:
 
 
 func _process(delta: float) -> void:
+	if Motion.reduced: # no sway and no mouse parallax: the layers rest at depth zero
+		_offset = Vector2.ZERO
+		for i in _rects.size():
+			_rects[i].position = -_margin()
+		return
 	_time += delta
 	var mouse := get_local_mouse_position()
 	if Rect2(Vector2.ZERO, size).has_point(mouse):
