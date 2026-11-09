@@ -1,0 +1,13 @@
+# The record behind the two floors of the check (tests/run_tests.gd, scripts/check.ps1). Format: KEY=number.
+#
+# TOTAL_CHECKS  the "CHECKS: n" total of the last full headless run. run_tests.gd fails a run whose total is
+#               below this minus CHECK_TOLERANCE_PERCENT (1.5%, TestBase), so a suite that silently stops
+#               checking is caught, while removing a few data-driven cards does not trip it.
+# UI_STEPS      how many tests/ui_*_test.gd steps a full check runs. check.ps1 fails with fewer, and
+#               tests/check_floor_tests.gd fails if the folder holds fewer such files.
+#
+# To refresh after adding tests: run the full check, copy the printed "CHECKS: n" into TOTAL_CHECKS and the
+# number of ui_*_test.gd files into UI_STEPS, and commit the file with the tests. Only ever raise a value.
+# Lower one only when tests were removed on purpose, and say so in the commit message.
+TOTAL_CHECKS=15487
+UI_STEPS=22

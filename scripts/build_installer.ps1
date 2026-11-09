@@ -4,6 +4,8 @@
 # -NoSign builds everything except the signature (no private key needed; CI uses it to prove the export and the
 # installer still build). Its output must never be released: release.ps1 never passes it.
 param([switch]$NoSign)
+# The download cap in released v0.8.2 and older clients (MiB); see the check after the installer is built.
+$LEGACY_CLIENT_CAP_MIB = 150
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
@@ -13,26 +15,13 @@ Set-Location $root
 $godot = if ($env:GODOT_EXE) { $env:GODOT_EXE } else { Join-Path $root (Join-Path $GodotFolder $GodotConsole) }
 if (-not (Test-Path $godot)) { throw "Godot console exe not found: $godot" }
 
-# Newest "Inno Setup*" install folder (a 6.x pinned in scripts/engine_version.txt, but a newer major version is
-# found too, so the failure is a clear version message and not "not found").
-$innoRoots = @("$env:LOCALAPPDATA\Programs", ${env:ProgramFiles(x86)}, $env:ProgramFiles) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
-# The compiler exe carries no version resource (0.0.0.0); the uninstaller in the same folder carries the product
-# version, with the folder name ("Inno Setup 6") as the fallback.
-function Get-InnoFolderVersion([string]$folder) {
-    $unins = Join-Path $folder 'unins000.exe'
-    $text = if (Test-Path -LiteralPath $unins) { [string](Get-Item -LiteralPath $unins).VersionInfo.ProductVersion } else { '' }
-    if ($text -notmatch '^\d+(\.\d+)*') { $text = (Split-Path -Leaf $folder) -replace '[^0-9.]', '' }
-    try { return [version]($text.Trim('.')) } catch { return [version]'0.0' }
-}
-$isccCandidates = @()
-foreach ($r in $innoRoots) {
-    foreach ($d in Get-ChildItem -LiteralPath $r -Directory -Filter 'Inno Setup*' -ErrorAction SilentlyContinue) {
-        if (Test-Path -LiteralPath (Join-Path $d.FullName 'ISCC.exe')) { $isccCandidates += [pscustomobject]@{ Folder = $d.FullName; Version = (Get-InnoFolderVersion $d.FullName) } }
-    }
-}
-$innoPick = $isccCandidates | Sort-Object Version -Descending | Select-Object -First 1
-$iscc = if ($innoPick) { Join-Path $innoPick.Folder 'ISCC.exe' } else { $null }
-if (-not $iscc) { throw "Inno Setup (ISCC.exe) not found. Install the pinned version: winget install JRSoftware.InnoSetup --version $($EngineVersion.INNO_SETUP_VERSION)" }
+# The newest 6.x "Inno Setup*" install folder (the version pinned in scripts/engine_version.txt). With only another
+# major version installed the build stops with a message naming it (scripts/inno_setup.ps1, tested by
+# scripts/inno_setup_test.ps1).
+. (Join-Path $PSScriptRoot 'inno_setup.ps1')
+$innoRoots = @("$env:LOCALAPPDATA\Programs", ${env:ProgramFiles(x86)}, $env:ProgramFiles)
+$innoPick = Select-InnoSetup (Get-InnoCandidates $innoRoots) $EngineVersion.INNO_SETUP_VERSION
+$iscc = Join-Path $innoPick.Folder 'ISCC.exe'
 Write-Host "Inno Setup $($innoPick.Version) ($iscc); pinned version is $($EngineVersion.INNO_SETUP_VERSION)"
 
 $version = (Select-String -Path 'project.godot' -Pattern '^config/version="([^"]+)"').Matches.Groups[1].Value
@@ -89,8 +78,12 @@ $capMatch = Select-String -Path 'run/update_check.gd' -Pattern '^const MAX_INSTA
 if (-not $capMatch) { throw 'MAX_INSTALLER_BYTES not found in run/update_check.gd (the size guard in build_installer.ps1 reads it).' }
 $capBytes = [int64]$capMatch.Matches.Groups[1].Value * 1024 * 1024
 $setupBytes = (Get-Item -LiteralPath $setup).Length
-Write-Host "Installer size $setupBytes bytes (in-game download cap $capBytes)"
+Write-Host "Installer size $setupBytes bytes (in-game download cap $capBytes; legacy client cap $($LEGACY_CLIENT_CAP_MIB) MiB)"
 if ($setupBytes * 3 -gt $capBytes * 2) { throw "The installer ($setupBytes bytes) is over 2/3 of the in-game download cap ($capBytes bytes): raise MAX_INSTALLER_BYTES in run/update_check.gd, or in-game updates will soon fail." }
+# Players on v0.8.2 still carry the OLD 150 MiB download cap (git show v0.8.2:run/update_check.gd), so an installer
+# over it cannot be installed in-game by them. This guard can be removed once a release that contains the 300 MiB
+# cap has been out long enough that nobody still runs v0.8.2 or older.
+if ($setupBytes -gt $LEGACY_CLIENT_CAP_MIB * 1024 * 1024) { throw "The installer ($setupBytes bytes) is over the $LEGACY_CLIENT_CAP_MIB MiB cap that already-released clients (v0.8.2 and older) enforce: they could not update in-game. Shrink it, or drop this check only if no such clients should be supported (docs/UPDATE_CHECK.md, 'Installer size cap')." }
 # Standard "<hash>  <filename>" format (two spaces), readable by sha256sum -c; ASCII, no BOM.
 $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $setup).Hash.ToLowerInvariant()
 $sumFile = "$setup.sha256"
