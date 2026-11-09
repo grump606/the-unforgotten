@@ -3,13 +3,14 @@ extends SceneTree
 ## policy and prints win rate, turns and remaining HP per encounter size, then
 ## the win rate per enemy type (over the fights it appeared in) for each size.
 ## Run: godot --headless --path . -s res://tools/balance_sim.gd -- --fights 500 --seed 1 [--character deserter|thief|medium|stray]
-## Card choice lives in tools/sim_policy.gd (shared with run_sim.gd). Uses only the
+## Exits 1 on the first policy failure or bot error (stalls are only counted). Card choice lives in tools/sim_policy.gd (shared with run_sim.gd). Uses only the
 ## public Combat API and never mutates shared resources.
 
 const DEFAULT_FIGHTS := 500
 const DEFAULT_SEED := 1
 var _player_hp := 0 # set from the chosen character in _initialize
-var _failed := false # set by _run_fight when the policy could not play a turn
+## The policy that plays each turn; a seam so a failing policy can be tried (see tests/sim_exit_tests.gd).
+var _play_turn: Callable = SimPolicy.play_turn
 
 const USAGE := "Usage: godot --headless --path . -s res://tools/balance_sim.gd -- [--fights N] [--seed S] [--character ID] [--help]\n  --fights N      fights per encounter size, integer >= 1 (default 500)\n  --seed S        base random seed, integer (default 1)\n  --character ID  max HP and starting deck come from this character: deserter, thief, medium or stray (default deserter)\n  --help     print this usage and exit 0"
 
@@ -57,7 +58,12 @@ func _initialize() -> void:
 				return
 			var player := Combatant.new("Sim", _player_hp)
 			var combat := Combat.new(player, deck, enemy_datas, fight_seed)
-			var result := _run_fight(combat)
+			var result := SimPolicy.run_fight(combat, _play_turn)
+			if result == SimPolicy.FIGHT_FAILED or SimPolicy.bot_errors > 0:
+				# Stop on the first failure: later fights would only repeat it.
+				printerr("balance_sim: the policy failed (encounter of %d enemies, fight seed %d, bot errors %d)" % [count, fight_seed, SimPolicy.bot_errors])
+				quit(SimPolicy.exit_code(1))
+				return
 			total_turns += combat.turn
 			var seen := {}
 			for data in enemy_datas:
@@ -91,7 +97,7 @@ func _initialize() -> void:
 		for enemy_name: String in names:
 			var tally: Array = breakdown[size][enemy_name]
 			print("%-8d %-20s %8d %7.1f%%" % [size + 1, enemy_name, tally[0], 100.0 * tally[1] / tally[0]])
-	quit(0)
+	quit(SimPolicy.exit_code(SimPolicy.bot_errors))
 
 
 ## Returns {fights, seed, character} or an empty dictionary (after printing usage) on bad input.
@@ -123,19 +129,3 @@ func _parse_args(args: PackedStringArray) -> Dictionary:
 			opts["seed"] = value
 		i += 2
 	return opts
-
-
-## Plays one fight. Returns 1 for a win, -1 for a loss, 0 for a stall; sets _failed when the policy cannot play.
-func _run_fight(combat: Combat) -> int:
-	var outcome := [0]
-	combat.combat_ended.connect(func(victory: bool) -> void: outcome[0] = 1 if victory else -1)
-	combat.start()
-	while SimPolicy.is_acting(combat):
-		if combat.turn > SimPolicy.TURN_CAP:
-			return 0
-		if not SimPolicy.play_turn(combat):
-			_failed = true
-			return 0
-	return outcome[0]
-
-

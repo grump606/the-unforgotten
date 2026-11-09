@@ -43,6 +43,47 @@ const RANK_SPENDER := 2.5 # damage that scales with Scent or Haunt, after the or
 const RANK_OTHER := 3.0 # anything else affordable, and a Recall that returns nothing playable
 
 
+## Problems the bots only log (a CardEffect.Kind they have no valuation for): counted by bot_error so a sim run can
+## fail on them instead of finishing with a quiet, wrong result.
+static var bot_errors := 0
+
+
+## Logs a bot problem with push_error and counts it in bot_errors.
+static func bot_error(message: String) -> void:
+	bot_errors += 1
+	push_error(message)
+
+
+## Result of run_fight when the policy could not play a turn (the others: 1 win, -1 loss, 0 stall).
+const FIGHT_FAILED := -2
+
+
+## Plays one fight with play_turn (a Callable taking the Combat and returning false when the policy could not
+## play). Returns 1 for a win, -1 for a loss, 0 for a stall at TURN_CAP (the fight is abandoned) and FIGHT_FAILED
+## when the policy failed. A stall is not a failure.
+static func run_fight(combat: Combat, play_turn: Callable = play_turn_callable()) -> int:
+	var outcome := [0]
+	combat.combat_ended.connect(func(victory: bool) -> void: outcome[0] = 1 if victory else -1)
+	combat.start()
+	while is_acting(combat):
+		if combat.turn > TURN_CAP:
+			combat.abandon()
+			return 0
+		if not play_turn.call(combat):
+			return FIGHT_FAILED
+	return outcome[0]
+
+
+static func play_turn_callable() -> Callable:
+	return play_turn
+
+
+## The process exit code of a sim run that hit ailures policy failures or bot errors: 1 for any, else 0.
+## Stalls (fights abandoned at TURN_CAP) are reported by the tools but are not failures.
+static func exit_code(failures: int) -> int:
+	return 1 if failures > 0 else 0
+
+
 ## Plays cards until the policy passes or the fight ends, then ends the turn.
 ## Combat.MAX_PLAYS_PER_TURN stops a self-recycling zero-cost deck (no card is
 ## playable once it is hit), so this always terminates. Returns false (after

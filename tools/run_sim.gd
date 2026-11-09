@@ -76,6 +76,9 @@ func _play_all(runs: int, base_seed: int, stats: Stats) -> bool:
 			return false
 		if not _play_run(run, stats):
 			return false
+		if SimPolicy.bot_errors > 0:
+			printerr("run_sim: the bot logged %d error(s) (run %d); the result would be wrong" % [SimPolicy.bot_errors, i])
+			return false
 		_tally_run(run, stats)
 	return true
 
