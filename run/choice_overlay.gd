@@ -124,6 +124,13 @@ func handle_key(keycode: int) -> bool:
 	return false
 
 
+## Puts keyboard focus on the confirm button. A disabled button (a Recall that has not marked enough cards yet) is
+## left alone; the cards are not focus targets (number keys mark them), and Tab reaches the button once it is enabled.
+func focus_first() -> void:
+	if confirm_button.is_inside_tree() and not confirm_button.disabled:
+		confirm_button.grab_focus()
+
+
 func _build(area: Vector2) -> void:
 	name = "ChoiceOverlay"
 	mouse_filter = Control.MOUSE_FILTER_STOP

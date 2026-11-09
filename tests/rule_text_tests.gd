@@ -41,6 +41,8 @@ func _test_derived_text(tutorial: String, reduced: String) -> void:
 	_check(tutorial.contains("press " + pile_text) or tutorial.contains("Press " + pile_text), "the tutorial names the real pile keys")
 	_check(tutorial.contains("press " + OS.get_keycode_string(BattleKeys.END_TURN_KEY) + ")"), "the tutorial names the real end-turn key")
 	_check(tutorial.contains("(or " + OS.get_keycode_string(BattleKeys.END_TURN_KEY) + ")"), "the turn page names the real end-turn key")
+	_check(BattleKeys.log_key_text() == OS.get_keycode_string(BattleKeys.LOG_KEY) and BattleKeys.log_key_text() == "L", "the log key text reads LOG_KEY")
+	_check(tutorial.contains("Log (or press " + BattleKeys.log_key_text() + ")"), "the tutorial names the real combat-log key")
 	# The status tooltips take their numbers from the same constants.
 	var shaken := Combatant.new("Shaken", 10)
 	shaken.apply_status(Combatant.Status.SHAKEN, 2)

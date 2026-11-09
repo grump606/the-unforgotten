@@ -121,6 +121,7 @@ func _ready() -> void:
 	_stage.resized.connect(_layout_stage)
 	_log_button.pressed.connect(_toggle_log)
 	_log_button.focus_mode = Control.FOCUS_NONE
+	_log_button.tooltip_text = "Combat log (%s)" % BattleKeys.log_key_text()
 	_log_panel.hide()
 	_end_turn_button.pressed.connect(_on_end_turn_pressed)
 	_new_fight_button.pressed.connect(_on_continue_pressed)
@@ -280,37 +281,38 @@ func enemy_views() -> Array[Fighter]:
 	return _enemy_views.duplicate()
 
 
-## The card-drag handler.
+## The card-drag handler. Null before _ready.
 func drag() -> BattleDrag:
 	return _drag
 
 
-## The hand's card views and previews.
+## The hand's card views and previews. Null before _ready.
 func hand() -> BattleHand:
 	return _hand
 
 
-## The HUD builder (turn controls, pile counters, journey line).
+## The HUD builder (turn controls, pile counters, journey line). Null before _ready.
 func hud() -> BattleHud:
 	return _hud
 
 
-## The choice overlay and the pile viewer.
+## The choice overlay and the pile viewer. Null before _ready.
 func overlays() -> BattleOverlays:
 	return _overlays
 
 
-## Cues, banners, the boss entrance and the screen flash.
+## Cues, banners, the boss entrance and the screen flash. Null before _ready.
 func fx() -> BattleFx:
 	return _fx
 
 
-## The damage preview text of a card on a target.
+## The damage preview text of a card on a target. Null before _ready.
 func damage_preview() -> BattleDamagePreview:
 	return _damage
 
 
-## The stage the figures stand on, the left column, the pile counters and the HUD panel.
+## The stage the figures stand on, the left column, the pile counters and the HUD panel. These node getters
+## (stage, left_box, pile_box, hud_panel, the buttons, labels, orb and strip) are null before _ready.
 func stage() -> Control:
 	return _stage
 
@@ -525,6 +527,11 @@ func _layout_stage() -> void:
 
 func _toggle_log() -> void:
 	_log_panel.visible = not _log_panel.visible
+
+
+## Shows or hides the combat log (the Log button and the L key).
+func toggle_log() -> void:
+	_toggle_log()
 
 
 ## Creates the wide boss HP bar on the stage for a boss fight (once per fight).

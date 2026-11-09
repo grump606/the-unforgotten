@@ -7,6 +7,10 @@ extends RefCounted
 
 const HZ := 30.0
 
+## Slack on the interval: float sums of 60 Hz frame times land a hair under the step (two frames of 16.66 ms
+## against 33.33 ms), and without it the redraws would alternate between 30 and 20 Hz.
+const TOLERANCE := 0.0005
+
 var _accum := 0.0
 
 
@@ -14,7 +18,7 @@ var _accum := 0.0
 func due(delta: float, hz := HZ) -> bool:
 	var step := 1.0 / hz
 	_accum += delta
-	if _accum < step:
+	if _accum < step - TOLERANCE:
 		return false
 	_accum = minf(_accum - step, step)
 	return true

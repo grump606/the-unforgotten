@@ -32,6 +32,29 @@ func _initialize() -> void:
 	key(node, KEY_0)
 	check(c.piles.hand.size() == before, "0 with fewer than ten cards in hand plays nothing")
 
+	# L shows and hides the combat log; the button's tooltip names the key; the pile viewer, being modal, keeps it.
+	check(node._log_button.tooltip_text.contains("(%s)" % BattleKeys.log_key_text()) and BattleKeys.log_key_text() == "L", "the Log button's tooltip names the L key")
+	check(not node._log_panel.visible, "the log starts hidden")
+	key(node, KEY_L)
+	check(node._log_panel.visible, "L shows the combat log")
+	key(node, KEY_L)
+	check(not node._log_panel.visible, "L hides the combat log again")
+	c.phase = Combat.Phase.ENEMY_TURN
+	key(node, KEY_L)
+	check(node._log_panel.visible, "L works outside the player's turn too")
+	key(node, KEY_L)
+	c.phase = Combat.Phase.PLAYER_TURN
+	node.open_pile_viewer(PileViewer.Pile.DRAW)
+	key(node, KEY_L)
+	check(not node._log_panel.visible, "L does nothing while the pile viewer is open")
+	node.overlays().close_pile_viewer()
+	var ctrl_l := InputEventKey.new()
+	ctrl_l.keycode = KEY_L
+	ctrl_l.ctrl_pressed = true
+	ctrl_l.pressed = true
+	node._unhandled_key_input(ctrl_l)
+	check(not node._log_panel.visible, "Ctrl+L does not toggle the log")
+
 	# A replaced fight is disconnected from the screen; so is one whose screen leaves the tree.
 	var old: Combat = node._combat
 	node._start_combat()
