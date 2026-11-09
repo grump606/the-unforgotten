@@ -183,6 +183,13 @@ func _on_download() -> void:
 			installer.current_version = current_version
 			installer.start(latest_tag)
 		UpdateInstaller.State.READY:
+			if installer.tag != latest_tag:
+				# A verified installer kept from an older check (cancel() keeps it) is for another version than the
+				# label names: drop it and fetch the one the bar offers.
+				installer.discard()
+				installer.current_version = current_version
+				installer.start(latest_tag)
+				return
 			installer.install_and_restart()
 
 
@@ -198,7 +205,7 @@ func _on_installer_changed() -> void:
 			label.text = "Update ready"
 			download_button.text = "Restart now"
 			download_button.disabled = false
-			if _allowed:
+			if _allowed and installer.tag == latest_tag:
 				installer.install_and_restart()
 		UpdateInstaller.State.FAILED:
 			label.text = "Update failed: %s" % installer.error

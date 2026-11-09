@@ -19,6 +19,9 @@ $testScript = if ($env:CHECK_TESTS_SCRIPT) { $env:CHECK_TESTS_SCRIPT } else { 'r
 . (Join-Path $PSScriptRoot 'check_log_patterns.ps1')
 $stepTimeoutMs = if ($env:CHECK_STEP_TIMEOUT_MS) { [int]$env:CHECK_STEP_TIMEOUT_MS } else { 300000 }
 
+# NOTE: lines of any step (for example "record is more than 5% behind"), repeated just before the verdict so they are seen.
+$script:notes = @()
+
 function Invoke-Step([string]$name, [string[]]$engineArgs) {
     Write-Host "== $name =="
     $outFile = [IO.Path]::GetTempFileName()
@@ -44,6 +47,7 @@ function Invoke-Step([string]$name, [string[]]$engineArgs) {
         Remove-Item -LiteralPath $outFile, $errFile -ErrorAction SilentlyContinue
     }
     $out | ForEach-Object { Write-Host $_ }
+    $script:notes += @($out | Where-Object { $_ -cmatch '^NOTE: ' })
     if ($code -ne 0) { Write-Host "CHECK FAILED: $name (exit code $code)"; exit 1 }
     $bad = @(Get-CheckLogFailures $out)
     if ($bad.Count -gt 0) {
@@ -85,6 +89,14 @@ try {
     Write-Host '== inno setup choice =='
     powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'inno_setup_test.ps1')
     if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: inno setup choice'; exit 1 }
+    # The pinned versions and the legacy installer cap (one copy, in scripts/engine_version.txt).
+    Write-Host '== engine version =='
+    powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'engine_version_test.ps1')
+    if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: engine version'; exit 1 }
+    # The 5% rule between tests/golden/min_checks.txt and the live total (release.ps1 enforces it; tests/run_tests.gd prints the NOTE).
+    Write-Host '== check floor record =='
+    powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_floor_record_test.ps1')
+    if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: check floor record'; exit 1 }
     # PowerShell side of the update manifest golden test (the GDScript side runs inside 'tests').
     Write-Host '== manifest golden =='
     powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_manifest_golden.ps1')
@@ -93,6 +105,8 @@ try {
     Write-Host '== verify release =='
     powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_verify_release.ps1')
     if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: verify release'; exit 1 }
+    Write-Host '== sim exit codes =='; powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_sim_exit.ps1') -Godot $godot; if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: sim exit codes'; exit 1 }
 } finally { Pop-Location }
+foreach ($note in $script:notes) { Write-Host "$note" }
 Write-Host 'CHECK PASSED'
 exit 0

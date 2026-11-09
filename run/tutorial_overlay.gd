@@ -163,33 +163,64 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-## Controls outside the overlay that were focusable when it opened, with the mode to give back.
+## Controls outside the overlay whose focus mode was taken (value: the mode they had), so it can be given back.
 var _trapped: Dictionary = {}
+var _trap_anchor: Node
 
 
 ## Makes the overlay modal for the keyboard: nothing behind it can take Tab, Space or Enter while it is open.
+## Three layers: every focusable control behind it is switched to FOCUS_NONE; a control added behind it later is
+## switched too (SceneTree.node_added); and a control that gets focus anyway, because something set its mode back
+## while the overlay was open, loses it again and focus returns inside (Viewport.gui_focus_changed).
 func _trap_focus() -> void:
-	var anchor: Node = get_parent()
-	if anchor == null:
+	_trap_anchor = get_parent()
+	if _trap_anchor == null:
 		return
 	var behind := get_viewport().gui_get_focus_owner()
 	if behind != null and not is_ancestor_of(behind):
 		behind.release_focus()
-	var stack: Array[Node] = [anchor]
+	var stack: Array[Node] = [_trap_anchor]
 	while not stack.is_empty():
 		var node: Node = stack.pop_back()
 		if node == self:
 			continue
-		if node is Control and (node as Control).focus_mode != Control.FOCUS_NONE:
-			_trapped[node] = (node as Control).focus_mode
-			(node as Control).focus_mode = Control.FOCUS_NONE
+		_trap_control(node)
 		stack.append_array(node.get_children())
+	if not get_tree().node_added.is_connected(_on_node_added):
+		get_tree().node_added.connect(_on_node_added)
+	if not get_viewport().gui_focus_changed.is_connected(_on_focus_changed):
+		get_viewport().gui_focus_changed.connect(_on_focus_changed)
 
 
-## Gives back the focus modes taken by _trap_focus (also done when the overlay leaves the tree).
+func _trap_control(node: Node) -> void:
+	var control := node as Control
+	if control != null and control != self and control.focus_mode != Control.FOCUS_NONE and not _trapped.has(control):
+		_trapped[control] = control.focus_mode
+		control.focus_mode = Control.FOCUS_NONE
+
+
+func _on_node_added(node: Node) -> void:
+	if _trap_anchor != null and _trap_anchor.is_ancestor_of(node) and not is_ancestor_of(node) and node != self:
+		_trap_control(node)
+
+
+func _on_focus_changed(control: Control) -> void:
+	if control != null and not is_ancestor_of(control) and next_button != null and next_button.is_inside_tree():
+		control.release_focus()
+		next_button.grab_focus()
+
+
+## Gives back the focus modes taken by _trap_focus (also done when the overlay leaves the tree). A control whose
+## mode was changed by someone else while the overlay was open keeps that newer mode; only a control still at the
+## NONE the trap gave it gets its old mode back.
 func release_focus_trap() -> void:
+	if is_inside_tree():
+		if get_tree().node_added.is_connected(_on_node_added):
+			get_tree().node_added.disconnect(_on_node_added)
+		if get_viewport() != null and get_viewport().gui_focus_changed.is_connected(_on_focus_changed):
+			get_viewport().gui_focus_changed.disconnect(_on_focus_changed)
 	for node in _trapped:
-		if is_instance_valid(node):
+		if is_instance_valid(node) and (node as Control).focus_mode == Control.FOCUS_NONE:
 			(node as Control).focus_mode = _trapped[node]
 	_trapped.clear()
 

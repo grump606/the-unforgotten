@@ -30,6 +30,11 @@ var _flow: HFlowContainer
 var _scroll: ScrollContainer
 var _area := MenuStyle.BASE_SIZE
 var _live: Combatant = null
+## The Draw pile as it was last sorted and the result, so a refresh with an unchanged pile does not sort again.
+var _draw_source: Array[CardData] = []
+var _draw_sorted: Array[CardData] = []
+## How many times the Draw pile has been sorted (read by tests).
+var sort_count := 0
 
 
 static func create(combat: Combat, which: Pile, area: Vector2, live_player: Combatant = null) -> PileViewer:
@@ -75,6 +80,12 @@ func show_pile(which: Pile) -> void:
 	_fill()
 	if changed:
 		_scroll.scroll_vertical = 0 # a new tab starts at the top, not at the old tab's offset
+
+
+## Puts keyboard focus on the open pile's tab (the pile keys keep working with a tab focused, see BattleKeys).
+func focus_active_tab() -> void:
+	if pile >= 0 and pile < tab_buttons.size() and tab_buttons[pile].is_inside_tree():
+		tab_buttons[pile].grab_focus()
 
 
 ## Re-reads the pile (the counts on the tabs and the cards), keeping the open tab.
@@ -174,7 +185,7 @@ func _build_card_area(column: VBoxContainer) -> void:
 func _fill() -> void:
 	var cards: Array[CardData] = []
 	for i in tab_buttons.size():
-		var listed := shown_cards(_combat.piles, i as Pile) # each pile once (the Draw sort is the costly one)
+		var listed := _listed(i as Pile) # each pile once
 		if i == pile:
 			cards = listed
 		tab_buttons[i].text = "%s %d" % [PILE_NAMES[i], listed.size()]
@@ -206,6 +217,18 @@ func _fill() -> void:
 	for i in range(cards.size(), views.size()):
 		_flow.remove_child(views[i])
 		views[i].queue_free()
+
+
+## shown_cards for `which`, with the sorted Draw pile kept until the pile itself changes (the viewer refreshes on
+## every state change while open, and most of those leave the draw pile alone).
+func _listed(which: Pile) -> Array[CardData]:
+	if which != Pile.DRAW:
+		return shown_cards(_combat.piles, which)
+	if _draw_source.size() != _combat.piles.draw_pile.size() or _draw_source != _combat.piles.draw_pile:
+		_draw_source.assign(_combat.piles.draw_pile)
+		_draw_sorted = shown_cards(_combat.piles, which)
+		sort_count += 1
+	return _draw_sorted
 
 
 func close() -> void:

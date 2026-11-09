@@ -163,7 +163,7 @@ func restore_rng_state(state: int) -> void:
 func start_combat() -> Combat:
 	var stop := current_stop()
 	if stop == null or stop.type != StopType.COMBAT or _reward_pending:
-		push_error("RunState.start_combat: not at a fresh combat stop")
+		Combat.engine_error("RunState.start_combat: not at a fresh combat stop")
 		return null
 	if _active_combat != null:
 		_active_combat.abandon()
@@ -211,27 +211,28 @@ func boss_label() -> String:
 ## in progress, or abandoned) is abandoned if need be and the caller's `victory` decides (the sims record a
 ## turn-cap stall as a defeat; UI tests use it as a shortcut). With no fight started (tests, debug paths) the
 ## caller's `victory` is taken as given.
-func complete_combat(victory: bool) -> void:
+## Returns false (changing nothing) when the call was rejected, true when the result was recorded.
+func complete_combat(victory: bool) -> bool:
 	var stop := current_stop()
 	if finished or _reward_pending or stop == null or stop.type != StopType.COMBAT:
-		push_error("RunState.complete_combat: not at a combat stop awaiting a result")
-		return
+		Combat.engine_error("RunState.complete_combat: not at a combat stop awaiting a result")
+		return false
 	if _active_combat != null:
 		_active_combat.abandon() # no-op once ended; releases the player from a fight cut short
 		if _active_combat.outcome != Combat.Outcome.NONE:
 			var actual := _active_combat.outcome == Combat.Outcome.VICTORY
 			if actual != victory:
-				push_error("RunState.complete_combat: the caller reported %s but the fight ended in %s" % ["a victory" if victory else "a defeat", "a victory" if actual else "a defeat"])
+				Combat.engine_error("RunState.complete_combat: the caller reported %s but the fight ended in %s" % ["a victory" if victory else "a defeat", "a victory" if actual else "a defeat"])
 				victory = actual
 	_active_combat = null
 	if not victory:
 		finished = true
 		escaped = false
-		return
+		return true
 	if stop.boss:
 		# The boss ends the line: no gold (nothing left to spend it on), no card to pick.
 		_advance()
-		return
+		return true
 	gold += Vendor.gold_for_win(stop.enemy_count) + (MID_BOSS_GOLD_BONUS if stop.mid_boss else 0)
 	for relic in relics:
 		match relic.kind:
@@ -241,6 +242,7 @@ func complete_combat(victory: bool) -> void:
 				player.heal(relic.amount)
 	_roll_rewards()
 	_reward_pending = true
+	return true
 
 
 ## Up to REWARD_CHOICES distinct cards to pick from, stable until the reward is
@@ -260,7 +262,7 @@ func resolve_reward(card: CardData) -> bool:
 		return false
 	if card != null:
 		if not reward_choices().has(card):
-			push_error("RunState.resolve_reward: card was not offered")
+			Combat.engine_error("RunState.resolve_reward: card was not offered")
 			return false
 		deck.append(card)
 	else:
@@ -288,7 +290,7 @@ func resolve_reward_remove(card: CardData) -> bool:
 		return false
 	var index := deck.find(card)
 	if index == -1:
-		push_error("RunState.resolve_reward_remove: card is not in the deck")
+		Combat.engine_error("RunState.resolve_reward_remove: card is not in the deck")
 		return false
 	deck.remove_at(index)
 	reward_remove_used = true

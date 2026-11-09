@@ -76,8 +76,8 @@ func _play_all(runs: int, base_seed: int, stats: Stats) -> bool:
 			return false
 		if not _play_run(run, stats):
 			return false
-		if SimPolicy.bot_errors > 0:
-			printerr("run_sim: the bot logged %d error(s) (run %d); the result would be wrong" % [SimPolicy.bot_errors, i])
+		if SimPolicy.failure_count() > 0:
+			printerr("run_sim: %d bot error(s) and %d engine error(s) were logged (run %d); the result would be wrong" % [SimPolicy.bot_errors, Combat.engine_errors, i])
 			return false
 		_tally_run(run, stats)
 	return true
@@ -97,17 +97,18 @@ func _play_run(run: RunState, stats: Stats) -> bool:
 		match stop.type:
 			RunState.StopType.COMBAT:
 				var result := _play_combat(run)
-				if result == -2:
+				if result == SimPolicy.FIGHT_FAILED:
 					return false
 				if result == 0:
 					stats.stalls += 1
 					stats.stalled = true
-					run.complete_combat(false)
-				else:
-					run.complete_combat(result == 1)
-					# A boss win has no reward to take.
-					if result == 1 and run.reward_pending() and not _take_reward(run):
-						return false
+				# A rejected result would leave the run at this stop forever.
+				if not run.complete_combat(result == 1):
+					printerr("run_sim: complete_combat rejected the result at stop %d" % index)
+					return false
+				# A boss win has no reward to take.
+				if result == 1 and run.reward_pending() and not _take_reward(run):
+					return false
 			RunState.StopType.REST:
 				if not SimPolicy.rest_stop(run, _smart):
 					printerr("run_sim: rest() failed at stop %d" % index)
@@ -242,24 +243,14 @@ func _parse_args(args: PackedStringArray) -> Dictionary:
 	return opts
 
 
-## Plays the current combat stop. Returns 1 win, -1 loss, 0 stall, -2 internal failure.
+## Plays the current combat stop with SimPolicy.run_fight. Returns 1 win, -1 loss, 0 stall or SimPolicy.FIGHT_FAILED.
 func _play_combat(run: RunState) -> int:
 	var combat := run.start_combat()
 	if combat == null:
-		return -2
-	var outcome := [0]
+		return SimPolicy.FIGHT_FAILED
 	if _card_stats:
 		combat.card_played.connect(func(card: CardData, _targets: Array[EnemyUnit]) -> void: _plays[card.id] = _plays.get(card.id, 0) + 1)
-	combat.combat_ended.connect(func(victory: bool) -> void: outcome[0] = 1 if victory else -1)
-	combat.start()
-	while SimPolicy.is_acting(combat):
-		if combat.turn > SimPolicy.TURN_CAP:
-			combat.abandon()
-			return 0
-		var played := SmartPolicy.play_turn(combat) if _smart else SimPolicy.play_turn(combat)
-		if not played:
-			return -2
-	return outcome[0]
+	return SimPolicy.run_fight(combat, SmartPolicy.play_turn if _smart else SimPolicy.play_turn)
 
 
 ## Takes the best offered card per the header heuristic. False on a RunState failure.

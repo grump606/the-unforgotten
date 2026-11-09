@@ -1,12 +1,14 @@
 class_name BattleKeys
 extends RefCounted
 ## Keyboard input of the battle screen. Number keys play hand cards, E / Enter end the turn or confirm the
-## discard step, Backspace goes back, arrows and Tab move the target, D / C / F / W open the piles, and the
+## discard step, Backspace goes back, arrows and Tab move the target, D / C / F / W open the piles, L toggles the combat log, and the
 ## pile viewer, the Glimpse / Recall pick, the boss entrance and the end-of-fight prompt each take the keys
 ## over while they are up.
 
 ## The key that ends the turn (Enter does too); the help text reads it from here.
 const END_TURN_KEY := KEY_E
+## The key that shows or hides the combat log (the Log button's tooltip and the help text read it from here).
+const LOG_KEY := KEY_L
 
 var _battle: Battle
 
@@ -37,6 +39,11 @@ static func card_index(keycode: Key) -> int:
 	return number if number < BattleHand.MAX_HAND_KEYS else -1
 
 
+## The combat-log key as text, "L".
+static func log_key_text() -> String:
+	return OS.get_keycode_string(LOG_KEY)
+
+
 ## The end-turn key as text, "E".
 static func end_turn_key_text() -> String:
 	return OS.get_keycode_string(END_TURN_KEY)
@@ -49,11 +56,12 @@ static func end_turn_key_text() -> String:
 ##   3. After the fight: N, E and Enter continue (the New Fight / Continue button); other keys do nothing.
 ##   4. The pile viewer is modal: Esc closes it, the pile keys switch piles, other keys do nothing.
 ##   5. A Glimpse / Recall pick: number keys mark cards, Enter confirms, Esc is swallowed, the rest do nothing.
-##   6. Outside the player's turn and the discard step nothing happens (the same gate as the buttons).
-##   7. The pile keys open the viewer.
-##   8. Number keys play hand cards.
-##   9. Backspace goes back from the discard step.
-##  10. End turn (E, Enter) and target cycling (arrows, Tab).
+##   6. L shows or hides the combat log (in any phase, so before the gate below).
+##   7. Outside the player's turn and the discard step nothing happens (the same gate as the buttons).
+##   8. The pile keys open the viewer.
+##   9. Number keys play hand cards.
+##  10. Backspace goes back from the discard step.
+##  11. End turn (E, Enter) and target cycling (arrows, Tab).
 func handle(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
@@ -61,7 +69,7 @@ func handle(event: InputEvent) -> void:
 	var combat := _battle.combat()
 	var routes: Array[Callable] = [
 		_key_drag_cancel, _key_boss_intro, _key_after_fight, _key_pile_viewer, _key_choice,
-		_key_outside_player_turn, _key_pile_open, _key_play_card, _key_back, _key_turn,
+		_key_log, _key_outside_player_turn, _key_pile_open, _key_play_card, _key_back, _key_turn,
 	]
 	for route in routes:
 		if route.call(key, combat):
@@ -112,6 +120,15 @@ func _key_choice(key: InputEventKey, combat: Combat) -> bool:
 	var overlay := _battle.overlays().choice
 	if key.keycode == KEY_ESCAPE or (overlay != null and overlay.handle_key(key.keycode)):
 		_handled()
+	return true
+
+
+## L shows or hides the combat log. Tried before the phase gate: reading the log is useful during the enemy phase too.
+func _key_log(key: InputEventKey, _combat: Combat) -> bool:
+	if key.keycode != LOG_KEY:
+		return false
+	_handled()
+	_battle.toggle_log()
 	return true
 
 

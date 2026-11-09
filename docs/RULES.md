@@ -23,11 +23,11 @@ Cards carry keywords that change how they cycle or what they do (the full rules 
 - **Ready:** the card starts the fight in the opening hand.
 - **Anchor:** the card stays in hand and does not count toward the 5 you keep (it still counts toward the hand cap of 10).
 - **Dormant:** cannot be played. Enemies shuffle these into your piles (Dread, Murmur).
-- **Surge:** spends all remaining energy, and the effect scales with the energy spent. A Surge card can be played at 0 energy; it then does nothing and counts as a play, like any other 0-cost card.
+- **Surge:** spends all remaining energy, and the effect scales with the energy spent. A Surge card can be played at 0 energy (`Combat.can_play` has no energy test for it): its per-energy amounts and hits are then multiplied by 0, so it does nothing (both shipped Surge cards, Cleaned Out and Dig Deep, have only per-energy effects), yet it counts as a play, like any other 0-cost card.
 - **Glimpse X:** look at the top X cards of the draw pile and discard any of them.
 - **Malice:** a stacking flat bonus to each hit you deal (lasts the fight, or one turn when the card says "this turn").
 - **Ward:** a stacking flat bonus to each Block gained from cards (not Hold, Barbs or relic Block).
-- **Block-gained trigger (`ON_BLOCK_GAINED`):** counts only Block gained by the played card's own effects, not Block from an Oath effect or relic that fires during the same play.
+- **Block-gained trigger (`ON_BLOCK_GAINED`):** fires when the played card's own effects raised your Block (`Combat.play_card` compares Block before and after the card's effects, before any relic or Oath effect of that play). Block from an Oath effect or relic that fires during the same play does not count. Block from a card's discard effects (`discard_effects`, thrown away at end of turn) does not trigger it either: it is not gained by playing a card (owner decision, kept as is).
 - **Shaken:** the target deals 25% less damage for N turns.
 - **Frayed:** gains 25% less Block for N turns. Only enemies apply it (Threshold Keeper, Memorial Giant).
 - **Remembered:** the rest-stop upgrade. At a rest stop choose Remember instead of the heal, then pick one card in your deck that has a Remembered form. It becomes a `+` card (gold title, upgraded text) for the rest of the run; a card can be Remembered once. Cards without a Remembered form cannot be picked. See `docs/MECHANICS_PLAN.md` for the list.
@@ -38,3 +38,16 @@ Enemy Omens (phase 5b): The Husher and The Unnamed apply Shaken to you, the Thre
 
 Hold, Haunt, Expose, Recall (return cards from the Forgotten pile to your hand) and adding a card to a pile are unchanged or described on the cards themselves.
 
+
+## Scent and the quarry
+
+- Scent marks one quarry among a card's targets. A hit that spends Scent and kills the quarry still counts as the quarry's death: the `QUARRY_KILL_HEAL` relic and the `QUARRY_DIES` Oaths fire, and no Scent is passed on to an heir because it was spent (owner decision; implemented in the combat engine by a teammate in this pass).
+
+## Saving and resuming
+
+- Saves are taken at stop boundaries, not mid-fight. Quitting during a fight and choosing Continue replays the same encounter with the same shuffle. This save-scumming is intentional (owner decision).
+
+## Keyboard play
+
+- The game is meant to be playable with the keyboard alone: number keys play cards, E ends the turn, Backspace goes back. Added in the sixth pass by a teammate: focus returns to the screen after a click, an overlay takes focus when it opens, and L opens the combat log.
+- Deliberately not provided (owner decision): reading an enemy's Omen or statuses from the keyboard (they are shown on screen and in tooltips), and a keyword key.
