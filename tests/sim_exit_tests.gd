@@ -12,6 +12,7 @@ func run() -> int:
 	_test_stall_is_not_a_failure()
 	_test_normal_fight_still_ends()
 	_test_bot_errors_are_counted()
+	_test_seed_strides()
 	return _failures
 
 
@@ -46,6 +47,17 @@ func _test_stall_is_not_a_failure() -> void:
 func _test_normal_fight_still_ends() -> void:
 	var result := SimPolicy.run_fight(_fight())
 	_check(result == 1, "the default policy wins the easy fight (got %d)" % result)
+
+
+## balance_sim's fight seeds stay distinct: --fights is capped at the per-size stride and every size fits below the base stride.
+func _test_seed_strides() -> void:
+	var constants: Dictionary = (load("res://tools/balance_sim.gd") as Script).get_script_constant_map()
+	var size_stride: int = constants["SIZE_STRIDE"]
+	var seed_stride: int = constants["SEED_STRIDE"]
+	var max_fights: int = constants["MAX_FIGHTS"]
+	_check(size_stride == 100003 and seed_stride == 1000003, "the strides keep their old values, so seeds for the default fight counts are unchanged")
+	_check(max_fights <= size_stride, "--fights cannot run past one size's block of seeds")
+	_check(Combat.MAX_ENEMIES * size_stride + max_fights < seed_stride, "the biggest size's seeds stay below the next base seed's")
 
 
 func _test_bot_errors_are_counted() -> void:

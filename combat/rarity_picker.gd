@@ -28,12 +28,12 @@ static func pick_by_rarity(pool: Array[CardData], count: int, weights: Array[int
 	var picks: Array[CardData] = []
 	while picks.size() < count and not left.is_empty():
 		var total := 0
-		for rarity in 3:
+		for rarity in CardData.Rarity.size():
 			if _has_rarity(left, rarity):
 				total += maxi(weights[rarity], 1)
 		var roll := rng.randi_range(0, total - 1)
 		var chosen := CardData.Rarity.COMMON
-		for rarity in 3:
+		for rarity in CardData.Rarity.size():
 			if not _has_rarity(left, rarity):
 				continue
 			var share := maxi(weights[rarity], 1)

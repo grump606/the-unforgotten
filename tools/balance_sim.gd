@@ -8,11 +8,17 @@ extends SceneTree
 
 const DEFAULT_FIGHTS := 500
 const DEFAULT_SEED := 1
+## Fight i of encounter size n under base seed S uses seed S * SEED_STRIDE + n * SIZE_STRIDE + i. Distinct fights
+## get distinct seeds as long as --fights stays within SIZE_STRIDE (MAX_FIGHTS enforces it) and
+## Combat.MAX_ENEMIES * SIZE_STRIDE + MAX_FIGHTS stays below SEED_STRIDE.
+const SEED_STRIDE := 1000003
+const SIZE_STRIDE := 100003
+const MAX_FIGHTS := SIZE_STRIDE
 var _player_hp := 0 # set from the chosen character in _initialize
 ## The policy that plays each turn; a seam so a failing policy can be tried (see tests/sim_exit_tests.gd).
 var _play_turn: Callable = SimPolicy.play_turn
 
-const USAGE := "Usage: godot --headless --path . -s res://tools/balance_sim.gd -- [--fights N] [--seed S] [--character ID] [--help]\n  --fights N      fights per encounter size, integer >= 1 (default 500)\n  --seed S        base random seed, integer (default 1)\n  --character ID  max HP and starting deck come from this character: deserter, thief, medium or stray (default deserter)\n  --help     print this usage and exit 0"
+const USAGE := "Usage: godot --headless --path . -s res://tools/balance_sim.gd -- [--fights N] [--seed S] [--character ID] [--help]\n  --fights N      fights per encounter size, integer 1 to 100003 (default 500)\n  --seed S        base random seed, integer (default 1)\n  --character ID  max HP and starting deck come from this character: deserter, thief, medium or stray (default deserter)\n  --help     print this usage and exit 0"
 
 
 func _initialize() -> void:
@@ -48,7 +54,7 @@ func _initialize() -> void:
 		var win_hp := 0
 		var by_enemy := {}
 		for i in fights:
-			var fight_seed := base_seed * 1000003 + count * 100003 + i
+			var fight_seed := base_seed * SEED_STRIDE + count * SIZE_STRIDE + i
 			var rng := RandomNumberGenerator.new()
 			rng.seed = fight_seed
 			var enemy_datas := StarterContent.varied_encounter(count, rng)
@@ -121,8 +127,8 @@ func _parse_args(args: PackedStringArray) -> Dictionary:
 			return {}
 		var value := args[i + 1].to_int()
 		if name == "--fights":
-			if value < 1:
-				printerr("balance_sim: --fights must be >= 1\n%s" % USAGE)
+			if value < 1 or value > MAX_FIGHTS:
+				printerr("balance_sim: --fights must be 1 to %d\n%s" % [MAX_FIGHTS, USAGE])
 				return {}
 			opts["fights"] = value
 		else:

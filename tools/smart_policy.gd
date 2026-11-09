@@ -102,6 +102,16 @@ const OATH_FIRING_SHARE := {
 }
 ## Damage hits (and Block effects) the player lands per turn, for the same estimate.
 const TYPICAL_HITS_PER_TURN := 2
+const SCENT_TARGET_HP_COST := 0.01 # per HP the Scent target has left: a weaker target is the better quarry
+const UNWANTED_BLOCK_SHARE := 0.25 # share of a Malice/Ward still worth it when no Block is needed this turn
+const READY_GAIN_BONUS := 0.5 # Remembering a card that makes it playable right away
+const REMEMBER_TIE_EPSILON := 0.0001 # a Remember choice must beat the best gain by more than this
+const FORGOTTEN_WEIGHT_MIN := 3
+const FORGOTTEN_WEIGHT_MAX := 5
+const MALICE_CUT_FACTOR := 2.0 # a Malice cut counts double what a Ward cut does
+const DEBUFF_HIT_SHARE := 0.25 # a Shaken / Frayed turn is worth this share of a typical hit (or Block)
+const SHAKEN_PREVENTED_FACTOR := 2.0
+const FRAYED_BLOCK_FACTOR := 0.5
 ## Value per extra damage point of Malice, per Block point of Ward (half a useful Block point: it can be wasted).
 const MALICE_VALUE := 1.0
 const WARD_VALUE := 1.0
@@ -520,7 +530,7 @@ static func _scent_value(combat: Combat, hand_index: int, effect: CardEffect, hi
 		total += SCENT_FIRST
 	if target.stacks(Combatant.Status.SCENT) > 0:
 		total += SCENT_FOCUS
-	return total - 0.01 * target.hp
+	return total - SCENT_TARGET_HP_COST * target.hp
 
 
 ## What spending `enemy`'s Scent costs: the extra damage that stack would still have added, on the other cards
@@ -543,7 +553,7 @@ static func _stack_value(combat: Combat, hand_index: int, effect: CardEffect, hi
 		var total := float(effect.amount) * (uses_now + future) * (MALICE_VALUE if is_malice else WARD_VALUE)
 		var wanted_now := is_malice or incoming > combat.player.block
 		if not wanted_now:
-			total *= 0.25 # no Block is needed this turn, so only the later uses count for much
+			total *= UNWANTED_BLOCK_SHARE # no Block is needed this turn, so only the later uses count for much
 		if uses_now > 0 and wanted_now:
 			total += MALICE_FIRST if is_malice else WARD_FIRST
 		return total
@@ -721,8 +731,8 @@ static func remember_pick(run: RunState) -> int:
 		var upgraded := card.remembered_card()
 		var gain := card_score(upgraded, weights) - card_score(card, weights)
 		if upgraded.ready and not card.ready:
-			gain += 0.5
-		if gain > best_gain + 0.0001:
+			gain += READY_GAIN_BONUS
+		if gain > best_gain + REMEMBER_TIE_EPSILON:
 			best_gain = gain
 			best = i
 	return best
@@ -786,7 +796,7 @@ static func _weights(deck: Array[CardData]) -> Dictionary:
 	for card in deck:
 		if (card.forgotten or card.fading) and not card.dormant:
 			lost.append(card)
-	weights["forgotten"] = clampi(lost.size(), 3, 5)
+	weights["forgotten"] = clampi(lost.size(), FORGOTTEN_WEIGHT_MIN, FORGOTTEN_WEIGHT_MAX)
 	var total := 0.0
 	for card in lost:
 		total += maxf(card_score(card, weights), 0.0) * (card.cost + 1)
@@ -888,7 +898,7 @@ static func _stack_score(card: CardData, effect: CardEffect, weights: Dictionary
 	if effect.temporary:
 		return 0.0
 	var cut := float(-effect.amount) * (TYPICAL_REMAINING_TURNS + 1)
-	return cut * PREVENTED_VALUE_COVERED * (2.0 if is_malice else 1.0)
+	return cut * PREVENTED_VALUE_COVERED * (MALICE_CUT_FACTOR if is_malice else 1.0)
 
 
 ## Deck-scoring value of a Shaken / Frayed effect: on enemies, SHAKEN_TURNS_CAP turns of a quarter of a
@@ -899,8 +909,8 @@ static func _debuff_score(card: CardData, effect: CardEffect) -> float:
 		return -(SELF_SHAKEN_COST if shaken else SELF_FRAYED_COST) * effect.amount
 	var turns := mini(effect.amount, SHAKEN_TURNS_CAP)
 	if shaken:
-		return turns * 0.25 * TYPICAL_ENEMY_HIT * PREVENTED_VALUE_COVERED * 2.0
-	return turns * 0.25 * TYPICAL_BLOCK * ENEMY_BLOCK_VALUE * 0.5
+		return turns * DEBUFF_HIT_SHARE * TYPICAL_ENEMY_HIT * PREVENTED_VALUE_COVERED * SHAKEN_PREVENTED_FACTOR
+	return turns * DEBUFF_HIT_SHARE * TYPICAL_BLOCK * ENEMY_BLOCK_VALUE * FRAYED_BLOCK_FACTOR
 
 
 ## Rough damage an effect is worth in a deck-scoring context (a typical Block, Haunt or number of

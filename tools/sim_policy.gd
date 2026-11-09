@@ -26,6 +26,9 @@ const DISCARD_EFFECT_TIER_PENALTY := 1.5
 ## repay its cost.
 const OATH_LAST_TURN := 2
 
+## A Scent spender is held until the stack reaches this plus its cost (see _spender_ready).
+const SPENDER_BASE_SCENT := 2
+
 ## Play order of the greedy bot (see _pick_card): the lowest rank is played first.
 const RANK_NOTHING := 99.0 # starting value: any playable card beats it
 const RANK_SURGE := 4.0 # spends all the energy left, so last
@@ -537,7 +540,7 @@ static func _has_affordable_scent_card(combat: Combat) -> bool:
 ## A Scent spender (damage per Scent) is held until the stack is worth spending: 2 plus its cost, so a cheap one
 ## goes at 3 and Bring Down at 5. Spending also ends the stack, so it goes when it would kill (not judged here).
 static func _spender_ready(combat: Combat, card: CardData) -> bool:
-	return _scent_total(combat) >= 2 + card.cost
+	return _scent_total(combat) >= SPENDER_BASE_SCENT + card.cost
 
 
 ## Index of the living enemy with the most Haunt (first on ties), or -1 if none is Haunted.
