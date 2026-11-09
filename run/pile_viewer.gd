@@ -77,6 +77,12 @@ func show_pile(which: Pile) -> void:
 		_scroll.scroll_vertical = 0 # a new tab starts at the top, not at the old tab's offset
 
 
+## Puts keyboard focus on the open pile's tab (the pile keys keep working with a tab focused, see BattleKeys).
+func focus_active_tab() -> void:
+	if pile >= 0 and pile < tab_buttons.size() and tab_buttons[pile].is_inside_tree():
+		tab_buttons[pile].grab_focus()
+
+
 ## Re-reads the pile (the counts on the tabs and the cards), keeping the open tab.
 func refresh() -> void:
 	_fill()

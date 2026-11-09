@@ -16,6 +16,9 @@ var choice: ChoiceOverlay
 var pile_viewer: PileViewer
 
 var _battle: Battle
+## What had keyboard focus when each overlay opened (null when nothing did); closing the overlay gives it back.
+var _pile_focus_before: Control
+var _choice_focus_before: Control
 
 
 func _init(battle: Battle) -> void:
@@ -41,11 +44,15 @@ func sync_choice() -> void:
 		choice.z_index = Z
 		choice.confirmed.connect(on_choice_confirmed)
 		_battle.stage().add_child(choice)
+		_choice_focus_before = _focus_owner_outside(choice)
+		choice.focus_first()
 
 
 func close_choice() -> void:
 	if choice != null and is_instance_valid(choice):
 		_battle.discard_node(choice)
+		_restore_focus(_choice_focus_before)
+	_choice_focus_before = null
 	choice = null
 
 
@@ -80,12 +87,16 @@ func open_pile_viewer(which: PileViewer.Pile) -> bool:
 	pile_viewer.z_index = Z
 	pile_viewer.closed.connect(close_pile_viewer)
 	_battle.add_child(pile_viewer)
+	_pile_focus_before = _focus_owner_outside(pile_viewer)
+	pile_viewer.focus_active_tab()
 	return true
 
 
 func close_pile_viewer() -> void:
 	if pile_viewer != null and is_instance_valid(pile_viewer):
 		_battle.discard_node(pile_viewer)
+		_restore_focus(_pile_focus_before)
+	_pile_focus_before = null
 	pile_viewer = null
 
 
@@ -102,3 +113,15 @@ func sync_pile_viewer() -> void:
 		close_pile_viewer()
 	else:
 		pile_viewer.refresh()
+
+
+## The focused control, unless it is inside `overlay` (a freshly opened overlay may already hold focus).
+func _focus_owner_outside(overlay: Control) -> Control:
+	var owner := _battle.get_viewport().gui_get_focus_owner()
+	return null if owner == null or overlay.is_ancestor_of(owner) else owner
+
+
+## Gives `target` focus again when it is still on screen, and otherwise just lets go of the closed overlay's focus.
+func _restore_focus(target: Control) -> void:
+	if target != null and is_instance_valid(target) and target.is_inside_tree() and target.is_visible_in_tree() 			and target.focus_mode != Control.FOCUS_NONE:
+		target.grab_focus()
