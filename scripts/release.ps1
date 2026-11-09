@@ -19,6 +19,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 . (Join-Path $PSScriptRoot 'engine_version.ps1')
+. (Join-Path $PSScriptRoot 'check_floor_record.ps1')
 
 # Release from a clean, up-to-date main so the tag matches what was built.
 $branch = (git branch --show-current).Trim()
@@ -80,8 +81,14 @@ Write-Host "Releasing $tag with $env:GODOT_EXE"
 
 # Never release a commit that has not passed the full check, both here and on GitHub.
 Write-Host 'Running the full check (scripts\check.ps1)...'
-powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check.ps1')
+powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check.ps1') | Tee-Object -Variable checkOutput
 if ($LASTEXITCODE -ne 0) { throw 'scripts\check.ps1 failed: fix it before releasing.' }
+# The record behind the check floor must not lag the suite by more than 5% (else the floor protects nothing).
+$liveChecks = Get-LiveCheckTotal @($checkOutput | ForEach-Object { "$_" })
+$recordedChecks = Get-CheckRecord (Join-Path $root 'tests\golden\min_checks.txt') 'TOTAL_CHECKS'
+$recordState = Get-CheckRecordStatus $recordedChecks $liveChecks
+if ($recordState -eq 'missing') { throw "Could not read the check totals (live $liveChecks, TOTAL_CHECKS $recordedChecks in tests/golden/min_checks.txt)." }
+if ($recordState -eq 'stale') { throw "tests/golden/min_checks.txt records TOTAL_CHECKS=$recordedChecks but the suite ran $liveChecks checks (more than 5% above the record): set TOTAL_CHECKS to $liveChecks, commit and merge, then release." }
 $sha = (git rev-parse HEAD).Trim()
 $runsJson = gh run list --commit $sha --json status,conclusion,name --limit 20
 if ($LASTEXITCODE -ne 0) { throw 'gh run list failed: run "gh auth status".' }
