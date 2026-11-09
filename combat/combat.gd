@@ -232,9 +232,12 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 	energy -= spent
 	plays_this_turn += 1
 	_resolve_effects(card, targets, mode, scale)
+	# Measured here, before any relic or Oath effect of this play, so only Block the card's OWN effects
+	# gave counts for "When you gain Block from a card".
+	var card_gave_block := player.block > block_before
 	if not _relics.is_empty():
 		_apply_play_relics(card, targets)
-	_fire_play_oaths(card, scale, sworn_before, block_before)
+	_fire_play_oaths(card, scale, sworn_before, card_gave_block)
 	card_played.emit(card, targets)
 	_check_phases()
 	_play_oath_limit = -1
@@ -267,11 +270,13 @@ func _resolve_effects(card: CardData, targets: Array[EnemyUnit], mode: CardData.
 
 
 ## The Oaths already Sworn (the first `sworn_before` of them) that react to the card just played.
-func _fire_play_oaths(card: CardData, scale: int, sworn_before: int, block_before: int) -> void:
+## `card_gave_block` is true when the played card's own effects raised the player's Block; Block from a relic or
+## from an Oath effect of the same play never triggers ON_BLOCK_GAINED (and so never chains into another Oath).
+func _fire_play_oaths(card: CardData, scale: int, sworn_before: int, card_gave_block: bool) -> void:
 	if plays_this_turn == 1:
 		_fire_oaths(CardData.OathTrigger.FIRST_PLAY, sworn_before)
 	_fire_oaths(CardData.OathTrigger.EACH_PLAY, sworn_before)
-	if player.block > block_before:
+	if card_gave_block:
 		_fire_oaths(CardData.OathTrigger.ON_BLOCK_GAINED, sworn_before)
 	if card.hp_cost(scale) > 0:
 		_fire_oaths(CardData.OathTrigger.ON_HP_LOST, sworn_before)

@@ -26,6 +26,9 @@ const DISCARD_EFFECT_TIER_PENALTY := 1.5
 ## repay its cost.
 const OATH_LAST_TURN := 2
 
+## A Scent spender is held until the stack reaches this plus its cost (see _spender_ready).
+const SPENDER_BASE_SCENT := 2
+
 ## Play order of the greedy bot (see _pick_card): the lowest rank is played first.
 const RANK_NOTHING := 99.0 # starting value: any playable card beats it
 const RANK_SURGE := 4.0 # spends all the energy left, so last
@@ -41,6 +44,47 @@ const RANK_BLOCK := 1.0 # Block or Shaken, while the enemies out-damage current 
 const RANK_ATTACK := 2.0
 const RANK_SPENDER := 2.5 # damage that scales with Scent or Haunt, after the ordinary attacks
 const RANK_OTHER := 3.0 # anything else affordable, and a Recall that returns nothing playable
+
+
+## Problems the bots only log (a CardEffect.Kind they have no valuation for): counted by bot_error so a sim run can
+## fail on them instead of finishing with a quiet, wrong result.
+static var bot_errors := 0
+
+
+## Logs a bot problem with push_error and counts it in bot_errors.
+static func bot_error(message: String) -> void:
+	bot_errors += 1
+	push_error(message)
+
+
+## Result of run_fight when the policy could not play a turn (the others: 1 win, -1 loss, 0 stall).
+const FIGHT_FAILED := -2
+
+
+## Plays one fight with play_turn (a Callable taking the Combat and returning false when the policy could not
+## play). Returns 1 for a win, -1 for a loss, 0 for a stall at TURN_CAP (the fight is abandoned) and FIGHT_FAILED
+## when the policy failed. A stall is not a failure.
+static func run_fight(combat: Combat, play_turn: Callable = play_turn_callable()) -> int:
+	var outcome := [0]
+	combat.combat_ended.connect(func(victory: bool) -> void: outcome[0] = 1 if victory else -1)
+	combat.start()
+	while is_acting(combat):
+		if combat.turn > TURN_CAP:
+			combat.abandon()
+			return 0
+		if not play_turn.call(combat):
+			return FIGHT_FAILED
+	return outcome[0]
+
+
+static func play_turn_callable() -> Callable:
+	return play_turn
+
+
+## The process exit code of a sim run that hit ailures policy failures or bot errors: 1 for any, else 0.
+## Stalls (fights abandoned at TURN_CAP) are reported by the tools but are not failures.
+static func exit_code(failures: int) -> int:
+	return 1 if failures > 0 else 0
 
 
 ## Plays cards until the policy passes or the fight ends, then ends the turn.
@@ -496,7 +540,7 @@ static func _has_affordable_scent_card(combat: Combat) -> bool:
 ## A Scent spender (damage per Scent) is held until the stack is worth spending: 2 plus its cost, so a cheap one
 ## goes at 3 and Bring Down at 5. Spending also ends the stack, so it goes when it would kill (not judged here).
 static func _spender_ready(combat: Combat, card: CardData) -> bool:
-	return _scent_total(combat) >= 2 + card.cost
+	return _scent_total(combat) >= SPENDER_BASE_SCENT + card.cost
 
 
 ## Index of the living enemy with the most Haunt (first on ties), or -1 if none is Haunted.

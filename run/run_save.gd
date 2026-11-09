@@ -27,6 +27,8 @@ const MAX_HP_SLACK := 20
 ## largest legitimate state for its stop.
 ## Slack on the card bounds for a retuned starting deck. Remembered copies count as the same card.
 const DECK_COPY_SLACK := 2
+## Slack on the relic bound, so a hand-built fixture or a retuned line still loads.
+const RELIC_SLACK := 2
 ## Slack on the gold bound for a retuned economy (a save made before a payout changed must still load).
 const GOLD_SLACK := 50
 
@@ -205,10 +207,9 @@ static func max_gold(run: RunState, stop_index: int, relics: Array[RelicData]) -
 	return total
 
 
-## Relics a genuine run can carry on reaching `stop_index`: a vendor offers at most one per visit (plus
-## DECK_COPY_SLACK, so a hand-built fixture or a retuned line still loads).
+## Relics a genuine run can carry on reaching `stop_index`: a vendor offers at most one per visit (plus RELIC_SLACK).
 static func max_relics(run: RunState, stop_index: int) -> int:
-	var visits := DECK_COPY_SLACK
+	var visits := RELIC_SLACK
 	for i in mini(stop_index, run.stops.size()):
 		if run.stops[i].type == RunState.StopType.VENDOR:
 			visits += 1
@@ -352,17 +353,24 @@ static func migrate(data: Dictionary, version: int) -> Dictionary:
 	return d
 
 
-## Returns "" on success, else why the save failed. Writes a complete temp file, keeps the previous
+## Returns "" on success, else why the save failed. Validates the run through from_dict first and writes nothing
+## when it would not load again. Writes a complete temp file, keeps the previous
 ## good save as path.bak, then moves the temp into place. Windows removes the destination before
 ## renaming, so a crash in between leaves path.tmp and path.bak, which load_file recovers.
 static func save(run: RunState, path: String = DEFAULT_PATH) -> String:
 	if not run.at_stop_boundary():
 		return "run is not at a stop boundary"
+	# Refuse a run that would not load again, before touching the file, the .tmp or the .bak: the player keeps the
+	# last save that works instead of a newer one that does not.
+	var data := to_dict(run)
+	var check := from_dict(data)
+	if check.run == null:
+		return "run would not load again: %s" % check.error
 	var tmp := path + ".tmp"
 	var file := FileAccess.open(tmp, FileAccess.WRITE)
 	if file == null:
 		return "cannot write %s (error %d)" % [tmp, FileAccess.get_open_error()]
-	file.store_string(JSON.stringify(to_dict(run)))
+	file.store_string(JSON.stringify(data))
 	var write_error := file.get_error()
 	file.close()
 	if write_error != OK:
