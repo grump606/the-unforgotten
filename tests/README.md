@@ -35,7 +35,7 @@ func run() -> int:
 `test_base.gd` provides `_check(condition, label)` (counts the failure and prints
 `FAIL: <label> [<file>]`) and the `_failures` counter. It is a path-based base, not a global class,
 so it needs no import step. Every suite uses it (the old per-file copies of `_check` were removed). `_checks` counts the checks that ran, and
-`run_tests.gd` prints `CHECKS: <n>` at the end, so a suite that silently stops checking shows up as a smaller total. `MIN_CHECKS` in `run_tests.gd` (the only place the number is written) is the floor: a run with fewer checks fails. Raise it to a little under the new total whenever you add tests; never lower it to get a run through. Waiting in tests: use frames or signals (`await process_frame`, a polling helper with a generous cap, or `UpdateInstaller.finish_worker()` for its worker thread), not fixed timers.
+`run_tests.gd` prints `CHECKS: <n>` at the end, so a suite that silently stops checking shows up as a smaller total. The floor is read from `tests/golden/min_checks.txt` (`TOTAL_CHECKS`, the last recorded total) minus a 1.5% tolerance: a run with fewer checks fails. After adding tests, run the full check and copy the printed total into that file (`run_tests.gd` prints a NOTE when the total is over 5% above the record); never lower it to get a run through. The same file records `UI_STEPS`, the number of `ui_*_test.gd` steps, which `check.ps1` and `check_floor_tests.gd` require. Waiting in tests: use frames or signals (`await process_frame`, a polling helper with a generous cap, or `UpdateInstaller.finish_worker()` for its worker thread), not fixed timers.
 
 ## Content totals and balance pins
 

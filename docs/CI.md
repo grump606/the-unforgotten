@@ -73,11 +73,23 @@ To force a cold run (for example if you suspect a bad cache), bump `IMPORT_CACHE
 
 `check.ps1` fails a step on a non-zero exit code, on a timeout (the last 60 lines of its output are printed
 first, so a hang leaves a log), and when its output contains a script error. What that means is in
-`scripts/check_log_patterns.ps1`: every `SCRIPT ERROR` / `Parse Error` / failed script load, the runtime
-shapes `Invalid call`, `Invalid access`, `Cannot call method`, and engine-side `ERROR:` lines such as
-`Required object "..." is null`, `Parameter "..." is null` or an out-of-bounds index. It deliberately ignores
-`push_error` lines from tests that pass bad input, warnings, and the leaked-object lines at exit.
-`scripts/check_log_patterns_test.ps1` (a step of `check.ps1`) feeds the rules sample bad and noisy logs.
+`scripts/check_log_patterns.ps1`: every `SCRIPT ERROR` / `Parse Error` / failed script load and the runtime
+shapes `Invalid call`, `Invalid access`, `Cannot call method` (all case-sensitive, as the engine prints them),
+and **every other `ERROR:` line unless it is known test noise**. The noise is an allowlist keyed on the `at:`
+location the engine prints under the message: `push_error` calls from tests that pass bad input, the few
+engine complaints about a deliberately bad argument (`hashing_context.cpp`, `crypto_mbedtls.cpp`,
+`dir_access.cpp` in the installer tests) and the exit-time leak report. Warnings never fail a step. An
+`ERROR:` line that is not on the list fails the check: fix the code, or add it to the list with a comment on
+which test causes it. The list was built from a real full passing log and the CI log of the same commit.
+`scripts/check_log_patterns_test.ps1` (a step of `check.ps1`) feeds the rules sample bad and noisy logs, and
+`scripts/check_log_samples/passing_noise.txt` (every distinct `ERROR:`/`WARNING:` shape of a real passing run,
+with the line after it) must stay clean.
+
+## Check floors
+
+`tests/run_tests.gd` fails a run whose `CHECKS: n` total is below the recorded total minus 1.5%, and
+`check.ps1` fails with fewer `ui_*_test.gd` steps than recorded. Both records live in
+`tests/golden/min_checks.txt`, which also says how to refresh them (`tests/README.md`).
 
 ## Export and installer build (no signing, no publishing)
 

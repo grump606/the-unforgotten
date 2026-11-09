@@ -1,0 +1,82 @@
+ERROR: StarterContent: missing or non-CardData resource: res://data/cards/nope.tres
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: StarterContent: missing or non-EnemyData resource: res://data/enemies/nope.tres
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: StarterContent: missing or non-CardData resource: res://data/enemies/gate_warden.tres
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: StarterContent: missing or non-EnemyData resource: res://data/cards/shove.tres
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: Combat.create: needs 1 to 3 enemies, got 0
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: Combat.create: the deck is empty
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: Combat.create: an enemy entry is null (its data failed to load)
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: Combat.create: the player is already dead
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: Combat.start: the fight was already started or has ended
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: StarterContent.character: unknown character 'nobody'
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: Combat._apply: ADD_CARD effect has no card
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: UserDataMigration: refusing to migrate 'C:/Users/dev/AppData/Roaming/Godot/app_userdata/The Unforgotten/migration_test_30068/refuse/Something Else'
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: UserDataMigration: refusing to migrate 'C:/Users/dev/AppData/Roaming/Godot/app_userdata/The Unforgotten/migration_test_30068/refuse/Card Battle Prototype'
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: Vendor.buy_relic: player is required
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: RunState.start_combat: not at a fresh combat stop
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: RunState.complete_combat: not at a combat stop awaiting a result
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: RunState.complete_combat: the caller reported a defeat but the fight ended in a victory
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: RunState.complete_combat: the caller reported a victory but the fight ended in a defeat
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: RunState.resolve_reward: card was not offered
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: RunState.resolve_reward_remove: card is not in the deck
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: StoryContent.beat: no beat at index 999
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: StoryContent.beat: no beat at index -1
+   at: push_error (core/variant/variant_utility.cpp:1023)
+WARNING: `NaN` ("Not a Number") found in argument passed to JSON.stringify(). `NaN` cannot be represented in JSON, so the value has been replaced with `null`. This warning will not be printed for any later NaN occurrences.
+   at: _stringify (core/io/json.cpp:86)
+ERROR: StarterContent.created_card: unknown created card id no_such_card
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: StarterContent.created_card: unknown created card id dread
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: Failed to open 'C:/Users/dev/AppData/Roaming/Godot/app_userdata/The Unforgotten/update_installer_edge_test_30068/TheUnforgotten-Setup-0.3.9.exe'.
+   at: copy (core/io/dir_access.cpp:426)
+ERROR: Error parsing key '-15714'.
+   at: load_from_string (modules/mbedtls/crypto_mbedtls.cpp:109)
+ERROR: Condition "len == 0" is true. Returning: FAILED
+   at: update (core/crypto/hashing_context.cpp:54)
+ERROR: Vendor.remove_card: bad deck index -1
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: Vendor.remove_card: bad deck index 9
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: Vendor.buy_card: bad offer index -1
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: Vendor.buy_card: bad offer index 3
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: Vendor.gold_for_win: enemy_count must be >= 1, got 0
+   at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: Vendor: starting gold must be >= 0, got -5
+   at: push_error (core/variant/variant_utility.cpp:1023)
+WARNING: 298 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)
+ERROR: 198 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:822)
+WARNING: 1 RID of type "CanvasItem" was leaked.
+   at: _free_rids (servers/rendering/renderer_canvas_cull.cpp:2733)
+ERROR: 1 RID allocations of type 'PN13RendererDummy14TextureStorage12DummyTextureE' were leaked at exit.
+WARNING: 2 RIDs of type "CanvasItem" were leaked.
+WARNING: 2 RIDs of type "CanvasItem" were leaked.
+   at: _free_rids (servers/rendering/renderer_canvas_cull.cpp:2735)
+WARNING: Save recovered from user://ui_flow_test_save_30472.json.bak.
+   at: push_warning (core/variant/variant_utility.cpp:1033)
+WARNING: Saved run could not be loaded (the save file is damaged (not valid JSON)).
+   at: push_warning (core/variant/variant_utility.cpp:1033)

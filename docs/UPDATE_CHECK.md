@@ -45,6 +45,10 @@ Files downloaded this way carry no Windows "downloaded from the internet" mark, 
 
 Code: `run/update_installer.gd` (`UpdateInstaller`, the download/verify/launch state machine), `run/update_verifier.gd` (`UpdateVerifier`), URL builders in `run/update_check.gd`. Tests: `tests/update_installer_tests.gd`, `tests/update_verifier_tests.gd`, the in-game-install section of `tests/ui_update_notice_test.gd`.
 
+## Cancel, Skip and the worker
+
+The copy and hash of the installer run on a worker thread. `cancel()` (the player turned update checks off) abandons work in flight: a download goes back to idle, and a launch copy that is being made is dropped while the verified installer is kept, so "Update & restart" still works afterwards. `discard()` (Skip) removes the installer too. Neither waits for the worker: the result is ignored and a reaper in `_process` joins the thread once it has finished and deletes its `run_*` folder. Only freeing the node joins a running worker, since a `Thread` must be joined before it is freed.
+
 ## Installer size cap
 
 `UpdateCheck.MAX_INSTALLER_BYTES` (300 MiB) is the most the game will download for an installer; a larger body is refused by the HTTP node and the update fails with "could not be downloaded". The real installer is about 123 MiB (v0.8.2: 129,156,777 bytes), so the cap has room for the art to roughly double. Two guards keep it that way:

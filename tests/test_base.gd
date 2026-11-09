@@ -35,9 +35,42 @@ func _source_name() -> String:
 	return script.resource_path.get_file() if script != null else "?"
 
 
-## True when a run executed fewer checks than the recorded floor (run_tests.gd MIN_CHECKS).
+const MIN_CHECKS_FILE := "res://tests/golden/min_checks.txt"
+## How far below the recorded total a run may fall before it fails (percent of the record).
+const CHECK_TOLERANCE_PERCENT := 1.5
+
+
+## True when a run executed fewer checks than the floor (see check_floor).
 static func below_check_floor(checks: int, minimum: int) -> bool:
 	return checks < minimum
+
+
+## The floor for a recorded total: the record minus the tolerance, rounded down.
+static func check_floor(recorded: int, tolerance_percent: float = CHECK_TOLERANCE_PERCENT) -> int:
+	return int(floor(float(recorded) * (1.0 - tolerance_percent / 100.0)))
+
+
+## KEY=number lines of a record file as {key: int}; blank lines and # comments are skipped, and so are lines
+## that are not KEY=<digits>.
+static func parse_record(text: String) -> Dictionary:
+	var values := {}
+	for raw in text.split("\n"):
+		var line := raw.strip_edges()
+		if line == "" or line.begins_with("#") or not "=" in line:
+			continue
+		var parts := line.split("=", true, 1)
+		if parts[1].strip_edges().is_valid_int():
+			values[parts[0].strip_edges()] = int(parts[1].strip_edges())
+	return values
+
+
+## One recorded number from tests/golden/min_checks.txt (0 if the file or key is missing, which makes the floor
+## useless, so check_floor_tests.gd requires both to be there).
+static func recorded(key: String) -> int:
+	var file := FileAccess.open(MIN_CHECKS_FILE, FileAccess.READ)
+	if file == null:
+		return 0
+	return int(parse_record(file.get_as_text()).get(key, 0))
 
 
 ## Names of the tests/*_tests.gd files that run_tests.gd runs: every such file with a run() method,
