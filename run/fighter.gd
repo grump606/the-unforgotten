@@ -38,7 +38,7 @@ const ART_KEYS := {
 }
 ## Figure height in pixels per enemy (the player and unknown ids use DEFAULT_HEIGHT).
 const HEIGHTS := {
-	&"warden": 170.0, &"shade": 150.0, &"wisp": 100.0, &"colossus": 200.0, &"whisperer": 175.0,
+	&"warden": 195.0, &"shade": 150.0, &"wisp": 100.0, &"colossus": 200.0, &"whisperer": 175.0,
 	&"hound": 115.0, &"crow": 105.0, &"conductor": 210.0, &"brakeman": 215.0, &"ghost": 140.0,
 }
 const DEFAULT_HEIGHT := 170.0
