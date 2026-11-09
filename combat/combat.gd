@@ -64,6 +64,9 @@ var _forgotten_return_used := false
 ## While a played card resolves: how many Oaths were Sworn before it, so the Oaths it swears do not
 ## react to what it does (a quarry its own play kills). -1 outside a play: every Sworn Oath may react.
 var _play_oath_limit := -1
+## Quarries a Scent-spending hit killed this play: they died holding Scent that was spent, so they count as a
+## quarry's death (kill heal, QUARRY_DIES Oaths) but pass no Scent on. Drained by _pass_on_scent.
+var _spent_quarries: Array[EnemyUnit] = []
 var _first_attack_used := false
 ## The fight's seeded RNG (the same one the piles shuffle with); Scent uses it to pick an heir.
 var _rng: RandomNumberGenerator
@@ -738,8 +741,12 @@ func _apply_damage(effect: CardEffect, source: Combatant, target: Combatant, ene
 		# Thorns: an enemy attack on the player also hurts the attacker, once per hit.
 		if effect.kind == CardEffect.Kind.DAMAGE and target == player and source != player and player.thorns > 0:
 			source.take_damage(player.thorns)
-	# A spender uses up the Scent it hit with, after every hit of the effect.
+	# A spender uses up the Scent it hit with, after every hit of the effect. If it killed a quarry that held
+	# Scent, the death is remembered (the Scent itself is gone: there is nothing to pass on).
 	if effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
+		var quarry := target as EnemyUnit
+		if quarry != null and quarry.is_dead() and quarry.stacks(Combatant.Status.SCENT) > 0:
+			_spent_quarries.append(quarry)
 		target.remove_status(Combatant.Status.SCENT)
 
 
@@ -916,17 +923,28 @@ func _pass_on_scent() -> void:
 		if not enemy.is_dead() or enemy.stacks(Combatant.Status.SCENT) <= 0:
 			continue
 		var held := enemy.stacks(Combatant.Status.SCENT)
-		player.heal(_relic_total(RelicData.Kind.QUARRY_KILL_HEAL))
 		var carried := held / 2
 		if carried > 0 or _relic_total(RelicData.Kind.SCENT_HEIR) > 0:
 			carried = mini(held, carried + _relic_total(RelicData.Kind.SCENT_HEIR))
 		enemy.remove_status(Combatant.Status.SCENT)
-		var living := living_enemies()
-		if carried > 0 and not living.is_empty():
-			var heir := living[0] if living.size() == 1 else living[_rng.randi_range(0, living.size() - 1)]
-			_give_scent(heir, carried)
-		if not living.is_empty():
-			_fire_oaths(CardData.OathTrigger.QUARRY_DIES, _play_oath_limit)
+		_quarry_died(carried)
+	# A quarry killed by a Scent spender: the same death effects, with nothing to pass on.
+	var spent := _spent_quarries.size()
+	_spent_quarries.clear()
+	for _i in spent:
+		_quarry_died(0)
+
+
+## The quarry has died: the kill heal, then `carried` Scent to a random living enemy (the fight's seeded RNG;
+## no draw when only one is left; lost with nobody left), then the QUARRY_DIES Oaths while any enemy lives.
+func _quarry_died(carried: int) -> void:
+	player.heal(_relic_total(RelicData.Kind.QUARRY_KILL_HEAL))
+	var living := living_enemies()
+	if carried > 0 and not living.is_empty():
+		var heir := living[0] if living.size() == 1 else living[_rng.randi_range(0, living.size() - 1)]
+		_give_scent(heir, carried)
+	if not living.is_empty():
+		_fire_oaths(CardData.OathTrigger.QUARRY_DIES, _play_oath_limit)
 
 
 ## Moves any enemy that has just crossed its phase threshold into phase two and announces it. Also passes
