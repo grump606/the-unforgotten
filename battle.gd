@@ -121,6 +121,7 @@ func _ready() -> void:
 	_stage.resized.connect(_layout_stage)
 	_log_button.pressed.connect(_toggle_log)
 	_log_button.focus_mode = Control.FOCUS_NONE
+	_log_button.tooltip_text = "Combat log (%s)" % BattleKeys.log_key_text()
 	_log_panel.hide()
 	_end_turn_button.pressed.connect(_on_end_turn_pressed)
 	_new_fight_button.pressed.connect(_on_continue_pressed)
@@ -525,6 +526,11 @@ func _layout_stage() -> void:
 
 func _toggle_log() -> void:
 	_log_panel.visible = not _log_panel.visible
+
+
+## Shows or hides the combat log (the Log button and the L key).
+func toggle_log() -> void:
+	_toggle_log()
 
 
 ## Creates the wide boss HP bar on the stage for a boss fight (once per fight).

@@ -47,7 +47,7 @@ static func pages() -> Array[Dictionary]:
 				{"at": Vector2(116, 462), "text": "Energy: what you have left this turn out of what you get each turn. Cards cost energy."},
 				{"at": Vector2(154, 574), "text": "Your piles: Draw, Discard, Forgotten and Sworn. Click one, or press " + BattleKeys.pile_keys_text() + ", to look inside."},
 				{"at": Vector2(836, 500), "text": "Your hand. Click a card or press its number to play it. Drag a card onto an enemy to aim it."},
-				{"at": Vector2(1070, 488), "text": "End Turn (or press " + BattleKeys.end_turn_key_text() + ") passes to the enemies. Log shows what happened."},
+				{"at": Vector2(1070, 488), "text": "End Turn (or press " + BattleKeys.end_turn_key_text() + ") passes to the enemies. Log (or press " + BattleKeys.log_key_text() + ") shows what happened."},
 			],
 		},
 		{
