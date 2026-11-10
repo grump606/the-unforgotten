@@ -252,7 +252,7 @@ func _initialize() -> void:
 	for type in [RouteMap.NodeType.FIGHT, RouteMap.NodeType.REST, RouteMap.NodeType.SHOP, RouteMap.NodeType.TREASURE, RouteMap.NodeType.STORY]:
 		glyph_colours[view._glyph_color(type).to_html()] = true
 	check(not glyph_colours.has(view._glyph_color(RouteMap.NodeType.EVENT).to_html()), "the event glyph colour differs from every other node's")
-	check(event_id >= 0 and FallbackMapScreen.describe(route.node(event_id)) == "Event", "the plain map list names an event")
+	check(event_id >= 0 and MapView.node_label(route.node(event_id)) == "Event", "the plain node label names an event")
 	var legend_has_event := false
 	for pair in [[RouteMap.NodeType.EVENT, "Event"]]:
 		legend_has_event = FileAccess.get_file_as_string("res://run/map_view.gd").contains('[RouteMap.NodeType.EVENT, "Event"]')

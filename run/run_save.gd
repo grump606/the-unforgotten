@@ -195,13 +195,59 @@ static func _check_character(character_id: Variant) -> String:
 	return ""
 
 
-## The largest max HP a genuine save of `run`'s character can hold given the relics it carries.
-static func max_hp_allowed(run: RunState, relics: Array[RelicData]) -> int:
+## The largest max HP a genuine save of `run`'s character can hold on reaching `stop_index`: its base HP, the MAX_HP
+## relics it carries and the most max HP the events it could have met by then can give (see `event_max_hp_gain`).
+static func max_hp_allowed(run: RunState, relics: Array[RelicData], stop_index: int = 0, is_map: bool = false) -> int:
 	var total := run.character.max_hp + MAX_HP_SLACK
 	for relic in relics:
 		if relic.kind == RelicData.Kind.MAX_HP:
 			total += relic.amount
+	total += event_max_hp_gain(_events_before(run, stop_index, is_map))
 	return mini(total, MAX_HP)
+
+
+## How many event stops a run could have settled before `stop_index`: on a map any row may hold one (the row of the
+## save is the arrival at a node, not yet settled); on a line, the EVENT stops before it.
+static func _events_before(run: RunState, stop_index: int, is_map: bool) -> int:
+	if is_map:
+		return maxi(stop_index, 0)
+	var count := 0
+	for i in mini(stop_index, run.stops.size()):
+		if run.stops[i].type == RunState.StopType.EVENT:
+			count += 1
+	return count
+
+
+## The most max HP `visits` event stops can give, read from the event data: each event gives at most the best of its
+## buttons (a gamble counts its better branch), and an event is not shown again until every other one was seen, so the
+## visits take the richest events first, a full round of all of them at a time.
+static func event_max_hp_gain(visits: int) -> int:
+	if visits <= 0:
+		return 0
+	var gains: Array[int] = []
+	for event in StarterContent.all_events():
+		var best := 0
+		for choice in event.choices:
+			best = maxi(best, _max_hp_rise(choice.effects))
+		gains.append(best)
+	if gains.is_empty():
+		return 0
+	gains.sort()
+	gains.reverse()
+	var total := 0
+	for i in visits:
+		total += gains[i % gains.size()]
+	return total
+
+
+static func _max_hp_rise(effects: Array[EventEffect]) -> int:
+	var rise := 0
+	for effect in effects:
+		if effect.kind == EventEffect.Kind.MAX_HP and effect.amount > 0:
+			rise += effect.amount
+		elif effect.kind == EventEffect.Kind.GAMBLE:
+			rise += maxi(_max_hp_rise(effect.win), _max_hp_rise(effect.lose))
+	return rise
 
 
 ## Cards a genuine run can have gained before `stop_index`: one reward pick per fight won (a boss win ends the
@@ -280,7 +326,7 @@ static func _check_line_and_stop(d: Dictionary, run: RunState, got: Accepted) ->
 ## max_hp, hp and gold. hp is bounded by max_hp, so that order stays. Needs the relics (max_hp and gold are
 ## bounded by them) and the stop_index, so _check_relics and _check_line_and_stop run first.
 static func _check_numbers(d: Dictionary, run: RunState, got: Accepted) -> String:
-	var max_hp: Variant = _int(d, "max_hp", 1, max_hp_allowed(run, got.relics))
+	var max_hp: Variant = _int(d, "max_hp", 1, max_hp_allowed(run, got.relics, got.stop_index, got.is_map))
 	if max_hp == null:
 		return "bad max_hp"
 	var hp: Variant = _int(d, "hp", 1, max_hp)
