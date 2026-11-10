@@ -241,7 +241,7 @@ func _test_mixed() -> void:
 			if types.has(T.TREASURE):
 				_check(node.type == T.TREASURE, "mixed always takes a chest")
 			if state[0] == 1 and types.has(T.REST):
-				_check(node.type == T.REST, "mixed rests when badly hurt and a rest is offered")
+				_check(node.type == T.REST, "mixed rests when badly hurt and a rest is offered (took %d of %s; row %d)" % [node.type, str(types), node.row])
 				_note("mixed_rest_low")
 			# (An event that leads to a rest within the look-ahead is a fair pick for a hurt player: only check maps where none does.)
 			if state[0] == 1 and types.has(T.EVENT) and types.has(T.FIGHT) and not types.has(T.REST) and not _rest_ahead(run_state, options, 3):

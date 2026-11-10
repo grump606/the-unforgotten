@@ -989,3 +989,45 @@ arguments in the line as before. The harness gained one line in map mode only ("
   `_test_win_heal_saves` (Continue restores the healed HP, nothing is saved mid-reward), `_test_class_difficulty`, map rest and mid-boss
   expectations rewritten for the new numbers, the budget-curve and calibration tests describe the new curve, event heals are capped at 30%,
   and two tests that depended on the particular maps of old seeds were made robust (a corrupted-edge fixture, the hurt-player event rule).
+
+## Phase 4g: fewer rests, no rest beside a shop or chest, half the events
+
+A tuning pass after the first look at generated maps (rests clustered and could stack, shops and rests sat side by side,
+events were the most common special node). The rules below are in `RouteMap` (`_type_allowed`, `_check_rest_rules`) and
+tested in `tests/route_map_tests.gd`.
+
+- **Rest cap.** No path meets more than `MAX_PATH_RESTS` (2) ordinary rests in an act. The forced rest before the boss is
+  extra, so a path has at most 3 rests per act. The generator tracks the most rests on any path into a node
+  (`_path_rests`) and rolls no rest past the cap; `validate()` rejects a map where some path exceeds it.
+- **No rest beside a shop or a chest.** A rest may not follow a shop or a chest, a shop or a chest may not follow a rest,
+  and the rows next to the forced treasure row and the forced rest row follow from that: the row before the chest row
+  holds no rest, and the row before the forced rest row holds neither a rest nor a shop.
+- **Shop window.** Because the row before the forced rest row can no longer hold a shop, the shop and rest availability
+  windows both end two rows before the end of the act's window list, and `shop_window` is 6 (was 7): every act has a
+  rest and a shop somewhere in its free rows 3 to 8 (counting without the chest row).
+- **Events halved.** Event weight 40 -> 6. The weights are not shares (the same-type rule and the other rows push the
+  weight onto other types), so halving the weight to 20 only cut events from 15.1 to 14.1 per map; the measured
+  relation (600 maps, rest 27, fight 18, shop 10) is weight 0 -> 0, 5 -> 6.6, 10 -> 10.2, 20 -> 14.1, 40 -> 16.9. At 6 a
+  map has 7.5 events, half of the 15.1 before this phase.
+
+Measured before and after (600 maps, 150 per character; a random path is a uniformly random walk):
+
+| | before | after |
+| --- | --- | --- |
+| rest nodes per map | 16.7 | 14.0 |
+| shop nodes per map | 5.8 | 5.9 |
+| event nodes per map | 15.1 | 7.5 |
+| random path: rests (2 forced) | 4.75 | 3.85 |
+| random path: events | 4.12 | 2.16 |
+| random path: fights | 11.49 | 14.37 |
+| most ordinary rests in one act on a sampled path | 4 | 2 |
+
+Fights take the share the other types lost, so a path has about 3 more fights than before: map-mode difficulty and the
+phase 4f balance numbers (above) were measured before this phase and need a new pass. Rests now cluster in the first
+free row they are allowed in (free row 4 of an act) and in rows 9 and 10; lowering `rest` below 27 spreads them but
+leaves a path with about one ordinary rest per run at weight 10, which looked too few.
+
+Other changes: the `mixed` route bot (`RoutePolicy`) no longer walks into a fight that would take its last HP when a
+rest is on offer (`DEATH_PENALTY`); the tests that pinned the old mix, windows and per-path counts have the new numbers.
+Two stress settings now behave differently: a rest and shop window of 3 or 4 together cannot be met under the new rules
+(a window of 5 can), so the stress test uses 5.

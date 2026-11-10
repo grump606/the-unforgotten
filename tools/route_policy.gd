@@ -43,6 +43,9 @@ const _ELITE_LOSS := 0.25
 const _SHOP_SPEND := 80
 ## Weight of each later row against the one before it, so an immediate rest beats the same rest a row later.
 const _DISCOUNT := 0.85
+## What `mixed` subtracts from a fight or elite whose projected HP reaches zero, so it never walks into a lethal fight
+## while a rest is on offer.
+const DEATH_PENALTY := 10.0
 
 
 ## The node to take next under `strategy`, or -1 when none is reachable. An unknown name behaves like `first`.
@@ -177,6 +180,9 @@ static func _path_score(run: RunState, id: int, hp: float, gold: int, depth: int
 			gain = 0.8 - loss * (12.0 if hp < MIXED_REST_BELOW else 3.0)
 		_:
 			pass # story beat and bosses: forced rows, no choice to score
+	# A fight that would take the last of the HP is a death, not just a hurt run.
+	if next_hp <= 0.0 and (node.type == RouteMap.NodeType.FIGHT or node.type == RouteMap.NodeType.ELITE):
+		gain -= DEATH_PENALTY
 	next_hp = clampf(next_hp, 0.0, 1.0)
 	var tail := 0.0
 	if depth > 1 and not node.next.is_empty():

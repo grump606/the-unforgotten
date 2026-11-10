@@ -25,6 +25,9 @@ const STORY_LOCAL_ROWS := [[0, 13], [3, 13]]
 ## The local row of the forced rest row: the free row just before the story beat that precedes the boss. Every
 ## node in it is a rest, so every path rests before each boss. The row before it (local row 11) holds no rest.
 const FORCED_REST_ROW := 12
+## The most ordinary rests (not the forced one before the boss) any one path may meet in an act. The generator
+## never rolls a rest past it and validate() rejects a map where some path does.
+const MAX_PATH_RESTS := 2
 ## The local row of each act's forced treasure row (indexed by act): a free row in the middle of the act whose
 ## nodes are all TREASURE, so every path passes one chest per act. Act 1 has free rows 1 to 12 (the chest at
 ## free index 5), act 2 has its story beat at row 3 (the chest at free index 6). Neither is next to the forced
@@ -58,7 +61,7 @@ const CONFIG := {
 	# chests only ever appear in the forced treasure row, so the generator does not roll it. An event takes the
 	# place of a fight like a rest or shop does (docs/EVENTS_DESIGN.md); the weights are not shares, see
 	# docs/MAP_DESIGN.md "Phase 4c" for what they give per random path (about 2 events, 2.4 rests, 0.85 shops after phase 4f).
-	"type_weights": {"fight": 18.0, "rest": 27.0, "shop": 10.0, "elite": 0.0, "treasure": 0.0, "event": 40.0},
+	"type_weights": {"fight": 18.0, "rest": 27.0, "shop": 10.0, "elite": 0.0, "treasure": 0.0, "event": 6.0},
 	# Enemy count weights (for counts 1, 2, 3 ...) by the node's row in the run; the first band whose
 	# max_row is not below the row applies.
 	"enemy_bands": [
@@ -73,7 +76,7 @@ const CONFIG := {
 	# Map-level availability: every run of this many consecutive free rows (within an act, counting only
 	# rows at or after safe_rows) holds one. 0 turns a window off.
 	"rest_window": 6,
-	"shop_window": 7,
+	"shop_window": 6,
 	# Chance that a node with a single exit edge gets a second one.
 	"extra_edge_chance": 0.5,
 }
@@ -565,6 +568,55 @@ func _neighbour_has(n: MapNode, type: NodeType, use_prev: bool, use_next: bool) 
 	return false
 
 
+## True if the row after `row` is the act's forced treasure row (every node in it is a chest).
+func _next_row_is_treasure(row: int) -> bool:
+	return row + 1 < ROWS and bool(row_info(row + 1)["treasure"])
+
+
+## The most ordinary rests (see MAX_PATH_RESTS) on any path from the start of the act up to and including node
+## `id`. The forced rest row does not count. Looks only at nodes already typed, so call it for incoming
+## neighbours while generating.
+func _path_rests(id: int, memo: Dictionary = {}) -> int:
+	if memo.has(id):
+		return memo[id]
+	var n := nodes[id]
+	var before := 0
+	if n.row % ACT_ROWS != 0:
+		for p in n.prev:
+			before = maxi(before, _path_rests(p, memo))
+	var own := 1 if n.type == NodeType.REST and not bool(row_info(n.row)["forced"]) else 0
+	memo[id] = before + own
+	return before + own
+
+
+## Whether node `n`, whose incoming neighbours are already typed, may become `type` (the later rows are not rolled yet,
+## so only what comes before it and what is fixed after it counts). A rest, shop, event or elite may not follow a
+## node of its own type. A rest may not follow a shop or a chest, nor sit in the row before the forced rest row or
+## before the chest row; a shop may not follow a rest nor sit in the row before the forced rest row; and no path may
+## pass more than MAX_PATH_RESTS ordinary rests in an act.
+func _type_allowed(n: MapNode, type: NodeType) -> bool:
+	var local := n.row % ACT_ROWS
+	match type:
+		NodeType.REST:
+			if local == FORCED_REST_ROW - 1 or _next_row_is_treasure(n.row):
+				return false
+			if _neighbour_has(n, NodeType.REST, true, false) or _neighbour_has(n, NodeType.SHOP, true, false) or _neighbour_has(n, NodeType.TREASURE, true, false):
+				return false
+			var memo := {}
+			for p in n.prev:
+				if local != 0 and _path_rests(p, memo) >= MAX_PATH_RESTS:
+					return false
+		NodeType.SHOP:
+			if local == FORCED_REST_ROW - 1:
+				return false
+			if _neighbour_has(n, NodeType.SHOP, true, false) or _neighbour_has(n, NodeType.REST, true, false):
+				return false
+		_:
+			if _neighbour_has(n, type, true, false):
+				return false
+	return true
+
+
 func _fights_in_row(row: int) -> int:
 	var count := 0
 	for id in _rows[row]:
@@ -595,7 +647,6 @@ func _assign_types(rng: RandomNumberGenerator) -> void:
 			for id in _rows[row]:
 				nodes[id].type = NodeType.REST
 			continue
-		var rest_barred: bool = row % ACT_ROWS == FORCED_REST_ROW - 1
 		for id in _rows[row]:
 			var n := nodes[id]
 			n.type = NodeType.FIGHT
@@ -608,9 +659,7 @@ func _assign_types(rng: RandomNumberGenerator) -> void:
 				if type == NodeType.TREASURE:
 					continue # chests only fill the forced treasure row
 				var weight := float(weights.get(key, 0.0))
-				if type != NodeType.FIGHT and _neighbour_has(n, type as NodeType, true, false):
-					weight = 0.0
-				if type == NodeType.REST and rest_barred:
+				if type != NodeType.FIGHT and not _type_allowed(n, type as NodeType):
 					weight = 0.0
 				options.append(type)
 				rolls.append(weight)
@@ -631,10 +680,10 @@ func _window_of(type: NodeType) -> int:
 
 
 ## The last window index (a position in `window_rows`) at which a window for `type` may end. The forced rest row
-## satisfies the rest need itself and the row before it cannot hold a rest, so rest windows stop two rows before
-## the end of the list; shop windows stop one row before (the forced row holds only rests).
-static func window_last_index(type: NodeType, window_count: int) -> int:
-	return window_count - (3 if type == NodeType.REST else 2)
+## satisfies the rest need itself, and the row before it holds neither a rest (it would sit next to the forced rest)
+## nor a shop (a rest may not follow one), so both windows stop two rows before the end of the list.
+static func window_last_index(_type: NodeType, window_count: int) -> int:
+	return window_count - 3
 
 
 ## True if the `window` window rows ending at `free_index` (never reaching back into the safe rows) hold a node
@@ -669,7 +718,7 @@ func _ensure_in_window(rng: RandomNumberGenerator, act_rows: Array[int], free_in
 	var tiers: Array = [[], [], []]
 	for id in _rows[act_rows[free_index]]:
 		var n := nodes[id]
-		if _neighbour_has(n, target, true, false):
+		if not _type_allowed(n, target):
 			continue
 		if n.type == NodeType.FIGHT and fights >= 2:
 			tiers[0].append(id)
@@ -791,6 +840,7 @@ func validate() -> Array[String]:
 			return v
 		_check_edges(v, rows)
 		_check_types(v, rows, preds)
+		_check_rest_rules(v, rows, preds)
 		_check_availability(v, rows)
 		_check_rest_before_bosses(v, rows)
 		_check_backdrops(v)
@@ -989,6 +1039,28 @@ func _check_types(v: Array[String], rows: Array, preds: Array) -> void:
 						break
 		if plain_fights == 0:
 			v.append("free row %d has no plain fight" % r)
+
+
+## The rest rules: no rest right after a shop or a chest, no shop right after a rest, no chest right after a rest,
+## and no path with more than MAX_PATH_RESTS ordinary rests in an act.
+func _check_rest_rules(v: Array[String], rows: Array, preds: Array) -> void:
+	var counts := {}
+	for r in rows.size():
+		for id in rows[r]:
+			var n := nodes[id]
+			var before := 0
+			if r % ACT_ROWS != 0:
+				for p in preds[id]:
+					before = maxi(before, counts.get(p, 0))
+					var from_type := nodes[p].type
+					if n.type == NodeType.REST and (from_type == NodeType.SHOP or from_type == NodeType.TREASURE):
+						v.append("%s follows a %s" % [_describe(n), "shop" if from_type == NodeType.SHOP else "chest"])
+					elif (n.type == NodeType.SHOP or n.type == NodeType.TREASURE) and from_type == NodeType.REST:
+						v.append("%s follows a rest" % _describe(n))
+			var own := 1 if n.type == NodeType.REST and not bool(row_info(r)["forced"]) else 0
+			counts[id] = before + own
+			if before + own > MAX_PATH_RESTS:
+				v.append("%s is the %dth ordinary rest on a path in its act (at most %d)" % [_describe(n), before + own, MAX_PATH_RESTS])
 
 
 func _check_availability(v: Array[String], rows_by_number: Array) -> void:
