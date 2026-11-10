@@ -224,9 +224,40 @@ func _check_add_cue(node: Control) -> void:
 	await process_frame
 
 
+## The real Glimpse the Exit (Glimpse 3, then Draw 1; Draw 2 when Remembered) on screen: the draw happens when the card
+## is played, before the pick, and the drawn card is in the hand and on screen behind the overlay. The played card leaves
+## the hand, so the base card keeps the hand the same size and the Remembered one grows it by one.
+func _check_glimpse_exit(node: Control) -> void:
+	var base := _card("glimpse_exit")
+	for variant in [base, base.remembered_card()]:
+		var draws: int = 1 if variant == base else 2
+		var c: Combat = await _fresh_fight(node)
+		var draw_order: Array[CardData] = [_card("sweep"), _card("heavy_blow"), _card("bash"), _card("brace"), _card("shove")]
+		c.piles.draw_pile.assign(draw_order) # the END is the top: shove, brace, bash, heavy_blow, sweep
+		c.piles.hand.assign([variant, _card("cold_steel")])
+		node._refresh()
+		var label: String = variant.display_name
+		check(CardView.find_all(node._hand_box).size() == 2, "%s: two cards in the hand before playing" % label)
+		node._hand.play_card(0)
+		check(c.phase == Combat.Phase.CHOOSING and node.choice_overlay_visible(), "%s: playing it opens the Glimpse pick" % label)
+		check(c.piles.hand.size() == 1 + draws, "%s: it drew %d card(s) before the pick (hand %d)" % [label, draws, c.piles.hand.size()])
+		check(_ids(c.piles.hand).slice(1) == _ids([_card("shove"), _card("brace")]).slice(0, draws), "%s: the drawn cards are the top of the draw pile" % label)
+		check(CardView.find_all(node._hand_box).size() == 1 + draws, "%s: the hand on screen shows the drawn card(s) behind the overlay" % label)
+		var overlay: ChoiceOverlay = node._overlays.choice
+		var left := _ids(draw_order.slice(0, 5 - draws)) # what the draw pile holds after the draw, top last
+		var expected_top: Array = left.slice(-3)
+		expected_top.reverse() # the pick lists the top card first
+		check(_ids(overlay.cards) == expected_top, "%s: the pick shows the next 3 cards, after the draw" % label)
+		overlay.confirm_button.pressed.emit()
+		check(c.phase == Combat.Phase.PLAYER_TURN and CardView.find_all(node._hand_box).size() == 1 + draws, "%s: after Keep all the drawn card(s) are still in the hand on screen" % label)
+		check(c.piles.discard_pile.size() == 1 and c.piles.discard_pile[0].id == &"glimpse_exit", "%s: the played card is in the discard pile" % label)
+	await process_frame
+
+
 func _initialize() -> void:
 	var node: Control = await _make_battle()
 	await _check_choice_overlay(node)
 	await _check_pile_viewer(node)
 	await _check_add_cue(node)
+	await _check_glimpse_exit(node)
 	_finish()

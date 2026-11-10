@@ -836,7 +836,7 @@ func event_choice_state(index: int) -> Dictionary:
 	if index < 0 or index >= choices.size():
 		return {"label": "", "summary": "", "enabled": false, "reason": "no such choice"}
 	var choice := choices[index]
-	var state := {"label": choice.label_for(character.id), "summary": choice.summary(), "enabled": true, "reason": ""}
+	var state := {"label": choice.label_for(character.id), "summary": _event_summary_with_fallback(choice.summary()), "enabled": true, "reason": ""}
 	if _event_resolved:
 		state["enabled"] = false
 		state["reason"] = "Already chosen."
@@ -854,6 +854,15 @@ func event_choice_state(index: int) -> Dictionary:
 	return state
 
 
+## A button's printed summary, with every relic gain whose pool has nothing left to give reworded to the gold it pays instead
+## (EVENT_RELIC_FALLBACK_GOLD), so the text keeps promising exactly what the button does.
+func _event_summary_with_fallback(summary: String) -> String:
+	for pool in [EventEffect.Pool.NEUTRAL, EventEffect.Pool.CLASS, EventEffect.Pool.ANY]:
+		if _event_relic_candidates(pool).is_empty():
+			summary = summary.replace(EventEffect.relic_text(pool), "Gain %d gold (no relics left to find)" % EVENT_RELIC_FALLBACK_GOLD)
+	return summary
+
+
 ## Why a top-level effect cannot be done now ("" when it can).
 func _event_blocked(effect: EventEffect) -> String:
 	match effect.kind:
@@ -863,9 +872,6 @@ func _event_blocked(effect: EventEffect) -> String:
 		EventEffect.Kind.REMEMBER_CARD:
 			if _rememberable_deck_indices().is_empty():
 				return "No card in your deck can be remembered yet."
-		EventEffect.Kind.GAIN_RELIC:
-			if _event_relic_candidates(effect.pool).is_empty():
-				return "There is nothing left to find."
 	return ""
 
 

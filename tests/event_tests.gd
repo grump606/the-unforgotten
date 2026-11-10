@@ -525,10 +525,14 @@ func _test_relics() -> void:
 		if relic.character == &"":
 			run_state.relics.append(relic)
 	var neutral_state := run_state.event_choice_state(0)
-	_check(not bool(neutral_state["enabled"]) and run_state._event_relic_candidates(EventEffect.Pool.NEUTRAL).is_empty(), "with every neutral relic owned, a neutral relic button is greyed, not widened to class relics")
+	_check(bool(neutral_state["enabled"]) and run_state._event_relic_candidates(EventEffect.Pool.NEUTRAL).is_empty(), "with every neutral relic owned, a neutral relic button stays enabled")
+	_check(String(neutral_state["summary"]).contains("%d gold" % RunState.EVENT_RELIC_FALLBACK_GOLD) and not String(neutral_state["summary"]).contains("relic."), "and its printed text says it pays gold now: %s" % neutral_state["summary"])
 	var owned_count := run_state.relics.size()
+	var plain_gold := run_state.gold
 	var result := run_state.resolve_event_choice(0)
-	_check(not result.ok and run_state.relics.size() == owned_count, "pressing it gives no class relic")
+	_check(result.ok and run_state.relics.size() == owned_count and run_state.gold == plain_gold + RunState.EVENT_RELIC_FALLBACK_GOLD, "pressing it pays the fallback gold and gives no class relic")
+	var full_pool := _custom([[any]], &"thief")
+	_check(String(full_pool.event_choice_state(0)["summary"]).contains("neutral relic"), "with a neutral relic left the text still names the relic")
 	var neutral_win := _gamble(100, [any])
 	run_state = _custom([[neutral_win]], &"thief")
 	for relic in StarterContent.relic_pool(&"thief"):
@@ -541,7 +545,7 @@ func _test_relics() -> void:
 	run_state = _custom([[any]], &"stray")
 	run_state.relics.assign(StarterContent.relic_pool(&"stray"))
 	var state := run_state.event_choice_state(0)
-	_check(not bool(state["enabled"]) and String(state["reason"]).contains("nothing left"), "a relic button is disabled when nothing is left: %s" % state["reason"])
+	_check(bool(state["enabled"]) and String(state["summary"]).contains("gold"), "a relic button pays gold when nothing is left: %s" % state["summary"])
 	var win := _gamble(100, [any])
 	run_state = _custom([[win]], &"stray")
 	run_state.relics.assign(StarterContent.relic_pool(&"stray"))
@@ -745,7 +749,7 @@ func _test_save_after_max_hp_events() -> void:
 						from_relics += relic.amount
 				_check(sim.player.max_hp - sim.character.max_hp - from_relics <= one, "%s/%s/%d: one event gives at most the bound" % [event.id, character, i])
 	# The hound's best button, taken at the event's own row, loads again.
-	var hound := StarterContent.event_by_id(&"hound_at_the_fence")
+	var hound := _event_by_id(&"hound_at_the_fence")
 	var best := -1
 	for i in hound.choices.size():
 		if RunSave._max_hp_rise(hound.choices[i].effects) == 6:

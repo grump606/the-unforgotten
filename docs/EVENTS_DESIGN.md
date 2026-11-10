@@ -12,7 +12,8 @@ the spec of how events work and the twelve events as shipped. The map side (layo
 - The only randomness is a gamble, and a gamble prints its odds on the button ("40%: Gain a random relic. Otherwise: nothing").
 - HP costs never take HP below 1 and never disable a button. A gold payment the player cannot make greys the button, with the reason
   under it ("Needs 70 gold (you have 10)."). A card removal needs a second card in the deck, a Remember needs a card that can be
-  Remembered, and a relic button needs a relic left to find; otherwise the button is greyed with the reason.
+  Remembered; otherwise the button is greyed with the reason. A relic button is never greyed: when its pool has nothing left it pays
+  `RunState.EVENT_RELIC_FALLBACK_GOLD` (40) instead and its printed line says so ("Gain 40 gold (no relics left to find)").
 - Every event has a button that costs nothing (a plain leave, or a free gain), whatever the class, HP and gold. `tests/event_tests.gd`
   checks this at 0 gold and 1 HP for all twelve events and all four classes.
 - An event cannot repeat inside a run until all twelve have been shown; then the pool is reshuffled.
@@ -84,7 +85,8 @@ Effect kinds (append-only, saved as numbers):
 
 A relic from an event follows the shop's rules: a MAX_HP relic raises max HP and HP once. A pool never widens: the button says "neutral relic", so only a neutral relic is
 ever given. When the pool has nothing unowned left (there are only four neutral relics) a won relic gamble pays
-`RunState.EVENT_RELIC_FALLBACK_GOLD` (40) instead and a plain relic button is greyed ("There is nothing left to find.").
+`RunState.EVENT_RELIC_FALLBACK_GOLD` (40) instead, and a plain relic button does the same: it stays enabled, pays the 40 gold and prints that
+on the button (`RunState._event_summary_with_fallback`).
 
 ## Curses: Dread and Murmur in the deck
 
@@ -135,7 +137,7 @@ Changes from the approved draft:
 - The Name Broker pays 45 gold for 4 max HP (the draft's 60 was trimmed, designer decision 6).
 - Button labels carry no numbers (the draft's "Drop in 30 gold and ask" is "Drop in a coin and ask"), so the printed line is the only place a
   number lives and a data edit cannot leave a stale label.
-- The neutral relic pool has only four relics, so once they are owned a neutral-relic button is greyed (or a gamble pays gold) rather
+- The neutral relic pool has only four relics, so once they are owned a neutral-relic button pays gold (and says so) rather
   than handing out a class relic the printed text did not promise (see above).
 - Interpretations of the draft: the Deserter's mess-table line is added to the end of the Eat outcome; "the Medium sees the half-line as a
   name" is the outcome of Finish the scraping; the Stray's nose button is a fourth button beside Share your food (it is strictly better, as

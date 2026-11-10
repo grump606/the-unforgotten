@@ -68,6 +68,12 @@ func gold_cost() -> int:
 	return -amount if kind == Kind.GOLD and amount < 0 else 0
 
 
+## The printed words of a relic gain from `pool` ("Gain a random neutral relic"); RunState swaps them for the fallback gold
+## when the pool has nothing left to give.
+static func relic_text(pool: Pool) -> String:
+	return "Gain a random %srelic" % ("neutral " if pool == Pool.NEUTRAL else ("class " if pool == Pool.CLASS else ""))
+
+
 ## The printed summary of this one effect ("Lose 8 HP", "Pay 30 gold").
 func describe() -> String:
 	match kind:
@@ -94,7 +100,7 @@ func describe() -> String:
 		Kind.REMEMBER_CARD:
 			return "Remember a card"
 		Kind.GAIN_RELIC:
-			return "Gain a random %srelic" % ("neutral " if pool == Pool.NEUTRAL else ("class " if pool == Pool.CLASS else ""))
+			return relic_text(pool)
 		Kind.ADD_CURSE:
 			return "Add %d %s to your deck" % [count, card_name(card_id)]
 		Kind.GAMBLE:
