@@ -6,7 +6,7 @@ Status key:
 - **Shipped**: describes something that is built and in the game. The design held, but numbers or names inside may have drifted (many still use the pre-v0.5.0 enemy and relic names; the map is in [`RESKIN.md`](RESKIN.md)). Treat the code as the source of truth for details.
 - **Historical**: a plan or proposal that has been carried out or overtaken. Read it for the reasoning, not for the current state. Check before relying on this.
 
-Numbers (stops, characters, relics, cards per class) are stated in one place: [`GAME_FACTS.md`](GAME_FACTS.md).
+Numbers (stops, map size, node mix, elites, events, save version, characters, relics, cards per class) are stated in one place: [`GAME_FACTS.md`](GAME_FACTS.md).
 
 ## Start here
 
@@ -40,7 +40,9 @@ Numbers (stops, characters, relics, cards per class) are stated in one place: [`
 
 | Doc | Status | What it is |
 | --- | --- | --- |
-| [`LEVELS_DESIGN.md`](LEVELS_DESIGN.md) | Shipped | The stop line, two acts, mid-boss, pre-finale rest. Bot figures in it predate the keep-5 hand rule |
+| [`MAP_DESIGN.md`](MAP_DESIGN.md) | Shipped; the opening sections predate the v0.9.0 default switch | The branching route map (two acts of 15 rows): layout, node types, saves, bots and the phase-by-phase tuning log. New Journey plays it since v0.9.0 |
+| [`EVENTS_DESIGN.md`](EVENTS_DESIGN.md) | Shipped | The "?" event stops on the map: the rules, the effect data and the twelve events |
+| [`LEVELS_DESIGN.md`](LEVELS_DESIGN.md) | Shipped; describes the fixed line only, which New Journey no longer plays by default | The 22-stop line, two acts, mid-boss, pre-finale rest. Bot figures in it predate the keep-5 hand rule |
 | [`MECHANICS_PLAN.md`](MECHANICS_PLAN.md) | Historical | The card-mechanics rework plan (keywords, Remembered, Omens, Oaths); built. Its branch note is stale |
 | [`CLASSES_PLAN.md`](CLASSES_PLAN.md) | Historical | The three-class build plan; the Stray came later, so check before relying on this |
 | [`RELICS_DESIGN.md`](RELICS_DESIGN.md) | Shipped | Relic design; the relic count it states is stale (see `GAME_FACTS.md`) |
