@@ -76,6 +76,7 @@ func _initialize() -> void:
 	Motion.reduced = false
 	RunSave.delete(test_save)
 	var scene: Control = load("res://run.tscn").instantiate()
+	scene.new_runs_use_map = false
 	scene.save_path = test_save
 	scene.settings_path = "user://ui_focus_restore_test_settings_%d.json" % OS.get_process_id()
 	root.add_child(scene)

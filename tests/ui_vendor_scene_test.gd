@@ -85,6 +85,7 @@ func _initialize() -> void:
 	# In a real run: one stall beneath the offers, which can still be clicked.
 	RunSave.delete(test_save)
 	var scene: Control = load("res://run.tscn").instantiate()
+	scene.new_runs_use_map = false
 	scene.save_path = test_save
 	root.add_child(scene)
 	await process_frame

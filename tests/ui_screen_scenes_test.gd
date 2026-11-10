@@ -134,6 +134,7 @@ func _initialize() -> void:
 	# In a real run: one scene beneath each stop's panel, buttons still working.
 	RunSave.delete(test_save)
 	var scene: Control = load("res://run.tscn").instantiate()
+	scene.new_runs_use_map = false
 	scene.save_path = test_save
 	root.add_child(scene)
 	await process_frame

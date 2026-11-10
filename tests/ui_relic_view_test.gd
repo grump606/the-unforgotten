@@ -47,6 +47,7 @@ func _has_text(node: Node, text: String) -> bool:
 func _run_scene(character: StringName, stop_type: RunState.StopType, owned: Array[RelicData], gold: int) -> Control:
 	RunSave.delete(test_save)
 	var scene: Control = load("res://run.tscn").instantiate()
+	scene.new_runs_use_map = false
 	scene.save_path = test_save
 	root.add_child(scene)
 	await process_frame

@@ -212,9 +212,14 @@ func _new_run(back := Callable()) -> void:
 	_select.show(self, _start_run, back)
 
 
+## New Journey plays the branching route map. False plays the fixed line (RunState's own default); tests that
+## drive the line set it.
+var new_runs_use_map := true
+
+
 func _start_run(character_id: StringName) -> void:
 	_play_sfx(&"confirm")
-	_run = RunState.new(randi(), character_id)
+	_run = RunState.new(randi(), character_id, new_runs_use_map)
 	_reset_screens()
 	_show_stop()
 

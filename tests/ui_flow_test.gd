@@ -90,6 +90,7 @@ func _find(body: Node, prefix: String) -> Button:
 func _initialize() -> void:
 	RunSave.delete(test_save)
 	var scene: Control = load("res://run.tscn").instantiate()
+	scene.new_runs_use_map = false
 	scene.save_path = test_save
 	root.add_child(scene)
 	await process_frame
@@ -409,6 +410,7 @@ func _initialize() -> void:
 		var character := StarterContent.character(id)
 		RunSave.delete(test_save)
 		var pick_scene: Control = load("res://run.tscn").instantiate()
+		pick_scene.new_runs_use_map = false
 		pick_scene.save_path = test_save
 		root.add_child(pick_scene)
 		await process_frame
@@ -442,6 +444,7 @@ func _initialize() -> void:
 	# Pause menu: opens over a fight, freezes it, and offers Continue, Save & Exit and New Run.
 	RunSave.delete(test_save)
 	var pause_scene: Control = load("res://run.tscn").instantiate()
+	pause_scene.new_runs_use_map = false
 	pause_scene.save_path = test_save
 	var exits := [0]
 	pause_scene.exit_callable = func() -> void: exits[0] += 1
