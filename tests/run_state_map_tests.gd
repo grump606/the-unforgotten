@@ -28,7 +28,7 @@ func run() -> int:
 	_test_rest_shop_story()
 	_test_mid_boss_and_boss()
 	_test_defeat()
-	_test_elite_placeholder()
+	_test_elite()
 	_test_ramp()
 	_test_backdrops()
 	_test_whole_runs()
@@ -321,7 +321,7 @@ func _test_defeat() -> void:
 	_check(run_state.reachable_nodes().is_empty() and run_state.current_stop() == null and not run_state.choose_node(successor), "nothing can be chosen after a defeat")
 
 
-func _test_elite_placeholder() -> void:
+func _test_elite() -> void:
 	var run_state := RunState.new(71, &"deserter", true)
 	var elite_id := -1
 	for _i in 20:
@@ -339,10 +339,63 @@ func _test_elite_placeholder() -> void:
 	n.enemy_count = 1
 	run_state.choose_node(elite_id)
 	var stop := run_state.current_stop()
-	_check(stop.type == RunState.StopType.COMBAT and stop.enemy_count >= 2 and not stop.boss and not stop.mid_boss, "an elite fights a pack of at least two for now")
+	_check(stop.type == RunState.StopType.COMBAT and stop.enemy_count >= 2 and stop.elite and not stop.boss and not stop.mid_boss, "an elite fights a flagged pack of at least two")
+	var rng_state := run_state.rng_state()
 	var combat := run_state.start_combat()
 	_check(combat != null and combat.enemies.size() >= 2, "the elite pack has at least two enemies")
 	_check(stop.row == n.row, "the elite stop carries its row")
+	# The pack is the budget pack at ELITE_BUDGET_MULTIPLIER times the regular difficulty (replay the RNG to check).
+	var replay := RandomNumberGenerator.new()
+	replay.state = rng_state
+	var expected := StarterContent.budget_encounter(stop.enemy_count, replay, stop.row, StarterContent.map_class_difficulty(&"deserter") * RunState.ELITE_BUDGET_MULTIPLIER, true)
+	var same := expected.size() == combat.enemies.size()
+	for i in expected.size() if same else 0:
+		same = same and expected[i].max_hp == combat.enemies[i].max_hp
+	_check(same, "the elite pack is built at the elite budget")
+	var plain_threat := StarterContent.pack_threat(StarterContent.budget_encounter(stop.enemy_count, RandomNumberGenerator.new(), stop.row, StarterContent.map_class_difficulty(&"deserter")))
+	_check(StarterContent.pack_threat(expected) > plain_threat, "an elite pack is tougher than a regular one on the same row")
+	# Winning: extra gold, a relic that joins the run at once, shown on the reward and cleared when it is taken.
+	var gold := run_state.gold
+	var relics_before := run_state.relics.size()
+	run_state.complete_combat(true)
+	_check(run_state.gold == gold + RunState.map_win_gold(stop.enemy_count) + RunState.ELITE_GOLD_BONUS, "an elite win pays the regular gold plus the elite bonus")
+	_check(run_state.elite_relic != null and run_state.relics.size() == relics_before + 1 and run_state.relics.has(run_state.elite_relic), "an elite drops a relic that joins the run")
+	_check(run_state.elite_relic.price >= RunState.TREASURE_MIN_RELIC_PRICE, "the elite relic is not from the cheapest tier")
+	run_state.resolve_reward(null)
+	_check(run_state.elite_relic == null and run_state.elite_fallback_gold == 0, "taking the reward clears the elite drop")
+	# A character that owns every relic gets gold instead.
+	var full := RunState.new(72, &"deserter", true)
+	full.relics.assign(StarterContent.relic_pool(&"deserter"))
+	_check(_walk_to_elite(full), "an elite node for the full-relics case")
+	full.start_combat()
+	var full_gold := full.gold
+	var win_gold_relics := 0 # relics that pay on every win; the full pool holds them all
+	for relic in full.relics:
+		if relic.kind == RelicData.Kind.WIN_GOLD:
+			win_gold_relics += relic.amount
+	full.complete_combat(true)
+	_check(full.elite_relic == null and full.elite_fallback_gold == RunState.ELITE_RELIC_FALLBACK_GOLD and full.gold == full_gold + RunState.map_win_gold(full.current_stop().enemy_count) + win_gold_relics + RunState.ELITE_GOLD_BONUS + RunState.ELITE_RELIC_FALLBACK_GOLD, "with every relic owned an elite drops gold instead")
+	# A regular fight drops nothing extra.
+	var plain := RunState.new(31, &"thief", true)
+	_walk_to(plain, RouteMap.NodeType.FIGHT)
+	plain.start_combat()
+	plain.complete_combat(true)
+	_check(plain.elite_relic == null and plain.elite_fallback_gold == 0 and not plain.current_stop().elite, "a regular fight is not an elite and drops no relic")
+
+
+## Walks until a fight is reachable, turns it into an elite and enters it.
+func _walk_to_elite(run_state: RunState) -> bool:
+	for _i in 20:
+		var options := run_state.reachable_nodes()
+		for id in options:
+			if run_state.route.node(id).type == RouteMap.NodeType.FIGHT:
+				var n := run_state.route.node(id)
+				n.type = RouteMap.NodeType.ELITE
+				n.enemy_count = 2
+				return run_state.choose_node(id)
+		run_state.choose_node(options[0])
+		_resolve(run_state)
+	return false
 
 
 func _test_ramp() -> void:

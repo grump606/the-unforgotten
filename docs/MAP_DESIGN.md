@@ -1059,3 +1059,22 @@ fights, rests, shops, events and elites of the ordinary free rows, about 70 per 
 - Tests: the safe-row tests read `RouteMap.CONFIG["safe_rows"]`, a window below 6 is no longer feasible with the rest rules, and the
   mix ranges have the new numbers. The `mixed` route bot's "skip an event while hurt" check now uses a hurt player who can survive
   a fight (at 1 HP the fight is lethal and an event never takes the last HP).
+
+## Phase 5a: elite fights (mechanics built, weight still 0)
+
+An elite node (`NodeType.ELITE`) now plays as its own kind of fight. The elite weight in `RouteMap.CONFIG` is still 0, so default maps
+have none yet; a config with a positive `type_weights.elite` produces them (tests and the sims use that).
+
+- **Stop:** `Stop.elite` is set by `RunState._stop_for_node` (an elite is a COMBAT stop of at least `ELITE_MIN_ENEMIES` = 2 enemies).
+  Nothing is stored in a save: a resumed run rebuilds the stop from its node, as for every other map stop.
+- **Pack:** `start_combat` builds it with `budget_encounter(count, rng, row, class difficulty * ELITE_BUDGET_MULTIPLIER, true)`,
+  `ELITE_BUDGET_MULTIPLIER` = 1.35, so an elite is 35% more threat than a regular fight on the same row (the bounds on the HP and damage
+  scale still apply).
+- **Reward:** the regular win (gold, heal, three-card reward) plus `ELITE_GOLD_BONUS` = 20 gold and a relic. The relic is drawn like a
+  chest's (`_roll_relic(TREASURE_MIN_RELIC_PRICE)`, the cheapest tier left out) and joins the run when the fight is won; the reward
+  screen names it (`RunState.elite_relic`). A character that owns every relic gets `ELITE_RELIC_FALLBACK_GOLD` = 60 gold
+  (`elite_fallback_gold`). Both clear when the card reward is taken or skipped. The reward is not a save point (only the arrival save
+  is), so a quit mid-reward replays the fight and the same relic is drawn again.
+- **Refactor:** the chest's relic roll moved into `_roll_relic`; it consumes the run RNG exactly as before.
+- **Open:** the elite share (the 55% fight target leaves about 18% for elites if events stay at 10%, which is a lot of relics: chests
+  already give 1.6 per run), elite-specific enemies or modifiers, an "Elite" label on the battle screen, and bot balance.

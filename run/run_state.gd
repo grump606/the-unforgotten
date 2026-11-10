@@ -45,6 +45,12 @@ const MAP_GOLD_FACTOR := 0.65
 const TREASURE_MIN_RELIC_PRICE := 65
 ## Gold a chest gives instead when the character owns every relic of its pool.
 const TREASURE_FALLBACK_GOLD := 100
+## Elite fights (map mode, docs/MAP_DESIGN.md "Phase 5a"): the pack's threat budget is the row's budget times this (on top of the
+## class difficulty), the win pays this much extra gold, and it always drops a relic (see ELITE_RELIC_FALLBACK_GOLD).
+const ELITE_BUDGET_MULTIPLIER := 1.35
+const ELITE_GOLD_BONUS := 20
+## Gold an elite drops instead of a relic when the character owns every relic of its pool.
+const ELITE_RELIC_FALLBACK_GOLD := 60
 ## Gold an event gives instead of a relic it cannot give because the character owns every relic it could draw.
 const EVENT_RELIC_FALLBACK_GOLD := 40
 
@@ -66,6 +72,8 @@ class Stop:
 	var beat_index: int
 	var boss: bool
 	var mid_boss: bool
+	## Map mode: an elite fight (tougher pack, relic drop). Set by `_stop_for_node`, never on the line.
+	var elite: bool = false
 	var tier: int
 	var fight: int
 	## Map mode only: the stop's row and node id in the route (-1 on a line stop).
@@ -156,6 +164,10 @@ var reward_remove_used := false
 var reward_heal_used := false
 ## Map mode: HP the last won fight restored (0 otherwise). Display only, not saved.
 var map_win_heal := 0
+## The relic the last won elite fight dropped (already in `relics`), null until one is won and once its reward is taken.
+var elite_relic: RelicData = null
+## The gold the last won elite dropped instead of a relic (0 when it dropped a relic).
+var elite_fallback_gold := 0
 ## Relics bought from vendors this run, in purchase order. Saved with the run (as ids).
 var relics: Array[RelicData] = []
 
@@ -312,8 +324,8 @@ func _stop_for_node(n: RouteMap.MapNode) -> Stop:
 		RouteMap.NodeType.BOSS:
 			stop = Stop.new(StopType.COMBAT, 1, 0, true)
 		RouteMap.NodeType.ELITE:
-			# Placeholder until phase 5: a normal pack of at least two.
-			stop = Stop.new(StopType.COMBAT, maxi(n.enemy_count, 2))
+			stop = Stop.new(StopType.COMBAT, maxi(n.enemy_count, StarterContent.ELITE_MIN_ENEMIES))
+			stop.elite = true
 		_:
 			stop = Stop.new(StopType.COMBAT, n.enemy_count)
 	stop.tier = n.act
@@ -367,7 +379,10 @@ func start_combat() -> Combat:
 	elif stop.mid_boss:
 		enemies = StarterContent.mid_boss_encounter()
 	elif route != null and stop.row >= 0:
-		enemies = StarterContent.budget_encounter(stop.enemy_count, _rng, stop.row, StarterContent.map_class_difficulty(character.id))
+		var difficulty := StarterContent.map_class_difficulty(character.id)
+		if stop.elite:
+			difficulty *= ELITE_BUDGET_MULTIPLIER
+		enemies = StarterContent.budget_encounter(stop.enemy_count, _rng, stop.row, difficulty, stop.elite)
 	else:
 		enemies = StarterContent.varied_encounter(stop.enemy_count, _rng, stop.tier, stop.fight)
 	_active_combat = Combat.create(player, deck, enemies, _rng.randi(), relics)
@@ -430,6 +445,16 @@ func complete_combat(victory: bool) -> bool:
 			RelicData.Kind.WIN_HEAL:
 				player.heal(relic.amount)
 	map_win_heal = player.heal(_map_win_heal_amount(stop)) if route != null else 0
+	elite_relic = null
+	elite_fallback_gold = 0
+	if stop.elite:
+		gold += ELITE_GOLD_BONUS
+		elite_relic = _roll_relic(TREASURE_MIN_RELIC_PRICE)
+		if elite_relic != null:
+			_grant_relic(elite_relic)
+		else:
+			elite_fallback_gold = ELITE_RELIC_FALLBACK_GOLD
+			gold += elite_fallback_gold
 	_roll_rewards()
 	_reward_pending = true
 	return true
@@ -514,6 +539,8 @@ func resolve_reward_heal() -> bool:
 
 
 func _finish_reward() -> void:
+	elite_relic = null
+	elite_fallback_gold = 0
 	_reward_pending = false
 	_reward_choices = []
 	_advance()
@@ -680,18 +707,24 @@ func open_treasure() -> bool:
 		return false
 	if _treasure_opened:
 		return true
+	_treasure_relic = _roll_relic(TREASURE_MIN_RELIC_PRICE)
+	_treasure_opened = true
+	return true
+
+
+## A relic from the character's pool minus the relics owned, drawn with the run RNG: among those priced at least
+## `min_price` when there are any, else among all of them; null when none is left.
+func _roll_relic(min_price: int) -> RelicData:
 	var unowned := _unowned_relics()
 	var choices: Array[RelicData] = []
 	for relic in unowned:
-		if relic.price >= TREASURE_MIN_RELIC_PRICE:
+		if relic.price >= min_price:
 			choices.append(relic)
 	if choices.is_empty():
 		choices = unowned
-	_treasure_relic = null
-	if not choices.is_empty():
-		_treasure_relic = choices[_rng.randi_range(0, choices.size() - 1)] if choices.size() > 1 else choices[0]
-	_treasure_opened = true
-	return true
+	if choices.is_empty():
+		return null
+	return choices[_rng.randi_range(0, choices.size() - 1)] if choices.size() > 1 else choices[0]
 
 
 ## The relic in the open chest, or null while it is closed, off a treasure stop and when the chest holds gold.
