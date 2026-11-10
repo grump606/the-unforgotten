@@ -707,7 +707,8 @@ static func _other_damage(combat: Combat, hand_index: int, energy_left: int) -> 
 ## worth a lot below EVENT_HURT_BELOW of max HP and little above it, HP spent costs more when hurt, a relic or a card
 ## pick is the main prize for a healthy player, a curse or lost max HP is a real cost, a payment of gold is never made
 ## below EVENT_MIN_GOLD (and never when it cannot be afforded), and a gamble that can cost HP is not taken while
-## hurt. The best score wins; ties go to the earlier button. False on a RunState failure.
+## hurt. The best score wins; ties go to the earlier button. When every enabled button scores -INF (never) the least costly
+## one is pressed anyway, as the greedy bot does, so the stop still settles. False on a RunState failure.
 const EVENT_HURT_BELOW := 0.6
 const EVENT_MIN_GOLD := 60
 
@@ -716,13 +717,22 @@ static func event_stop(run: RunState) -> bool:
 	var choices := run.event_choices()
 	var best := -1
 	var best_score := -INF
+	var fallback := -1
+	var fallback_price := INF
 	for i in choices.size():
 		if not bool(run.event_choice_state(i)["enabled"]):
 			continue
+		var costs := SimPolicy.event_costs(choices[i].effects)
+		var price: float = costs["hp"] + costs["gold"] + 4.0 * costs["max_hp"] + 8.0 * costs["curses"]
+		if price < fallback_price:
+			fallback_price = price
+			fallback = i
 		var score := event_score(run, choices[i].effects)
 		if score > best_score + 0.0001:
 			best_score = score
 			best = i
+	if best == -1:
+		best = fallback
 	if best == -1 and run.current_event() != null:
 		printerr("SmartPolicy: an event offered no usable button")
 		return false

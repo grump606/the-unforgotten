@@ -82,9 +82,9 @@ Effect kinds (append-only, saved as numbers):
 | GAMBLE | `amount` percent chance of the `win` effects, else the `lose` effects |
 | REMOVE_RANDOM_CARD | Remove random cards (never the last card, and never one that a pending removal needs) |
 
-A relic from an event follows the shop's rules: a MAX_HP relic raises max HP and HP once. The neutral pool falls back to any unowned
-relic of the character when every neutral relic is owned (there are only four neutral relics), and when nothing at all is left a won relic
-gamble pays `RunState.EVENT_RELIC_FALLBACK_GOLD` (40) instead and a plain relic button is greyed ("There is nothing left to find.").
+A relic from an event follows the shop's rules: a MAX_HP relic raises max HP and HP once. A pool never widens: the button says "neutral relic", so only a neutral relic is
+ever given. When the pool has nothing unowned left (there are only four neutral relics) a won relic gamble pays
+`RunState.EVENT_RELIC_FALLBACK_GOLD` (40) instead and a plain relic button is greyed ("There is nothing left to find.").
 
 ## Curses: Dread and Murmur in the deck
 
@@ -135,8 +135,8 @@ Changes from the approved draft:
 - The Name Broker pays 45 gold for 4 max HP (the draft's 60 was trimmed, designer decision 6).
 - Button labels carry no numbers (the draft's "Drop in 30 gold and ask" is "Drop in a coin and ask"), so the printed line is the only place a
   number lives and a data edit cannot leave a stale label.
-- The neutral relic pool has only four relics, so a neutral-relic effect falls back to any unowned relic of the character instead of
-  becoming a dead button (see above).
+- The neutral relic pool has only four relics, so once they are owned a neutral-relic button is greyed (or a gamble pays gold) rather
+  than handing out a class relic the printed text did not promise (see above).
 - Interpretations of the draft: the Deserter's mess-table line is added to the end of the Eat outcome; "the Medium sees the half-line as a
   name" is the outcome of Finish the scraping; the Stray's nose button is a fourth button beside Share your food (it is strictly better, as
   drafted; the draft's "replaces the first button's HP cost" is read as flavour); the Deserter's "stand the watch" line is the outcome of

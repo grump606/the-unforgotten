@@ -162,7 +162,7 @@ func _initialize() -> void:
 	await process_frame
 	check(view.tooltip_for(chest_id) == "Treasure: a relic", "the chest tooltip is 'Treasure: a relic'")
 	check(view._glyph_color(RouteMap.NodeType.TREASURE) != view._glyph_color(RouteMap.NodeType.SHOP) and view._glyph_color(RouteMap.NodeType.TREASURE) != view._glyph_color(RouteMap.NodeType.REST), "the chest glyph colour differs from the coin and the armchair")
-	check(FallbackMapScreen.describe(route.node(chest_id)) == "Treasure", "the plain map list names a chest")
+	check(MapView.node_label(route.node(chest_id)) == "Treasure", "the plain node label names a chest")
 	view.queue_free()
 	await process_frame
 	print("ui treasure test: %d failure(s)" % fails)

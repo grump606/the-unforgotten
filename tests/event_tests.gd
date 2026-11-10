@@ -32,6 +32,9 @@ func run() -> int:
 	_test_picks()
 	_test_relics()
 	_test_gambles()
+	_test_smart_bot_fallback()
+	_test_impossible_picks()
+	_test_save_after_max_hp_events()
 	_test_no_repeats()
 	_test_resume()
 	_test_saves()
@@ -498,15 +501,26 @@ func _test_relics() -> void:
 		var result := run_state.resolve_event_choice(0)
 		_check(result.ok and run_state.relics.size() == 1 and run_state.relics[0].character == &"" and StarterContent.relic_pool(character).has(run_state.relics[0]), "%s: a neutral relic from the pool is given" % character)
 		_check(result.text.contains(run_state.relics[0].display_name), "%s: the outcome names the relic" % character)
-	# The pool shrinks: a neutral pool with nothing neutral left falls back to the character's own relics.
+	# The pool shrinks: a neutral pool with nothing neutral left never widens to the character's own relics.
 	var any := _eff(K.GAIN_RELIC)
 	any.pool = EventEffect.Pool.NEUTRAL
 	var run_state := _custom([[any]], &"thief")
 	for relic in StarterContent.relic_pool(&"thief"):
 		if relic.character == &"":
 			run_state.relics.append(relic)
+	var neutral_state := run_state.event_choice_state(0)
+	_check(not bool(neutral_state["enabled"]) and run_state._event_relic_candidates(EventEffect.Pool.NEUTRAL).is_empty(), "with every neutral relic owned, a neutral relic button is greyed, not widened to class relics")
+	var owned_count := run_state.relics.size()
 	var result := run_state.resolve_event_choice(0)
-	_check(result.ok and run_state.relics.back().character == &"thief", "with every neutral relic owned, a class relic is given instead")
+	_check(not result.ok and run_state.relics.size() == owned_count, "pressing it gives no class relic")
+	var neutral_win := _gamble(100, [any])
+	run_state = _custom([[neutral_win]], &"thief")
+	for relic in StarterContent.relic_pool(&"thief"):
+		if relic.character == &"":
+			run_state.relics.append(relic)
+	var gold_before := run_state.gold
+	result = run_state.resolve_event_choice(0)
+	_check(result.ok and run_state.gold == gold_before + RunState.EVENT_RELIC_FALLBACK_GOLD and run_state.relics.size() == owned_count, "a won neutral relic gamble with none left pays gold, not a class relic")
 	# Never a duplicate, never past the pool; at the end the button is disabled and a gamble pays gold instead.
 	run_state = _custom([[any]], &"stray")
 	run_state.relics.assign(StarterContent.relic_pool(&"stray"))
@@ -523,7 +537,9 @@ func _test_relics() -> void:
 	for candidate in StarterContent.relic_pool(&"deserter"):
 		if candidate.kind == RelicData.Kind.MAX_HP:
 			flask = candidate
-	run_state = _custom([[any]], &"deserter")
+	var any_pool := _eff(K.GAIN_RELIC)
+	any_pool.pool = EventEffect.Pool.ANY
+	run_state = _custom([[any_pool]], &"deserter")
 	for relic in StarterContent.relic_pool(&"deserter"):
 		if relic != flask:
 			run_state.relics.append(relic)
@@ -681,6 +697,95 @@ func _test_resume() -> void:
 			sim.restore_map(sim.route, path_node, sim.visited, true)
 		logs.append(log)
 	_check(logs[0] == logs[1] and logs[0].size() == 16, "a bot's run of events repeats exactly")
+
+
+## A smart bot that finds every enabled button scored "never" still presses the least costly one instead of aborting.
+func _test_smart_bot_fallback() -> void:
+	var dear := _eff(K.GOLD, -30)
+	var dearer := _eff(K.GOLD, -45)
+	var run_state := _custom([[dearer], [dear]])
+	run_state.gold = 50 # affordable, but under SmartPolicy.EVENT_MIN_GOLD, so both score -INF
+	_check(SmartPolicy.event_score(run_state, [dear] as Array[EventEffect]) == -INF and SmartPolicy.event_score(run_state, [dearer] as Array[EventEffect]) == -INF, "both payments score never at 50 gold")
+	_check(SmartPolicy.event_stop(run_state), "the smart bot settles an event whose buttons all score never")
+	_check(run_state.gold == 20, "it paid the cheaper button")
+
+
+## Events raise max HP outside the relic path, so a map save made after them must still load, while a max HP
+## above what the events could have given is still rejected.
+func _test_save_after_max_hp_events() -> void:
+	var one := RunSave.event_max_hp_gain(1)
+	_check(one >= 6 and RunSave.event_max_hp_gain(0) == 0 and RunSave.event_max_hp_gain(2) > one, "the event bound is read from the data: the hound's +6 is the best single gain (%d)" % one)
+	for event in StarterContent.all_events():
+		for character in CHARACTERS:
+			for i in event.choices_for(character).size():
+				var sim := _event_run(3, character)
+				sim._event = event
+				if not bool(sim.event_choice_state(i)["enabled"]):
+					continue
+				sim.resolve_event_choice(i)
+				var from_relics := 0 # a relic's own max HP is counted by the relic allowance, not the event one
+				for relic in sim.relics:
+					if relic.kind == RelicData.Kind.MAX_HP:
+						from_relics += relic.amount
+				_check(sim.player.max_hp - sim.character.max_hp - from_relics <= one, "%s/%s/%d: one event gives at most the bound" % [event.id, character, i])
+	# The hound's best button, taken at the event's own row, loads again.
+	var hound := StarterContent.event_by_id(&"hound_at_the_fence")
+	var best := -1
+	for i in hound.choices.size():
+		if RunSave._max_hp_rise(hound.choices[i].effects) == 6:
+			best = i
+	var run_state := _event_run(5, &"deserter")
+	_check(run_state.stop_index >= 1, "the test event sits past row 0")
+	run_state._event = hound
+	var base := run_state.player.max_hp
+	_check(best >= 0 and run_state.resolve_event_choice(best).ok, "the hound's max HP button resolves")
+	var saved := RunSave.to_dict(run_state)
+	_check(int(saved["max_hp"]) >= base, "the max HP is in the save")
+	var loaded := RunSave.from_dict(saved)
+	_check(loaded.error == "" or int(saved["max_hp"]) == base, "a map save after the hound loads: %s" % loaded.error)
+	# Several events in a row: the allowance grows with the rows, and one above it is rejected.
+	var fresh := RunState.new(5, &"deserter", true)
+	var no_relics: Array[RelicData] = []
+	var floor_hp := RunSave.max_hp_allowed(fresh, no_relics, 0, true)
+	_check(floor_hp == fresh.character.max_hp + RunSave.MAX_HP_SLACK, "no rows, no event allowance")
+	var tamper := RunSave.to_dict(run_state)
+	var allowed := RunSave.max_hp_allowed(run_state, no_relics, run_state.stop_index, true)
+	_check(allowed == floor_hp + RunSave.event_max_hp_gain(run_state.stop_index), "the allowance adds the event gain for the rows so far")
+	tamper["max_hp"] = allowed
+	tamper["hp"] = 1
+	_check(RunSave.from_dict(tamper).error == "", "max HP at the allowance loads")
+	tamper["max_hp"] = allowed + 1
+	_check(RunSave.from_dict(tamper).error != "", "max HP one above the allowance is rejected")
+
+
+## Picks that nothing can complete are dropped: the pick screens have no Cancel.
+func _test_impossible_picks() -> void:
+	var remove := _eff(K.REMOVE_CARD)
+	# A removal nested in a gamble is not covered by the button's own guard: a one-card deck owes nothing.
+	var run_state := _custom([[_gamble(100, [remove])]])
+	var only: CardData = run_state.deck[0]
+	run_state.deck.assign([only])
+	_check(run_state.resolve_event_choice(0).ok and run_state.event_followup() == &"" and run_state.finish_event(), "a nested removal with one card left owes no pick and the stop can be left")
+	# Two removals on a two-card deck: only one can be made, the second is dropped.
+	run_state = _custom([[remove, _eff(K.REMOVE_CARD)]])
+	run_state.deck.assign([run_state.deck[0], run_state.deck[1]])
+	var result := run_state.resolve_event_choice(0)
+	_check(result.ok and result.followup == &"remove" and run_state.event_remove_card(0) and run_state.event_followup() == &"" and run_state.finish_event() and run_state.deck.size() == 1, "two removals on two cards owe one pick, then the stop can be left")
+	# A removal that shrinks the deck cancels a Remember that nothing can satisfy any more.
+	run_state = _custom([[remove, _eff(K.REMEMBER_CARD)]])
+	var plain: Array[CardData] = []
+	for card in run_state.deck:
+		if card.can_remember() and plain.size() < 1:
+			plain.append(card)
+	var extra: Array[CardData] = []
+	for card in run_state.deck:
+		if not card.can_remember():
+			extra.append(card)
+	run_state.deck.assign(plain + extra.slice(0, 1) if not extra.is_empty() else plain)
+	if run_state.deck.size() >= 2 and run_state.deck[0].can_remember() and not run_state.deck[1].can_remember():
+		run_state.resolve_event_choice(0)
+		_check(run_state.event_followup() == &"remove" and run_state.event_remove_card(0) and run_state.event_followup() == &"", "removing the only rememberable card drops the owed Remember")
+		_check(run_state.finish_event(), "the stop can then be left")
 
 
 func _clone(run_state: RunState) -> RunState:

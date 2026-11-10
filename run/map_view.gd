@@ -172,6 +172,31 @@ func state_of(id: int) -> StringName:
 	return FUTURE
 
 
+## A plain one-line name for a node: "Fight (2 enemies)", "Rest", "Shop", "Treasure", "Event", ... Used by the tests
+## to check the node types are all named.
+static func node_label(n: RouteMap.MapNode) -> String:
+	match n.type:
+		RouteMap.NodeType.FIGHT:
+			return "Fight (%d enem%s)" % [n.enemy_count, "y" if n.enemy_count == 1 else "ies"]
+		RouteMap.NodeType.ELITE:
+			return "Elite fight (%d enemies)" % n.enemy_count
+		RouteMap.NodeType.REST:
+			return "Rest"
+		RouteMap.NodeType.SHOP:
+			return "Shop"
+		RouteMap.NodeType.STORY:
+			return "Story"
+		RouteMap.NodeType.MID_BOSS:
+			return "Mid-boss"
+		RouteMap.NodeType.BOSS:
+			return "Boss"
+		RouteMap.NodeType.TREASURE:
+			return "Treasure"
+		RouteMap.NodeType.EVENT:
+			return "Event"
+	return "?"
+
+
 ## Tooltip words for a node: "Fight: 2 enemies", "Rest", "Shop", "Story: <title>", "Mid-boss", "Final boss".
 func tooltip_for(id: int) -> String:
 	var n := _route.node(id) if _route != null else null

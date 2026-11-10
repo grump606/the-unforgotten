@@ -911,6 +911,7 @@ func event_outcome() -> String:
 
 ## The pick the player owes now: &"remove", &"remember" or &"pick" (choose 1 of the offered cards), or &"" when none.
 func event_followup() -> StringName:
+	_prune_event_pending()
 	if _event_pending.is_empty():
 		return &""
 	match int(_event_pending[0]["kind"]):
@@ -919,6 +920,26 @@ func event_followup() -> StringName:
 		EventEffect.Kind.REMEMBER_CARD:
 			return &"remember"
 	return &"pick"
+
+
+## Drops every owed pick that can no longer be completed. The pick screens have no Cancel, so a pick nothing can
+## satisfy (a removal when only one card is left, a Remember when no card can be remembered, as a second removal
+## after the deck shrank or a nested removal can leave) would trap the player in a stop that is not a save boundary.
+## A removal needs a card to spare, so only deck.size() - 1 removals stay owed.
+func _prune_event_pending() -> void:
+	var removals_left := deck.size() - 1
+	var kept: Array[Dictionary] = []
+	for entry in _event_pending:
+		match int(entry["kind"]):
+			EventEffect.Kind.REMOVE_CARD:
+				if removals_left <= 0:
+					continue
+				removals_left -= 1
+			EventEffect.Kind.REMEMBER_CARD:
+				if _rememberable_deck_indices().is_empty():
+					continue
+		kept.append(entry)
+	_event_pending = kept
 
 
 ## The cards on offer for a pending &"pick" (stable until one is taken; empty otherwise).
@@ -987,8 +1008,8 @@ func _reset_event() -> void:
 	_event_pending.clear()
 
 
-## The relics an event may hand out from `pool`: unowned ones of the pool; a NEUTRAL pool with none left falls back
-## to any unowned relic of the character, so a button is not dead while the character can still find something.
+## The relics an event may hand out from `pool`: the unowned ones of exactly that pool (the button's printed text names
+## it, so a NEUTRAL pool never widens to class relics). Empty means the button is greyed or a gamble pays gold.
 func _event_relic_candidates(pool: EventEffect.Pool) -> Array[RelicData]:
 	var found: Array[RelicData] = []
 	var unowned := _unowned_relics()
@@ -996,8 +1017,6 @@ func _event_relic_candidates(pool: EventEffect.Pool) -> Array[RelicData]:
 		var neutral: bool = relic.character == &""
 		if pool == EventEffect.Pool.ANY or (pool == EventEffect.Pool.NEUTRAL and neutral) or (pool == EventEffect.Pool.CLASS and not neutral):
 			found.append(relic)
-	if found.is_empty() and pool == EventEffect.Pool.NEUTRAL:
-		found = unowned
 	return found
 
 
