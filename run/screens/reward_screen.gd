@@ -2,6 +2,9 @@ class_name RewardScreen
 extends RunScreen
 ## The reward after a fight: pick a card, skip, or use the once-per-run Remove or Heal.
 
+const ELITE_BADGE_SCALE := 2.2
+const ELITE_PANEL_WIDTH := 360.0
+
 ## True while the panel shows the pick-a-card-to-remove list.
 var removing := false
 
@@ -17,16 +20,15 @@ func show() -> void:
 	var stop := run.current_stop()
 	backdrop.set_variant(stop.boss or stop.mid_boss, run.character.id, run.battle_backdrop())
 	add_backdrop(backdrop)
+	if run.elite_spoils_pending() and not removing:
+		_show_spoils()
+		return
 	if removing:
 		var picker := panel("Pick a card to remove from your deck.", true)
 		add_remove_picker(picker, _remove_card, _cancel_removing)
 		return
 	var beat_mid_boss := run.current_stop().mid_boss
 	var heal_note := "\nYou recover %d HP." % run.map_win_heal if run.map_win_heal > 0 else ""
-	if run.elite_relic != null:
-		heal_note += "\nIt carried a relic: %s." % run.elite_relic.display_name
-	elif run.elite_fallback_gold > 0:
-		heal_note += "\nIt carried %d gold." % run.elite_fallback_gold
 	var box := panel(("The Bellkeeper falls. The way opens.\nChoose a keepsake for your deck, or skip." if beat_mid_boss else "A memory to carry onward.\nChoose a keepsake for your deck, or skip.") + heal_note, true)
 	style_banner(box.get_child(0) as Label)
 	var row := HBoxContainer.new()
@@ -41,6 +43,52 @@ func show() -> void:
 		add_button(box, "Remove a card (free, once)", start_removing)
 	if run.can_reward_heal():
 		add_button(box, "Heal %d HP (free, once)" % RunState.REWARD_HEAL, _heal)
+
+
+## The first half of an elite's reward: the relic (or the fallback gold) with "Take it", then the usual card choice.
+func _show_spoils() -> void:
+	var gold_line := "\n+%d gold" % run.elite_bonus_gold if run.elite_bonus_gold > 0 else ""
+	var box := panel("Elite spoils" + gold_line, true)
+	box.name = "EliteSpoils"
+	style_banner(box.get_child(0) as Label)
+	var relic := run.elite_relic()
+	if relic == null:
+		var note := make_label("You already carry every keepsake it could have held.")
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note.custom_minimum_size = Vector2(ELITE_PANEL_WIDTH, 0)
+		box.add_child(note)
+		var gold := make_label("%d gold" % run.elite_spoils_gold())
+		gold.name = "SpoilsGold"
+		gold.add_theme_font_size_override("font_size", 18)
+		gold.add_theme_color_override("font_color", MenuStyle.AMBER)
+		box.add_child(gold)
+		add_button(box, "Take the gold", _take_spoils).name = "TakeSpoilsButton"
+		return
+	var view := RelicView.new()
+	view.name = "SpoilsRelic"
+	view.view_scale = ELITE_BADGE_SCALE
+	view.set_relic(relic)
+	view.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(view)
+	var title := make_label(relic.display_name)
+	title.name = "RelicName"
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color("#D7D0BC"))
+	box.add_child(title)
+	var effect := make_label(relic.description)
+	effect.name = "RelicText"
+	effect.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	effect.custom_minimum_size = Vector2(ELITE_PANEL_WIDTH, 0)
+	effect.add_theme_font_size_override("font_size", 13)
+	effect.add_theme_color_override("font_color", Color("#bcc5bd"))
+	box.add_child(effect)
+	add_button(box, "Take it", _take_spoils).name = "TakeSpoilsButton"
+
+
+func _take_spoils() -> void:
+	sfx(&"reward")
+	run.take_elite_spoils()
+	refresh.call()
 
 
 func start_removing() -> void:

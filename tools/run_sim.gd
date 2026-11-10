@@ -533,6 +533,9 @@ func _take_reward(run: RunState) -> bool:
 			printerr("run_sim: the run rejected the smart policy's reward choice")
 			return false
 		return true
+	if not SimPolicy.take_elite_spoils(run):
+		printerr("run_sim: the elite spoils could not be taken")
+		return false
 	var choices := run.reward_choices()
 	var best: CardData = null
 	var best_score := -INF

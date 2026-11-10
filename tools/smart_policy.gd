@@ -819,6 +819,10 @@ static func choose_route(run: RunState, route: String = RoutePolicy.SMART) -> in
 		for id in options:
 			if run.route.node(id).type == type:
 				return id
+	# This rule set never seeks an elite: with nothing else it still prefers any other node to one.
+	for id in options:
+		if run.route.node(id).type != RouteMap.NodeType.ELITE:
+			return id
 	return options[0]
 
 
@@ -842,6 +846,8 @@ static func pick_reward(run: RunState) -> CardData:
 ## free Remove (on the weakest deck card) when even the best offered card scores below the
 ## deck average, else pick_reward. Each alternative is used only while unused. False if rejected.
 static func take_reward(run: RunState) -> bool:
+	if not SimPolicy.take_elite_spoils(run):
+		return false
 	if run.can_reward_heal() and run.player.hp < HEAL_BELOW * run.player.max_hp:
 		return run.resolve_reward_heal()
 	if run.can_reward_remove() and run.deck.size() > MIN_DECK and pick_reward(run) == null:

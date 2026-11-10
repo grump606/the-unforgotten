@@ -141,6 +141,14 @@ static func treasure_stop(run: RunState) -> bool:
 	return run.open_treasure() and run.take_treasure()
 
 
+## Elite spoils for both bots: when a won elite fight's relic (or the fallback gold) waits, take it. True when there was
+## nothing to take or it was taken; false on a RunState failure.
+static func take_elite_spoils(run: RunState) -> bool:
+	if not run.elite_spoils_pending():
+		return true
+	return run.take_elite_spoils()
+
+
 ## What an event button costs the player at worst, summed over its effects (a gamble counts its worse branch):
 ## {"hp", "gold", "max_hp", "curses", "gamble", "gains"}. `gains` is true when it also gives something.
 static func event_costs(effects: Array[EventEffect]) -> Dictionary:

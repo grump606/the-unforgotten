@@ -18,6 +18,13 @@ extends RefCounted
 ##   godot --path . -- --screen=treasure --character=thief
 ##   godot --path . -- --screen=treasure:2
 ##
+## An elite fight (map mode only): `--screen=elite` places a throwaway map run at an elite node of the first act, about to
+## fight its tougher pack (and then give its relic), `--screen=elite:2` at one of the second act. Gold and HP are set as
+## for the other screens.
+##
+##   godot --path . -- --screen=elite --character=stray
+##   godot --path . -- --screen=elite:2
+##
 ## An event stop (map mode only): `--screen=event` opens a random event of a throwaway map run, `--screen=event:<id>` a
 ## chosen one (an id such as bell_in_the_well, or its number: event:e04). The run is placed inside an event node on a
 ## connected path, gold and HP are set as for the other screens (default 100 gold, 55% HP).
@@ -98,8 +105,8 @@ const SCREENS := {"vendor": RunState.StopType.VENDOR, "rest": RunState.StopType.
 ## ("end" = escaped, "defeat" = the defeat card).
 const SPECIAL_SCREENS := ["select", "end", "defeat"]
 ## Stops that exist only on the map: opened in a throwaway map run. The number after the colon is the act (1 or 2) for
-## the chest, and an event id (or its number, e04) for "event".
-const MAP_SCREENS := ["treasure", "event"]
+## the chest and the elite fight, and an event id (or its number, e04) for "event".
+const MAP_SCREENS := ["treasure", "event", "elite"]
 ## Defaults for a screen launch: enough gold for a few purchases, and a player at this share of max HP.
 const DEFAULT_GOLD := 100
 const DEFAULT_HP_PERCENT := 55

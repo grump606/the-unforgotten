@@ -466,6 +466,8 @@ const PACK_HP_SHARE: Array[float] = [0.65, 0.55, 0.5]
 const PACK_MAX_ATTEMPTS := 24
 ## An elite fight has at least this many enemies.
 const ELITE_MIN_ENEMIES := 2
+## The prefix of an elite enemy's display name ("Elite Gate Warden"); the id, and so the art, stay the same.
+const ELITE_NAME_PREFIX := "Elite "
 
 
 ## One enemy's threat: its average damage per turn over its intent cycle (damage intents count amount * hits,
@@ -573,7 +575,24 @@ static func budget_encounter(count: int, rng: RandomNumberGenerator, row: int, b
 		best = _scaled_pack(base, fit["scale"])
 		best_info = _pack_info(n, fit, target, pack_threat(best), PACK_MAX_ATTEMPTS, true)
 	last_pack_info = best_info
+	if elite:
+		for i in best.size():
+			best[i] = elite_named(best[i])
 	return best
+
+
+## A copy of `enemy` whose display name has ELITE_NAME_PREFIX in front (same id, stats, intents and second phase). A new
+## EnemyData, so the shared resource is never touched; an already-elite name is left alone.
+static func elite_named(enemy: EnemyData) -> EnemyData:
+	if enemy.display_name.begins_with(ELITE_NAME_PREFIX):
+		return enemy
+	var intents: Array[CardEffect] = []
+	intents.assign(enemy.intents)
+	var named := EnemyData.make(ELITE_NAME_PREFIX + enemy.display_name, enemy.max_hp, intents, enemy.id, enemy.max_haunt)
+	named.phase_two_intents = enemy.phase_two_intents
+	named.phase_two_hp_percent = enemy.phase_two_hp_percent
+	named.phase_two_title = enemy.phase_two_title
+	return named
 
 
 ## The complete last_pack_info dictionary (every key, in every case).

@@ -350,19 +350,38 @@ func _test_elite() -> void:
 	var expected := StarterContent.budget_encounter(stop.enemy_count, replay, stop.row, StarterContent.map_class_difficulty(&"deserter") * RunState.ELITE_BUDGET_MULTIPLIER, true)
 	var same := expected.size() == combat.enemies.size()
 	for i in expected.size() if same else 0:
-		same = same and expected[i].max_hp == combat.enemies[i].max_hp
+		same = same and expected[i].max_hp == combat.enemies[i].max_hp and expected[i].display_name == combat.enemies[i].display_name
 	_check(same, "the elite pack is built at the elite budget")
+	var all_named := true
+	for enemy in combat.enemies:
+		all_named = all_named and enemy.display_name.begins_with(StarterContent.ELITE_NAME_PREFIX)
+	_check(all_named, "every enemy of an elite pack is named Elite ...")
+	var plain_names := StarterContent.budget_encounter(2, RandomNumberGenerator.new(), stop.row, 1.0)
+	_check(not plain_names[0].display_name.begins_with(StarterContent.ELITE_NAME_PREFIX), "a regular pack keeps the plain names")
+	_check(run_state.in_elite_stop() and stop.describe().begins_with("Elite ("), "the run knows it is at an elite stop")
 	var plain_threat := StarterContent.pack_threat(StarterContent.budget_encounter(stop.enemy_count, RandomNumberGenerator.new(), stop.row, StarterContent.map_class_difficulty(&"deserter")))
 	_check(StarterContent.pack_threat(expected) > plain_threat, "an elite pack is tougher than a regular one on the same row")
-	# Winning: extra gold, a relic that joins the run at once, shown on the reward and cleared when it is taken.
+	# Winning: extra gold now, and spoils (a relic) that wait to be taken before the card reward.
 	var gold := run_state.gold
 	var relics_before := run_state.relics.size()
 	run_state.complete_combat(true)
-	_check(run_state.gold == gold + RunState.map_win_gold(stop.enemy_count) + RunState.ELITE_GOLD_BONUS, "an elite win pays the regular gold plus the elite bonus")
-	_check(run_state.elite_relic != null and run_state.relics.size() == relics_before + 1 and run_state.relics.has(run_state.elite_relic), "an elite drops a relic that joins the run")
-	_check(run_state.elite_relic.price >= RunState.TREASURE_MIN_RELIC_PRICE, "the elite relic is not from the cheapest tier")
+	_check(run_state.gold == gold + RunState.map_win_gold(stop.enemy_count) + RunState.ELITE_GOLD_BONUS and run_state.elite_bonus_gold == RunState.ELITE_GOLD_BONUS, "an elite win pays the regular gold plus the elite bonus")
+	_check(run_state.elite_spoils_pending() and run_state.elite_relic() != null and run_state.relics.size() == relics_before, "an elite's relic waits in its spoils, not yet in the run")
+	var spoils_relic := run_state.elite_relic()
+	_check(spoils_relic.price >= RunState.TREASURE_MIN_RELIC_PRICE and run_state.elite_spoils_gold() == 0, "the elite relic is not from the cheapest tier")
+	_check(run_state.take_elite_spoils() and run_state.relics.size() == relics_before + 1 and run_state.relics.has(spoils_relic), "taking the spoils adds the relic")
+	_check(not run_state.elite_spoils_pending() and run_state.reward_pending() and not run_state.take_elite_spoils(), "the card reward is still pending, and the spoils cannot be taken twice")
 	run_state.resolve_reward(null)
-	_check(run_state.elite_relic == null and run_state.elite_fallback_gold == 0, "taking the reward clears the elite drop")
+	_check(run_state.relics.size() == relics_before + 1, "settling the reward adds no second relic")
+	# Skipping straight to the card takes the spoils on the way, so the relic is never lost.
+	var skipper := RunState.new(72, &"deserter", true)
+	_check(_walk_to_elite(skipper), "an elite node for the skip case")
+	skipper.start_combat()
+	var skipper_relics := skipper.relics.size()
+	skipper.complete_combat(true)
+	_check(skipper.elite_spoils_pending() and skipper.relics.size() == skipper_relics, "spoils pending after a second elite win")
+	skipper.resolve_reward(null)
+	_check(skipper.relics.size() == skipper_relics + 1 and not skipper.elite_spoils_pending(), "skipping the card takes the spoils first")
 	# A character that owns every relic gets gold instead.
 	var full := RunState.new(72, &"deserter", true)
 	full.relics.assign(StarterContent.relic_pool(&"deserter"))
@@ -374,13 +393,15 @@ func _test_elite() -> void:
 		if relic.kind == RelicData.Kind.WIN_GOLD:
 			win_gold_relics += relic.amount
 	full.complete_combat(true)
-	_check(full.elite_relic == null and full.elite_fallback_gold == RunState.ELITE_RELIC_FALLBACK_GOLD and full.gold == full_gold + RunState.map_win_gold(full.current_stop().enemy_count) + win_gold_relics + RunState.ELITE_GOLD_BONUS + RunState.ELITE_RELIC_FALLBACK_GOLD, "with every relic owned an elite drops gold instead")
+	var full_enemies := full.current_stop().enemy_count
+	_check(full.elite_spoils_pending() and full.elite_relic() == null and full.elite_spoils_gold() == RunState.ELITE_RELIC_FALLBACK_GOLD, "with every relic owned the spoils hold gold")
+	_check(full.take_elite_spoils() and full.gold == full_gold + RunState.map_win_gold(full_enemies) + win_gold_relics + RunState.ELITE_GOLD_BONUS + RunState.ELITE_RELIC_FALLBACK_GOLD, "taking them pays the fallback gold")
 	# A regular fight drops nothing extra.
 	var plain := RunState.new(31, &"thief", true)
 	_walk_to(plain, RouteMap.NodeType.FIGHT)
 	plain.start_combat()
 	plain.complete_combat(true)
-	_check(plain.elite_relic == null and plain.elite_fallback_gold == 0 and not plain.current_stop().elite, "a regular fight is not an elite and drops no relic")
+	_check(not plain.elite_spoils_pending() and plain.elite_bonus_gold == 0 and not plain.in_elite_stop() and not plain.current_stop().elite, "a regular fight is not an elite and holds no spoils")
 
 
 ## Walks until a fight is reachable, turns it into an elite and enters it.

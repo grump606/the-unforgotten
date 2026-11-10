@@ -647,6 +647,24 @@ func _place_at_treasure(act: int) -> void:
 	_run.restore_map(_run.route, chest.id, path, true)
 
 
+## Map mode (debug): puts the run at an elite node of act `act` (0-based), at the start of its fight, on a path of the map
+## that leads to it. The map is regenerated from a new seed in the rare case the act has no elite.
+func _place_at_elite(act: int, character_id: StringName) -> void:
+	for _attempt in 40:
+		var elites: Array[RouteMap.MapNode] = []
+		for n in _run.route.nodes:
+			if n.type == RouteMap.NodeType.ELITE and n.act == act:
+				elites.append(n)
+		if not elites.is_empty():
+			var target: RouteMap.MapNode = elites[randi() % elites.size()]
+			var path: Array[int] = [target.id]
+			while _run.route.node(path[0]).row > 0:
+				path.push_front(_run.route.node(path[0]).prev[0])
+			_run.restore_map(_run.route, target.id, path, true)
+			return
+		_run = RunState.new(randi(), character_id, true)
+
+
 ## Map mode (debug): puts the run inside an event stop of a throwaway map run, on a path of the map that leads to it.
 ## `wanted` forces that event (by marking every other event as seen), else the run RNG picks one. The map is
 ## regenerated from a new seed in the rare case it has no event node.
@@ -680,9 +698,11 @@ func start_debug_screen(launch: DebugLaunch) -> void:
 		_new_run(_show_main_menu)
 		_debug_session = true # _new_run ends a session; a run started from here must stay unsaved
 		return
-	_run = RunState.new(randi(), launch.character_id, launch.screen == "treasure" or launch.screen == "event")
+	_run = RunState.new(randi(), launch.character_id, launch.screen == "treasure" or launch.screen == "event" or launch.screen == "elite")
 	if launch.screen == "treasure":
 		_place_at_treasure(launch.screen_index - 1)
+	elif launch.screen == "elite":
+		_place_at_elite(launch.screen_index - 1, launch.character_id)
 	elif launch.screen == "event":
 		_place_at_event(launch.event_id, launch.character_id)
 	elif DebugLaunch.SCREENS.has(launch.screen):

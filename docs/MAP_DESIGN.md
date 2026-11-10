@@ -1060,24 +1060,37 @@ fights, rests, shops, events and elites of the ordinary free rows, about 70 per 
   mix ranges have the new numbers. The `mixed` route bot's "skip an event while hurt" check now uses a hurt player who can survive
   a fight (at 1 HP the fight is lethal and an event never takes the last HP).
 
-## Phase 5a: elite fights (mechanics built, weight still 0)
+## Phase 5a: elite fights
 
-An elite node (`NodeType.ELITE`) now plays as its own kind of fight. The elite weight in `RouteMap.CONFIG` is still 0, so default maps
-have none yet; a config with a positive `type_weights.elite` produces them (tests and the sims use that).
+An elite node (`NodeType.ELITE`) plays as its own kind of fight. Phase 5a built the mechanics with the weight at 0; Phase 5b (below) turned
+them on. The presentation (names, larger figures, the log line, the spoils screen, the debug launch) came from a parallel version of this
+work that had been left uncommitted in the old `map-5-elites` checkout, and was brought over on 2026-11-10.
 
-- **Stop:** `Stop.elite` is set by `RunState._stop_for_node` (an elite is a COMBAT stop of at least `ELITE_MIN_ENEMIES` = 2 enemies).
-  Nothing is stored in a save: a resumed run rebuilds the stop from its node, as for every other map stop.
+- **Stop:** `Stop.elite` is set by `RunState._stop_for_node` (an elite is a COMBAT stop of at least `ELITE_MIN_ENEMIES` = 2 enemies; its
+  description reads "Elite (N enemies)"). `RunState.in_elite_stop()` says whether the run is at one. Nothing is stored in a save: a resumed run
+  rebuilds the stop from its node, as for every other map stop.
 - **Pack:** `start_combat` builds it with `budget_encounter(count, rng, row, class difficulty * ELITE_BUDGET_MULTIPLIER, true)`,
-  `ELITE_BUDGET_MULTIPLIER` = 1.35, so an elite is 35% more threat than a regular fight on the same row (the bounds on the HP and damage
-  scale still apply).
-- **Reward:** the regular win (gold, heal, three-card reward) plus `ELITE_GOLD_BONUS` = 20 gold and a relic. The relic is drawn like a
-  chest's (`_roll_relic(TREASURE_MIN_RELIC_PRICE)`, the cheapest tier left out) and joins the run when the fight is won; the reward
-  screen names it (`RunState.elite_relic`). A character that owns every relic gets `ELITE_RELIC_FALLBACK_GOLD` = 60 gold
-  (`elite_fallback_gold`). Both clear when the card reward is taken or skipped. The reward is not a save point (only the arrival save
-  is), so a quit mid-reward replays the fight and the same relic is drawn again.
+  `ELITE_BUDGET_MULTIPLIER` = 1.35 (`RunState`), so an elite is 35% more threat than a regular fight on the same row (the bounds on the HP and
+  damage scale still apply). Every enemy of an elite pack is renamed with `StarterContent.ELITE_NAME_PREFIX` ("Elite Gate Warden") by
+  `StarterContent.elite_named`: a new `EnemyData` with the same id (so the same art), stats, intents and second phase.
+- **Battle screen:** `Battle.elite_fight` (set by `CombatScreen` from `RunState.in_elite_stop()`) opens the log with "Elite fight", and each
+  enemy figure is drawn `Fighter.ELITE_SCALE` = 1.1 times larger (it keeps its HP bar; bosses keep their own scale).
+- **Reward:** the regular win (gold, heal, three-card reward) plus `ELITE_GOLD_BONUS` = 20 gold, paid at once and shown on the panel
+  (`elite_bonus_gold`), and **elite spoils**: a relic drawn like a chest's (`_roll_relic(TREASURE_MIN_RELIC_PRICE)`, the cheapest tier left
+  out) that waits to be taken. The reward screen opens on the spoils panel (`RewardScreen._show_spoils`: the relic drawn with `RelicView`, its
+  name and text, "Take it"), and the card choice follows. A character that owns every relic gets `ELITE_RELIC_FALLBACK_GOLD` = 60 gold
+  instead ("Take the gold"). API: `elite_spoils_pending()`, `elite_relic()`, `elite_spoils_gold()`, `take_elite_spoils()`. Settling the
+  card reward (a card, a skip, Remove or Heal) takes the spoils first (`_finish_reward`), so the relic is never lost by skipping. The spoils
+  are rolled with the run RNG when the fight is won and are not saved (only the arrival save is a resume point), so a quit mid-reward replays
+  the fight and draws the same relic again.
+- **Debug launch:** `--screen=elite` (or `elite:2` for the second act) puts a throwaway map run at the start of an elite fight on a path of
+  the map that leads to it (`Run._place_at_elite`); `THE_UNFORGOTTEN_SCREEN=elite` does the same.
+- **Bots:** `SimPolicy.take_elite_spoils` takes the spoils (both bots call it before the card reward). The `mixed` route takes an elite only
+  while HP is at least `MIXED_ELITE_FROM` = 70% of max (it scores it down below that); the `smart` route never seeks one and prefers any
+  other node when nothing else on its list is on offer.
 - **Refactor:** the chest's relic roll moved into `_roll_relic`; it consumes the run RNG exactly as before.
-- **Open:** the elite share (the 55% fight target leaves about 18% for elites if events stay at 10%, which is a lot of relics: chests
-  already give 1.6 per run), elite-specific enemies or modifiers, an "Elite" label on the battle screen, and bot balance.
+- **Open:** elite-specific enemies or modifiers (an elite is a regular pack scaled up, renamed and drawn larger), a relic note on the map
+  tooltip, and bot balance (the `mixed` and `smart` changes above came after the Phase 5b numbers).
 
 ## Phase 5b: the elite share (8%)
 

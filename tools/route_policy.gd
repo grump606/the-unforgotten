@@ -35,6 +35,8 @@ const LOOKAHEAD := 3
 const MIXED_REST_BELOW := 0.55
 const MIXED_SHOP_GOLD := 100
 const MIXED_EVENT_FROM := 0.6
+## `mixed` takes an elite fight (a relic and gold for a hard pack) only while HP is at least this share of max.
+const MIXED_ELITE_FROM := 0.7
 ## Rough per-node effects the `mixed` projection uses: share of max HP a rest heals, a fight costs per enemy,
 ## an elite costs, and the gold a shop spends.
 const _REST_HEAL := 0.3
@@ -173,7 +175,7 @@ static func _path_score(run: RunState, id: int, hp: float, gold: int, depth: int
 		RouteMap.NodeType.ELITE:
 			var loss := _ELITE_LOSS
 			next_hp = hp - loss
-			gain = 1.5 - loss * (12.0 if hp < MIXED_REST_BELOW else 3.0)
+			gain = (2.5 if hp >= MIXED_ELITE_FROM else -2.0) - loss * (12.0 if hp < MIXED_REST_BELOW else 3.0)
 		RouteMap.NodeType.FIGHT:
 			var loss := _FIGHT_LOSS_PER_ENEMY * maxi(node.enemy_count, 1)
 			next_hp = hp - loss

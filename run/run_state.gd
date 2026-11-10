@@ -46,7 +46,7 @@ const TREASURE_MIN_RELIC_PRICE := 65
 ## Gold a chest gives instead when the character owns every relic of its pool.
 const TREASURE_FALLBACK_GOLD := 100
 ## Elite fights (map mode, docs/MAP_DESIGN.md "Phase 5a"): the pack's threat budget is the row's budget times this (on top of the
-## class difficulty), the win pays this much extra gold, and it always drops a relic (see ELITE_RELIC_FALLBACK_GOLD).
+## class difficulty), the win pays this much extra gold, and its spoils always hold a relic (see ELITE_RELIC_FALLBACK_GOLD).
 const ELITE_BUDGET_MULTIPLIER := 1.35
 const ELITE_GOLD_BONUS := 20
 ## Gold an elite drops instead of a relic when the character owns every relic of its pool.
@@ -109,6 +109,8 @@ class Stop:
 					return "Boss"
 				if mid_boss:
 					return "Mid-boss"
+				if elite:
+					return "Elite (%d enemies)" % enemy_count
 				return "Combat (%d enem%s)" % [enemy_count, "y" if enemy_count == 1 else "ies"]
 			StopType.REST:
 				return "Rest"
@@ -164,10 +166,13 @@ var reward_remove_used := false
 var reward_heal_used := false
 ## Map mode: HP the last won fight restored (0 otherwise). Display only, not saved.
 var map_win_heal := 0
-## The relic the last won elite fight dropped (already in `relics`), null until one is won and once its reward is taken.
-var elite_relic: RelicData = null
-## The gold the last won elite dropped instead of a relic (0 when it dropped a relic).
-var elite_fallback_gold := 0
+## The spoils of a won elite fight (see `complete_combat`): `_elite_spoils` while they wait to be taken, with the relic in
+## `_elite_relic` (null when the character owned every relic and gold is given instead). Rolled from the run RNG when the
+## fight is won, so a save made on arrival (before the fight) always yields the same relic.
+var _elite_spoils := false
+var _elite_relic: RelicData = null
+## Map mode: the bonus gold the last won elite fight paid. Display only, not saved.
+var elite_bonus_gold := 0
 ## Relics bought from vendors this run, in purchase order. Saved with the run (as ids).
 var relics: Array[RelicData] = []
 
@@ -445,16 +450,14 @@ func complete_combat(victory: bool) -> bool:
 			RelicData.Kind.WIN_HEAL:
 				player.heal(relic.amount)
 	map_win_heal = player.heal(_map_win_heal_amount(stop)) if route != null else 0
-	elite_relic = null
-	elite_fallback_gold = 0
-	if stop.elite:
-		gold += ELITE_GOLD_BONUS
-		elite_relic = _roll_relic(TREASURE_MIN_RELIC_PRICE)
-		if elite_relic != null:
-			_grant_relic(elite_relic)
-		else:
-			elite_fallback_gold = ELITE_RELIC_FALLBACK_GOLD
-			gold += elite_fallback_gold
+	elite_bonus_gold = 0
+	_elite_spoils = false
+	_elite_relic = null
+	if stop.elite and route != null:
+		elite_bonus_gold = ELITE_GOLD_BONUS
+		gold += elite_bonus_gold
+		_elite_relic = _roll_relic(TREASURE_MIN_RELIC_PRICE)
+		_elite_spoils = true
 	_roll_rewards()
 	_reward_pending = true
 	return true
@@ -539,8 +542,7 @@ func resolve_reward_heal() -> bool:
 
 
 func _finish_reward() -> void:
-	elite_relic = null
-	elite_fallback_gold = 0
+	take_elite_spoils() # an elite's relic is never lost by skipping straight to the card
 	_reward_pending = false
 	_reward_choices = []
 	_advance()
@@ -709,6 +711,44 @@ func open_treasure() -> bool:
 		return true
 	_treasure_relic = _roll_relic(TREASURE_MIN_RELIC_PRICE)
 	_treasure_opened = true
+	return true
+
+
+# --- Elite spoils (docs/MAP_DESIGN.md, "Phase 5a") -----------------------------------------------------------
+
+## True while the current stop is an elite fight (before, during and after the fight).
+func in_elite_stop() -> bool:
+	var stop := current_stop()
+	return stop != null and stop.type == StopType.COMBAT and stop.elite
+
+
+## True from winning an elite fight until its spoils are taken (`take_elite_spoils`, or by settling the card reward,
+## which takes them first).
+func elite_spoils_pending() -> bool:
+	return _elite_spoils and _reward_pending
+
+
+## The relic waiting in an elite's spoils, or null when none is pending or the character owned every relic.
+func elite_relic() -> RelicData:
+	return _elite_relic if elite_spoils_pending() else null
+
+
+## The gold the spoils hold instead of a relic (ELITE_RELIC_FALLBACK_GOLD when every relic is owned, else 0).
+func elite_spoils_gold() -> int:
+	return ELITE_RELIC_FALLBACK_GOLD if elite_spoils_pending() and _elite_relic == null else 0
+
+
+## Takes the spoils: the relic (a MAX_HP relic raises max HP and HP once, here), or the fallback gold. The card reward
+## stays pending. False, changing nothing, when no spoils wait.
+func take_elite_spoils() -> bool:
+	if not elite_spoils_pending():
+		return false
+	if _elite_relic != null:
+		_grant_relic(_elite_relic)
+	else:
+		gold += ELITE_RELIC_FALLBACK_GOLD
+	_elite_spoils = false
+	_elite_relic = null
 	return true
 
 
@@ -1167,6 +1207,8 @@ func _advance() -> void:
 	_vendor = null
 	_treasure_opened = false
 	_treasure_relic = null
+	_elite_spoils = false
+	_elite_relic = null
 	_reset_event()
 	if route != null:
 		_map_stop = null

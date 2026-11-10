@@ -50,6 +50,8 @@ var seed_override: int = -1
 var boss_fight := false
 ## Shown as the first log line of a boss fight ("Boss" or "Mid-boss"); both use the boss backdrop.
 var boss_label := "Boss"
+## Map mode: an elite fight. Its enemies are drawn a little larger (Fighter.ELITE_SCALE) and the log says so.
+var elite_fight := false
 ## Show the ~2 s boss entrance before turn 1. Off by default when running headless so UI tests that drive a boss
 ## fight are not blocked; the intro tests turn it on.
 var show_boss_intro := DisplayServer.get_name() != "headless"
@@ -213,6 +215,8 @@ func _attach(combat: Combat) -> void:
 	_backdrop.set_harsh(false)
 	if boss_fight:
 		_log_label.append_text("[b]%s fight[/b]\n" % boss_label)
+	elif elite_fight:
+		_log_label.append_text("[b]Elite fight[/b]\n")
 	_new_fight_button.hide()
 	_begin_batch()
 	_combat.start()
@@ -483,7 +487,7 @@ func _sync_enemies() -> void:
 		for i in _combat.enemies.size():
 			var view := Fighter.new()
 			view.phase = i * 1.9
-			view.set_enemy(_combat.enemies[i], boss_fight)
+			view.set_enemy(_combat.enemies[i], boss_fight, elite_fight and not boss_fight)
 			view.intent_target = _combat.player
 			view.pressed.connect(_select_target.bind(i))
 			_stage.add_child(view)

@@ -44,6 +44,8 @@ const HEIGHTS := {
 const DEFAULT_HEIGHT := 170.0
 ## Boss figures are drawn this much larger than a regular enemy (shrunk only if the stage is too short).
 const BOSS_SCALE := 1.5
+## An elite enemy (map mode, docs/MAP_DESIGN.md "Phase 5") is drawn this much larger than a regular one.
+const ELITE_SCALE := 1.1
 ## A boss is never fitted below this multiple of the regular figure height.
 const BOSS_MIN_SCALE := 1.1
 const SHAKE_TIME := 0.5
@@ -87,6 +89,8 @@ var drop_text := ""
 var drop_lost := -1
 ## A boss is drawn BOSS_SCALE larger and has no per-figure HP bar (the battle shows a wide one on top).
 var is_boss := false
+## An elite is drawn ELITE_SCALE larger (it keeps its HP bar).
+var is_elite := false
 ## Extra scale of the drawn figure (the boss entrance tweens it up to 1).
 var entrance := 1.0
 ## The figure height of a regular enemy of this kind, before any boss scaling.
@@ -190,8 +194,9 @@ func _process(delta: float) -> void:
 
 
 ## Shows an enemy from scratch: picks its figure and snaps every animation to its resting state.
-func set_enemy(enemy: EnemyUnit, boss := false) -> void:
+func set_enemy(enemy: EnemyUnit, boss := false, elite := false) -> void:
 	is_boss = boss
+	is_elite = elite
 	entrance = 1.0
 	is_player = false
 	facing = -1.0
@@ -199,7 +204,7 @@ func set_enemy(enemy: EnemyUnit, boss := false) -> void:
 	unit = enemy
 	art_key = art_key_for(enemy.data.id)
 	base_height = float(HEIGHTS.get(art_key, DEFAULT_HEIGHT)) * HEIGHT_SCALE
-	figure_height = base_height * (BOSS_SCALE if boss else 1.0)
+	figure_height = base_height * (BOSS_SCALE if boss else (ELITE_SCALE if elite else 1.0))
 	_tex = null
 	var fig := PaintedArt.enemy_figure(art_key)
 	if not fig.is_empty():
