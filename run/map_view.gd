@@ -457,6 +457,8 @@ func _draw_node(id: int) -> void:
 		draw_circle(c, r + 2.5 * s, Color(AMBER, 0.14))
 	elif state == CURRENT:
 		draw_circle(c, r + 7.0 * s, Color("#fff1c9", 0.12 + 0.06 * pulse))
+	if n.type == RouteMap.NodeType.ELITE:
+		_ring_flames(c, r, alpha, k)
 	draw_circle(c + Vector2(0, 2.5 * s), r + 1.0, Color(0, 0, 0, 0.5 * alpha))
 	draw_circle(c, r, Color(DISC, DISC.a * alpha))
 	draw_arc(c, r, 0.0, TAU, 48, Color(rim, rim.a * alpha), 2.6 * s, true)
@@ -493,7 +495,7 @@ func _glyph_color(type: RouteMap.NodeType) -> Color:
 		RouteMap.NodeType.FIGHT:
 			return Color("#e07a70")
 		RouteMap.NodeType.ELITE:
-			return Color("#ff8a52")
+			return Color("#ffa629") # fire: amber blades under orange flames
 		RouteMap.NodeType.REST:
 			return HEARTH
 		RouteMap.NodeType.SHOP:
@@ -514,8 +516,7 @@ func _draw_glyph(type: RouteMap.NodeType, c: Vector2, g: float, col: Color) -> v
 		RouteMap.NodeType.FIGHT:
 			_glyph_blades(c, g, col)
 		RouteMap.NodeType.ELITE:
-			_glyph_blades(c + Vector2(0, g * 0.18), g * 0.9, col)
-			_glyph_horns(c, g, col)
+			_glyph_blades(c, g, col) # an elite's flames burn on the node's rim, see _ring_flames
 		RouteMap.NodeType.REST:
 			_glyph_armchair(c, g, col)
 		RouteMap.NodeType.SHOP:
@@ -544,14 +545,35 @@ func _glyph_blades(c: Vector2, g: float, col: Color) -> void:
 		draw_circle(hilt, w * 0.85, col)
 
 
-func _glyph_horns(c: Vector2, g: float, col: Color) -> void:
-	var w := maxf(2.0, g * 0.2)
-	for m in [-1.0, 1.0]:
-		var centre := c + Vector2(m * g * 0.42, -g * 0.82)
-		if m < 0.0:
-			draw_arc(centre, g * 0.52, PI * 0.95, PI * 1.55, 8, col, w, true)
-		else:
-			draw_arc(centre, g * 0.52, PI * 1.45, PI * 2.05, 8, col, w, true)
+## An elite's flames: tongues around the outside of a node's ring (centre `c`, ring radius `r`), an orange outer flame with a
+## pale yellow core, swaying and flickering with `time` (still under reduced motion, where `time` stops). The ones on top
+## are the tallest and the ones underneath stay low, clear of the enemy pips. Drawn before the disc, which hides their bases.
+func _ring_flames(c: Vector2, r: float, alpha: float, k: float) -> void:
+	var outer := Color("#ff5a1a")
+	var core := Color("#ffe58a")
+	outer = Color(outer.r * k, outer.g * k, outer.b * k, alpha)
+	core = Color(core.r * k, core.g * k, core.b * k, alpha)
+	var count := 12
+	for i in count:
+		var angle := TAU * float(i) / count - PI * 0.5 # from the top, clockwise
+		var dir := Vector2.from_angle(angle)
+		var tangent := Vector2(-dir.y, dir.x)
+		var up := clampf(0.5 + 0.5 * -dir.y, 0.0, 1.0)
+		var flicker := 1.0 + 0.18 * sin(time * 8.0 + i * 2.3)
+		var sway := 0.22 * r * sin(time * 5.0 + i * 1.7)
+		var h := r * (0.3 + 0.55 * up) * flicker
+		var half := r * 0.2
+		for layer in 2:
+			var kk := 1.0 if layer == 0 else 0.55
+			var base := c + dir * (r - 2.0)
+			var pts := PackedVector2Array([
+				base - tangent * half * kk,
+				base + dir * h * 0.5 * kk - tangent * half * 0.85 * kk + tangent * sway * 0.4,
+				base + dir * h * kk + tangent * sway * kk,
+				base + dir * h * 0.5 * kk + tangent * half * 0.85 * kk + tangent * sway * 0.4,
+				base + tangent * half * kk,
+			])
+			draw_colored_polygon(pts, outer if layer == 0 else core)
 
 
 func _glyph_coin(c: Vector2, g: float, col: Color) -> void:
@@ -702,8 +724,10 @@ func _draw_legend() -> void:
 	for i in items.size():
 		var type: RouteMap.NodeType = items[i][0]
 		var col := _glyph_color(type)
+		if type == RouteMap.NodeType.ELITE:
+			_ring_flames(Vector2(x + gw * 0.5, y - 3.0 * s), 7.5 * s, 1.0, 1.0)
 		_draw_glyph(type, Vector2(x + gw * 0.5, y - 3.0 * s), 7.5 * s, Color(col, 0.9))
-		_text(items[i][1], Vector2(x + gw + 2.0 * s, y + 1.0 * s), fs, BONE_DIM)
+		_text(items[i][1], Vector2(x + gw + (6.0 if type == RouteMap.NodeType.ELITE else 2.0) * s, y + 1.0 * s), fs, BONE_DIM)
 		x += widths[i]
 	for i in 3:
 		draw_circle(Vector2(x + (6.0 + i * 8.0) * s, y - 3.0 * s), 2.3 * s, BONE_DIM)

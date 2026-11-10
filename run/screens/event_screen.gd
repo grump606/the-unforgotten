@@ -156,8 +156,10 @@ static func _add_text(box: VBoxContainer, text: String, font_size: int, colour: 
 	return label
 
 
-## Sizes the scroll area to its content, capped at the room the body leaves.
-func _fit(scroll: ScrollContainer, box: VBoxContainer) -> void:
+## Sizes the scroll area to its content, capped at the room the body leaves. The parameters are untyped on purpose: this
+## runs a frame after it was queued, and a typed parameter whose object was freed meanwhile fails the call before the
+## guard below can look at it.
+func _fit(scroll, box) -> void:
 	if not is_instance_valid(scroll) or not is_instance_valid(box) or not is_instance_valid(body):
 		return
 	var room := maxf(body.size.y - 2.0 * BOTTOM_GAP - 24.0, 120.0)
