@@ -206,7 +206,7 @@ func tooltip_for(id: int) -> String:
 		RouteMap.NodeType.FIGHT:
 			return "Fight: %d %s" % [maxi(n.enemy_count, 1), "enemy" if n.enemy_count <= 1 else "enemies"]
 		RouteMap.NodeType.ELITE:
-			return "Elite fight: %d enemies" % maxi(n.enemy_count, 2)
+			return "Elite fight: %d enemies. Drops a relic" % maxi(n.enemy_count, 2)
 		RouteMap.NodeType.REST:
 			return "Rest"
 		RouteMap.NodeType.SHOP:

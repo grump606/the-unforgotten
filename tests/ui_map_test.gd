@@ -182,6 +182,16 @@ func _initialize() -> void:
 		if elites.node(id).type == RouteMap.NodeType.ELITE and elite_view.tooltip_for(id).begins_with("Elite fight"):
 			tips += 1
 	check(tips > 0, "elite nodes get an elite tooltip")
+	var relic_tips := 0
+	var plain_tips := 0
+	for id in elite_view.shown_ids():
+		var t := elite_view.tooltip_for(id)
+		if elites.node(id).type == RouteMap.NodeType.ELITE and t.contains("relic"):
+			relic_tips += 1
+		elif elites.node(id).type == RouteMap.NodeType.FIGHT and not t.contains("relic"):
+			plain_tips += 1
+	check(relic_tips > 0, "the elite tooltip mentions the relic")
+	check(plain_tips > 0 or elites.count_of(RouteMap.NodeType.FIGHT) == 0, "a regular fight tooltip does not mention a relic")
 	elite_view.queue_free()
 
 	# The legacy line and odd routes.
