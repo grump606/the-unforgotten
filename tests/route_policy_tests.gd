@@ -244,7 +244,8 @@ func _test_mixed() -> void:
 				_check(node.type == T.REST, "mixed rests when badly hurt and a rest is offered (took %d of %s; row %d)" % [node.type, str(types), node.row])
 				_note("mixed_rest_low")
 			# (An event that leads to a rest within the look-ahead is a fair pick for a hurt player: only check maps where none does.)
-			if state[0] == 1 and types.has(T.EVENT) and types.has(T.FIGHT) and not types.has(T.REST) and not _rest_ahead(run_state, options, 3):
+			# (At 1 HP a fight would be lethal and an event never takes the last HP, so the event is the better pick there; the rule is for a hurt player who survives a fight.)
+			if state[0] == int(max_hp * 0.4) and types.has(T.EVENT) and types.has(T.FIGHT) and not types.has(T.REST) and not _rest_ahead(run_state, options, 3):
 				_check(node.type == T.FIGHT, "mixed skips an event while hurt")
 				_note("mixed_skip_event")
 		run_state.player.hp = hp

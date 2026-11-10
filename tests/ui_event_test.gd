@@ -233,9 +233,14 @@ func _initialize() -> void:
 	# --- The map glyph, tooltip, legend and the plain list ---
 	var route := RouteMap.generate(5, &"deserter")
 	var event_id := -1
-	for n in route.nodes:
-		if n.type == RouteMap.NodeType.EVENT and n.act == 0:
-			event_id = n.id
+	# Events are few now, so a map may have none in act 1: take the first seed from 5 that has one.
+	for map_seed in range(5, 60):
+		route = RouteMap.generate(map_seed, &"deserter")
+		for n in route.nodes:
+			if n.type == RouteMap.NodeType.EVENT and n.act == 0:
+				event_id = n.id
+				break
+		if event_id >= 0:
 			break
 	var view := MapView.new()
 	view.size = Vector2(1152, 648)

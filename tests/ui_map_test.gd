@@ -254,6 +254,17 @@ func _initialize() -> void:
 			run_state.resolve_reward(null)
 		elif run_state.current_stop().type == RunState.StopType.STORY:
 			run_state.read_story()
+		else:
+			# A rest, shop, chest or event: settle it the way the sim bots do, so the run is back at the map.
+			match run_state.current_stop().type:
+				RunState.StopType.REST:
+					check(SimPolicy.rest_stop(run_state, false), "step %d: the rest is settled" % step)
+				RunState.StopType.VENDOR:
+					check(run_state.leave_vendor(), "step %d: the shop is left" % step)
+				RunState.StopType.TREASURE:
+					check(SimPolicy.treasure_stop(run_state), "step %d: the chest is taken" % step)
+				RunState.StopType.EVENT:
+					check(SimPolicy.event_stop(run_state), "step %d: the event is settled" % step)
 		scene._show_stop()
 	scene.queue_free()
 

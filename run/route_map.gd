@@ -61,7 +61,7 @@ const CONFIG := {
 	# chests only ever appear in the forced treasure row, so the generator does not roll it. An event takes the
 	# place of a fight like a rest or shop does (docs/EVENTS_DESIGN.md); the weights are not shares, see
 	# docs/MAP_DESIGN.md "Phase 4c" for what they give per random path (about 2 events, 2.4 rests, 0.85 shops after phase 4f).
-	"type_weights": {"fight": 18.0, "rest": 27.0, "shop": 10.0, "elite": 0.0, "treasure": 0.0, "event": 6.0},
+	"type_weights": {"fight": 36.0, "rest": 31.0, "shop": 3.5, "elite": 0.0, "treasure": 0.0, "event": 6.5},
 	# Enemy count weights (for counts 1, 2, 3 ...) by the node's row in the run; the first band whose
 	# max_row is not below the row applies.
 	"enemy_bands": [
@@ -71,8 +71,8 @@ const CONFIG := {
 	],
 	# Node counts a free row may have; they must differ by at most 1 so neighbouring rows can connect.
 	"free_widths": [3, 4],
-	# The first free rows of each act are all fights (no rest, shop or elite).
-	"safe_rows": 3,
+	# The first free rows of each act are all fights (no rest, shop, event or elite).
+	"safe_rows": 1,
 	# Map-level availability: every run of this many consecutive free rows (within an act, counting only
 	# rows at or after safe_rows) holds one. 0 turns a window off.
 	"rest_window": 6,

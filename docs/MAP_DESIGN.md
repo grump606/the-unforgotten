@@ -1031,3 +1031,31 @@ Other changes: the `mixed` route bot (`RoutePolicy`) no longer walks into a figh
 rest is on offer (`DEATH_PENALTY`); the tests that pinned the old mix, windows and per-path counts have the new numbers.
 Two stress settings now behave differently: a rest and shop window of 3 or 4 together cannot be met under the new rules
 (a window of 5 can), so the stress test uses 5.
+
+## Phase 4h: target mix of the variable nodes, rests from the second free row
+
+Phase 4g's measurement counted every free node. The nodes the generator does not choose (story beats, bosses, the forced
+chest rows and the forced rest rows) are set by the layout, so the mix targets now count only the **variable nodes**: the
+fights, rests, shops, events and elites of the ordinary free rows, about 70 per map.
+
+- **First free row only.** `safe_rows` 3 -> 1: only the first free row of an act is all fights (no rest, shop, event or
+  elite); every special node may appear from the second free row.
+- **Weights** fight 36, rest 31, shop 3.5, event 6.5 (was 18 / 27 / 10 / 6; elite stays 0). The weights are not shares, so they
+  were found by measuring 400 maps for each candidate (the rest of the grid is in the commit that made this change).
+- **Targets and result** (share of the variable nodes; elites do not exist yet, so their part of the remainder is fights):
+
+| | target | measured |
+| --- | --- | --- |
+| fights | the remainder (55% once elites take a share) | 73.3% |
+| rests | 12% | 12.0% |
+| shops | 5% | 4.9% |
+| events | about 10% | 9.8% |
+
+  Per map that is about 51 fights, 8.4 ordinary rests (15.3 with the forced ones), 3.7 shops, 7.0 events and 7.0 chests. A random
+  path takes about 14.7 fights, 4.2 rests (2 forced), 1.0 shops and 2.0 events per run.
+- **Open:** when elites arrive they take their share out of the fights (the 55% target), so the elite weight and the
+  fight weight will need a new pass then. Rests cluster in the first rows that allow them (free rows 2 and 4 of an act) because the
+  2-per-path cap fills early; late rows hold few.
+- Tests: the safe-row tests read `RouteMap.CONFIG["safe_rows"]`, a window below 6 is no longer feasible with the rest rules, and the
+  mix ranges have the new numbers. The `mixed` route bot's "skip an event while hurt" check now uses a hurt player who can survive
+  a fight (at 1 HP the fight is lethal and an event never takes the last HP).
