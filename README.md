@@ -2,7 +2,7 @@
 
 > **Renamed (v0.6.0):** this project was called "Card Battle Prototype" and lived at `grump606/card-battle-prototype` (now a private backup). Old design docs may still use the original enemy and relic names; see [`docs/RESKIN.md`](docs/RESKIN.md) for the map. Saves and settings from every earlier version are moved into the new `The Unforgotten` user-data folder the first time the new version is installed or run, and the old folder is removed (see `docs/INSTALLER.md`).
 
-A small turn-based card battler (afterlife-escape theme) built with Godot 4.7, GDScript, targeting Windows PC. You pick one of four characters and make your way down a fixed line of stops (fights, rests, vendors, story beats and two bosses) with a deck that grows from stop to stop; enemies repeat a fixed cycle of intents. How many stops, characters, relics and cards there are is in [`docs/GAME_FACTS.md`](docs/GAME_FACTS.md).
+A small turn-based card battler (afterlife-escape theme) built with Godot 4.7, GDScript, targeting Windows PC. You pick one of four characters and make your way along a branching route map of two acts (fights, elites, rests, shops, chests, events, story beats and two bosses; the fixed 22-stop line is still in the code) with a deck that grows from stop to stop; enemies repeat a fixed cycle of intents. How many stops, characters, relics and cards there are is in [`docs/GAME_FACTS.md`](docs/GAME_FACTS.md).
 
 ## Where to read more
 
