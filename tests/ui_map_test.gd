@@ -244,8 +244,7 @@ func _initialize() -> void:
 		check(views.size() == 1, "step %d: the run shows one map" % step)
 		var run_state: RunState = scene._run
 		var next_row: int = run_state.route.node(run_state.reachable_nodes()[0]).row
-		check(header.text.contains("Journey %d/30" % (next_row + 1)), "step %d: the header counts the row being chosen (%s)" % [step, header.text.replace("
-", " | ")])
+		check(header.text.contains("Journey %d/30" % (next_row + 1)), "step %d: the header counts the row being chosen (%s)" % [step, header.text.replace("\n", " | ")])
 		check(views.size() == 1 and (views[0] as MapView).progress_text() == "Row %d/15" % (next_row + 1), "step %d: the view and the header agree on the row" % step)
 		scene._on_node_chosen(run_state.reachable_nodes()[0])
 		check(run_body.find_children("*", "MapView", true, false).is_empty() and run_state.current_stop() != null, "step %d: choosing a node leaves the map for its stop" % step)

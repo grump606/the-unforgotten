@@ -24,11 +24,9 @@ func show() -> void:
 	var beat_mid_boss := run.current_stop().mid_boss
 	var heal_note := "\nYou recover %d HP." % run.map_win_heal if run.map_win_heal > 0 else ""
 	if run.elite_relic != null:
-		heal_note += "
-It carried a relic: %s." % run.elite_relic.display_name
+		heal_note += "\nIt carried a relic: %s." % run.elite_relic.display_name
 	elif run.elite_fallback_gold > 0:
-		heal_note += "
-It carried %d gold." % run.elite_fallback_gold
+		heal_note += "\nIt carried %d gold." % run.elite_fallback_gold
 	var box := panel(("The Bellkeeper falls. The way opens.\nChoose a keepsake for your deck, or skip." if beat_mid_boss else "A memory to carry onward.\nChoose a keepsake for your deck, or skip.") + heal_note, true)
 	style_banner(box.get_child(0) as Label)
 	var row := HBoxContainer.new()

@@ -142,8 +142,7 @@ func _show_pick() -> void:
 ## A picker's heading: what the choice just did (its outcome text) over the instruction.
 func _prompt(instruction: String) -> String:
 	var done := run.event_outcome()
-	return instruction if done == "" else done + "
-" + instruction
+	return instruction if done == "" else done + "\n" + instruction
 
 
 static func _add_text(box: VBoxContainer, text: String, font_size: int, colour: Color) -> Label:
