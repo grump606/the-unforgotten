@@ -1,11 +1,16 @@
 # Next steps
 
-Last updated after the v0.8.3 release (2026-11-09). `main` is at v0.8.3; the next release needs a version bump.
+Last updated after the v0.9.0 release (2026-11-10). `main` is at v0.9.0; the next release needs a version bump.
 Numbers such as the stop count and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`SIM.md`](SIM.md).
 
 ## State
 
-- **Released:** v0.8.3 (tag `v0.8.3`, 2026-11-09, Windows installer only: combat-log key L, keyboard focus fixes, the Scent-finisher and Block rules, the updater guard), on top of v0.8.2 (tag `v0.8.2`, 2026-11-08), on top of v0.8.1 (card tooltips) and v0.8.0. Earlier milestones: v0.8.0 and before brought the Stray (fourth class, Scent engine), v0.6.0 the rename to The Unforgotten, v0.5.0 the reskin, v0.4.0 painted art and the battle stage, v0.3.2 the in-game update check. `git tag` and the GitHub releases have the full list.
+- **Released:** v0.9.0 (tag `v0.9.0`, 2026-11-10, Windows installer only, about 123 MiB): the branching route map is the default New Journey and elite fights exist (see below). Before it, v0.8.3 (tag `v0.8.3`, 2026-11-09, Windows installer only: combat-log key L, keyboard focus fixes, the Scent-finisher and Block rules, the updater guard), on top of v0.8.2 (tag `v0.8.2`, 2026-11-08), on top of v0.8.1 (card tooltips) and v0.8.0. Earlier milestones: v0.8.0 and before brought the Stray (fourth class, Scent engine), v0.6.0 the rename to The Unforgotten, v0.5.0 the reskin, v0.4.0 painted art and the battle stage, v0.3.2 the in-game update check. `git tag` and the GitHub releases have the full list.
+- **What v0.9.0 contains:**
+  - **The route map** (`run/route_map.gd`, `run/map_view.gd`, `run/screens/map_screen.gd`; design in `docs/MAP_DESIGN.md`, events in `docs/EVENTS_DESIGN.md`): two acts of 15 rows with branching paths, fight, elite, rest, shop, chest, event and story nodes, threat-budget enemy packs, a mid-boss and a boss, saves (format 5; line saves still load) and route-choosing bots. It was built on a long-lived branch and merged into `main` on 2026-11-10, and New Journey now starts a map run. `new_runs_use_map` in `run.gd` switches back to the fixed 22-stop line, which is intact, and `--map` / `THE_UNFORGOTTEN_MAP=1` still start a debug map run.
+  - **Tuning:** at most 2 ordinary rests per path per act plus a forced rest before each boss, no rest next to a shop or chest, events cut in half. The node mix is about 66% fights, 12% rests, 5% shops, 9% events and 8% elites of the variable nodes (chests and story beats are fixed rows).
+  - **Elites** (`RunState.ELITE_*`; `docs/MAP_DESIGN.md`, "Phase 5a" and "Phase 5b"): 2 or 3 enemies at 1.35 times the row budget, a relic drop (gold when the character owns them all) and 20 bonus gold. The map icon is amber blades in a ring of animated flames.
+  - A latent event-screen error (`_fit` on a scene freed before the next frame) fixed.
 - **What v0.8.2 contains (all of it is released):**
   - The Stray on the title screen.
   - A fifth rest before the Conductor (22 stops instead of 21; `docs/LEVELS_DESIGN.md`, "Pre-finale rest"). It lifts escape rates and has not been playtested.
@@ -47,11 +52,13 @@ These were deliberately not done in the review round.
 
 ## To do, in the order I would take it
 
-1. **Playtest v0.8.2**, mostly the new rest before the finale and the retuned Medium cards, then the Stray as a whole. The numbers are tuned against bots, not people (`docs/PLAYTEST_CHECKLIST.md`). Re-run the sims on the 22-stop line first: the figures in `docs/SIM.md` were measured on the 21-stop line and do not include the Stray.
-2. **Cut the next release** once playtest feedback is in (0.8.3 or 0.9.0). **It must stay under 150 MiB** (the installer is about 123 MiB): v0.8.2 players carry the old 150 MiB download cap, and `build_installer.ps1` fails above it until a release with the 300 MiB cap has been out long enough (`docs/UPDATE_CHECK.md`, "Installer size cap"): bump `config/version` and `export_presets.cfg`, merge, then `scripts/release.ps1 -Publish`, check the draft with `scripts/verify_release.ps1 -Draft`, and publish it on GitHub. Check `docs/PLAYTEST_CHECKLIST.md` first.
-3. **Finish the art**: the Warden halberd and the Conductor watch chain, on `art/layers/warden/sprite.png` and `art/layers/conductor/sprite.png` first, then the 960x320 `figure.png` portrait layers to match (edit prompts in `art/PROMPTS.md`, "Touch-ups still open"). The vendor keeper and the four class rest paintings are already painted (checked 2026-11-09; the rest paintings are 1672x941, below the 2304x1296 screen target, which is polish). The enemy `mid.png`/`fg.png` layers are textured, not blank; replace them only if you want the fuller gate-and-pillar treatment.
-4. **Retune from playtest feedback**: `REWARD_HEAL`, `HEAL_BELOW`, class HP, card costs. Check any change with the sims.
-5. **Keep-5 hand rule review**: it shifted bot numbers unevenly (the Thief lost ground, the Medium gained in the smart bot). Knobs: `Combat.HAND_SIZE`, `Combat.HAND_MAX`.
+1. **Playtest v0.9.0 with testers**, mostly the route map: do the choices feel like choices, is the rest and shop pacing right, are elites worth taking, are the events fun. The numbers are tuned against bots, not people (`docs/PLAYTEST_CHECKLIST.md`). Current bot figures are in `docs/SIM.md` ("Current figures").
+2. **Elite polish**: an "Elite" label on the battle screen (only bosses get one now), the relic drop named on the map tooltip, and elite-specific enemies or modifiers (an elite is a regular pack scaled up). If the map plays too hard, lower `RunState.ELITE_BUDGET_MULTIPLIER` (1.35) first.
+3. **Look into the Stray gap**: before elites the greedy bot escaped 76.7% and the smart bot 56.7% as the Stray on the map (`docs/SIM.md`), the largest bot gap of any class.
+4. **Cut the next release** once playtest feedback is in. **It must stay under 150 MiB** (the v0.9.0 installer is about 123 MiB): v0.8.2 players carry the old 150 MiB download cap, and `build_installer.ps1` fails above it until a release with the 300 MiB cap has been out long enough (`docs/UPDATE_CHECK.md`, "Installer size cap"): bump `config/version` and `export_presets.cfg`, merge, then `scripts/release.ps1 -Publish`, check the draft with `scripts/verify_release.ps1 -Draft`, and publish it on GitHub. Check `docs/PLAYTEST_CHECKLIST.md` first.
+5. **Retune from playtest feedback**: `REWARD_HEAL`, `HEAL_BELOW`, class HP, card costs, the map's node weights. Check any change with the sims.
+6. **Keep-5 hand rule review**: it shifted bot numbers unevenly (the Thief lost ground, the Medium gained in the smart bot). Knobs: `Combat.HAND_SIZE`, `Combat.HAND_MAX`.
+7. **Art**: the Warden halberd and the Conductor watch chain are done. Still open are the 960x320 `figure.png` portrait layers to match (edit prompts in `art/PROMPTS.md`, "Touch-ups still open") and the rest paintings (1672x941, below the 2304x1296 screen target, polish).
 
 ## Smaller open items
 
@@ -60,7 +67,7 @@ These were deliberately not done in the review round.
 - Save-scumming is intentional (see decision 13 above).
 - A sim-bot card that refunds its own cost and draws (Borrowed Time, Seance) is skipped when the draw pile is smaller than the draw, to avoid a self-redraw loop.
 - Repo size: see `docs/REPO_SIZE.md` for the options the maintainer has to decide on.
-- Bigger ideas: a branching map, more enemies, an elite tier that could drop relics.
+- Bigger ideas: more enemies, more events, an elite-only enemy set, map choices that reward risk (the branching map and a basic elite tier are done).
 
 ## How to run
 
