@@ -1070,7 +1070,7 @@ work that had been left uncommitted in the old `map-5-elites` checkout, and was 
   description reads "Elite (N enemies)"). `RunState.in_elite_stop()` says whether the run is at one. Nothing is stored in a save: a resumed run
   rebuilds the stop from its node, as for every other map stop.
 - **Pack:** `start_combat` builds it with `budget_encounter(count, rng, row, class difficulty * ELITE_BUDGET_MULTIPLIER, true)`,
-  `ELITE_BUDGET_MULTIPLIER` = 1.35 (`RunState`), so an elite is 35% more threat than a regular fight on the same row (the bounds on the HP and
+  `ELITE_BUDGET_MULTIPLIER` = 1.2 (`RunState`; 1.35 until Phase 5c), so an elite is 20% more threat than a regular fight on the same row (the bounds on the HP and
   damage scale still apply). Every enemy of an elite pack is renamed with `StarterContent.ELITE_NAME_PREFIX` ("Elite Gate Warden") by
   `StarterContent.elite_named`: a new `EnemyData` with the same id (so the same art), stats, intents and second phase.
 - **Battle screen:** `Battle.elite_fight` (set by `CombatScreen` from `RunState.in_elite_stop()`) opens the log with "Elite fight", and each
@@ -1113,3 +1113,27 @@ The bots visit 1.5 to 1.8 elites per run (greedy, `mixed`) and 0.6 to 0.7 (smart
 about 2 to 11 points, the Medium about 11 for both bots; no stalls. Test changes: the node-mix ranges, an elite branch in the enemy-count
 check, the budget-pack replay uses the elite budget for elites, whole runs end with one relic per elite beside the two chests, and
 `route_policy_tests` walks 6 seeds per class so the rarer fixtures still come up.
+
+## Phase 5c: the elite multiplier 1.35 to 1.2
+
+With the elite presentation merged, the first full elite sims (300 runs per class, seed 1, `--map`, `--character all`) showed elites were far
+too lethal: an elite visit ended the run 9 to 19% of the time for the greedy bot and 20 to 31% for the smart bot, against 1 to 3% for a regular
+fight, and elites were 65 to 71% of the greedy bot's deaths while being 8% of the nodes. `ELITE_BUDGET_MULTIPLIER` went from 1.35 to 1.2.
+`tools/run_sim.gd --map` now prints two more lines: `Elite lethality` (the share of elite visits and of regular fight visits that end
+the run, and the share of all deaths that happen on an elite) and `Runs that fought an elite` (their escape rate against the runs that fought
+none; the second group is mostly runs that died before they met one, so the two rates are not a clean comparison).
+
+| Bot (route) | | Deserter | Thief | Medium | Stray |
+|---|---|---|---|---|---|
+| greedy (`mixed`) | escape at 1.35 | 56.3% | 57.0% | 46.0% | 69.7% |
+| | escape at 1.2 | 72.0% | 69.0% | 63.0% | 79.0% |
+| | elite visits that end the run, 1.35 / 1.2 | 17.1 / 6.5% | 15.9 / 7.6% | 19.0 / 7.7% | 8.7 / 3.9% |
+| smart (`smart`) | escape at 1.35 | 56.7% | 51.0% | 47.3% | 54.7% |
+| | escape at 1.2 | 62.3% | 56.3% | 53.7% | 59.0% |
+| | elite visits that end the run, 1.35 / 1.2 | 24.0 / 12.2% | 25.3 / 14.6% | 30.6 / 16.2% | 20.3 / 13.6% |
+
+Regular fight visits end the run 0.7 to 1.5% (greedy) and 2.4 to 3.4% (smart) of the time at both settings. At 1.2 an elite is about 3 to 6
+times as lethal as a regular fight (it was about 10 times), and elites are 18 to 22% of the smart bot's deaths and 42 to 53% of the greedy bot's.
+Elite visits per run barely move (greedy 2.0 to 2.4, smart 0.55 to 0.64). The greedy bot's escape rates (63 to 79%) are now above the 50 to 70%
+band the sims aim for, so a value between 1.2 and 1.35 (about 1.25) is the next thing to try if playtesters find the map too easy.
+

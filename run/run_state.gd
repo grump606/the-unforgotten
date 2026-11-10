@@ -47,7 +47,7 @@ const TREASURE_MIN_RELIC_PRICE := 65
 const TREASURE_FALLBACK_GOLD := 100
 ## Elite fights (map mode, docs/MAP_DESIGN.md "Phase 5a"): the pack's threat budget is the row's budget times this (on top of the
 ## class difficulty), the win pays this much extra gold, and its spoils always hold a relic (see ELITE_RELIC_FALLBACK_GOLD).
-const ELITE_BUDGET_MULTIPLIER := 1.35
+const ELITE_BUDGET_MULTIPLIER := 1.2
 const ELITE_GOLD_BONUS := 20
 ## Gold an elite drops instead of a relic when the character owns every relic of its pool.
 const ELITE_RELIC_FALLBACK_GOLD := 60

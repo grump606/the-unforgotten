@@ -120,6 +120,8 @@ func _simulate(runs: int, base_seed: int, shard_index: int, shard_count: int) ->
 	var visits := {} # node type name -> nodes of that type visited, over all runs (map mode)
 	var fights := 0 # fight and elite nodes visited (map mode)
 	var enemies := 0 # enemies in those fights
+	var runs_with_elite := 0 # runs that fought at least one elite (map mode)
+	var escapes_with_elite := 0 # of those, the runs that escaped
 	var gold_end := 0
 	var relics_end := 0
 	var runs_played := 0
@@ -207,15 +209,20 @@ func _simulate(runs: int, base_seed: int, shard_index: int, shard_count: int) ->
 		gold_end += run.gold
 		relics_end += run.relics.size()
 		if _map:
+			var met_elite := false
 			for id in run.visited:
 				var node := run.route.node(id)
 				var type_name: String = RouteMap.NodeType.keys()[node.type]
 				visits[type_name] = visits.get(type_name, 0) + 1
+				met_elite = met_elite or node.type == RouteMap.NodeType.ELITE
 				if node.type == RouteMap.NodeType.FIGHT or node.type == RouteMap.NodeType.ELITE:
 					fights += 1
 					enemies += node.enemy_count
 					var count_key := "FIGHT_%d" % node.enemy_count
 					visits[count_key] = visits.get(count_key, 0) + 1
+			if met_elite:
+				runs_with_elite += 1
+				escapes_with_elite += 1 if run.escaped else 0
 		if run.escaped:
 			escapes += 1
 			escape_hp += run.player.hp
@@ -230,7 +237,7 @@ func _simulate(runs: int, base_seed: int, shard_index: int, shard_count: int) ->
 		"escapes_with_relics": escapes_with_relics, "relics_bought": relics_bought, "escape_hp": escape_hp,
 		"escape_deck": escape_deck, "deaths_at": deaths_at, "deaths_by_desc": deaths_by_desc,
 		"entering": entering, "stop_desc": stop_desc, "visits": visits, "fights": fights, "enemies": enemies,
-		"gold_end": gold_end, "relics_end": relics_end, "plays": _plays, "held": _held,
+		"runs_with_elite": runs_with_elite, "escapes_with_elite": escapes_with_elite, "gold_end": gold_end, "relics_end": relics_end, "plays": _plays, "held": _held,
 	}
 
 
@@ -297,6 +304,29 @@ func _report(stats: Dictionary, runs: int, base_seed: int) -> void:
 		_report_map(stats, runs)
 
 
+## Elite lines of the --map block: how lethal an elite visit is against a regular fight visit, the share of all deaths
+## that happen on an elite, and the escape rate of the runs that fought an elite against the runs that did not.
+func _report_elites(stats: Dictionary, runs: int) -> void:
+	var visits: Dictionary = stats["visits"]
+	var by_desc: Dictionary = stats["deaths_by_desc"]
+	var elite_deaths := 0
+	var fight_deaths := 0
+	var all_deaths := 0
+	for desc: String in by_desc:
+		all_deaths += by_desc[desc]
+		if desc.begins_with("Elite"):
+			elite_deaths += by_desc[desc]
+		elif desc.begins_with("Combat"):
+			fight_deaths += by_desc[desc]
+	var elite_visits: int = visits.get("ELITE", 0)
+	var fight_visits: int = visits.get("FIGHT", 0)
+	print("Elite lethality: %s of elite visits end the run, %s of regular fight visits; %s of all deaths happen on an elite" % [
+		_rate(elite_deaths, elite_visits), _rate(fight_deaths, fight_visits), _rate(elite_deaths, all_deaths)])
+	var with_elite: int = stats.get("runs_with_elite", 0)
+	var esc_with: int = stats.get("escapes_with_elite", 0)
+	print("Runs that fought an elite: %d/%d (escape rate %s, runs that fought none %s)" % [with_elite, runs, _rate(esc_with, with_elite), _rate(stats["escapes"] - esc_with, runs - with_elite)])
+
+
 ## The extra --map block: route strategy, escape-rate interval, deaths by act and row band, HP at the bosses,
 ## visits per run, what the run holds at the end and the size of the fights.
 func _report_map(stats: Dictionary, runs: int) -> void:
@@ -332,6 +362,7 @@ func _report_map(stats: Dictionary, runs: int) -> void:
 		float(visits.get("FIGHT", 0)) / runs, float(visits.get("ELITE", 0)) / runs, float(visits.get("REST", 0)) / runs,
 		float(visits.get("SHOP", 0)) / runs, float(visits.get("TREASURE", 0)) / runs, float(visits.get("EVENT", 0)) / runs])
 	print("Held at the end: gold %.2f, relics %.2f (averages per run)" % [float(stats["gold_end"]) / runs, float(stats["relics_end"]) / runs])
+	_report_elites(stats, runs)
 	print("Enemies per fight: %s (over fights and elites visited)" % ("n/a" if stats["fights"] == 0 else "%.2f" % (float(stats["enemies"]) / stats["fights"])))
 	print("Fights visited by enemy count: 1 enemy %d, 2 enemies %d, 3 enemies %d (the last one of a lost run included)" % [visits.get("FIGHT_1", 0), visits.get("FIGHT_2", 0), visits.get("FIGHT_3", 0)])
 
