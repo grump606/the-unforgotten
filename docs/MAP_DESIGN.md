@@ -1089,8 +1089,9 @@ work that had been left uncommitted in the old `map-5-elites` checkout, and was 
   while HP is at least `MIXED_ELITE_FROM` = 70% of max (it scores it down below that); the `smart` route never seeks one and prefers any
   other node when nothing else on its list is on offer.
 - **Refactor:** the chest's relic roll moved into `_roll_relic`; it consumes the run RNG exactly as before.
-- **Open:** elite-specific enemies or modifiers (an elite is a regular pack scaled up, renamed and drawn larger), a relic note on the map
-  tooltip, and bot balance (the `mixed` and `smart` changes above came after the Phase 5b numbers).
+- **Map tooltip:** "Elite fight: N enemies. Drops a relic" (`MapView.tooltip_for`), so the reward shows before the player chooses; the
+  plain label and the legend entry ("Elite") stay short.
+- **Open:** elite-specific enemies or modifiers (an elite is a regular pack scaled up, renamed and drawn larger) and bot balance (the `mixed` and `smart` changes above came after the Phase 5b numbers).
 
 ## Phase 5b: the elite share (8%)
 
@@ -1137,3 +1138,23 @@ times as lethal as a regular fight (it was about 10 times), and elites are 18 to
 Elite visits per run barely move (greedy 2.0 to 2.4, smart 0.55 to 0.64). The greedy bot's escape rates (63 to 79%) are now above the 50 to 70%
 band the sims aim for, so a value between 1.2 and 1.35 (about 1.25) is the next thing to try if playtesters find the map too easy.
 
+## Elite modifier ideas (not built)
+
+Proposals only: none of this exists, and each one is a design decision for the owner. Each idea reuses a system that is already in place.
+
+1. **Opening Block.** Every elite enemy starts the fight with some Block (say 6 on the first act, 10 on the second). Touches
+   `StarterContent.elite_named` (or `Battle` setup, where the elite flag is already known) to call the existing block-gain path on each
+   elite enemy. Test: a combat test that builds an elite pack and checks each enemy's Block at turn one, and a regular pack has none.
+2. **Second intent cycle at half HP.** An elite enemy enrages at 50% HP using the existing `phase_two_intents` fields that bosses use.
+   Touches `StarterContent.elite_named` (copy the base intents into `phase_two_intents`, shifted up a step, with a `phase_two_title`) and
+   nothing in `EnemyUnit`, which already switches phases. Test: extend `phase_tests` to drop an elite to half HP and check the intent list
+   changes, and that regular enemies of the same id do not.
+3. **A named elite roster.** A small fixed list of elites per act built from existing enemies (a "Gate Warden" pair, for example)
+   instead of a scaled random pack. Touches `Encounters` (a roster lookup used when `Stop.elite` is set) and `RunState.start_combat`.
+   Test: for a seed, the elite pack is one of the roster entries, the budget replay test still passes, and the sims confirm the escape
+   rate stays in band.
+4. **Elite starts with a debuff on the player.** The player begins the fight with 1 Weak or 1 Vulnerable. Touches `Battle` start-of-fight
+   setup using `Battle.elite_fight` and the existing status application. Test: a battle test checking the status on turn one only
+   for an elite fight, plus a sim run to see the lethality lines in the report move by a sensible amount.
+
+Any of these moves elite lethality, so re-run the elite sim lines (see Phase 5c) and retune `RunState.ELITE_BUDGET_MULTIPLIER` after.
