@@ -15,7 +15,7 @@ func _all_tutorial_text() -> String:
 func run() -> int:
 	_failures = 0
 	var tutorial := _all_tutorial_text()
-	_check(tutorial.contains("%d rows in %d acts" % [RouteMap.ROWS, RouteMap.ACTS]), "the tutorial names the map's real row and act counts")
+	_check(tutorial.contains("%d rows in %d districts" % [RouteMap.ROWS, RouteMap.ACTS]) and tutorial.contains(RouteMap.DISTRICT_NAMES[0]) and tutorial.contains(RouteMap.DISTRICT_NAMES[1]), "the tutorial names the map's real row and district counts and both district names")
 	_check(tutorial.contains("elite") and tutorial.contains("chest") and tutorial.contains("event"), "the tutorial mentions the map's elites, chests and events")
 	_check(tutorial.contains("keep up to %d cards" % Combat.HAND_SIZE), "the tutorial names the real hand size")
 	_check(tutorial.contains("(%d at most)" % Combat.HAND_MAX), "the tutorial names the real hand maximum")

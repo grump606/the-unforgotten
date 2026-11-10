@@ -150,6 +150,13 @@ func shown_ids() -> Array[int]:
 
 
 ## "Row 7/15": the row of the next choice (else of the current node) within the shown act.
+## The player-facing name of district (act) `act`, 0-based; a number past the list reads "District N".
+static func district_name(act: int) -> String:
+	if act >= 0 and act < RouteMap.DISTRICT_NAMES.size():
+		return RouteMap.DISTRICT_NAMES[act]
+	return "District %d" % (act + 1)
+
+
 func progress_text() -> String:
 	_ensure_layout()
 	var total := _row_max - _row_min + 1
@@ -409,7 +416,7 @@ func _draw_header() -> void:
 	var strip := Rect2(0, 0, size.x, 64.0 * s)
 	draw_rect(strip, Color(0.04, 0.05, 0.08, 0.72))
 	draw_line(Vector2(0, strip.size.y), Vector2(size.x, strip.size.y), Color(BRASS, 0.7), 2.0)
-	var title := "Act %d" % (_act + 1)
+	var title := district_name(_act)
 	_text(title, Vector2(28.0 * s, 42.0 * s), int(30 * s), Color("#d7d0bc"))
 	var title_w := _font().get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, int(30 * s)).x
 	_text(progress_text(), Vector2(28.0 * s + title_w + 18.0 * s, 41.0 * s), int(17 * s), BONE_DIM)

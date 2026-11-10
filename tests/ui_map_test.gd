@@ -162,6 +162,8 @@ func _initialize() -> void:
 	var view2 := _view(route, act2.visited, act2.current, act2.reachable, &"medium")
 	await process_frame
 	check(view2.shown_act() == 1 and view2.progress_text() == "Row 3/15", "act 2 is shown with its own row count (%s)" % view2.progress_text())
+	check(MapView.district_name(0) == "The Quiet Streets" and MapView.district_name(1) == "The Dead Country" and MapView.district_name(2) == "District 3", "the districts have their names, and a number past the list reads District N")
+	check(RouteMap.DISTRICT_NAMES.size() == RouteMap.ACTS, "every act has a district name")
 	view2.queue_free()
 	var act1_end := _walk(route, 14)
 	var view3 := _view(route, act1_end.visited, act1_end.current, act1_end.reachable, &"medium")

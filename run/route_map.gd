@@ -16,6 +16,9 @@ const KIND_GENERATED := &"generated"
 const KIND_LINE := &"line"
 
 const ACTS := 2
+## What the player calls each of the ACTS halves of the map ("districts"; the code keeps the word act). The first ends at the
+## Bellkeeper's court, the second at the Breathing Door; both names come from the story beats.
+const DISTRICT_NAMES: Array[String] = ["The Quiet Streets", "The Dead Country"]
 const ACT_ROWS := 15
 const ROWS := ACTS * ACT_ROWS
 ## The last row of each act is its boss (the mid-boss in act 1, the final boss in act 2).

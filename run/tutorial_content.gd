@@ -28,7 +28,7 @@ static func pages() -> Array[Dictionary]:
 			"kind": Kind.TEXT,
 			"lead": "Someone still remembers you. Cross the city, one stop at a time, and reach the end.",
 			"items": [
-				"A journey crosses %d rows in %d acts. On the map you choose your road: fights, tougher elite fights, rests, vendors, chests, events marked with a question mark, and short story moments." % [RouteMap.ROWS, RouteMap.ACTS],
+				"A journey crosses %d rows in %d districts, %s and %s. On the map you choose your road: fights, tougher elite fights, rests, vendors, chests, events marked with a question mark, and short story moments." % [RouteMap.ROWS, RouteMap.ACTS, RouteMap.DISTRICT_NAMES[0], RouteMap.DISTRICT_NAMES[1]],
 				"Win fights to earn gold and add a new card to your deck. Your deck grows as you go. An elite fight is harder and drops a relic.",
 				"At a rest you can heal, or Remember a card to make it stronger. Vendors sell cards and relics, and a chest holds one. An event offers a choice, often with a price.",
 				"If your HP reaches 0 the journey ends. Beat the final boss to escape.",

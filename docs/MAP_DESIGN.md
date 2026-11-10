@@ -4,6 +4,9 @@ Replaces the fixed 21-stop line with a branching map the player chooses a path t
 `docs/LEVELS_DESIGN.md` describes the line it replaces. Work proceeds in phases, one small PR each, on the
 `map-route` integration branch.
 
+**Naming:** the player sees the two acts as districts, "The Quiet Streets" and "The Dead Country" (`RouteMap.DISTRICT_NAMES`, shown in the map
+header by `MapView.district_name` and named in the tutorial). The code and this document keep the word "act".
+
 ## Shape
 
 - A run is two acts of 15 rows each, 30 rows in all. The last row of each act is its boss (the Bellkeeper ends act 1,
