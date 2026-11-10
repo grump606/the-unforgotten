@@ -17,6 +17,7 @@ func run() -> int:
 	_test_proto()
 	_test_proto_statuses()
 	_test_proto_cycling()
+	_test_map()
 	return _failures
 
 
@@ -178,6 +179,27 @@ func _test_screens() -> void:
 	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor", "--fight=eraser"]), {}).error != "", "a fight and a screen together is an error")
 	_check(DebugLaunch.parse(PackedStringArray(["--screen=vendor", "--gold=-5"]), {}).error != "", "negative gold is an error")
 	_check(DebugLaunch.screen_count("vendor") == 3 and DebugLaunch.screen_count("rest") >= 3, "the default line has three shops and several rests")
+	var chest := DebugLaunch.parse(PackedStringArray(["--screen=treasure", "--character=thief"]), {})
+	_check(chest.requested and chest.error == "" and chest.screen == "treasure" and chest.screen_index == 1 and chest.character_id == &"thief", "--screen=treasure opens the first act's chest")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=Treasure:2"]), {}).screen_index == 2, "treasure:2 is the second act's chest")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=treasure:3"]), {}).error != "", "a third act's chest does not exist")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=treasure:0"]), {}).error != "", "treasure:0 is an error")
+	_check(DebugLaunch.parse(PackedStringArray([]), {DebugLaunch.ENV_SCREEN: "treasure"}).screen == "treasure", "the environment can request the chest")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=treasure", "--fight=eraser"]), {}).error != "", "a chest and a fight together is an error")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=castle"]), {}).error.contains("treasure"), "the unknown-screen message lists the chest")
+	var any_event := DebugLaunch.parse(PackedStringArray(["--screen=event", "--character=medium"]), {})
+	_check(any_event.requested and any_event.error == "" and any_event.screen == "event" and any_event.event_id == &"" and any_event.character_id == &"medium", "--screen=event opens a random event")
+	var named := DebugLaunch.parse(PackedStringArray(["--screen=Event:Cracked_Bell", "--gold=5", "--hp=9"]), {})
+	_check(named.error == "" and named.screen == "event" and named.event_id == &"cracked_bell" and named.gold == 5 and named.hp == 9, "--screen=event:<id> names an event, ignoring case")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=event:e04"]), {}).event_id == &"bell_in_the_well" and DebugLaunch.parse(PackedStringArray(["--screen=event:E12"]), {}).event_id == &"erasers_chalk", "an event can be named by its number")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=event:nope"]), {}).error.contains("Unknown event"), "an unknown event is an error that says so")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=event:e13"]), {}).error != "" and DebugLaunch.parse(PackedStringArray(["--screen=event:rain_barrel:2"]), {}).error != "", "event:e13 and a second colon are errors")
+	_check(DebugLaunch.parse(PackedStringArray([]), {DebugLaunch.ENV_SCREEN: "event:name_broker"}).event_id == &"name_broker", "the environment can request an event")
+	_check(DebugLaunch.parse(PackedStringArray([]), {DebugLaunch.ENV_SCREEN: "event"}).screen == "event", "the environment can request a random event")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=event", "--fight=eraser"]), {}).error != "", "an event and a fight together is an error")
+	_check(DebugLaunch.parse(PackedStringArray(["--screen=castle"]), {}).error.contains("event"), "the unknown-screen message lists the event")
+	_check(DebugLaunch.event_ids().size() == 12 and DebugLaunch.resolve_event("Name Broker") == &"name_broker", "event names resolve ignoring spaces and case")
+	_check(FileAccess.get_file_as_string("res://run/debug_launch.gd").contains("--screen=event"), "the header documents --screen=event")
 
 
 func _test_proto() -> void:
@@ -244,3 +266,20 @@ func _test_proto_cycling() -> void:
 	run_state.deck = deck
 	var combat := run_state.start_combat()
 	_check(combat != null and combat.enemies.size() == 1 and combat.enemies[0].data.id == &"proto_dreadkeeper", "the run fights the Dreadkeeper")
+
+
+func _test_map() -> void:
+	var off := DebugLaunch.parse(PackedStringArray(), {})
+	_check(not off.map and not off.requested, "map mode is off unless asked for")
+	var launch := DebugLaunch.parse(PackedStringArray(["--map"]), {})
+	_check(launch.map and launch.requested and launch.error == "" and launch.screen == "" and launch.enemy_ids.is_empty(), "--map alone is a map launch")
+	_check(launch.character_id == StarterContent.DEFAULT_CHARACTER_ID, "--map defaults to the Deserter")
+	var medium := DebugLaunch.parse(PackedStringArray(["--map", "--character=medium"]), {})
+	_check(medium.map and medium.character_id == &"medium" and medium.error == "", "--map takes --character")
+	var from_env := DebugLaunch.parse(PackedStringArray(), {DebugLaunch.ENV_MAP: "1"})
+	_check(from_env.map and from_env.requested, "THE_UNFORGOTTEN_MAP=1 asks for a map run")
+	_check(not DebugLaunch.parse(PackedStringArray(), {DebugLaunch.ENV_MAP: "0"}).map, "THE_UNFORGOTTEN_MAP=0 does not")
+	var fight := DebugLaunch.parse(PackedStringArray(["--map", "--fight=eraser"]), {})
+	_check(fight.requested and fight.error == "" and fight.enemy_ids == [&"the_conductor"], "--fight still works beside --map")
+	var bad := DebugLaunch.parse(PackedStringArray(["--map", "--character=wizard"]), {})
+	_check(bad.error != "", "--map with an unknown character is an error")

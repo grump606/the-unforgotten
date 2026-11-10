@@ -137,6 +137,11 @@ static func paths_for_stop(stop_type: int, character_id: StringName = &"", story
 		RunState.StopType.VENDOR:
 			names.append(&"vendor")
 			extra.append("res://art/layers/screens/vendor/keeper.png")
+		RunState.StopType.TREASURE:
+			names.append(&"battle_archive")
+		RunState.StopType.EVENT:
+			names.append(&"battle_street")
+			names.append(&"battle_archive")
 	var out: Array[String] = []
 	for screen_name in names:
 		out.append(SCREEN_DIR % screen_name)

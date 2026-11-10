@@ -39,7 +39,13 @@ var _reward := RewardScreen.new()
 var _story := StoryScreen.new()
 var _vendor := VendorScreen.new()
 var _rest := RestScreen.new()
+var _treasure := TreasureScreen.new()
+var _event := EventScreen.new()
 var _end := EndScreen.new()
+## The map seam (map mode only): a screen that is attached like the others, has `show_map(run: RunState)`
+## and emits `node_chosen(node_id: int)`. MapScreen is the real one; FallbackMapScreen is a plain list of
+## buttons that works without it, so swapping is changing this line.
+var _map := MapScreen.new()
 ## True while a debug-launched fight is on screen (see start_debug_fight): nothing is saved or deleted.
 var _debug_fight := false
 ## True for any debug launch (fight or screen): nothing is saved or deleted until the player is back at the menu.
@@ -66,6 +72,7 @@ func _ready() -> void:
 	_update_notice.start() # asynchronous and silent on any failure; skipped headless (docs/UPDATE_CHECK.md)
 	_body.resized.connect(_select.recenter)
 	resized.connect(_select.recenter)
+	_map.node_chosen.connect(_on_node_chosen)
 	_show_main_menu()
 	_maybe_start_debug_fight()
 	_maybe_show_tutorial()
@@ -216,6 +223,8 @@ func _reset_screens() -> void:
 	_vendor.reset()
 	_reward.reset()
 	_rest.reset()
+	_treasure.reset()
+	_event.reset()
 
 
 func _show_stop() -> void:
@@ -234,6 +243,12 @@ func _show_stop() -> void:
 		_update_header()
 		_open(_reward)
 		_reward.show()
+	elif _run.uses_map() and _run.current_stop() == null:
+		# Map mode between stops: the player picks the next node. Saved too, so quitting here resumes at the
+		# map with the same choices (the choice itself is saved on arrival at its stop, see _autosave).
+		_autosave()
+		_update_header()
+		_show_map()
 	else:
 		_autosave()
 		_update_header()
@@ -245,6 +260,12 @@ func _show_stop() -> void:
 			RunState.StopType.STORY:
 				_open(_story)
 				_story.show()
+			RunState.StopType.TREASURE:
+				_open(_treasure)
+				_treasure.show()
+			RunState.StopType.EVENT:
+				_open(_event)
+				_event.show()
 			RunState.StopType.VENDOR:
 				_open(_vendor)
 				_vendor.stop_title = _stop_title
@@ -258,10 +279,15 @@ func _show_stop() -> void:
 
 
 ## Music and ambience for the current stop: the fight music only during a fight, the quiet track
-## everywhere else, and the sea only at the first destination (Shore of Names).
+## everywhere else, and the sea only at the first destination (Shore of Names). In map mode that is
+## the map before the first choice and the first row's stop, not the map after it.
 func _set_stop_audio() -> void:
-	var fighting := not _run.finished and not _run.reward_pending() and _run.current_stop().type == RunState.StopType.COMBAT
-	var ambience: StringName = &"" if _run.finished else _run.current_stop().ambience
+	var fighting := _fighting()
+	var shore := not _run.finished and _run.stop_index == 0
+	if shore and _run.uses_map():
+		shore = _run.current_node == -1 or _run.current_stop() != null
+	var stop := null if _run.finished else _run.current_stop()
+	var ambience: StringName = &"coastal" if shore else (stop.ambience if stop != null else &"")
 	_set_audio(&"combat" if fighting else &"menu", ambience)
 
 
@@ -280,17 +306,20 @@ func _play_sfx(id: StringName) -> void:
 func _update_header() -> void:
 	var player := _run.player
 	var position := mini(_run.stop_index + 1, _run.stops.size())
+	if _run.uses_map() and not _run.finished and _run.current_stop() == null and _run.current_node >= 0:
+		position = mini(_run.stop_index + 2, _run.stops.size()) # choosing the next row: stop_index is the row just done
 	var prefix := _notice + "\n" if _notice != "" else ""
-	var stop_text := _run.current_stop().describe() if not _run.finished else "Journey's end"
+	var stop := _run.current_stop()
+	var stop_text := stop.describe() if stop != null else ("Journey's end" if _run.finished else "Choose your way")
 	if not _run.finished:
-		var destination := DestinationArt.label_at(_run.stop_index)
+		var destination := _run.destination_label()
 		if destination != "":
 			stop_text = destination + " — " + stop_text
 	if _run.reward_pending():
 		stop_text = "Reward"
 	# A rest stop shows your HP and how much resting would heal; Remember skips the heal (see RestScreen).
 	var hp_text := "HP %d/%d" % [player.hp, player.max_hp]
-	if not _run.finished and not _run.reward_pending() and _run.current_stop().type == RunState.StopType.REST:
+	if not _run.finished and not _run.reward_pending() and stop != null and stop.type == RunState.StopType.REST:
 		if _run.rest_heal_amount() > 0:
 			hp_text += "  Rest heals +%d" % _run.rest_heal_amount()
 	_header.text = prefix + "%s\nJourney %d/%d  ·  %s  ·  %s  ·  Gold %d  ·  Deck %d" % [
@@ -300,8 +329,35 @@ func _update_header() -> void:
 	_stop_title = stop_text
 	_journey_text = "Journey %d/%d" % [position, _run.stops.size()]
 	_pause_button.visible = not _run.finished
-	var fighting := not _run.finished and not _run.reward_pending() and _run.current_stop().type == RunState.StopType.COMBAT
+	var fighting := _fighting()
 	_header_strip.set_relics([] as Array[RelicData] if fighting else _run.relics)
+
+
+## True while a fight is on screen: not finished, no reward pending and the current stop is a combat.
+func _fighting() -> bool:
+	if _run.finished or _run.reward_pending():
+		return false
+	var stop := _run.current_stop()
+	return stop != null and stop.type == RunState.StopType.COMBAT
+
+
+## Map mode: shows the map (the seam `_map`) and warms the art of the nodes the player can pick.
+func _show_map() -> void:
+	_open(_map)
+	_map.show_map(_run)
+	PaintedArt.advance_stop() # drops art not used for the last two stops
+	for id in _run.reachable_nodes():
+		var n := _run.route.node(id)
+		PaintedArt.queue_for_stop(int(RunState.stop_type_for_node(n.type)), _run.character.id, n.beat_index)
+		if n.backdrop != &"":
+			PaintedArt.queue_screen(n.backdrop)
+	set_process(PaintedArt.pending() > 0)
+
+
+func _on_node_chosen(node_id: int) -> void:
+	if _run != null and _run.choose_node(node_id):
+		_play_sfx(&"confirm")
+		_show_stop()
 
 
 func _clear_body() -> void:
@@ -335,6 +391,9 @@ func _on_fight_finished(victory: bool) -> void:
 func _maybe_start_debug_fight() -> void:
 	var launch := DebugLaunch.from_environment()
 	if not launch.requested:
+		return
+	if launch.map and launch.screen == "" and launch.enemy_ids.is_empty() and launch.error == "" and not launch.list_only:
+		start_debug_map(launch)
 		return
 	if launch.list_only:
 		print(DebugLaunch.help_text())
@@ -375,6 +434,19 @@ func start_debug_fight(launch: DebugLaunch) -> void:
 	_show_stop()
 
 
+## Starts a run in map mode (`--map`, see DebugLaunch). It is a debug session, so nothing is saved or
+## deleted: a launch for testing never touches the player's own save. `--hp` and `--gold` apply.
+func start_debug_map(launch: DebugLaunch) -> void:
+	_run = RunState.new(randi(), launch.character_id, true)
+	if launch.hp > 0:
+		_run.player.hp = mini(launch.hp, _run.player.max_hp)
+	if launch.gold >= 0:
+		_run.gold = launch.gold
+	_debug_session = true
+	_reset_screens()
+	_show_stop()
+
+
 # --- Vendor entry points (the vendor screen owns the logic; tests and tools call these) ------
 
 ## The vendor screen, pointed at the current run (these entry points work even when another
@@ -406,7 +478,9 @@ func _leave_vendor() -> void:
 
 # --- Saving ---------------------------------------------------------------------------------
 
-## Saves the run at the start of a stop (never mid-fight). A failure is shown, not fatal.
+## Saves the run at the start of a stop (never mid-fight) and, in map mode, whenever the map is shown.
+## Choosing a node saves on arrival at its stop, so quitting and continuing cannot re-choose the path.
+## A failure is shown, not fatal.
 func _autosave() -> void:
 	if _debug_session:
 		return
@@ -472,6 +546,8 @@ func _save_and_exit() -> String:
 ## queue a little each frame (PaintedArt.pump), on the main thread; a screen that draws before its art is decoded
 ## just decodes it then, as it always did.
 func _warm_next_stop() -> void:
+	if _run.uses_map():
+		return # the map warms the art of the nodes it offers (see _show_map)
 	var next_index := _run.stop_index + 1
 	if next_index >= _run.stops.size():
 		return
@@ -551,6 +627,46 @@ func _place_pause_button(variation: StringName, margin: int) -> void:
 	_pause_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, margin)
 
 
+## Map mode (debug): puts the run inside the chest of act `act` (0-based), on a path of the map that leads to it.
+func _place_at_treasure(act: int) -> void:
+	var chest: RouteMap.MapNode = null
+	for n in _run.route.nodes:
+		if n.type == RouteMap.NodeType.TREASURE and n.act == act:
+			chest = n
+			break
+	if chest == null:
+		return
+	var path: Array[int] = [chest.id]
+	while _run.route.node(path[0]).row > 0:
+		path.push_front(_run.route.node(path[0]).prev[0])
+	_run.restore_map(_run.route, chest.id, path, true)
+
+
+## Map mode (debug): puts the run inside an event stop of a throwaway map run, on a path of the map that leads to it.
+## `wanted` forces that event (by marking every other event as seen), else the run RNG picks one. The map is
+## regenerated from a new seed in the rare case it has no event node.
+func _place_at_event(wanted: StringName, character_id: StringName) -> void:
+	for _attempt in 40:
+		# Any event node of the map, picked at random, so the header's "Journey n/30" is the node's real row and
+		# not always the first event's.
+		var event_nodes: Array[RouteMap.MapNode] = []
+		for n in _run.route.nodes:
+			if n.type == RouteMap.NodeType.EVENT:
+				event_nodes.append(n)
+		var target: RouteMap.MapNode = event_nodes[randi() % event_nodes.size()] if not event_nodes.is_empty() else null
+		if target != null:
+			var path: Array[int] = [target.id]
+			while _run.route.node(path[0]).row > 0:
+				path.push_front(_run.route.node(path[0]).prev[0])
+			_run.restore_map(_run.route, target.id, path, true)
+			if wanted != &"":
+				for event in StarterContent.all_events():
+					if event.id != wanted and not _run.events_seen.has(event.id):
+						_run.events_seen.append(event.id)
+			return
+		_run = RunState.new(randi(), character_id, true)
+
+
 ## Opens a shop or rest stop of a throwaway run: the character's real deck, gold in hand (default 100)
 ## and the player already hurt (default 55% HP), so heals, purchases and removals can all be tried. The
 ## session never saves (see _debug_session); Pause > New Journey or Save & Exit leaves it.
@@ -559,8 +675,12 @@ func start_debug_screen(launch: DebugLaunch) -> void:
 		_new_run(_show_main_menu)
 		_debug_session = true # _new_run ends a session; a run started from here must stay unsaved
 		return
-	_run = RunState.new(randi(), launch.character_id)
-	if DebugLaunch.SCREENS.has(launch.screen):
+	_run = RunState.new(randi(), launch.character_id, launch.screen == "treasure" or launch.screen == "event")
+	if launch.screen == "treasure":
+		_place_at_treasure(launch.screen_index - 1)
+	elif launch.screen == "event":
+		_place_at_event(launch.event_id, launch.character_id)
+	elif DebugLaunch.SCREENS.has(launch.screen):
 		var wanted: int = DebugLaunch.SCREENS[launch.screen]
 		var seen := 0
 		for index in _run.stops.size():

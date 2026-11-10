@@ -189,6 +189,14 @@ const RELIC_PATHS: Array[String] = [
 	"res://data/relics/iron_stakes.tres", "res://data/relics/pressed_flower.tres", "res://data/relics/candle_stub.tres",
 	"res://data/relics/hunters_whistle.tres", "res://data/relics/wolf_fang.tres", "res://data/relics/bloody_muzzle.tres",
 ]
+## Every event of the "?" stops (docs/EVENTS_DESIGN.md), in a fixed order. Add an event by putting its .tres in data/events
+## and listing it here (a test fails for a file that is not listed).
+const EVENT_PATHS: Array[String] = [
+	"res://data/events/rain_barrel.tres", "res://data/events/scraped_plaques.tres", "res://data/events/stopped_kitchen.tres",
+	"res://data/events/bell_in_the_well.tres", "res://data/events/unsent_letters.tres", "res://data/events/hound_at_the_fence.tres",
+	"res://data/events/window_that_is_lit.tres", "res://data/events/empty_sentry_box.tres", "res://data/events/quiet_choir.tres",
+	"res://data/events/name_broker.tres", "res://data/events/cracked_bell.tres", "res://data/events/erasers_chalk.tres",
+]
 ## Playable characters, in the order a selection screen lists them.
 const CHARACTER_PATHS := {
 	&"deserter": "res://data/characters/deserter.tres",
@@ -275,6 +283,45 @@ static func extended_deck() -> Array[CardData]:
 		for i in (entry[1] as int):
 			cards.append(card)
 	return cards
+
+
+## Every event that loads, in EVENT_PATHS order. Empty (cause logged) if any fails to load.
+static func all_events() -> Array[EventData]:
+	var events: Array[EventData] = []
+	for path in EVENT_PATHS:
+		var event := _load_event(path)
+		if event == null:
+			var empty: Array[EventData] = []
+			return empty
+		events.append(event)
+	return events
+
+
+## The event with this id, or null (cause logged) when there is none.
+static func event_by_id(event_id: StringName) -> EventData:
+	for event in all_events():
+		if event.id == event_id:
+			return event
+	push_error("StarterContent.event_by_id: unknown event id %s" % event_id)
+	return null
+
+
+## A card of the normal pools (not a status or created card) by id, or null when there is none.
+static func card_by_id(card_id: StringName) -> CardData:
+	for card in all_cards():
+		if card.id == card_id:
+			return card
+	return null
+
+
+## Returns null (after logging an error) if the resource is missing or not an EventData.
+static func _load_event(path: String) -> EventData:
+	var event: EventData = null
+	if ResourceLoader.exists(path):
+		event = load(path) as EventData
+	if event == null:
+		push_error("StarterContent: missing or non-EventData resource: %s" % path)
+	return event
 
 
 static func character_ids() -> Array[StringName]:
@@ -398,6 +445,213 @@ static func varied_encounter(enemy_count: int, rng: RandomNumberGenerator, tier:
 	return Encounters.varied_encounter(enemy_count, rng, tier, fight)
 
 
+# ---- Threat measure and map-mode budget (docs/MAP_DESIGN.md, "Phase 4d") ----
+
+## Threat measure: the player's reference damage output per turn. An enemy that lives HP / THREAT_REF_DPS turns
+## and deals D per turn costs about D * HP / THREAT_REF_DPS of the player's HP, so threat reads as "HP lost to
+## this enemy alone" for a typical hand.
+const THREAT_REF_DPS := 10.0
+## Damage-equivalent points one unit of `amount` of a non-damage enemy intent adds to the intent cycle
+## (EXPOSE, SHAKEN and FRAYED amounts are turns, MALICE stacks, ADD_CARD cards). Kinds missing here (Block, Draw and
+## the rest) add nothing: the regular enemies only use the five below, and a boss is never budgeted.
+const THREAT_STATUS_POINTS := {
+	CardEffect.Kind.EXPOSE: 5.0,
+	CardEffect.Kind.SHAKEN: 2.0,
+	CardEffect.Kind.FRAYED: 2.0,
+	CardEffect.Kind.MALICE: 3.0,
+	CardEffect.Kind.ADD_CARD: 3.0,
+}
+## Map mode budget curve. A regular fight on run row `row` (0 to 29) gets a total pack threat of
+## MAP_DIFFICULTY * lerp(start, end, local), where `local` runs 0 to 1 over the act's rows 0 to 14. Index 0 is
+## act 1 (rows 0 to 14), index 1 act 2 (rows 15 to 29), so the curve rises smoothly inside an act and jumps at
+## the act change like the line's second-act pools. The numbers are a straight-line fit of the line's average pack
+## threat per regular fight number (fights 0 to 3 are act 1, 4 to 7 act 2; measured by tools/threat_table.gd).
+## MAP_DIFFICULTY is the one knob for the overall difficulty of map fights.
+const BUDGET_ACT_START: Array[float] = [34.0, 46.0]
+const BUDGET_ACT_END: Array[float] = [50.0, 62.0]
+const MAP_DIFFICULTY := 1.9
+## Map mode only: each character's own multiplier on the budget (on top of MAP_DIFFICULTY), because the four
+## characters are not equally robust (Stray has the fewest HP). A character that is not listed uses 1.0.
+const MAP_CLASS_DIFFICULTY := {&"deserter": 1.03, &"thief": 1.04, &"medium": 1.02, &"stray": 0.9}
+## The pack builder multiplies every enemy of a pack by the same HP factor and the same damage factor; each of the
+## two stays inside these bounds.
+const PACK_SCALE_MIN := 0.6
+const PACK_SCALE_MAX := 1.8
+## How the builder splits a pack's total multiplier m (HP factor * damage factor, which is what threat follows)
+## between HP and damage, by enemy count (index 0 = a single): HP factor = m^share, damage factor = m^(1 - share).
+## A lone enemy takes most of it as HP, so a wisp pushed up to a pair's danger gets longer lived and not a
+## hit of 28; a trio splits evenly.
+const PACK_HP_SHARE: Array[float] = [0.65, 0.55, 0.5]
+## How many packs the builder draws (re-picking when a pack cannot meet the budget inside the bounds) before it
+## settles for the closest legal one.
+const PACK_MAX_ATTEMPTS := 24
+## An elite fight has at least this many enemies.
+const ELITE_MIN_ENEMIES := 2
+## The map has two acts of this many rows.
+const MAP_ACT_ROWS := 15
+
+
+## One enemy's threat: its average damage per turn over its intent cycle (damage intents count amount * hits,
+## the statuses in THREAT_STATUS_POINTS their points) times its max HP over THREAT_REF_DPS. Deterministic; a
+## second phase is ignored (only bosses have one and they are never budgeted). 0 for an enemy with no intents.
+static func enemy_threat(enemy: EnemyData) -> float:
+	return _turn_damage(enemy) * float(enemy.max_hp) / THREAT_REF_DPS
+
+
+## Average damage-equivalent per turn over the enemy's intent cycle.
+static func _turn_damage(enemy: EnemyData) -> float:
+	if enemy.intents.is_empty():
+		return 0.0
+	var total := 0.0
+	for intent in enemy.intents:
+		if intent.kind == CardEffect.Kind.DAMAGE:
+			total += float(intent.amount * maxi(intent.hits, 1))
+		else:
+			total += float(THREAT_STATUS_POINTS.get(intent.kind, 0.0)) * float(intent.amount)
+	return total / float(enemy.intents.size())
+
+
+## A pack's threat: the damage the player takes while killing it one enemy at a time, in the best order (most
+## damage per HP first). Each enemy deals its per-turn damage until it dies, so the sum is
+## damage_i * (HP of everything killed up to and including i) / THREAT_REF_DPS. One enemy gives its
+## enemy_threat; a pair or trio is worth more than the sum of its members because the survivors keep hitting.
+static func pack_threat(enemies: Array[EnemyData]) -> float:
+	var order: Array[EnemyData] = enemies.duplicate()
+	order.sort_custom(func(a: EnemyData, b: EnemyData) -> bool:
+		return _turn_damage(a) * float(b.max_hp) > _turn_damage(b) * float(a.max_hp))
+	var hp_so_far := 0.0
+	var total := 0.0
+	for enemy in order:
+		hp_so_far += float(enemy.max_hp)
+		total += _turn_damage(enemy) * hp_so_far
+	return total / THREAT_REF_DPS
+
+
+## The budget (target pack threat) of a regular fight on run row `row` (clamped to 0..29): see BUDGET_ACT_START.
+static func fight_budget(row: int) -> float:
+	var r := clampi(row, 0, MAP_ACT_ROWS * 2 - 1)
+	var act := r / MAP_ACT_ROWS
+	var local := float(r % MAP_ACT_ROWS) / float(MAP_ACT_ROWS - 1)
+	return MAP_DIFFICULTY * lerpf(BUDGET_ACT_START[act], BUDGET_ACT_END[act], local)
+
+
+## The map-mode budget multiplier of character `character_id` (see MAP_CLASS_DIFFICULTY).
+static func map_class_difficulty(character_id: StringName) -> float:
+	return MAP_CLASS_DIFFICULTY.get(character_id, 1.0)
+
+
+## What the last `budget_encounter` call did, for the measuring tool and tests: `scale` (the total multiplier m),
+## `hp_scale` and `damage_scale` (its two parts), `target` (the budget aimed at), `threat` (the pack's threat),
+## `bound_hit` (even the closest legal pack missed the budget because of the bounds) and `attempts` (packs drawn).
+## Not game state; overwritten by every call.
+static var last_pack_info := {}
+
+
+## A pack of `count` enemies (1 to MAX_ENEMIES; an `elite` fight has at least ELITE_MIN_ENEMIES) for a map fight
+## on run row `row`, whose total pack_threat equals fight_budget(row) * budget_multiplier within rounding. The
+## enemies come from the same pools as varied_encounter (a single from any regular enemy, a pair a big plus a
+## small or two small ones, a trio small enemies without the excluded ones; the act picks the big-pair
+## chance) and are then scaled together: one HP factor and one damage factor for every enemy (max HP and DAMAGE
+## intents; see PACK_HP_SHARE), found by bisection on the real rounded numbers. A factor outside
+## PACK_SCALE_MIN..PACK_SCALE_MAX is never used: when the bounds stop a pack reaching the budget a new one is
+## drawn from `rng` (up to PACK_MAX_ATTEMPTS); if none fits, the legal pack closest to the budget is used. Only `rng` is consumed, so the same seed, row and count give the same pack.
+## Shared resources are never changed (enemies are copies and scaled() makes new ones). Enemies that fail to load
+## are left out (cause logged).
+static func budget_encounter(count: int, rng: RandomNumberGenerator, row: int, budget_multiplier: float = 1.0, elite: bool = false) -> Array[EnemyData]:
+	var n := clampi(count, ELITE_MIN_ENEMIES if elite else 1, Combat.MAX_ENEMIES)
+	var target := fight_budget(row) * budget_multiplier
+	var big_pair_chance := TIER1_BIG_PAIR_CHANCE if row >= MAP_ACT_ROWS else BIG_PAIR_CHANCE
+	var best: Array[EnemyData] = []
+	var best_miss := INF
+	var best_info := {}
+	for attempt in PACK_MAX_ATTEMPTS:
+		var base: Array[EnemyData] = []
+		for path in _pack_paths(n, rng, big_pair_chance):
+			var enemy := _load_enemy(path)
+			if enemy != null:
+				base.append(enemy)
+		if base.is_empty():
+			continue
+		var fit := _fit_scale(base, target)
+		var pack := _scaled_pack(base, fit["scale"])
+		var threat := pack_threat(pack)
+		var miss := absf(threat - target) / maxf(target, 0.001)
+		if miss < best_miss:
+			var share := _hp_share(base.size())
+			best = pack
+			best_miss = miss
+			best_info = {"scale": fit["scale"], "hp_scale": pow(fit["scale"], share), "damage_scale": pow(fit["scale"], 1.0 - share), "target": target, "threat": threat, "bound_hit": fit["bound_hit"], "attempts": attempt + 1}
+		if not fit["bound_hit"]:
+			break
+	last_pack_info = best_info
+	return best
+
+
+## The enemy paths of a pack of `count`, drawn from the pools in the order varied_encounter draws them.
+static func _pack_paths(count: int, rng: RandomNumberGenerator, big_pair_chance: float) -> Array[String]:
+	var paths: Array[String] = []
+	match count:
+		1:
+			paths.append(Encounters.pick_path(ALL_ENEMY_PATHS, rng))
+		2:
+			if rng.randf() < big_pair_chance:
+				paths.append(Encounters.pick_path(PAIR_BIG_ENEMY_PATHS, rng))
+				paths.append(Encounters.pick_path(SMALL_ENEMY_PATHS, rng))
+			else:
+				paths.append(Encounters.pick_path(SMALL_ENEMY_PATHS, rng))
+				paths.append(Encounters.pick_path(SMALL_ENEMY_PATHS, rng))
+		_:
+			for i in count:
+				paths.append(Encounters.pick_path(Encounters.trio_paths(), rng))
+	return paths
+
+
+## The HP share of the total multiplier for a pack of `count` (see PACK_HP_SHARE).
+static func _hp_share(count: int) -> float:
+	return PACK_HP_SHARE[clampi(count, 1, PACK_HP_SHARE.size()) - 1]
+
+
+## The legal range of the total multiplier m for a pack of `count`: the HP factor m^share and the damage factor
+## m^(1 - share) must both lie in PACK_SCALE_MIN..PACK_SCALE_MAX. Returns [m_min, m_max].
+static func pack_multiplier_bounds(count: int) -> Array[float]:
+	var share := _hp_share(count)
+	var low := maxf(pow(PACK_SCALE_MIN, 1.0 / share), pow(PACK_SCALE_MIN, 1.0 / (1.0 - share)))
+	var high := minf(pow(PACK_SCALE_MAX, 1.0 / share), pow(PACK_SCALE_MAX, 1.0 / (1.0 - share)))
+	return [low, high]
+
+
+## The total multiplier m, inside pack_multiplier_bounds, that brings the scaled `base` pack's threat closest to
+## `target` (threat rises with m, so bisect), and whether the bounds stopped it reaching the target.
+static func _fit_scale(base: Array[EnemyData], target: float) -> Dictionary:
+	var bounds := pack_multiplier_bounds(base.size())
+	var low_threat := pack_threat(_scaled_pack(base, bounds[0]))
+	if low_threat >= target:
+		return {"scale": bounds[0], "bound_hit": low_threat > target * 1.02}
+	var high_threat := pack_threat(_scaled_pack(base, bounds[1]))
+	if high_threat <= target:
+		return {"scale": bounds[1], "bound_hit": high_threat < target * 0.98}
+	var lo: float = bounds[0]
+	var hi: float = bounds[1]
+	for i in 30:
+		var mid := (lo + hi) * 0.5
+		if pack_threat(_scaled_pack(base, mid)) < target:
+			lo = mid
+		else:
+			hi = mid
+	var lo_miss := target - pack_threat(_scaled_pack(base, lo))
+	var hi_miss := pack_threat(_scaled_pack(base, hi)) - target
+	return {"scale": lo if lo_miss <= hi_miss else hi, "bound_hit": false}
+
+
+## `base` with every enemy scaled for the total multiplier `m`: HP by m^share, damage by m^(1 - share).
+static func _scaled_pack(base: Array[EnemyData], m: float) -> Array[EnemyData]:
+	var share := _hp_share(base.size())
+	var pack: Array[EnemyData] = []
+	for enemy in base:
+		pack.append(scaled(enemy, pow(m, share), pow(m, 1.0 - share)))
+	return pack
+
+
 ## The stat multiplier for the regular fight numbered `fight` (0-based; below 0 counts as 0).
 static func ramp_factor(fight: int) -> float:
 	return Encounters.ramp_factor(fight)
@@ -405,8 +659,9 @@ static func ramp_factor(fight: int) -> float:
 
 ## `enemy` with max HP and DAMAGE intents scaled by `factor` (rounded, never below 1). Returns a new
 ## EnemyData with new intents, so the shared resource is never touched; factor 1.0 returns `enemy` itself.
-static func scaled(enemy: EnemyData, factor: float) -> EnemyData:
-	return Encounters.scaled(enemy, factor)
+## A `damage_factor` of 0 or more scales the DAMAGE intents by that instead (the pack builder splits HP and damage).
+static func scaled(enemy: EnemyData, factor: float, damage_factor: float = -1.0) -> EnemyData:
+	return Encounters.scaled(enemy, factor, damage_factor)
 
 
 ## The boss fight: the Conductor alone. Empty (cause logged) if it fails to load,

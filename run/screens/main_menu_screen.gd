@@ -93,7 +93,7 @@ func _add_saved_summary(box: VBoxContainer, saved: RunState) -> void:
 	details.custom_minimum_size = Vector2(BUTTON_WIDTH + 140.0, 0)
 	details.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	var summary := make_label("Your journey waits at %s.\n%s  ·  HP %d/%d  ·  Gold %d  ·  Deck %d" % [
-		DestinationArt.label_at(saved.stop_index), saved.player.display_name, saved.player.hp, saved.player.max_hp, saved.gold, saved.deck.size(),
+		_resume_place(saved), saved.player.display_name, saved.player.hp, saved.player.max_hp, saved.gold, saved.deck.size(),
 	])
 	summary.add_theme_font_override("font", MenuStyle.serif_font())
 	summary.add_theme_font_size_override("font_size", 18)
@@ -166,6 +166,17 @@ func _add_secondary_buttons(box: VBoxContainer, actions: MainMenuActions) -> voi
 func _size_menu_button(button: Button) -> void:
 	button.custom_minimum_size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
 	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+
+
+## Where the Continue panel says the journey waits: the line's destination, or in map mode the node's
+## place name (the crossroads when the run is at the map).
+static func _resume_place(saved: RunState) -> String:
+	if not saved.uses_map():
+		return DestinationArt.label_at(saved.stop_index)
+	if saved.current_stop() == null:
+		return "the crossroads"
+	var place := saved.destination_label()
+	return place if place != "" else "the road ahead"
 
 
 ## A tighter version of the theme's panel, so the save summary does not dominate the menu.

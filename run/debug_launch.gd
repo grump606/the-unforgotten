@@ -12,6 +12,19 @@ extends RefCounted
 ##   godot --path . -- --screen=rest --gold=0 --hp=10
 ##   godot --path . -- --screen=vendor:2        (the second shop on the line)
 ##
+## A treasure stop (map mode only, there is no chest on the old line): `--screen=treasure` opens the first act's
+## chest of a throwaway map run, `--screen=treasure:2` the second act's. Gold and HP are set as for the other screens.
+##
+##   godot --path . -- --screen=treasure --character=thief
+##   godot --path . -- --screen=treasure:2
+##
+## An event stop (map mode only): `--screen=event` opens a random event of a throwaway map run, `--screen=event:<id>` a
+## chosen one (an id such as bell_in_the_well, or its number: event:e04). The run is placed inside an event node on a
+## connected path, gold and HP are set as for the other screens (default 100 gold, 55% HP).
+##
+##   godot --path . -- --screen=event
+##   godot --path . -- --screen=event:cracked_bell --character=deserter --gold=10
+##
 ## Try the keyword prototype cards (data/prototype, never in the normal card pool): `--proto` swaps the
 ## player's deck for two copies of each, in a fight (default enemy: the Colossus) or with `--fight=`:
 ##
@@ -29,6 +42,13 @@ extends RefCounted
 ##
 ##   godot --path . -- --proto --fight=proto_dreadkeeper
 ##
+## Try the selectable route map (docs/MAP_DESIGN.md), which normal play does not reach yet: `--map` (or
+## THE_UNFORGOTTEN_MAP=1) starts a run in map mode with the character from `--character` (default Deserter).
+## It is a debug run: nothing is saved. `--fight` and `--screen` take precedence over it.
+##
+##   godot --path . -- --map
+##   godot --path . -- --map --character=medium
+##
 ## The same values can come from THE_UNFORGOTTEN_FIGHT, THE_UNFORGOTTEN_SCREEN, THE_UNFORGOTTEN_CHARACTER,
 ## THE_UNFORGOTTEN_HP and THE_UNFORGOTTEN_GOLD.
 ## `--fight=list` prints the accepted names. Names match an enemy id, its in-game name, or a short
@@ -40,6 +60,7 @@ const ENV_HP := "THE_UNFORGOTTEN_HP"
 const ENV_SCREEN := "THE_UNFORGOTTEN_SCREEN"
 const ENV_GOLD := "THE_UNFORGOTTEN_GOLD"
 const ENV_PROTO := "THE_UNFORGOTTEN_PROTO"
+const ENV_MAP := "THE_UNFORGOTTEN_MAP"
 ## Enemy used by `--proto` when no `--fight` is given.
 const PROTO_DEFAULT_FIGHT := "colossus"
 ## The prototype cards: one per keyword plus multi-hit and Surge, a plain Strike and Guard (to see live
@@ -76,6 +97,9 @@ const SCREENS := {"vendor": RunState.StopType.VENDOR, "rest": RunState.StopType.
 ## Screens that are not a stop on the line: the character select, and the end card after the last boss
 ## ("end" = escaped, "defeat" = the defeat card).
 const SPECIAL_SCREENS := ["select", "end", "defeat"]
+## Stops that exist only on the map: opened in a throwaway map run. The number after the colon is the act (1 or 2) for
+## the chest, and an event id (or its number, e04) for "event".
+const MAP_SCREENS := ["treasure", "event"]
 ## Defaults for a screen launch: enough gold for a few purchases, and a player at this share of max HP.
 const DEFAULT_GOLD := 100
 const DEFAULT_HP_PERCENT := 55
@@ -98,10 +122,14 @@ var hp := -1
 ## Set for a screen launch ("vendor" or "rest"); `screen_index` picks the nth such stop on the line (1-based).
 var screen := ""
 var screen_index := 1
+## `--screen=event:<id>`: the event to open (&"" = a random one).
+var event_id: StringName = &""
 var gold := -1
 var list_only := false
 ## `--proto`: the fight uses the prototype card deck (see prototype_deck).
 var proto := false
+## `--map`: start a run in map mode (RunState use_map) instead of a fight or screen.
+var map := false
 var error := ""
 
 
@@ -117,6 +145,7 @@ static func from_environment() -> DebugLaunch:
 		ENV_SCREEN: OS.get_environment(ENV_SCREEN),
 		ENV_GOLD: OS.get_environment(ENV_GOLD),
 		ENV_PROTO: OS.get_environment(ENV_PROTO),
+		ENV_MAP: OS.get_environment(ENV_MAP),
 	})
 
 
@@ -128,6 +157,7 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 	var screen_text := String(env.get(ENV_SCREEN, ""))
 	var gold_text := String(env.get(ENV_GOLD, ""))
 	var proto_text := String(env.get(ENV_PROTO, ""))
+	var map_text := String(env.get(ENV_MAP, ""))
 	for arg in args:
 		if arg.begins_with("--fight="):
 			fight_text = arg.trim_prefix("--fight=")
@@ -141,12 +171,15 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 			hp_text = arg.trim_prefix("--hp=")
 		elif arg == "--proto":
 			proto_text = "1"
+		elif arg == "--map":
+			map_text = "1"
 	launch.proto = proto_text.strip_edges() not in ["", "0", "false"]
+	launch.map = map_text.strip_edges() not in ["", "0", "false"]
 	if launch.proto and fight_text.strip_edges() == "" and screen_text.strip_edges() == "":
 		fight_text = PROTO_DEFAULT_FIGHT
 	var wants_fight := fight_text.strip_edges() != ""
 	var wants_screen := screen_text.strip_edges() != ""
-	if not wants_fight and not wants_screen:
+	if not wants_fight and not wants_screen and not launch.map:
 		return launch
 	launch.requested = true
 	if wants_fight and wants_screen:
@@ -165,18 +198,30 @@ static func parse(args: PackedStringArray, env := {}) -> DebugLaunch:
 		if launch.enemy_ids.is_empty() or launch.enemy_ids.size() > Combat.MAX_ENEMIES:
 			launch.error = "A fight needs 1 to %d enemies, got %d." % [Combat.MAX_ENEMIES, launch.enemy_ids.size()]
 			return launch
-	else:
+	elif wants_screen:
 		# "vendor", "rest", or "vendor:2" for the second one on the line.
 		var parts := screen_text.strip_edges().to_lower().split(":")
+		var event_screen: bool = parts[0] == "event"
+		if event_screen:
+			if parts.size() > 2 or (parts.size() == 2 and resolve_event(parts[1]) == &""):
+				launch.error = "Unknown event '%s'. Choose from: %s (or e01 to e%02d)." % [screen_text.strip_edges().substr(6), ", ".join(event_ids()), StarterContent.EVENT_PATHS.size()]
+				return launch
+			if parts.size() == 2:
+				launch.event_id = resolve_event(parts[1])
+			parts = PackedStringArray(["event"])
 		var special: bool = SPECIAL_SCREENS.has(parts[0])
-		if not (SCREENS.has(parts[0]) or special) or parts.size() > 2 or (special and parts.size() > 1) \
+		var on_map: bool = MAP_SCREENS.has(parts[0])
+		if not (SCREENS.has(parts[0]) or special or on_map) or parts.size() > 2 or (special and parts.size() > 1) \
 				or (parts.size() == 2 and (not parts[1].is_valid_int() or int(parts[1]) < 1)):
-			launch.error = "Unknown screen '%s'. Choose from: %s, %s (add :2 for the second shop or rest)." % [
-				screen_text.strip_edges(), ", ".join(SCREENS.keys()), ", ".join(SPECIAL_SCREENS)]
+			launch.error = "Unknown screen '%s'. Choose from: %s, %s, %s (add :2 for the second shop or rest, or the second act's chest)." % [
+				screen_text.strip_edges(), ", ".join(SCREENS.keys()), ", ".join(MAP_SCREENS), ", ".join(SPECIAL_SCREENS)]
 			return launch
 		launch.screen = parts[0]
 		launch.screen_index = int(parts[1]) if parts.size() == 2 else 1
-		if not special and launch.screen_index > screen_count(launch.screen):
+		if on_map and not event_screen and launch.screen_index > RouteMap.ACTS:
+			launch.error = "The map has only %d acts, so there are only %d %s stops." % [RouteMap.ACTS, RouteMap.ACTS, launch.screen]
+			return launch
+		if not special and not on_map and launch.screen_index > screen_count(launch.screen):
 			launch.error = "The line has only %d %s stop(s)." % [screen_count(launch.screen), launch.screen]
 			return launch
 	if gold_text.strip_edges() != "":
@@ -220,6 +265,27 @@ static func prototype_enemy(enemy_id: StringName) -> EnemyData:
 		if template != null and template.id == enemy_id:
 			return template.duplicate(true) as EnemyData
 	return null
+
+
+## The ids of the events, in registry order (from the file names, so nothing is loaded).
+static func event_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for path in StarterContent.EVENT_PATHS:
+		ids.append(path.get_file().get_basename())
+	return ids
+
+
+## The event id a name refers to (the id itself, ignoring case and punctuation, or e01 to e12 for its place in the
+## registry), or &"" if none matches.
+static func resolve_event(name: String) -> StringName:
+	var wanted := _normalize(name)
+	if wanted == "":
+		return &""
+	var ids := event_ids()
+	for i in ids.size():
+		if _normalize(ids[i]) == wanted or "e%02d" % (i + 1) == wanted or "e%d" % (i + 1) == wanted:
+			return StringName(ids[i])
+	return &""
 
 
 ## The enemy id a name refers to (id, display name or alias), or &"" if none matches.

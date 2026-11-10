@@ -703,6 +703,115 @@ static func _other_damage(combat: Combat, hand_index: int, energy_left: int) -> 
 	return roundi(total)
 
 
+## Event stop for the smart bot. Each enabled button is scored by what it does for a run in this state: healing is
+## worth a lot below EVENT_HURT_BELOW of max HP and little above it, HP spent costs more when hurt, a relic or a card
+## pick is the main prize for a healthy player, a curse or lost max HP is a real cost, a payment of gold is never made
+## below EVENT_MIN_GOLD (and never when it cannot be afforded), and a gamble that can cost HP is not taken while
+## hurt. The best score wins; ties go to the earlier button. False on a RunState failure.
+const EVENT_HURT_BELOW := 0.6
+const EVENT_MIN_GOLD := 60
+
+
+static func event_stop(run: RunState) -> bool:
+	var choices := run.event_choices()
+	var best := -1
+	var best_score := -INF
+	for i in choices.size():
+		if not bool(run.event_choice_state(i)["enabled"]):
+			continue
+		var score := event_score(run, choices[i].effects)
+		if score > best_score + 0.0001:
+			best_score = score
+			best = i
+	if best == -1 and run.current_event() != null:
+		printerr("SmartPolicy: an event offered no usable button")
+		return false
+	return SimPolicy.finish_event_picks(run, true, best)
+
+
+## The value of a list of event effects for the current run state (see `event_stop`); -INF means never.
+static func event_score(run: RunState, effects: Array[EventEffect]) -> float:
+	var hurt := run.player.hp < EVENT_HURT_BELOW * run.player.max_hp
+	var score := 0.0
+	for effect in effects:
+		match effect.kind:
+			EventEffect.Kind.HEAL_PERCENT, EventEffect.Kind.HEAL_FLAT:
+				var wanted: float = run.player.max_hp * effect.amount / 100.0 if effect.kind == EventEffect.Kind.HEAL_PERCENT else float(effect.amount)
+				score += minf(wanted, run.player.max_hp - run.player.hp) * (2.0 if hurt else 0.3)
+			EventEffect.Kind.LOSE_HP, EventEffect.Kind.LOSE_HP_PERCENT:
+				var cost: float = run.player.max_hp * effect.amount / 100.0 if effect.kind == EventEffect.Kind.LOSE_HP_PERCENT else float(effect.amount)
+				score -= cost * (2.5 if hurt else 0.5)
+				if run.player.hp - cost < 0.3 * run.player.max_hp:
+					score -= 20.0
+			EventEffect.Kind.GOLD:
+				if effect.amount < 0:
+					if run.gold < EVENT_MIN_GOLD or run.gold + effect.amount < 0:
+						return -INF
+					score += effect.amount * 0.4
+				else:
+					score += effect.amount * 0.3
+			EventEffect.Kind.MAX_HP:
+				score += effect.amount * 4.0
+			EventEffect.Kind.GAIN_RELIC:
+				score += 10.0 if hurt else 26.0
+			EventEffect.Kind.PICK_CARD:
+				score += 12.0 + 6.0 * maxf(effect.rarity, 0)
+			EventEffect.Kind.ADD_RANDOM_CARD, EventEffect.Kind.ADD_CARD:
+				score += 6.0
+			EventEffect.Kind.REMOVE_CARD:
+				score += 10.0 if run.deck.size() > MIN_DECK else 2.0
+			EventEffect.Kind.REMEMBER_CARD:
+				score += 12.0
+			EventEffect.Kind.ADD_CURSE:
+				score -= 9.0 * maxi(effect.count, 1)
+			EventEffect.Kind.REMOVE_RANDOM_CARD:
+				score -= 6.0
+			EventEffect.Kind.GAMBLE:
+				var win := event_score(run, effect.win)
+				var lose := event_score(run, effect.lose)
+				var costs := SimPolicy.event_costs(effect.lose)
+				if hurt and (costs["hp"] > 0 or costs["gold"] > 0):
+					return -INF
+				if win == -INF and lose == -INF:
+					return -INF
+				var p := effect.amount / 100.0
+				score += p * (win if win != -INF else -50.0) + (1.0 - p) * (lose if lose != -INF else -50.0)
+	return score
+
+
+## Map mode route choice. `route` `smart` (the default): a rest when HP is under half, a shop when gold is at least
+## ROUTE_SHOP_GOLD, a chest, an event while healthy, else the first plain fight, else the first node. Any other
+## name is a RoutePolicy strategy. Returns -1 when none is reachable.
+const ROUTE_REST_BELOW := 0.5
+const ROUTE_SHOP_GOLD := 120
+const ROUTE_EVENT_ABOVE := 0.7
+
+
+static func choose_route(run: RunState, route: String = RoutePolicy.SMART) -> int:
+	if route != RoutePolicy.SMART:
+		return RoutePolicy.choose(run, route)
+	var options := run.reachable_nodes()
+	if options.is_empty():
+		return -1
+	var wanted: Array[RouteMap.NodeType] = []
+	if run.player.hp < ROUTE_REST_BELOW * run.player.max_hp:
+		wanted.append(RouteMap.NodeType.REST)
+	if run.gold >= ROUTE_SHOP_GOLD:
+		wanted.append(RouteMap.NodeType.SHOP)
+	# A chest is free (a relic for nothing) and the forced treasure row is unavoidable, so it is taken
+	# whenever it is offered, ahead of a plain fight.
+	wanted.append(RouteMap.NodeType.TREASURE)
+	# An event is a gamble on a story: worth the detour only while the player is healthy.
+	if run.player.hp >= ROUTE_EVENT_ABOVE * run.player.max_hp:
+		wanted.append(RouteMap.NodeType.EVENT)
+	wanted.append(RouteMap.NodeType.FIGHT)
+	for type in wanted:
+		for id in options:
+			if run.route.node(id).type == type:
+				return id
+	return options[0]
+
+
 ## Reward pick: the best-scoring offered card, or null (skip) if even that is
 ## below the deck's average card score.
 static func pick_reward(run: RunState) -> CardData:
@@ -737,11 +846,11 @@ static func take_reward(run: RunState) -> bool:
 
 ## Deck index of the card worth Remembering most: the biggest card_score gain of its Remembered form (Ready
 ## and a refunded Glimpse count a little); ties go to the earlier card. -1 when nothing can be Remembered.
-static func remember_pick(run: RunState) -> int:
+static func remember_pick(run: RunState, indices: Array[int] = []) -> int:
 	var weights := _weights(run.deck)
 	var best := -1
 	var best_gain := -INF
-	for i in run.rememberable_indices():
+	for i in (indices if not indices.is_empty() else run.rememberable_indices()):
 		var card := run.deck[i]
 		var upgraded := card.remembered_card()
 		var gain := card_score(upgraded, weights) - card_score(card, weights)

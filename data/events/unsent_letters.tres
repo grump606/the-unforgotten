@@ -1,0 +1,70 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 8
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 9
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Read one aloud"
+outcome = "You say the first line and the street grows quiet to hear it. A memory of your own comes back, sharper."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 15
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 0
+amount = 3
+
+[sub_resource type="Resource" id="Resource_c6"]
+script = ExtResource("2_choice")
+label = "Carry them to the post box"
+outcome = "The box is rusted shut. You leave them there anyway, in the dry. Something is left in the bag for your trouble."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e4"), SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_e7"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 4
+
+[sub_resource type="Resource" id="Resource_e8"]
+script = ExtResource("3_effect")
+kind = 9
+
+[sub_resource type="Resource" id="Resource_e9"]
+script = ExtResource("3_effect")
+kind = 11
+card_id = &"murmur"
+
+[sub_resource type="Resource" id="Resource_c10"]
+script = ExtResource("2_choice")
+label = "Answer the writers"
+outcome = "The dead take your hand in turn. They ask nothing, and tell you the end of each sentence. One voice stays behind."
+only_for = &"medium"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e7"), SubResource("Resource_e8"), SubResource("Resource_e9")])
+
+[sub_resource type="Resource" id="Resource_c11"]
+script = ExtResource("2_choice")
+label = "Leave the satchel"
+outcome = "You are not the one they were written to."
+
+[resource]
+script = ExtResource("1_event")
+id = &"unsent_letters"
+title = "The Unsent Letters"
+body = "A satchel left on a bench, its leather gone soft. Inside are letters with no addresses, each sealed with a thumbprint. They are warm to the touch, as if the writers had only just put them down."
+scene = &"battle_archive"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c3"), SubResource("Resource_c6"), SubResource("Resource_c10"), SubResource("Resource_c11")])

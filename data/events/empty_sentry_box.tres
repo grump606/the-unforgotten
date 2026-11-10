@@ -1,0 +1,74 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 10
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 7
+rarity = 1
+count = 3
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Stand the watch"
+outcome = "You stand until your legs shake. When the lamp gutters, the dark feels settled, not hostile."
+class_outcome = {"deserter": "You stand the watch you walked away from. Nobody comes to relieve you. You hold it anyway. When the lamp gutters, the dark feels settled, not hostile."}
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 6
+has_effect = 1
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 10
+
+[sub_resource type="Resource" id="Resource_c6"]
+script = ExtResource("2_choice")
+label = "Take the coat and go"
+outcome = "It is heavy and fits wrong. It will keep the wind off, and the pockets are not empty."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e4"), SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_e7"]
+script = ExtResource("3_effect")
+kind = 0
+amount = 10
+
+[sub_resource type="Resource" id="Resource_c8"]
+script = ExtResource("2_choice")
+label = "Sleep on the bench"
+outcome = "Nobody wakes you."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e7")])
+
+[sub_resource type="Resource" id="Resource_e9"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 5
+
+[sub_resource type="Resource" id="Resource_e10"]
+script = ExtResource("3_effect")
+kind = 9
+
+[sub_resource type="Resource" id="Resource_c11"]
+script = ExtResource("2_choice")
+label = "Report in"
+outcome = "You say your name and the rank, to no one. The box accepts it."
+only_for = &"deserter"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e9"), SubResource("Resource_e10")])
+
+[resource]
+script = ExtResource("1_event")
+id = &"empty_sentry_box"
+title = "The Empty Sentry Box"
+body = "A sentry box, its door open, a coat still hanging on the peg. The lamp inside has a half inch of oil left. Someone is meant to stand here until they are relieved. Nobody has come in a very long time."
+scene = &"battle_garden"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c3"), SubResource("Resource_c6"), SubResource("Resource_c8"), SubResource("Resource_c11")])

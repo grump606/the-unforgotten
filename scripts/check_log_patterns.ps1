@@ -48,7 +48,7 @@ $script:CheckKnownPushErrors = @(
     '^ERROR: SmartPolicy\._effect_score: no valuation for CardEffect\.Kind -?\d+$'          # tests/sim_exit_tests.gd
     '^ERROR: StarterContent\.character: unknown character ''(nobody|no_such_character)''$'  # content_tests.gd, run_state_flow_tests.gd, sim_engine_error_tests.gd
     '^ERROR: StarterContent\.created_card: unknown created card id (dread|no_such_card)$'    # tests/starter_tests.gd
-    '^ERROR: StarterContent: missing or non-(CardData|EnemyData) resource: res://data/(cards|enemies)/[a-z_]+\.tres$' # combat_core_tests.gd
+    '^ERROR: StarterContent: missing or non-(CardData|EnemyData|EventData) resource: res://data/(cards|enemies|events)/[a-z_]+\.tres$' # combat_core_tests.gd, event_tests.gd
     '^ERROR: StoryContent\.beat: no beat at index -?\d+$'                                    # run_state_stop_tests.gd
     '^ERROR: UserDataMigration: refusing to migrate ''[^'']+/migration_test_\d+/refuse/(Card Battle Prototype|Something Else)''$' # tests/migration_tests.gd
     '^ERROR: Vendor\.buy_card: bad offer index -?\d+$'                                       # tests/vendor_tests.gd

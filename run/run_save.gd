@@ -3,11 +3,17 @@ extends RefCounted
 ## Save and restore of an in-progress run, kept apart from RunState so the rules
 ## class stays pure. A save is written only at a stop boundary (RunState.
 ## at_stop_boundary: no fight, reward or vendor visit in flight), so it holds
-## just the player, deck, gold, stop index and the run RNG position.
+## just the player, deck, gold, stop index and the run RNG position. A map run (RunState.uses_map,
+## docs/MAP_DESIGN.md "Phase 3") also stores its route and where the player stands on it.
 ## A save file is untrusted input: from_dict / load_file validate every field and
 ## return a Result with an error message instead of ever failing.
 
-const VERSION := 4
+## The newest format this game reads and writes. Line runs keep writing LINE_VERSION so a v4 reader
+## (every release before map saves) can still load them; only a map run writes MAP_VERSION. A save
+## above VERSION is rejected, a v2 to v4 save loads as a line run exactly as before.
+const VERSION := 5
+const LINE_VERSION := 4
+const MAP_VERSION := 5
 ## The oldest format migrate() can upgrade. Anything older is rejected.
 const MIN_VERSION := 2
 ## The Thief's id before it was renamed (releases up to 0.7.3); accepted on load and mapped to "thief".
@@ -17,6 +23,8 @@ const REMEMBERED_SUFFIX := "+"
 const DEFAULT_PATH := "user://run_save.json"
 const MAX_FILE_BYTES := 1048576
 const MAX_HP := 10000
+## Map saves only: events and chests pay amounts a fixed line cannot bound, so a map run's gold is capped here.
+const MAX_GOLD := 1000000
 ## Max HP can only rise through a MAX_HP relic (Vendor.buy_relic; a rest stop heals but never raises it), so a
 ## genuine save holds the character's base HP plus the MAX_HP relics it carries. The slack lets a save made
 ## before a character's base HP was retuned still load; a hand-edited 9999 does not.
@@ -31,6 +39,8 @@ const DECK_COPY_SLACK := 2
 const RELIC_SLACK := 2
 ## Slack on the gold bound for a retuned economy (a save made before a payout changed must still load).
 const GOLD_SLACK := 50
+## Map saves only: the most cards an event can add in one row, on top of a shop's stock.
+const MAP_ROW_EXTRA_CARDS := 2
 
 
 class Result extends RefCounted:
@@ -68,8 +78,8 @@ static func to_dict(run: RunState) -> Dictionary:
 	var relic_ids: Array = []
 	for relic in run.relics:
 		relic_ids.append(String(relic.id))
-	return {
-		"version": VERSION,
+	var data := {
+		"version": MAP_VERSION if run.uses_map() else LINE_VERSION,
 		"character": String(run.character.id),
 		"hp": run.player.hp,
 		"max_hp": run.player.max_hp,
@@ -84,6 +94,20 @@ static func to_dict(run: RunState) -> Dictionary:
 		# A string: JSON numbers are doubles and would round a 64-bit state.
 		"rng_state": str(run.rng_state()),
 	}
+	if run.uses_map():
+		# The whole route, not its seed, so tuning the generator later never changes a saved run.
+		data["map"] = run.route.to_dict()
+		data["current_node"] = run.current_node
+		data["visited"] = run.visited.duplicate()
+		# True when the player is inside the current node's stop (saved on arrival), false at the map.
+		data["at_node"] = run.in_map_stop()
+		# The events shown so far (docs/EVENTS_DESIGN.md). An older v5 save has no such key and loads as empty.
+		var seen_ids: Array = []
+		for id in run.events_seen:
+			seen_ids.append(String(id))
+		data["events_seen"] = seen_ids
+		data.erase("line") # the stop line does not exist in map mode (stops are placeholders)
+	return data
 
 
 ## What the validators accepted, field by field. Typed so a misspelt field fails at parse time instead of
@@ -98,6 +122,13 @@ class Accepted extends RefCounted:
 	var offered: Array[StringName] = []
 	var relics: Array[RelicData] = []
 	var known_cards := {}
+	## True for a map save (version >= MAP_VERSION); then the fields below are set by _check_map / _check_events_seen.
+	var is_map := false
+	var route: RouteMap = null
+	var current_node := -1
+	var visited: Array[int] = []
+	var at_node := false
+	var events_seen: Array[StringName] = []
 
 
 static func from_dict(data: Variant) -> Result:
@@ -121,11 +152,18 @@ static func from_dict(data: Variant) -> Result:
 	# Each validator stores what it accepts in `got` and returns why a field was rejected ("" if fine).
 	# The order matters: the deck check leaves the card table the offered check needs.
 	var got := Accepted.new()
-	for check in [_check_line_and_stop, _check_relics, _check_numbers, _check_rng_state, _check_deck, _check_offered]:
+	got.is_map = _int(d, "version", 0, 1000000) >= MAP_VERSION
+	var checks: Array[Callable] = [_check_line_and_stop]
+	if got.is_map:
+		checks.append(_check_map)
+	for later in [_check_relics, _check_numbers, _check_rng_state, _check_deck, _check_offered, _check_events_seen]:
+		checks.append(later)
+	for check in checks:
 		error = check.call(d, run, got)
 		if error != "":
 			return Result.fail(error)
 	run.relics = got.relics
+	run.events_seen.assign(got.events_seen)
 	run.offered_ids = got.offered
 	run.reward_remove_used = d["reward_remove_used"]
 	run.reward_heal_used = d["reward_heal_used"]
@@ -133,6 +171,8 @@ static func from_dict(data: Variant) -> Result:
 	run.deck = got.deck
 	run.gold = got.gold
 	run.stop_index = got.stop_index
+	if got.is_map:
+		run.restore_map(got.route, got.current_node, got.visited, got.at_node)
 	run.restore_rng_state(got.rng_state.to_int())
 	return _ok(run)
 
@@ -166,7 +206,11 @@ static func max_hp_allowed(run: RunState, relics: Array[RelicData]) -> int:
 
 ## Cards a genuine run can have gained before `stop_index`: one reward pick per fight won (a boss win ends the
 ## run, so no save follows it) and the vendor's whole stock for every vendor visited.
-static func _cards_gained_before(run: RunState, stop_index: int) -> int:
+static func _cards_gained_before(run: RunState, stop_index: int, is_map: bool = false) -> int:
+	if is_map:
+		# A map run has no fixed line: any row may hold a shop (the whole stock) or an event, so allow the most
+		# any one row can add.
+		return (stop_index + 1) * (Vendor.STOCK_CARDS + MAP_ROW_EXTRA_CARDS)
 	var total := 0
 	for i in mini(stop_index, run.stops.size()):
 		var stop := run.stops[i]
@@ -178,14 +222,14 @@ static func _cards_gained_before(run: RunState, stop_index: int) -> int:
 
 
 ## The most cards a genuine run of `run`'s line could hold on reaching `stop_index` (see DECK_COPY_SLACK).
-static func max_deck(run: RunState, stop_index: int) -> int:
-	return StarterContent.starter_deck(run.character.id).size() + _cards_gained_before(run, stop_index) + DECK_COPY_SLACK
+static func max_deck(run: RunState, stop_index: int, is_map: bool = false) -> int:
+	return StarterContent.starter_deck(run.character.id).size() + _cards_gained_before(run, stop_index, is_map) + DECK_COPY_SLACK
 
 
 ## The most copies of one card a genuine run of `run`'s line could hold on reaching `stop_index`: the starting
 ## copies plus every card it could have gained (see DECK_COPY_SLACK).
-static func max_copies(run: RunState, card_id: StringName, stop_index: int) -> int:
-	var total := DECK_COPY_SLACK + _cards_gained_before(run, stop_index)
+static func max_copies(run: RunState, card_id: StringName, stop_index: int, is_map: bool = false) -> int:
+	var total := DECK_COPY_SLACK + _cards_gained_before(run, stop_index, is_map)
 	for card in StarterContent.starter_deck(run.character.id):
 		if card.id == card_id:
 			total += 1
@@ -194,7 +238,9 @@ static func max_copies(run: RunState, card_id: StringName, stop_index: int) -> i
 
 ## The most gold a genuine run could hold on reaching `stop_index` if it never spent any: each fight won pays
 ## its gold (plus the mid-boss bonus and any win-gold relic carried) and a skipped reward pays SKIP_GOLD.
-static func max_gold(run: RunState, stop_index: int, relics: Array[RelicData]) -> int:
+static func max_gold(run: RunState, stop_index: int, relics: Array[RelicData], is_map: bool = false) -> int:
+	if is_map:
+		return MAX_GOLD # events and chests pay in amounts a fixed line cannot bound
 	var per_win := 0
 	for relic in relics:
 		if relic.kind == RelicData.Kind.WIN_GOLD:
@@ -208,7 +254,9 @@ static func max_gold(run: RunState, stop_index: int, relics: Array[RelicData]) -
 
 
 ## Relics a genuine run can carry on reaching `stop_index`: a vendor offers at most one per visit (plus RELIC_SLACK).
-static func max_relics(run: RunState, stop_index: int) -> int:
+static func max_relics(run: RunState, stop_index: int, is_map: bool = false) -> int:
+	if is_map:
+		return stop_index + 1 + RELIC_SLACK # at most one relic per row (a shop offer, a chest or an event)
 	var visits := RELIC_SLACK
 	for i in mini(stop_index, run.stops.size()):
 		if run.stops[i].type == RunState.StopType.VENDOR:
@@ -218,10 +266,11 @@ static func max_relics(run: RunState, stop_index: int) -> int:
 
 ## The stop line and stop_index, first because the relic, gold and deck bounds all depend on how far the run got.
 static func _check_line_and_stop(d: Dictionary, run: RunState, got: Accepted) -> String:
-	var line: Variant = d.get("line")
-	if typeof(line) != TYPE_STRING or line != line_signature(run):
-		return "this save is from an older version of the game's route and cannot be continued"
-	var stop_index: Variant = _int(d, "stop_index", 0, run.stops.size() - 1)
+	if not got.is_map:
+		var line: Variant = d.get("line")
+		if typeof(line) != TYPE_STRING or line != line_signature(run):
+			return "this save is from an older version of the game's route and cannot be continued"
+	var stop_index: Variant = _int(d, "stop_index", 0, (RouteMap.ROWS if got.is_map else run.stops.size()) - 1)
 	if stop_index == null:
 		return "bad stop_index"
 	got.stop_index = stop_index
@@ -237,12 +286,70 @@ static func _check_numbers(d: Dictionary, run: RunState, got: Accepted) -> Strin
 	var hp: Variant = _int(d, "hp", 1, max_hp)
 	if hp == null:
 		return "bad hp"
-	var gold: Variant = _int(d, "gold", 0, max_gold(run, got.stop_index, got.relics))
+	var gold: Variant = _int(d, "gold", 0, max_gold(run, got.stop_index, got.relics, got.is_map))
 	if gold == null:
 		return "bad gold"
 	got.max_hp = max_hp
 	got.hp = hp
 	got.gold = gold
+	return ""
+
+
+## A map save's route and position (v5). The route must be a well-formed, valid generated map for this
+## character; the player's place must be consistent with it: no node yet (nothing visited, row 0), or a
+## current node reached by a connected path of one node per row from the first row, with stop_index its
+## row. Between stops (`at_node` false) the current node must have somewhere to go; a run past its last
+## row is finished and is never saved.
+static func _check_map(d: Dictionary, run: RunState, got: Accepted) -> String:
+	var raw_map: Variant = d.get("map")
+	if typeof(raw_map) != TYPE_DICTIONARY:
+		return "this save has no route map"
+	var route := RouteMap.from_dict(raw_map)
+	if route == null:
+		return "the saved route map is damaged"
+	if route.kind != RouteMap.KIND_GENERATED or route.row_count() != RouteMap.ROWS:
+		return "the saved route map is not a full journey"
+	if route.character_id != run.character.id:
+		return "the saved route map belongs to a different character"
+	var problems := route.validate()
+	if not problems.is_empty():
+		return "the saved route map is invalid (%s)" % problems[0]
+	var current: Variant = _int(d, "current_node", -1, route.node_count() - 1)
+	if current == null:
+		return "bad current_node"
+	var raw_visited: Variant = d.get("visited")
+	if typeof(raw_visited) != TYPE_ARRAY or (raw_visited as Array).size() > RouteMap.ROWS:
+		return "bad visited list"
+	var visited: Array[int] = []
+	for entry in raw_visited:
+		var id: Variant = _int({"id": entry}, "id", 0, route.node_count() - 1)
+		if id == null:
+			return "visited list names a node that is not on the map"
+		visited.append(id)
+	if typeof(d.get("at_node")) != TYPE_BOOL:
+		return "bad at_node"
+	var at_node: bool = d["at_node"]
+	if current == -1:
+		if not visited.is_empty() or at_node or got.stop_index != 0:
+			return "this save has not chosen a node yet but records progress"
+	else:
+		var row: int = route.node(current).row
+		if visited.size() != row + 1 or visited[visited.size() - 1] != current or got.stop_index != row:
+			return "the visited path does not end at the current node"
+		for i in visited.size():
+			if route.node(visited[i]).row != i:
+				return "the visited path skips or repeats a row"
+			if i == 0:
+				if not route.starts().has(visited[0]):
+					return "the visited path does not begin on the first row"
+			elif not route.next_ids(visited[i - 1]).has(visited[i]):
+				return "the visited path uses a road that is not on the map"
+		if not at_node and route.next_ids(current).is_empty():
+			return "this save is past the last row of the map"
+	got.route = route
+	got.current_node = current
+	got.visited = visited
+	got.at_node = at_node
 	return ""
 
 
@@ -264,13 +371,21 @@ static func _check_rng_state(d: Dictionary, _run: RunState, got: Accepted) -> St
 ## Also leaves the id -> card table in `got` for the offered check.
 static func _check_deck(d: Dictionary, run: RunState, got: Accepted) -> String:
 	var raw_deck: Variant = d.get("deck")
-	if typeof(raw_deck) != TYPE_ARRAY or (raw_deck as Array).is_empty() or (raw_deck as Array).size() > max_deck(run, got.stop_index):
+	if typeof(raw_deck) != TYPE_ARRAY or (raw_deck as Array).is_empty() or (raw_deck as Array).size() > max_deck(run, got.stop_index, got.is_map):
 		return "bad deck"
 	var known := {}
 	for card in StarterContent.vendor_pool(run.character.id):
 		known[String(card.id)] = card
 	if known.is_empty():
 		return "card content failed to load"
+	# The deck may also hold a status card (Dread, Murmur) an event put there as a curse. It is not in any pool, so
+	# it is kept apart from `known` (the offered list is checked against the pool only).
+	var deck_cards := known.duplicate()
+	for status_id in StarterContent.STATUS_CARD_PATHS:
+		var status := StarterContent.status_card(status_id)
+		if status == null:
+			return "card content failed to load"
+		deck_cards[String(status_id)] = status
 	var deck: Array[CardData] = []
 	var copies := {}
 	for entry in raw_deck:
@@ -280,9 +395,9 @@ static func _check_deck(d: Dictionary, run: RunState, got: Accepted) -> String:
 		var upgraded := entry_id.ends_with(REMEMBERED_SUFFIX)
 		if upgraded:
 			entry_id = entry_id.trim_suffix(REMEMBERED_SUFFIX)
-		if not known.has(entry_id):
+		if not deck_cards.has(entry_id):
 			return "this save contains a card that no longer exists"
-		var card: CardData = known[entry_id]
+		var card: CardData = deck_cards[entry_id]
 		if upgraded:
 			var variant := card.remembered_card()
 			if variant == null:
@@ -290,7 +405,7 @@ static func _check_deck(d: Dictionary, run: RunState, got: Accepted) -> String:
 			card = variant
 		deck.append(card)
 		copies[entry_id] = copies.get(entry_id, 0) + 1
-		if copies[entry_id] > max_copies(run, card.id, got.stop_index):
+		if copies[entry_id] > max_copies(run, card.id, got.stop_index, got.is_map):
 			return "this save holds more copies of a card than a run can collect"
 	got.known_cards = known
 	got.deck = deck
@@ -316,6 +431,26 @@ static func _check_offered(d: Dictionary, _run: RunState, got: Accepted) -> Stri
 	return ""
 
 
+## The events already shown (map saves). Absent in a save from before events: empty. Entries must be strings; ones that
+## are not a known event id are dropped and repeats are kept once, so retiring an event never invalidates a save.
+static func _check_events_seen(d: Dictionary, _run: RunState, got: Accepted) -> String:
+	var seen: Array[StringName] = []
+	if got.is_map and d.has("events_seen"):
+		var raw: Variant = d["events_seen"]
+		if typeof(raw) != TYPE_ARRAY or (raw as Array).size() > 200:
+			return "bad events_seen list"
+		var known_ids := {}
+		for event in StarterContent.all_events():
+			known_ids[String(event.id)] = true
+		for entry in raw:
+			if typeof(entry) != TYPE_STRING:
+				return "bad events_seen list"
+			if known_ids.has(entry) and not seen.has(StringName(entry)):
+				seen.append(StringName(entry))
+	got.events_seen = seen
+	return ""
+
+
 ## The saved max HP already includes any MAX_HP relic, so restoring the relic list must not apply
 ## it again.
 static func _check_relics(d: Dictionary, run: RunState, got: Accepted) -> String:
@@ -324,7 +459,7 @@ static func _check_relics(d: Dictionary, run: RunState, got: Accepted) -> String
 	var known_relics := {}
 	for relic in StarterContent.relic_pool(run.character.id):
 		known_relics[String(relic.id)] = relic
-	if typeof(raw_relics) != TYPE_ARRAY or (raw_relics as Array).size() > mini(known_relics.size(), max_relics(run, got.stop_index)):
+	if typeof(raw_relics) != TYPE_ARRAY or (raw_relics as Array).size() > mini(known_relics.size(), max_relics(run, got.stop_index, got.is_map)):
 		return "bad relics list"
 	for entry in raw_relics:
 		if typeof(entry) != TYPE_STRING or not known_relics.has(entry) or relics.has(known_relics[entry]):
@@ -337,6 +472,7 @@ static func _check_relics(d: Dictionary, run: RunState, got: Accepted) -> String
 ## Upgrades a save dict of `version` to the current format, returning a copy. A v2 save may lack
 ## the fields v3 requires; a run that lacks them had seen no rewards, used neither reward
 ## alternative and bought no relics. Fields that are present are left for validation to judge.
+## A v5 save (a map run) needs no upgrade.
 static func migrate(data: Dictionary, version: int) -> Dictionary:
 	var d := data.duplicate()
 	if version < 3:

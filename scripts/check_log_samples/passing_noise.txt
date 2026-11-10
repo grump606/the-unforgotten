@@ -84,3 +84,5 @@ ERROR: sim_exit_tests: deliberate bot error (expected in this log)
    at: push_error (core/variant/variant_utility.cpp:1023)
 ERROR: SmartPolicy._effect_score: no valuation for CardEffect.Kind 9999
    at: push_error (core/variant/variant_utility.cpp:1023)
+ERROR: StarterContent: missing or non-EventData resource: res://data/events/nope.tres
+   at: push_error (core/variant/variant_utility.cpp:1023)

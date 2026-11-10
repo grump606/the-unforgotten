@@ -44,17 +44,17 @@ static func varied_encounter(enemy_count: int, rng: RandomNumberGenerator, tier:
 	var big_pair_chance := StarterContent.TIER1_BIG_PAIR_CHANCE if tier >= 1 else StarterContent.BIG_PAIR_CHANCE
 	match count:
 		1:
-			paths.append(_pick_path(StarterContent.ALL_ENEMY_PATHS, rng))
+			paths.append(pick_path(StarterContent.ALL_ENEMY_PATHS, rng))
 		2:
 			if rng.randf() < big_pair_chance:
-				paths.append(_pick_path(StarterContent.PAIR_BIG_ENEMY_PATHS, rng))
-				paths.append(_pick_path(StarterContent.SMALL_ENEMY_PATHS, rng))
+				paths.append(pick_path(StarterContent.PAIR_BIG_ENEMY_PATHS, rng))
+				paths.append(pick_path(StarterContent.SMALL_ENEMY_PATHS, rng))
 			else:
-				paths.append(_pick_path(StarterContent.SMALL_ENEMY_PATHS, rng))
-				paths.append(_pick_path(StarterContent.SMALL_ENEMY_PATHS, rng))
+				paths.append(pick_path(StarterContent.SMALL_ENEMY_PATHS, rng))
+				paths.append(pick_path(StarterContent.SMALL_ENEMY_PATHS, rng))
 		_:
 			for i in count:
-				paths.append(_pick_path(trio_paths(), rng))
+				paths.append(pick_path(trio_paths(), rng))
 	var factor := ramp_factor(fight)
 	var enemies: Array[EnemyData] = []
 	for path in paths:
@@ -71,12 +71,14 @@ static func ramp_factor(fight: int) -> float:
 
 ## `enemy` with max HP and DAMAGE intents scaled by `factor` (rounded, never below 1). Returns a new
 ## EnemyData with new intents, so the shared resource is never touched; factor 1.0 returns `enemy` itself.
-static func scaled(enemy: EnemyData, factor: float) -> EnemyData:
-	if is_equal_approx(factor, 1.0):
+## A `damage_factor` of 0 or more scales the DAMAGE intents by that instead (the pack builder splits HP and damage).
+static func scaled(enemy: EnemyData, factor: float, damage_factor: float = -1.0) -> EnemyData:
+	var damage_scale := factor if damage_factor < 0.0 else damage_factor
+	if is_equal_approx(factor, 1.0) and is_equal_approx(damage_scale, 1.0):
 		return enemy
-	var scaled_enemy := EnemyData.make(enemy.display_name, maxi(roundi(enemy.max_hp * factor), 1), _scaled_intents(enemy.intents, factor), enemy.id, enemy.max_haunt)
+	var scaled_enemy := EnemyData.make(enemy.display_name, maxi(roundi(enemy.max_hp * factor), 1), _scaled_intents(enemy.intents, damage_scale), enemy.id, enemy.max_haunt)
 	# The second phase (its intents, threshold and banner) comes along; its attacks ramp like the first phase's.
-	scaled_enemy.phase_two_intents = _scaled_intents(enemy.phase_two_intents, factor)
+	scaled_enemy.phase_two_intents = _scaled_intents(enemy.phase_two_intents, damage_scale)
 	scaled_enemy.phase_two_hp_percent = enemy.phase_two_hp_percent
 	scaled_enemy.phase_two_title = enemy.phase_two_title
 	return scaled_enemy
@@ -124,5 +126,5 @@ static func mid_boss_encounter() -> Array[EnemyData]:
 	return enemies
 
 
-static func _pick_path(paths: Array[String], rng: RandomNumberGenerator) -> String:
+static func pick_path(paths: Array[String], rng: RandomNumberGenerator) -> String:
 	return paths[rng.randi_range(0, paths.size() - 1)]

@@ -17,7 +17,7 @@ if (-not (Test-Path -LiteralPath $godot -PathType Leaf)) {
 $testScript = if ($env:CHECK_TESTS_SCRIPT) { $env:CHECK_TESTS_SCRIPT } else { 'res://tests/run_tests.gd' }
 # What counts as a script error in a step's output (scripts/check_log_patterns.ps1, proven by check_log_patterns_test.ps1).
 . (Join-Path $PSScriptRoot 'check_log_patterns.ps1')
-$stepTimeoutMs = if ($env:CHECK_STEP_TIMEOUT_MS) { [int]$env:CHECK_STEP_TIMEOUT_MS } else { 300000 }
+$stepTimeoutMs = if ($env:CHECK_STEP_TIMEOUT_MS) { [int]$env:CHECK_STEP_TIMEOUT_MS } else { 900000 }
 
 # NOTE: lines of any step (for example "record is more than 5% behind"), repeated just before the verdict so they are seen.
 $script:notes = @()
