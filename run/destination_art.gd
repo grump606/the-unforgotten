@@ -36,7 +36,9 @@ static func label_for_stop(stop: RunState.Stop) -> String:
 			return "A Place Along the Way"
 		RunState.StopType.STORY:
 			# Named like the same story beat on the line, wherever that beat sits in it.
-			for line_stop in RunState._default_line():
+			if _line.is_empty():
+				_line = RunState._default_line()
+			for line_stop in _line:
 				if line_stop.type == RunState.StopType.STORY and line_stop.beat_index == stop.beat_index:
 					return line_stop.label
 			return ""

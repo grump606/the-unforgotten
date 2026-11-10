@@ -9,6 +9,7 @@ extends RefCounted
 # its cause keeps being logged. Tests that swap content call clear_cache().
 static var _cards_cache: Array[CardData] = []
 static var _relics_cache: Array[RelicData] = []
+static var _events_cache: Array[EventData] = []
 static var _pool_cache: Dictionary = {}
 static var _enemy_paths_by_id: Dictionary = {}
 static var _enemy_ids_cache: Array[StringName] = []
@@ -18,6 +19,7 @@ static var _enemy_ids_cache: Array[StringName] = []
 static func clear_cache() -> void:
 	_cards_cache = []
 	_relics_cache = []
+	_events_cache = []
 	_pool_cache = {}
 	_enemy_paths_by_id = {}
 	_enemy_ids_cache = []
@@ -96,6 +98,30 @@ static func relic_pool(character_id: StringName) -> Array[RelicData]:
 	if not pool.is_empty():
 		_pool_cache[key] = pool.duplicate()
 	return pool
+
+
+## Every event that loads, in StarterContent.EVENT_PATHS order. Empty (cause logged) if any fails to load.
+static func all_events() -> Array[EventData]:
+	if _events_cache.is_empty():
+		var events: Array[EventData] = []
+		for path in StarterContent.EVENT_PATHS:
+			var event := load_event(path)
+			if event == null:
+				var empty: Array[EventData] = []
+				return empty
+			events.append(event)
+		_events_cache = events
+	return _events_cache.duplicate()
+
+
+## Returns null (after logging an error) if the resource is missing or not an EventData.
+static func load_event(path: String) -> EventData:
+	var event: EventData = null
+	if ResourceLoader.exists(path):
+		event = load(path) as EventData
+	if event == null:
+		push_error("StarterContent: missing or non-EventData resource: %s" % path)
+	return event
 
 
 ## The character with this id, or null (cause logged) for an unknown id or a resource that fails to load.

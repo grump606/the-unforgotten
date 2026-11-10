@@ -23,6 +23,7 @@ func run() -> int:
 	_test_pack_builder_meets_budget()
 	_test_class_difficulty()
 	_test_pack_builder_bounds()
+	_test_pack_builder_fallback()
 	_test_pack_builder_deterministic()
 	_test_pack_builder_does_not_mutate()
 	_test_counts_are_comparable()
@@ -85,9 +86,9 @@ func _test_pack_threat() -> void:
 
 
 func _test_budget_curve() -> void:
-	for row in range(0, StarterContent.MAP_ACT_ROWS - 1):
+	for row in range(0, RouteMap.ACT_ROWS - 1):
 		_check(StarterContent.fight_budget(row + 1) >= StarterContent.fight_budget(row), "act 1 budget never drops (row %d)" % row)
-	for row in range(StarterContent.MAP_ACT_ROWS, StarterContent.MAP_ACT_ROWS * 2 - 1):
+	for row in range(RouteMap.ACT_ROWS, RouteMap.ACT_ROWS * 2 - 1):
 		_check(StarterContent.fight_budget(row + 1) >= StarterContent.fight_budget(row), "act 2 budget never drops (row %d)" % row)
 	var act_step := StarterContent.fight_budget(15) / StarterContent.fight_budget(14)
 	_check(act_step > 0.9 and act_step < 1.1, "the act change is not a wall: act 2 starts within 10%% of where act 1 ends (%.2f)" % act_step)
@@ -95,6 +96,12 @@ func _test_budget_curve() -> void:
 	_check(StarterContent.fight_budget(29) > StarterContent.fight_budget(15) * 1.2, "act 2 keeps rising to the final boss")
 	_check(StarterContent.fight_budget(-5) == StarterContent.fight_budget(0) and StarterContent.fight_budget(400) == StarterContent.fight_budget(29), "the curve clamps its row")
 	_check(StarterContent.fight_budget(0) > 0.0, "every budget is positive")
+	# The tuned numbers are pinned for every row of the current map: lerp(start, end, local) times the difficulty.
+	_check(RouteMap.ACTS == 2 and RouteMap.ACT_ROWS == 15 and StarterContent.BUDGET_ACT_START.size() == RouteMap.ACTS, "the curve covers the two 15-row acts")
+	for row in RouteMap.ROWS:
+		var act := row / 15
+		var expected := StarterContent.MAP_DIFFICULTY * lerpf(StarterContent.BUDGET_ACT_START[act], StarterContent.BUDGET_ACT_END[act], float(row % 15) / 14.0)
+		_check(is_equal_approx(StarterContent.fight_budget(row), expected), "row %d keeps its tuned budget" % row)
 	_check(is_equal_approx(StarterContent.fight_budget(0), StarterContent.MAP_DIFFICULTY * StarterContent.BUDGET_ACT_START[0]), "row 0 is the act 1 start times the difficulty")
 	_check(is_equal_approx(StarterContent.fight_budget(29), StarterContent.MAP_DIFFICULTY * StarterContent.BUDGET_ACT_END[1]), "row 29 is the act 2 end times the difficulty")
 
@@ -113,8 +120,8 @@ func _test_calibration_against_the_line() -> void:
 			act_mean[tier] += StarterContent.pack_threat(StarterContent.varied_encounter(counts[fight], rng, tier, fight)) / float(samples * 4)
 	for act in 2:
 		var budget_mean := 0.0
-		for local in StarterContent.MAP_ACT_ROWS - 1:
-			budget_mean += StarterContent.fight_budget(act * StarterContent.MAP_ACT_ROWS + local) / float(StarterContent.MAP_ACT_ROWS - 1)
+		for local in RouteMap.ACT_ROWS - 1:
+			budget_mean += StarterContent.fight_budget(act * RouteMap.ACT_ROWS + local) / float(RouteMap.ACT_ROWS - 1)
 		var tolerance := 0.1 if act == 0 else 0.2
 		_check(absf(budget_mean / StarterContent.MAP_DIFFICULTY - act_mean[act]) < act_mean[act] * tolerance, "act %d mean budget (%.1f) is within %d%% of the line's mean pack threat (%.1f)" % [act + 1, budget_mean / StarterContent.MAP_DIFFICULTY, tolerance * 100.0, act_mean[act]])
 
@@ -177,6 +184,32 @@ func _test_pack_builder_bounds() -> void:
 	rng_small.seed = 3
 	StarterContent.budget_encounter(3, rng_small, 10, 0.01)
 	_check(StarterContent.last_pack_info["hp_scale"] >= StarterContent.PACK_SCALE_MIN - 0.0001, "a trivial budget settles for the legal minimum")
+
+
+## When every enemy of the pool fails to load, a map fight still gets enemies and last_pack_info is complete.
+func _test_pack_builder_fallback() -> void:
+	var keys := ["scale", "hp_scale", "damage_scale", "target", "threat", "bound_hit", "attempts", "fallback"]
+	var normal := _pack(2, 5, 10)
+	for key in keys:
+		_check(StarterContent.last_pack_info.has(key), "a normal pack's info has %s" % key)
+	_check(normal.size() == 2 and not StarterContent.last_pack_info["fallback"], "a normal pack is not a fallback")
+	# Only the warden loads: the fallback finds it (the loader hides the shade and the wisp).
+	StarterContent._budget_enemy_loader = func(path: String) -> EnemyData:
+		return StarterContent._load_enemy(path) if path == StarterContent.WARDEN_PATH else null
+	var warden_pack := _pack(3, 5, 10)
+	_check(warden_pack.size() == 3, "with only the warden loadable a trio still has 3 enemies")
+	for enemy in warden_pack:
+		_check(enemy.id == &"gate_warden" or enemy.id == StarterContent.warden().id, "the fallback pack is made of the loadable enemy")
+	for key in keys:
+		_check(StarterContent.last_pack_info.has(key), "a fallback pack's info has %s" % key)
+	_check(StarterContent.last_pack_info["fallback"] and StarterContent.last_pack_info["threat"] > 0.0, "the info marks the fallback")
+	# Nothing loads: a minimal stand-in pack, never empty.
+	StarterContent._budget_enemy_loader = func(_path: String) -> EnemyData: return null
+	var minimal := _pack(1, 5, 0)
+	StarterContent._budget_enemy_loader = Callable()
+	_check(minimal.size() == 1 and minimal[0].max_hp > 0 and not minimal[0].intents.is_empty(), "with nothing loadable a single is still a real enemy")
+	_check(StarterContent.last_pack_info["fallback"] and StarterContent.last_pack_info.has("bound_hit"), "the minimal fallback has a full info dictionary")
+	_check(_pack(2, 5, 10).size() == 2 and not StarterContent.last_pack_info["fallback"], "the builder is back to normal")
 
 
 func _fingerprint(pack: Array[EnemyData]) -> String:

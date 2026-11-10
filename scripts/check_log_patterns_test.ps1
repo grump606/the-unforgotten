@@ -81,6 +81,7 @@ $knownExamples = @(
     'ERROR: StarterContent: missing or non-CardData resource: res://data/enemies/gate_warden.tres'
     'ERROR: StarterContent: missing or non-EnemyData resource: res://data/cards/shove.tres'
     'ERROR: StarterContent: missing or non-EventData resource: res://data/cards/shove.tres'
+    'ERROR: StarterContent.budget_encounter: no pool enemy loaded, falling back to a known enemy'
     'ERROR: StoryContent.beat: no beat at index -1'
     'ERROR: UserDataMigration: refusing to migrate ''C:/Users/x/app_userdata/The Unforgotten/migration_test_33092/refuse/Something Else'''
     'ERROR: Vendor.buy_card: bad offer index 3'

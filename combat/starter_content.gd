@@ -285,25 +285,9 @@ static func extended_deck() -> Array[CardData]:
 	return cards
 
 
-## Every event that loads, in EVENT_PATHS order. Empty (cause logged) if any fails to load.
+## Every event that loads, in EVENT_PATHS order (cached). Empty (cause logged) if any fails to load.
 static func all_events() -> Array[EventData]:
-	var events: Array[EventData] = []
-	for path in EVENT_PATHS:
-		var event := _load_event(path)
-		if event == null:
-			var empty: Array[EventData] = []
-			return empty
-		events.append(event)
-	return events
-
-
-## The event with this id, or null (cause logged) when there is none.
-static func event_by_id(event_id: StringName) -> EventData:
-	for event in all_events():
-		if event.id == event_id:
-			return event
-	push_error("StarterContent.event_by_id: unknown event id %s" % event_id)
-	return null
+	return ContentRegistry.all_events()
 
 
 ## A card of the normal pools (not a status or created card) by id, or null when there is none.
@@ -316,12 +300,7 @@ static func card_by_id(card_id: StringName) -> CardData:
 
 ## Returns null (after logging an error) if the resource is missing or not an EventData.
 static func _load_event(path: String) -> EventData:
-	var event: EventData = null
-	if ResourceLoader.exists(path):
-		event = load(path) as EventData
-	if event == null:
-		push_error("StarterContent: missing or non-EventData resource: %s" % path)
-	return event
+	return ContentRegistry.load_event(path)
 
 
 static func character_ids() -> Array[StringName]:
@@ -461,7 +440,7 @@ const THREAT_STATUS_POINTS := {
 	CardEffect.Kind.MALICE: 3.0,
 	CardEffect.Kind.ADD_CARD: 3.0,
 }
-## Map mode budget curve. A regular fight on run row `row` (0 to 29) gets a total pack threat of
+## Map mode budget curve. A regular fight on run row `row` (0 to RouteMap.ROWS - 1) gets a total pack threat of
 ## MAP_DIFFICULTY * lerp(start, end, local), where `local` runs 0 to 1 over the act's rows 0 to 14. Index 0 is
 ## act 1 (rows 0 to 14), index 1 act 2 (rows 15 to 29), so the curve rises smoothly inside an act and jumps at
 ## the act change like the line's second-act pools. The numbers are a straight-line fit of the line's average pack
@@ -487,8 +466,6 @@ const PACK_HP_SHARE: Array[float] = [0.65, 0.55, 0.5]
 const PACK_MAX_ATTEMPTS := 24
 ## An elite fight has at least this many enemies.
 const ELITE_MIN_ENEMIES := 2
-## The map has two acts of this many rows.
-const MAP_ACT_ROWS := 15
 
 
 ## One enemy's threat: its average damage per turn over its intent cycle (damage intents count amount * hits,
@@ -529,9 +506,10 @@ static func pack_threat(enemies: Array[EnemyData]) -> float:
 
 ## The budget (target pack threat) of a regular fight on run row `row` (clamped to 0..29): see BUDGET_ACT_START.
 static func fight_budget(row: int) -> float:
-	var r := clampi(row, 0, MAP_ACT_ROWS * 2 - 1)
-	var act := r / MAP_ACT_ROWS
-	var local := float(r % MAP_ACT_ROWS) / float(MAP_ACT_ROWS - 1)
+	var r := clampi(row, 0, RouteMap.ROWS - 1)
+	# An act past the end of the curve arrays reuses the last entry rather than indexing out of range.
+	var act := mini(r / RouteMap.ACT_ROWS, mini(BUDGET_ACT_START.size(), BUDGET_ACT_END.size()) - 1)
+	var local := float(r % RouteMap.ACT_ROWS) / float(RouteMap.ACT_ROWS - 1)
 	return MAP_DIFFICULTY * lerpf(BUDGET_ACT_START[act], BUDGET_ACT_END[act], local)
 
 
@@ -542,7 +520,8 @@ static func map_class_difficulty(character_id: StringName) -> float:
 
 ## What the last `budget_encounter` call did, for the measuring tool and tests: `scale` (the total multiplier m),
 ## `hp_scale` and `damage_scale` (its two parts), `target` (the budget aimed at), `threat` (the pack's threat),
-## `bound_hit` (even the closest legal pack missed the budget because of the bounds) and `attempts` (packs drawn).
+## `bound_hit` (even the closest legal pack missed the budget because of the bounds), `attempts` (packs drawn) and
+## `fallback` (every pool enemy failed to load and the pack was built from a known enemy). Every key is always set.
 ## Not game state; overwritten by every call.
 static var last_pack_info := {}
 
@@ -556,18 +535,18 @@ static var last_pack_info := {}
 ## PACK_SCALE_MIN..PACK_SCALE_MAX is never used: when the bounds stop a pack reaching the budget a new one is
 ## drawn from `rng` (up to PACK_MAX_ATTEMPTS); if none fits, the legal pack closest to the budget is used. Only `rng` is consumed, so the same seed, row and count give the same pack.
 ## Shared resources are never changed (enemies are copies and scaled() makes new ones). Enemies that fail to load
-## are left out (cause logged).
+## are left out (cause logged); if none of a pack loads it falls back to a known enemy, so the pack is never empty.
 static func budget_encounter(count: int, rng: RandomNumberGenerator, row: int, budget_multiplier: float = 1.0, elite: bool = false) -> Array[EnemyData]:
 	var n := clampi(count, ELITE_MIN_ENEMIES if elite else 1, Combat.MAX_ENEMIES)
 	var target := fight_budget(row) * budget_multiplier
-	var big_pair_chance := TIER1_BIG_PAIR_CHANCE if row >= MAP_ACT_ROWS else BIG_PAIR_CHANCE
+	var big_pair_chance := TIER1_BIG_PAIR_CHANCE if row >= RouteMap.ACT_ROWS else BIG_PAIR_CHANCE
 	var best: Array[EnemyData] = []
 	var best_miss := INF
 	var best_info := {}
 	for attempt in PACK_MAX_ATTEMPTS:
 		var base: Array[EnemyData] = []
 		for path in _pack_paths(n, rng, big_pair_chance):
-			var enemy := _load_enemy(path)
+			var enemy := _budget_enemy(path)
 			if enemy != null:
 				base.append(enemy)
 		if base.is_empty():
@@ -577,14 +556,50 @@ static func budget_encounter(count: int, rng: RandomNumberGenerator, row: int, b
 		var threat := pack_threat(pack)
 		var miss := absf(threat - target) / maxf(target, 0.001)
 		if miss < best_miss:
-			var share := _hp_share(base.size())
 			best = pack
 			best_miss = miss
-			best_info = {"scale": fit["scale"], "hp_scale": pow(fit["scale"], share), "damage_scale": pow(fit["scale"], 1.0 - share), "target": target, "threat": threat, "bound_hit": fit["bound_hit"], "attempts": attempt + 1}
+			best_info = _pack_info(base.size(), fit, target, threat, attempt + 1, false)
 		if not fit["bound_hit"]:
 			break
+	if best.is_empty():
+		# Every attempt lost all its enemies to load failures. A map fight is never zero enemies: log it and build
+		# the pack from the first enemy that still loads (or a minimal stand-in).
+		Combat.engine_error("StarterContent.budget_encounter: no pool enemy loaded, falling back to a known enemy")
+		var stand_in := _fallback_enemy()
+		var base: Array[EnemyData] = []
+		for i in n:
+			base.append(stand_in.duplicate(true) as EnemyData)
+		var fit := _fit_scale(base, target)
+		best = _scaled_pack(base, fit["scale"])
+		best_info = _pack_info(n, fit, target, pack_threat(best), PACK_MAX_ATTEMPTS, true)
 	last_pack_info = best_info
 	return best
+
+
+## The complete last_pack_info dictionary (every key, in every case).
+static func _pack_info(count: int, fit: Dictionary, target: float, threat: float, attempts: int, fallback: bool) -> Dictionary:
+	var share := _hp_share(count)
+	return {"scale": fit["scale"], "hp_scale": pow(fit["scale"], share), "damage_scale": pow(fit["scale"], 1.0 - share), "target": target, "threat": threat, "bound_hit": fit["bound_hit"], "attempts": attempts, "fallback": fallback}
+
+
+## Test hook: when valid, loads the pack builder's enemies instead of _load_enemy (so a load failure can be provoked).
+static var _budget_enemy_loader := Callable()
+
+
+static func _budget_enemy(path: String) -> EnemyData:
+	if _budget_enemy_loader.is_valid():
+		return _budget_enemy_loader.call(path) as EnemyData
+	return _load_enemy(path)
+
+
+## A known loadable enemy for the pack builder's last resort, or a minimal hand-built one when none loads.
+static func _fallback_enemy() -> EnemyData:
+	for path in [LOST_SHADE_PATH, WARDEN_PATH, WISP_PATH]:
+		var enemy := _budget_enemy(path)
+		if enemy != null and not enemy.intents.is_empty():
+			return enemy
+	var intents: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.DAMAGE, 6)]
+	return EnemyData.make("Lost Shade", 24, intents, &"lost_shade")
 
 
 ## The enemy paths of a pack of `count`, drawn from the pools in the order varied_encounter draws them.
