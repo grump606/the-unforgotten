@@ -11,6 +11,14 @@ var _checks := 0
 var _path := "user://event_tests_%d.json" % OS.get_process_id()
 
 
+## The event with this id from the cached registry, or null.
+func _event_by_id(event_id: StringName) -> EventData:
+	for event in StarterContent.all_events():
+		if event.id == event_id:
+			return event
+	return null
+
+
 func _check(condition: bool, label: String) -> void:
 	_checks += 1
 	if not condition:
@@ -184,7 +192,15 @@ func _test_loaders() -> void:
 	_check(StarterContent._load_event("res://data/events/nope.tres") == null, "a missing event resource returns null")
 	_check(StarterContent._load_event(StarterContent.SHOVE_PATH) == null, "a card resource is not accepted as an event")
 	_check(StarterContent._load_event("res://data/events/rain_barrel.tres") != null, "a valid event resource loads")
-	_check(StarterContent.event_by_id(&"cracked_bell") != null and StarterContent.event_by_id(&"cracked_bell").title == "The Cracked Bell", "an event is found by id")
+	_check(_event_by_id(&"cracked_bell") != null and _event_by_id(&"cracked_bell").title == "The Cracked Bell", "an event is found by id")
+	# The events are cached like the other content: the same resources come back until clear_cache().
+	var first := StarterContent.all_events()
+	var again := StarterContent.all_events()
+	_check(first.size() == StarterContent.EVENT_PATHS.size() and again.size() == first.size() and again[0] == first[0], "all_events is served from the cache")
+	again.clear()
+	_check(StarterContent.all_events().size() == first.size(), "a caller trimming its copy does not touch the cache")
+	StarterContent.clear_cache()
+	_check(StarterContent.all_events().size() == first.size(), "clear_cache rebuilds the events")
 	# The registry lists every file in data/events.
 	var listed := {}
 	for path in StarterContent.EVENT_PATHS:
@@ -198,7 +214,7 @@ func _test_loaders() -> void:
 
 ## The printed line is made from the data, so a changed number shows at once.
 func _test_summaries() -> void:
-	var broker := StarterContent.event_by_id(&"name_broker")
+	var broker := _event_by_id(&"name_broker")
 	var buy := broker.choices[0]
 	_check(buy.summary() == "Pay 70 gold. Gain a random neutral relic", "the broker's buy line: %s" % buy.summary())
 	_check(broker.choices[1].summary() == "Gain 45 gold. Lose 4 max HP", "the broker pays 45 gold for 4 max HP (%s)" % broker.choices[1].summary())
@@ -206,14 +222,14 @@ func _test_summaries() -> void:
 	var copy := buy.duplicate(true) as EventChoice
 	copy.effects[0].amount = -75
 	_check(copy.summary().begins_with("Pay 75 gold"), "changing the data changes the printed number")
-	var well := StarterContent.event_by_id(&"bell_in_the_well")
+	var well := _event_by_id(&"bell_in_the_well")
 	_check(well.choices[0].summary() == "Pay 30 gold. 40%: Gain a random relic. Otherwise: nothing", "a gamble prints its odds: %s" % well.choices[0].summary())
 	_check(well.choices[2].summary() == "50%: Gain 45 gold. Otherwise: Lose 10 HP", "a two-sided gamble prints both: %s" % well.choices[2].summary())
-	var chalk := StarterContent.event_by_id(&"erasers_chalk")
+	var chalk := _event_by_id(&"erasers_chalk")
 	_check(chalk.choices[0].summary() == "Remove a card from your deck. 30%: Remove a random card from your deck. Otherwise: nothing", "the chalk prints its second removal: %s" % chalk.choices[0].summary())
-	var choir := StarterContent.event_by_id(&"quiet_choir")
+	var choir := _event_by_id(&"quiet_choir")
 	_check(choir.choices[0].summary() == "Add 1 Dread to your deck. Choose 1 of 3 rare cards of your own", "the choir prints its curse and its pick: %s" % choir.choices[0].summary())
-	var sentry := StarterContent.event_by_id(&"empty_sentry_box")
+	var sentry := _event_by_id(&"empty_sentry_box")
 	_check(sentry.choices[1].summary() == "Add a random neutral Block card to your deck. Gain 10 gold", "the coat prints a random Block card: %s" % sentry.choices[1].summary())
 	for kind in EventEffect.Kind.values():
 		var probe := EventEffect.make(kind, 5)
@@ -223,37 +239,37 @@ func _test_summaries() -> void:
 
 
 func _test_class_variants() -> void:
-	var hound := StarterContent.event_by_id(&"hound_at_the_fence")
+	var hound := _event_by_id(&"hound_at_the_fence")
 	for character in CHARACTERS:
 		var labels: Array[String] = []
 		for choice in hound.choices_for(character):
 			labels.append(choice.label_for(character))
 		_check(labels.has("Press your nose to its nose") == (character == &"stray"), "%s: only the Stray sees the nose button" % character)
 		_check(hound.body_for(character).begins_with("It smells of your own kennel") == (character == &"stray"), "%s: only the Stray reads the kennel opening" % character)
-	var letters := StarterContent.event_by_id(&"unsent_letters")
+	var letters := _event_by_id(&"unsent_letters")
 	_check(letters.choices_for(&"medium").size() == 4 and letters.choices_for(&"thief").size() == 3, "only the Medium answers the writers")
-	var sentry := StarterContent.event_by_id(&"empty_sentry_box")
+	var sentry := _event_by_id(&"empty_sentry_box")
 	_check(sentry.choices_for(&"deserter").size() == 4 and sentry.choices_for(&"stray").size() == 3, "only the Deserter can report in")
 	_check(sentry.choices_for(&"deserter")[0].outcome_for(&"deserter").begins_with("You stand the watch you walked away from") and not sentry.choices_for(&"thief")[0].outcome_for(&"thief").contains("walked away"), "the Deserter's watch reads differently")
-	var well := StarterContent.event_by_id(&"bell_in_the_well")
+	var well := _event_by_id(&"bell_in_the_well")
 	_check(well.choices_for(&"thief")[0].gold_cost() == 25 and well.choices_for(&"deserter")[0].gold_cost() == 30 and well.choices_for(&"medium")[0].gold_cost() == 30, "the Thief pays 25 for the well, the others 30")
 	_check(well.body_for(&"medium").contains("The dead do not like it rung") and not well.body_for(&"stray").contains("The dead"), "the Medium reads the well differently")
-	var window := StarterContent.event_by_id(&"window_that_is_lit")
+	var window := _event_by_id(&"window_that_is_lit")
 	_check(window.choices_for(&"thief")[0].effects[0].amount == 80 and window.choices_for(&"stray")[0].effects[0].amount == 60, "the Thief picks the latch at 80%, others at 60%")
-	var chalk := StarterContent.event_by_id(&"erasers_chalk")
+	var chalk := _event_by_id(&"erasers_chalk")
 	var stray_first := chalk.choices_for(&"stray")[0]
 	var other_first := chalk.choices_for(&"deserter")[0]
 	_check(stray_first.effects.size() == 1 and other_first.effects.size() == 2, "the Stray's chalk has no second removal")
-	var bell := StarterContent.event_by_id(&"cracked_bell")
+	var bell := _event_by_id(&"cracked_bell")
 	_check(bell.body_for(&"deserter") != bell.body_for(&"thief") and bell.body_for(&"medium") != bell.body_for(&"thief") and bell.body_for(&"stray") == bell.body, "the cracked bell has Deserter and Medium scenes only")
-	var plaques := StarterContent.event_by_id(&"scraped_plaques")
+	var plaques := _event_by_id(&"scraped_plaques")
 	_check(plaques.choices_for(&"thief")[1].label_for(&"thief") == "Work the plaque loose" and plaques.choices_for(&"medium")[1].label_for(&"medium") == "Pry the plaque loose", "the Thief works the plaque loose")
 	_check(plaques.choices_for(&"medium")[0].outcome_for(&"medium") != plaques.choices_for(&"thief")[0].outcome_for(&"thief"), "the Medium reads the half-line as a whispered name")
-	var choir := StarterContent.event_by_id(&"quiet_choir")
+	var choir := _event_by_id(&"quiet_choir")
 	_check(choir.choices[0].outcome_for(&"medium").begins_with("They make room for you") and choir.choices[0].outcome_for(&"stray").begins_with("The silence"), "the Medium is made room for at the choir")
-	var kitchen := StarterContent.event_by_id(&"stopped_kitchen")
+	var kitchen := _event_by_id(&"stopped_kitchen")
 	_check(kitchen.choices[0].outcome_for(&"deserter").contains("A mess table") and not kitchen.choices[0].outcome_for(&"medium").contains("mess table"), "the Deserter eats at a mess table")
-	var barrel := StarterContent.event_by_id(&"rain_barrel")
+	var barrel := _event_by_id(&"rain_barrel")
 	_check(barrel.choices[0].outcome_for(&"stray").begins_with("You lap from the rim") and barrel.choices[0].outcome_for(&"thief").begins_with("The water tastes"), "the Stray laps the barrel")
 	for event in StarterContent.all_events():
 		for character in CHARACTERS:
@@ -299,7 +315,7 @@ func _test_stop_basics() -> void:
 	var other := RunState.new(5, &"deserter", true)
 	_check(other.current_event() == null and other.event_choices().is_empty() and not other.resolve_event_choice(0).ok and not other.finish_event(), "off an event stop nothing works")
 	# Leaving: swap in an event with a plain leave button, then finish.
-	var barrel := StarterContent.event_by_id(&"rain_barrel")
+	var barrel := _event_by_id(&"rain_barrel")
 	run_state._event = barrel
 	run_state.events_seen.assign([barrel.id])
 	event = barrel
@@ -480,7 +496,7 @@ func _test_picks() -> void:
 		_check(run_state.event_remember_card(target) and run_state.deck[target].is_remembered and run_state.deck[target].base() == before, "%s: the card comes back Remembered" % character)
 		_check(run_state.finish_event(), "%s: leaving after Remember" % character)
 	# Several picks owed in order (the Medium's answer: Remember, and a Murmur stays).
-	var letters := StarterContent.event_by_id(&"unsent_letters")
+	var letters := _event_by_id(&"unsent_letters")
 	run_state = _event_run(4, &"medium")
 	run_state._event = letters
 	var answer := -1
@@ -568,7 +584,7 @@ func _test_gambles() -> void:
 	run_state.resolve_event_choice(0)
 	_check(run_state.gold == gold and run_state.player.hp == hp - 5, "an impossible gamble applies its lose effects only")
 	# The flavour line of the choice follows the result.
-	var well := StarterContent.event_by_id(&"bell_in_the_well")
+	var well := _event_by_id(&"bell_in_the_well")
 	var ring: EventChoice = well.choices[2]
 	for chance_result in [true, false]:
 		var flavoured := _event_run(6, &"stray")
@@ -612,7 +628,7 @@ func _test_gambles() -> void:
 	run_state.gold = 4
 	_check(bool(run_state.event_choice_state(0)["enabled"]) and run_state.resolve_event_choice(0).ok and run_state.gold == 0, "gold lost in a gamble stops at 0 and the button stays enabled")
 	# The second removal of the chalk never empties the deck.
-	var chalk := StarterContent.event_by_id(&"erasers_chalk")
+	var chalk := _event_by_id(&"erasers_chalk")
 	var deck_cards: Array[CardData] = [StarterContent.card_by_id(&"shove"), StarterContent.card_by_id(&"slip_past")]
 	for trial in 30:
 		run_state = _event_run(7, &"deserter")
@@ -671,7 +687,7 @@ func _test_resume() -> void:
 		var still_boundary := still != null and still.at_stop_boundary()
 		_check(still_boundary and still.current_event() == first, "%s: the file still holds the arrival save" % character)
 		# The same choice from the same state has the same result, gamble included.
-		var well := StarterContent.event_by_id(&"bell_in_the_well")
+		var well := _event_by_id(&"bell_in_the_well")
 		for pick in [0, 1]:
 			var a := _event_run(11, character)
 			var b := _clone(a)

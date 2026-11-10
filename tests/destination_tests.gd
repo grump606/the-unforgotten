@@ -29,6 +29,14 @@ func run() -> int:
 		_check(state.stops[i].ambience == (&"coastal" if i == 0 else &""), "stop %d ambience" % i)
 	_check(DestinationArt.label_at(-1) == "" and DestinationArt.label_at(22) == "", "label_at is empty outside the line")
 	_check(DestinationArt.battle_key(-1) == &"" and DestinationArt.battle_key(22) == &"", "battle_key is empty outside the line")
+	# label_for_stop names a story stop like the same beat on the line, from the cached line (no rebuild per call).
+	DestinationArt.label_at(0)
+	var cached_first: RunState.Stop = DestinationArt._line[0]
+	var story_stops := 0
+	for stop in state.stops:
+		if stop.type == RunState.StopType.STORY:
+			story_stops += 1
+			_check(DestinationArt.label_for_stop(stop) == stop.label and stop.label != "", "story beat %d keeps its place name" % stop.beat_index)
+	_check(story_stops > 0, "the line has story stops")
+	_check(DestinationArt._line[0] == cached_first, "label_for_stop reuses the cached line")
 	return _failures
-
-
