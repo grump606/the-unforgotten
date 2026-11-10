@@ -194,11 +194,15 @@ func _initialize() -> void:
 	var deck_before := run_state.deck.size()
 	CardView.find_all(body)[0].pressed.emit()
 	await process_frame
+	body = scene.get_node("%Body")
+	check(_find_button(body, "Remember it") != null and run_state.stop_index == rest_index, "picking a card shows the preview and does not upgrade yet")
+	_find_button(body, "Remember it").pressed.emit()
+	await process_frame
 	var remembered_count := 0
 	for card in run_state.deck:
 		if card.is_remembered and card.id == chosen.id:
 			remembered_count += 1
-	check(remembered_count == 1 and run_state.deck.size() == deck_before, "picking a card Remembers it in place")
+	check(remembered_count == 1 and run_state.deck.size() == deck_before, "confirming the preview Remembers the card in place")
 	check(run_state.player.hp == hp_hurt and run_state.stop_index == rest_index + 1, "Remember does not heal and moves on")
 	var no_pick := RunState.new(3, &"medium")
 	for i in no_pick.deck.size():

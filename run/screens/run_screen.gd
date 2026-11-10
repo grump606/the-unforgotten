@@ -92,6 +92,33 @@ func add_remove_picker(box: VBoxContainer, on_pick: Callable, on_cancel: Callabl
 	return scroll
 
 
+## The Remember preview, shown after a card is picked and before anything changes: the card as it is now beside the card it
+## becomes, with a button to confirm (`on_confirm` gets the deck index) and one to go back to the picker (`on_back`).
+## `deck_index` must be a card that can be Remembered (RunState.rememberable_indices).
+func add_remember_preview(box: VBoxContainer, deck_index: int, on_confirm: Callable, on_back: Callable) -> void:
+	var card := run.deck[deck_index]
+	var after := card.remembered_card()
+	var row := HBoxContainer.new()
+	row.name = "RememberPreview"
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 18)
+	box.add_child(row)
+	var sides: Array = [["Now", card], ["Remembered", after]]
+	for side in sides:
+		var column := VBoxContainer.new()
+		column.name = "PreviewNow" if side[0] == "Now" else "PreviewRemembered"
+		column.add_theme_constant_override("separation", 4)
+		var caption := make_label(side[0])
+		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		column.add_child(caption)
+		column.add_child(card_view(side[1], OFFER_CARD_SCALE))
+		row.add_child(column)
+	var confirm := add_button(box, "Remember it", on_confirm.bind(deck_index))
+	confirm.name = "ConfirmRememberButton"
+	var back := add_button(box, "Choose another card", on_back)
+	back.name = "BackRememberButton"
+
+
 static func add_button(box: Container, text: String, on_pressed: Callable) -> Button:
 	var button := Button.new()
 	button.text = text

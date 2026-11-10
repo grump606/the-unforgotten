@@ -171,6 +171,11 @@ func _initialize() -> void:
 	(remember_cards[0] as CardView).pressed.emit()
 	await process_frame
 	await process_frame
+	var confirm := _find(scene.get_node("%Body"), "ConfirmRememberButton") as Button
+	check(confirm != null and run_state.event_followup() == &"remember", "picking a card shows the preview and does not upgrade yet")
+	confirm.pressed.emit()
+	await process_frame
+	await process_frame
 	var upgraded := false
 	for card in run_state.deck:
 		upgraded = upgraded or card.is_remembered

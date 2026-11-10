@@ -14,11 +14,14 @@ const SIDE_GAP := 26.0
 
 ## True while the panel shows the pick-a-card-to-Remember list.
 var remembering := false
+## The deck index of the card picked to be Remembered while the preview waits for a confirmation, or -1.
+var preview_index := -1
 
 
 ## Forgets the picker (a new or resumed run starts clean).
 func reset() -> void:
 	remembering = false
+	preview_index = -1
 
 
 func show() -> void:
@@ -26,8 +29,14 @@ func show() -> void:
 	scene.character_id = run.character.id if run.character != null else &""
 	add_backdrop(scene)
 	if remembering:
+		var candidates_now := run.rememberable_indices()
+		if preview_index >= 0 and candidates_now.has(preview_index):
+			var preview := panel("Remember %s? It comes back stronger, and you do not heal." % run.deck[preview_index].display_name, true)
+			add_remember_preview(preview, preview_index, _remember_card, _back_to_picker)
+			return
+		preview_index = -1
 		var picker := panel("Remember which card? It comes back stronger, and you do not heal.", true)
-		add_remove_picker(picker, _remember_card, _cancel_remembering, run.rememberable_indices())
+		add_remove_picker(picker, _preview_card, _cancel_remembering, candidates_now)
 		return
 	var beat := RestContent.beat(run.rest_number(), scene.character_id)
 	# The card sits on the empty floor at the bottom right of the painting, clear of the character.
@@ -84,11 +93,24 @@ func start_remembering() -> void:
 
 func _cancel_remembering() -> void:
 	remembering = false
+	preview_index = -1
+	refresh.call()
+
+
+## A card was picked: show what it becomes and wait for a confirmation before anything changes.
+func _preview_card(deck_index: int) -> void:
+	preview_index = deck_index
+	refresh.call()
+
+
+func _back_to_picker() -> void:
+	preview_index = -1
 	refresh.call()
 
 
 func _remember_card(deck_index: int) -> void:
 	remembering = false
+	preview_index = -1
 	run.remember(deck_index)
 	refresh.call()
 

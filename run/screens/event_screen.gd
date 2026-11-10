@@ -15,10 +15,13 @@ const SUMMARY_COLOUR := Color("#93cdc4")
 const REASON_COLOUR := Color("#e0a27a")
 const OUTCOME_COLOUR := Color("#e8e1d0")
 
+## The deck index of the card picked to be Remembered while its preview waits for a confirmation, or -1.
+var _preview_index := -1
+
 
 ## Nothing is kept between redraws: the state lives in the run.
 func reset() -> void:
-	pass
+	_preview_index = -1
 
 
 func show() -> void:
@@ -40,8 +43,14 @@ func show() -> void:
 		add_remove_picker(picker, _remove_card, Callable(), [], false)
 		return
 	if followup == &"remember":
+		var candidates := run.event_remember_indices()
+		if _preview_index >= 0 and candidates.has(_preview_index):
+			var preview := panel(_prompt("Remember %s? It comes back stronger." % run.deck[_preview_index].display_name), true)
+			add_remember_preview(preview, _preview_index, _remember_card, _back_to_picker)
+			return
+		_preview_index = -1
 		var picker := panel(_prompt("Remember which card? It comes back stronger."), true)
-		add_remove_picker(picker, _remember_card, Callable(), run.event_remember_indices(), false)
+		add_remove_picker(picker, _preview_card, Callable(), candidates, false)
 		return
 	if followup == &"pick":
 		_show_pick()
@@ -175,7 +184,19 @@ func _remove_card(deck_index: int) -> void:
 	refresh.call()
 
 
+## A card was picked: show what it becomes and wait for a confirmation before anything changes.
+func _preview_card(deck_index: int) -> void:
+	_preview_index = deck_index
+	refresh.call()
+
+
+func _back_to_picker() -> void:
+	_preview_index = -1
+	refresh.call()
+
+
 func _remember_card(deck_index: int) -> void:
+	_preview_index = -1
 	run.event_remember_card(deck_index)
 	refresh.call()
 
