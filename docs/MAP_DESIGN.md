@@ -1074,7 +1074,12 @@ work that had been left uncommitted in the old `map-5-elites` checkout, and was 
   damage scale still apply). Every enemy of an elite pack is renamed with `StarterContent.ELITE_NAME_PREFIX` ("Elite Gate Warden") by
   `StarterContent.elite_named`: a new `EnemyData` with the same id (so the same art), stats, intents and second phase.
 - **Battle screen:** `Battle.elite_fight` (set by `CombatScreen` from `RunState.in_elite_stop()`) opens the log with "Elite fight", and each
-  enemy figure is drawn `Fighter.ELITE_SCALE` = 1.1 times larger (it keeps its HP bar; bosses keep their own scale).
+  enemy figure is drawn `Fighter.ELITE_SCALE` = 1.1 times larger (it keeps its HP bar; bosses keep their own scale). Each of the seven regular
+  enemies also has elite art, `art/layers/<key>/sprite_elite.png`: the unchanged plain sprite with a painted flame aura behind it, on a larger
+  canvas whose padding is listed in `PaintedArt.ELITE_PADS` (left and right, above, below). `Fighter` draws it instead of the plain sprite for an
+  elite, scaled like the sprite so the feet and the body size stay the same, and falls back to the plain sprite when there is none
+  (`tests/elite_art_tests.gd`). The aura layers were generated with ChatGPT from the plain sprite and its silhouette (see `art/PROMPTS.md`,
+  "Elite sprites") and composited under the original in code, so the original painting is not altered.
 - **Reward:** the regular win (gold, heal, three-card reward) plus `ELITE_GOLD_BONUS` = 20 gold, paid at once and shown on the panel
   (`elite_bonus_gold`), and **elite spoils**: a relic drawn like a chest's (`_roll_relic(TREASURE_MIN_RELIC_PRICE)`, the cheapest tier left
   out) that waits to be taken. The reward screen opens on the spoils panel (`RewardScreen._show_spoils`: the relic drawn with `RelicView`, its

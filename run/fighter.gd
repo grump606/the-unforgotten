@@ -104,6 +104,9 @@ var fade := 0.0
 
 var _tex: Texture2D
 var _region := Rect2()
+## An elite's art (the sprite with its flame aura behind it, on a padded canvas; PaintedArt.ELITE_PADS), or null.
+var _elite_tex: Texture2D = null
+var _elite_pads := Vector3i.ZERO
 ## Which way the painted figure faces as drawn (the enemy art looks left).
 var _art_facing := -1.0
 ## Floating number for damage the Block absorbed (blue, against the red of HP lost).
@@ -206,11 +209,17 @@ func set_enemy(enemy: EnemyUnit, boss := false, elite := false) -> void:
 	base_height = float(HEIGHTS.get(art_key, DEFAULT_HEIGHT)) * HEIGHT_SCALE
 	figure_height = base_height * (BOSS_SCALE if boss else (ELITE_SCALE if elite else 1.0))
 	_tex = null
+	_elite_tex = null
 	var fig := PaintedArt.enemy_figure(art_key)
 	if not fig.is_empty():
 		_tex = fig.tex
 		_region = fig.region
 		_art_facing = 1.0 if fig.get("sprite", false) and SPRITE_FACES_RIGHT.has(art_key) else -1.0
+		if elite and not boss and fig.get("sprite", false):
+			var elite_fig := PaintedArt.enemy_elite_figure(art_key)
+			if not elite_fig.is_empty():
+				_elite_tex = elite_fig.tex
+				_elite_pads = elite_fig.pads
 	_reset()
 
 
@@ -222,6 +231,7 @@ func set_player(player: Combatant, id: StringName) -> void:
 	class_id = id
 	figure_height = PLAYER_HEIGHT * float(PLAYER_HEIGHT_FACTOR.get(id, 1.0)) * HEIGHT_SCALE
 	_tex = null
+	_elite_tex = null
 	_art_facing = PLAYER_ART_FACING.get(id, 1.0)
 	var fig := PaintedArt.player_figure(id)
 	if not fig.is_empty():
@@ -676,7 +686,14 @@ func _draw_figure(ground: Vector2, a: float) -> void:
 		tint = Color(1.12, 1.12, 1.12, a)
 	var flip := 1.0 if is_equal_approx(facing, _art_facing) else -1.0
 	draw_set_transform(ground + Vector2(dx + shake + stance.x, sink), stance.y, Vector2(stretch * flip, squash) * (1.0 if Motion.reduced else entrance))
-	if _tex != null:
+	if _elite_tex != null:
+		# The elite canvas is the plain sprite plus padding for the flames: scale it like the sprite and keep the feet where
+		# they were (the padding is the same on both sides, so the mirroring above is harmless).
+		var scale := figure_height / _region.size.y
+		var tex_size := _elite_tex.get_size() * scale
+		var origin := Vector2(-figure_width() / 2.0 - _elite_pads.x * scale, -figure_height - _elite_pads.y * scale)
+		draw_texture_rect(_elite_tex, Rect2(origin, tex_size), false, tint)
+	elif _tex != null:
 		var w := figure_width()
 		draw_texture_rect_region(_tex, Rect2(-w / 2.0, -figure_height, w, figure_height), _region, tint)
 	else:

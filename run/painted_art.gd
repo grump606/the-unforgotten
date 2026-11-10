@@ -6,6 +6,14 @@ extends RefCounted
 
 const CARD_DIR := "res://art/layers/cards/%s/art.png"
 const ENEMY_DIR := "res://art/layers/%s/%s.png"
+## An elite enemy's art: the regular sprite with a painted flame aura behind it, `sprite_elite.png`, on a larger canvas.
+## ELITE_PADS gives, per art key, the pixels the canvas adds around the regular sprite: left and right (x), above (y) and
+## below (z). The sprite itself is unchanged and sits at the same place in the canvas, so the game scales both alike.
+const ELITE_PADS := {
+	&"warden": Vector3i(160, 220, 80), &"shade": Vector3i(184, 220, 80), &"wisp": Vector3i(275, 220, 80),
+	&"colossus": Vector3i(246, 220, 80), &"whisperer": Vector3i(142, 220, 80),
+	&"hound": Vector3i(304, 165, 60), &"crow": Vector3i(248, 165, 60),
+}
 const PLAYER_DIR := "res://art/layers/players/%s/figure.png"
 const SCREEN_DIR := "res://art/layers/screens/%s/bg.png"
 
@@ -63,6 +71,28 @@ static func enemy_figure(key: StringName) -> Dictionary:
 		var used: Rect2i = _used_rects.get(ENEMY_DIR % [key, "figure"], Rect2i())
 		if used.size.x > 0 and used.size.y > 0:
 			out = {"tex": tex, "region": Rect2(used)}
+	_cache[ck] = out
+	return out
+
+
+## The elite version of an enemy's sprite as {tex, pads} (see ELITE_PADS), or {} when the enemy has no elite art or no
+## plain sprite to match it to.
+static func enemy_elite_figure(key: StringName) -> Dictionary:
+	if not ELITE_PADS.has(key):
+		return {}
+	var ck := "elite:" + String(key)
+	if _cache.has(ck):
+		_touch(ck)
+		return _cache[ck]
+	_touch(ck)
+	var out := {}
+	var tex := _load(ENEMY_DIR % [key, "sprite_elite"])
+	var plain := _load(ENEMY_DIR % [key, "sprite"])
+	if tex != null and plain != null:
+		var pads: Vector3i = ELITE_PADS[key]
+		var expected := plain.get_size() + Vector2(pads.x * 2, pads.y + pads.z)
+		if tex.get_size() == expected:
+			out = {"tex": tex, "pads": pads}
 	_cache[ck] = out
 	return out
 
