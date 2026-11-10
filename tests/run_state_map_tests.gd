@@ -414,7 +414,8 @@ func _test_ramp() -> void:
 				var combat := run_state.start_combat()
 				var replay := RandomNumberGenerator.new()
 				replay.state = state
-				var expected := StarterContent.budget_encounter(stop.enemy_count, replay, n.row, StarterContent.map_class_difficulty(run_state.character.id))
+				var difficulty := StarterContent.map_class_difficulty(run_state.character.id) * (RunState.ELITE_BUDGET_MULTIPLIER if stop.elite else 1.0)
+				var expected := StarterContent.budget_encounter(stop.enemy_count, replay, n.row, difficulty, stop.elite)
 				var same := combat != null and combat.enemies.size() == expected.size()
 				if same:
 					for i in expected.size():
@@ -656,14 +657,17 @@ func _test_treasure() -> void:
 	for seed_value in 12:
 		var full := RunState.new(seed_value, CHARACTERS[seed_value % 4], true)
 		var chests := 0
+		var elites := 0
 		while not full.finished:
 			full.choose_node(SimPolicy.choose_route(full))
+			if full.current_stop().elite:
+				elites += 1
 			if full.current_stop().type == RunState.StopType.TREASURE:
 				chests += 1
 				_check(SimPolicy.treasure_stop(full), "seed %d: the bot opens and takes the chest" % seed_value)
 			else:
 				_resolve(full)
-		_check(chests == 2 and full.escaped and full.relics.size() == 2, "seed %d: a run passes two chests and ends with their two relics (%d, %d)" % [seed_value, chests, full.relics.size()])
+		_check(chests == 2 and full.escaped and full.relics.size() == 2 + elites, "seed %d: a run passes two chests and ends with their two relics plus one per elite (%d chests, %d elites, %d relics)" % [seed_value, chests, elites, full.relics.size()])
 	# Route choice: a chest is taken ahead of a fight.
 	var router := RunState.new(13, &"deserter", true)
 	var chest_row := router.route.row_nodes(6)

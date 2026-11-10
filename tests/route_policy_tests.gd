@@ -3,7 +3,7 @@ extends RefCounted
 ## sim harness (tools/run_sim.gd --jobs). Registered by run_tests.gd.
 
 const CHARACTERS: Array[StringName] = [&"deserter", &"thief", &"medium", &"stray"]
-const SEEDS := 4
+const SEEDS := 6
 const T := RouteMap.NodeType
 
 var _failures := 0

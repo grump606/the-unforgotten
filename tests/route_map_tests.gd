@@ -238,7 +238,6 @@ func _test_type_rules() -> void:
 						_check(n.type == REST, "seed %d: the last free row of act %d is the forced rest row" % [map_seed, act + 1])
 					if i == rows.size() - 2:
 						_check(n.type != REST, "seed %d: the row before the forced rest row of act %d has no rest" % [map_seed, act + 1])
-					_check(n.type != ELITE, "seed %d: no elites with the default weights" % map_seed)
 					if n.type == REST or n.type == SHOP:
 						for p in n.prev:
 							_check(map.node(p).type != n.type, "seed %d: %d does not follow its own type" % [map_seed, n.id])
@@ -309,6 +308,8 @@ func _test_enemy_counts() -> void:
 					for b in bands.size():
 						if n.row >= bands[b][0] and n.row <= bands[b][1]:
 							tallies[b][n.enemy_count - 1] += 1
+				ELITE:
+					_check(n.enemy_count >= 2 and n.enemy_count <= Combat.MAX_ENEMIES, "seed %d: an elite has 2 or 3 enemies" % map_seed)
 				_:
 					_check(n.enemy_count == 0, "seed %d: a non-fight has 0 enemies" % map_seed)
 	for b in bands.size():
@@ -794,7 +795,9 @@ func _test_elite_config() -> void:
 	_check(elites > 150, "elites turn up when weighted (%d)" % elites)
 	_check(not elites_by_count.has(1) and elites_by_count.has(2) and elites_by_count.has(3), "elite sizes are 2 and 3 only")
 	var plain := RouteMap.generate(4, &"deserter")
-	_check(plain.count_of(ELITE) == 0, "no elites with the default weights")
+	_check(plain.count_of(ELITE) > 0, "elites occur with the default weights")
+	var off := RouteMap.generate(4, &"deserter", {"type_weights": {"elite": 0.0}})
+	_check(off.count_of(ELITE) == 0 and off.validate().is_empty(), "elite weight 0 turns elites off")
 
 
 func _test_forced_rest_row() -> void:
@@ -970,7 +973,7 @@ func _test_events() -> void:
 func _test_config_merge() -> void:
 	var cfg := RouteMap.make_config({"type_weights": {"elite": 5.0}, "rest_window": 5})
 	_check(float(cfg["type_weights"]["elite"]) == 5.0 and float(cfg["type_weights"]["fight"]) == float(RouteMap.CONFIG["type_weights"]["fight"]) and int(cfg["rest_window"]) == 5, "make_config merges over the defaults")
-	_check(float(RouteMap.CONFIG["type_weights"]["elite"]) == 0.0, "the CONFIG constant is not changed by a merge")
+	_check(float(RouteMap.CONFIG["type_weights"]["elite"]) != 5.0, "the CONFIG constant is not changed by a merge")
 	var loose := RouteMap.generate(11, &"thief", {"rest_window": 5, "shop_window": 8})
 	_check(loose.validate().is_empty(), "a looser availability window still validates")
 	var rows := RouteMap.window_rows(0)
@@ -1029,11 +1032,12 @@ func _test_node_mix() -> void:
 	var rest_share := float(counts[REST]) / free_total
 	var shop_share := float(counts[SHOP]) / free_total
 	var event_share := float(counts[EVENT]) / free_total
-	_check(fight_share > 0.55 and fight_share < 0.63, "fights are about 59%% of free nodes (%.3f)" % fight_share)
+	_check(fight_share > 0.50 and fight_share < 0.61, "fights are about 56%% of free nodes (%.3f)" % fight_share)
 	_check(rest_share > 0.14 and rest_share < 0.20, "rests are about 17%% of free nodes (%.3f)" % rest_share)
 	_check(shop_share > 0.03 and shop_share < 0.06, "shops are about 4%% of free nodes (%.3f)" % shop_share)
 	_check(event_share > 0.06 and event_share < 0.12, "events are about 9%% of free nodes (%.3f)" % event_share)
-	_check(counts[ELITE] == 0, "no elites by default")
+	var elite_share := float(counts[ELITE]) / free_total
+	_check(elite_share > 0.045 and elite_share < 0.085, "elites are about 6%% of free nodes, 8%% of the variable ones (%.3f)" % elite_share)
 	var fights_per_path := float(path[FIGHT]) / walks
 	var rests_per_path := float(path[REST]) / walks
 	var shops_per_path := float(path[SHOP]) / walks

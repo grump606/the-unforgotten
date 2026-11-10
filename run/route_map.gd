@@ -57,11 +57,11 @@ const SEED_LIMIT := 9.0e18
 ## caller's config over this, key by key (and `type_weights` entry by entry).
 const CONFIG := {
 	# Per free node (the forced rest row is all rests and the forced treasure row all chests whatever these are).
-	# Elite is 0 until the elite phase; it works whenever the weight is positive. "treasure" is a reserved key:
+	# Elite is about 8% of the free nodes (docs/MAP_DESIGN.md "Phase 5b"); 0 turns elites off. "treasure" is a reserved key:
 	# chests only ever appear in the forced treasure row, so the generator does not roll it. An event takes the
 	# place of a fight like a rest or shop does (docs/EVENTS_DESIGN.md); the weights are not shares, see
 	# docs/MAP_DESIGN.md "Phase 4c" for what they give per random path (about 2 events, 2.4 rests, 0.85 shops after phase 4f).
-	"type_weights": {"fight": 36.0, "rest": 31.0, "shop": 3.5, "elite": 0.0, "treasure": 0.0, "event": 6.5},
+	"type_weights": {"fight": 36.0, "rest": 31.0, "shop": 3.5, "elite": 5.5, "treasure": 0.0, "event": 6.5},
 	# Enemy count weights (for counts 1, 2, 3 ...) by the node's row in the run; the first band whose
 	# max_row is not below the row applies.
 	"enemy_bands": [

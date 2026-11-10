@@ -1078,3 +1078,25 @@ have none yet; a config with a positive `type_weights.elite` produces them (test
 - **Refactor:** the chest's relic roll moved into `_roll_relic`; it consumes the run RNG exactly as before.
 - **Open:** the elite share (the 55% fight target leaves about 18% for elites if events stay at 10%, which is a lot of relics: chests
   already give 1.6 per run), elite-specific enemies or modifiers, an "Elite" label on the battle screen, and bot balance.
+
+## Phase 5b: the elite share (8%)
+
+The elite weight is 5.5 (was 0), with the other weights unchanged (fight 36, rest 31, shop 3.5, event 6.5). Measured on 600 maps
+(`map_stats`-style count over the variable nodes: fights, ordinary rests, shops, events, elites): elites are 8.1% of them, 5.7 per map, and
+the fights fall from 73% to about 66% (rests about 12%, shops 5%, events 9%). Of all free nodes (chests included) elites are 6.3%. A random
+path meets about 13.5 fights. An elite follows the same placement rules as before: never in the first free rows or the forced rest row,
+2 or 3 enemies, never after another elite.
+
+Bot results after the change (300 runs per cell, seed 1, `--map`, escape rate; before = Phase 4h tuning, same seeds):
+
+| Bot (route) | Deserter | Thief | Medium | Stray |
+|---|---|---|---|---|
+| greedy (`mixed`) before | 57.0% | 61.7% | 56.0% | 76.7% |
+| greedy (`mixed`) with elites | 58.7% | 57.0% | 42.7% | 68.3% |
+| smart (`smart`) before | 64.3% | 62.7% | 57.7% | 56.7% |
+| smart (`smart`) with elites | 55.3% | 51.7% | 46.0% | 55.0% |
+
+The bots visit 1.5 to 1.8 elites per run (greedy, `mixed`) and 0.6 to 0.7 (smart, which skips a fight when hurt). The smart bot loses
+about 2 to 11 points, the Medium about 11 for both bots; no stalls. Test changes: the node-mix ranges, an elite branch in the enemy-count
+check, the budget-pack replay uses the elite budget for elites, whole runs end with one relic per elite beside the two chests, and
+`route_policy_tests` walks 6 seeds per class so the rarer fixtures still come up.
