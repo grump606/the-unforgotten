@@ -17,9 +17,3 @@ GODOT_TEMPLATES_SHA512=ca4d71c4d7b81dfc15d1a98baa07534aa95b03fdda78a0075b06672e1
 # Inno Setup used to build the installer (winget package JRSoftware.InnoSetup). Only the installer build
 # needs it. Install exactly this version: winget install JRSoftware.InnoSetup --version <this>.
 INNO_SETUP_VERSION=6.7.3
-
-# The in-game download cap (MiB) inside already-released clients (v0.8.2 and older; `git show v0.8.2:run/update_check.gd`).
-# An installer above it cannot be installed in-game by those players. The ONE place it is written down: read by
-# scripts/build_installer.ps1 (fails above it) and scripts/release.ps1 (prints the margin). Remove it, with the
-# check, once a release that contains the 300 MiB cap has been out long enough (docs/UPDATE_CHECK.md).
-LEGACY_CLIENT_CAP_MIB=150

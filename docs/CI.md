@@ -24,7 +24,7 @@ The workflow's steps, in order:
 2. One step per `tests/ui_*_test.gd` file (a floor on how many there must be), then `reskin restoration`.
 3. `check log patterns` (`scripts/check_log_patterns_test.ps1`: the log rules against sample logs).
 4. `inno setup choice` (`scripts/inno_setup_test.ps1`).
-5. `engine version` (`scripts/engine_version_test.ps1`: the version file and the legacy installer cap).
+5. `engine version` (`scripts/engine_version_test.ps1`: the version file).
 6. `check floor record` (`scripts/check_floor_record_test.ps1`).
 7. `manifest golden` (`scripts/check_manifest_golden.ps1`).
 8. `verify release` (`scripts/check_verify_release.ps1`: `verify_release.ps1` against the signing fixture).
@@ -43,13 +43,11 @@ GODOT_VERSION=4.7.2-stable
 GODOT_ZIP_SHA512=<sha512 of Godot_v<GODOT_VERSION>_win64.exe.zip>
 GODOT_TEMPLATES_SHA512=<sha512 of Godot_v<GODOT_VERSION>_export_templates.tpz>
 INNO_SETUP_VERSION=6.7.3
-LEGACY_CLIENT_CAP_MIB=150
 ```
 
 It is read by `scripts/check.ps1`, `scripts/release.ps1`, `scripts/build_installer.ps1` and
 `scripts/debug_fight.ps1` (through `scripts/engine_version.ps1`), and by the workflow's "Read engine
-version" step, which exports the first four keys to the later steps (`LEGACY_CLIENT_CAP_MIB` is read only by the
-installer and release scripts: the in-game download cap of already-released clients, `docs/UPDATE_CHECK.md`). The SHA512 is
+version" step, which exports the first four keys to the later steps. The SHA512 is
 the integrity pin: the download step throws if the zip does not hash to it. Prose docs
 (`INSTALLER.md`, `MACOS*.md`) mention the version for humans; they are not read by anything.
 
@@ -137,8 +135,7 @@ fails the pull request instead of release day:
    winget is not reliably there). `build_installer.ps1` finds `ISCC.exe` in the newest `Inno Setup*` folder under `Program Files (x86)`, `Program Files` or the per-user `Programs` folder.
 3. **`scripts/build_installer.ps1 -NoSign`**: imports (a failed import fails the build), exports the Windows
    build, checks the exe's file and product version against `config/version`, compiles the installer and checks
-   its version. It fails when the installer is over the legacy client cap (`LEGACY_CLIENT_CAP_MIB`, 150 MiB) and only
-   warns when it is over 2/3 of the current 300 MiB cap. `-NoSign` skips the manifest and signature (no private key is ever on the runner); the output
+   its version. It only warns when the installer is over 2/3 of the current 300 MiB cap. `-NoSign` skips the manifest and signature (no private key is ever on the runner); the output
    is discarded with the runner and must never be released. `release.ps1` never passes `-NoSign`.
 
 These steps have run green on pull requests since they were added. They are not skipped when no

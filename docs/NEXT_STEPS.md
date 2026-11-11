@@ -1,6 +1,6 @@
 # Next steps
 
-Last updated after the v0.9.0 release (2026-11-10). `main` is at v0.9.0; the next release needs a version bump.
+Last updated after the v0.9.1 release (2026-11-10). `main` is at v0.9.1 (v0.9.1 added the elite art, the 1.2 elite multiplier, the tutorial and district names, and the Remember preview); the next release needs a version bump.
 Numbers such as the stop count and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`SIM.md`](SIM.md).
 
 ## State
@@ -26,7 +26,7 @@ Numbers such as the stop count and card counts live in [`GAME_FACTS.md`](GAME_FA
 - Earlier fix passes: [`HISTORY.md`](HISTORY.md).
 - **Sixth fix pass (tooling, updater, docs; the last one, from an independent review).**
   - Updater: a verified installer kept by `cancel()` (for example after update checks were switched off and on) is no longer run when the bar names a newer tag; the button discards it and downloads the new tag (`UpdateNotice._on_download`, test in `tests/ui_update_notice_test.gd`). `cancel()` and `discard()` no longer clear the launched flag once the installer has started. The three teardown paths are one `_abandon()` helper, and the header of `run/update_installer.gd` has a state table.
-  - `scripts/build_installer.ps1`: the 2/3-of-cap rule only warns, because the 150 MiB legacy guard is always lower. The legacy cap is written once, as `LEGACY_CLIENT_CAP_MIB` in `scripts/engine_version.txt`, read by `build_installer.ps1` and `release.ps1` and tested by `scripts/engine_version_test.ps1`.
+  - `scripts/build_installer.ps1`: the 2/3-of-cap rule only warns. (The 150 MiB guard for v0.8.2 clients that this pass kept was removed on 2026-11-10, with `LEGACY_CLIENT_CAP_MIB`.)
   - `scripts/check_log_patterns.ps1`: a `push_error` is allowed only with one of the known messages the tests provoke on purpose; an unknown `push_error` fails the check. Proven on a real full log, the CI log of the latest `main` push and `check_log_samples/passing_noise.txt` (0 false flags), with new bad and good samples.
   - Check floor record: `release.ps1` refuses a record that is more than 5% below the live total (`scripts/check_floor_record.ps1`); `check.ps1` repeats `NOTE:` lines (the 5% above-the-record note comes from `run_tests.gd`) before its verdict.
   - Docs: `CI.md` lists every workflow and `check.ps1` step; `RULES.md` was checked against `combat/combat.gd` (Surge at 0 and the Block trigger were right, wording tightened) and gained the owner decisions below.
@@ -44,7 +44,7 @@ These were deliberately not done in the review round.
 6. **Surge at 0 energy: stays playable (decided 2026-11-08).** A Surge card can be played at 0 energy; it then does nothing and counts as a play, like any other 0-cost card (`docs/RULES.md`).
 7. **`ON_BLOCK_GAINED` rule (decided 2026-11-08).** It counts only Block gained by the played card's own effects, not Block from an Oath effect or relic that fires during the same play (`docs/RULES.md`).
 8. **No keyword key (decided 2026-11-08).** A separate keyword key (a legend of the card keywords) was considered in the review and is not added.
-9. **`latest_installer_size.txt` stays manual (decided 2026-11-08).** `release.ps1` does not update it, because the build-time guard is the enforcement: `build_installer.ps1` fails above the 150 MiB cap of already-released clients (`LEGACY_CLIENT_CAP_MIB`) and only warns above 2/3 of the current cap. The file only feeds the "cap is at least 1.5x the latest installer" test.
+9. **`latest_installer_size.txt` stays manual (decided 2026-11-08).** `release.ps1` does not update it, because `build_installer.ps1` already warns above 2/3 of the current cap (it does not fail on size since 2026-11-10). The file only feeds the "cap is at least 1.5x the latest installer" test.
 10. **Scent-spending kill (decided, sixth pass).** If a hit that spends Scent kills the quarry, the kill still counts as the quarry's death: the `QUARRY_KILL_HEAL` relic and the `QUARRY_DIES` Oaths fire, and no Scent is passed on to an heir because it was spent (`docs/RULES.md`, "Scent and the quarry").
 11. **Block from `discard_effects` (decided, sixth pass).** It stays as is: it does not trigger `ON_BLOCK_GAINED` (`docs/RULES.md`).
 12. **Keyboard-only play (decided, sixth pass).** Focus restore, focus on overlay open and a combat-log key (L) are added in this pass. No keyboard readout of enemy Omen or status, and no keyword key.
@@ -52,10 +52,12 @@ These were deliberately not done in the review round.
 
 ## To do, in the order I would take it
 
+The current run is **Chapter 1** of 3 (two districts, a mid-boss and an end boss each chapter). The plan for finishing it and building on it is in [`CHAPTERS_PLAN.md`](CHAPTERS_PLAN.md); the list below is the near-term part of that plan.
+
 1. **Playtest v0.9.0 with testers**, mostly the route map: do the choices feel like choices, is the rest and shop pacing right, are elites worth taking, are the events fun. The numbers are tuned against bots, not people (`docs/PLAYTEST_CHECKLIST.md`). Current bot figures are in `docs/SIM.md` ("Current figures").
 2. **Elite polish**: the map tooltip now names the relic drop, as do the battle log line and the spoils screen. Only elite modifiers or elite-specific enemies remain (an elite is a regular pack scaled up, renamed and drawn larger): a design decision for the owner, with proposals in `docs/MAP_DESIGN.md`, "Elite modifier ideas (not built)". `RunState.ELITE_BUDGET_MULTIPLIER` is the difficulty knob (1.2 now, from 1.35: see `docs/MAP_DESIGN.md`, "Phase 5c"); the greedy bot escapes 63 to 79% at 1.2, so try about 1.25 if testers find the map too easy.
 3. **Look into the Stray gap**: before elites the greedy bot escaped 76.7% and the smart bot 56.7% as the Stray on the map (`docs/SIM.md`), the largest bot gap of any class.
-4. **Cut the next release** once playtest feedback is in. **It must stay under 150 MiB** (the v0.9.0 installer is about 123 MiB): v0.8.2 players carry the old 150 MiB download cap, and `build_installer.ps1` fails above it until a release with the 300 MiB cap has been out long enough (`docs/UPDATE_CHECK.md`, "Installer size cap"): bump `config/version` and `export_presets.cfg`, merge, then `scripts/release.ps1 -Publish`, check the draft with `scripts/verify_release.ps1 -Draft`, and publish it on GitHub. Check `docs/PLAYTEST_CHECKLIST.md` first.
+4. **Cut the next release** once playtest feedback is in. The installer is about 123 MiB and the in-game download cap is 300 MiB (`docs/UPDATE_CHECK.md`, "Installer size cap"); the old 150 MiB guard for v0.8.2 clients was removed on 2026-11-10, so those players must download a larger installer by hand: bump `config/version` and `export_presets.cfg`, merge, then `scripts/release.ps1 -Publish`, check the draft with `scripts/verify_release.ps1 -Draft`, and publish it on GitHub. Check `docs/PLAYTEST_CHECKLIST.md` first.
 5. **Retune from playtest feedback**: `REWARD_HEAL`, `HEAL_BELOW`, class HP, card costs, the map's node weights. Check any change with the sims.
 6. **Keep-5 hand rule review**: it shifted bot numbers unevenly (the Thief lost ground, the Medium gained in the smart bot). Knobs: `Combat.HAND_SIZE`, `Combat.HAND_MAX`.
 7. **Art**: the Warden halberd and the Conductor watch chain are done. Still open are the 960x320 `figure.png` portrait layers to match (edit prompts in `art/PROMPTS.md`, "Touch-ups still open") and the rest paintings (1672x941, below the 2304x1296 screen target, polish).

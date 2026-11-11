@@ -119,9 +119,8 @@ foreach ($f in $files) { if (-not (Test-Path -LiteralPath $f)) { throw "Missing 
 $installerBytes = (Get-Item -LiteralPath $files[0]).Length
 $newCapMatch = Select-String -Path 'run/update_check.gd' -Pattern '^const MAX_INSTALLER_BYTES := (\d+) \* 1024 \* 1024'
 $newCapMiB = [int64]$newCapMatch.Matches.Groups[1].Value
-$legacyCapMiB = $LEGACY_CLIENT_CAP_MIB  # from scripts/engine_version.txt (the cap inside released v0.8.2 clients)
 $installerMiB = [math]::Round($installerBytes / 1MB, 1)
-Write-Host "Installer is $installerMiB MiB: margin $([math]::Round($legacyCapMiB - $installerMiB, 1)) MiB to the legacy $legacyCapMiB MiB client cap, $([math]::Round($newCapMiB - $installerMiB, 1)) MiB to the current $newCapMiB MiB cap."
+Write-Host "Installer is $installerMiB MiB: margin $([math]::Round($newCapMiB - $installerMiB, 1)) MiB to the in-game download cap of $newCapMiB MiB."
 Write-Host "Installer size: $installerBytes bytes. Put this number in tests/golden/latest_installer_size.txt in the next commit (a test keeps the in-game download cap at least 1.5x of it)."
 
 if (-not $Publish) {

@@ -70,19 +70,15 @@ $setup = Join-Path $root "build\TheUnforgotten-Setup-$version.exe"
 if (-not (Test-Path $setup)) { throw "Installer not found: $setup" }
 $setupVersion = ([string](Get-Item -LiteralPath $setup).VersionInfo.FileVersion).Trim()
 if ($setupVersion -ne $version -and $setupVersion -ne "$version.0") { throw "The installer reports FileVersion '$setupVersion' but project.godot has config/version $version." }
-# In-game updates refuse a download past UpdateCheck.MAX_INSTALLER_BYTES (the current game's cap). The hard limit
-# below is the OLDER, smaller cap of released clients; this one only warns when the installer passes 2/3 of the
-# current cap, while there is still room to raise it (docs/UPDATE_CHECK.md).
+# In-game updates refuse a download past UpdateCheck.MAX_INSTALLER_BYTES. This only warns when the installer passes
+# 2/3 of that cap, while there is still room to raise it (docs/UPDATE_CHECK.md). Raise the cap one release before the
+# installer needs it, because already-installed games keep the cap they shipped with.
 $capMatch = Select-String -Path 'run/update_check.gd' -Pattern '^const MAX_INSTALLER_BYTES := (\d+) \* 1024 \* 1024'
 if (-not $capMatch) { throw 'MAX_INSTALLER_BYTES not found in run/update_check.gd (the size guard in build_installer.ps1 reads it).' }
 $capBytes = [int64]$capMatch.Matches.Groups[1].Value * 1024 * 1024
 $setupBytes = (Get-Item -LiteralPath $setup).Length
-Write-Host "Installer size $setupBytes bytes (in-game download cap $capBytes; legacy client cap $($LEGACY_CLIENT_CAP_MIB) MiB)"
+Write-Host "Installer size $setupBytes bytes (in-game download cap $capBytes)"
 if ($setupBytes * 3 -gt $capBytes * 2) { Write-Warning "The installer ($setupBytes bytes) is over 2/3 of the current in-game download cap ($capBytes bytes): raise MAX_INSTALLER_BYTES in run/update_check.gd soon, or in-game updates will fail." }
-# Players on v0.8.2 still carry the OLD, smaller download cap (LEGACY_CLIENT_CAP_MIB in scripts/engine_version.txt), so
-# an installer over it cannot be installed in-game by them. This is the binding limit today; remove it (and the
-# setting) once a release that contains the 300 MiB cap has been out long enough that nobody still runs v0.8.2.
-if ($setupBytes -gt $LEGACY_CLIENT_CAP_MIB * 1024 * 1024) { throw "The installer ($setupBytes bytes) is over the $LEGACY_CLIENT_CAP_MIB MiB cap that already-released clients (v0.8.2 and older) enforce: they could not update in-game. Shrink it, or drop this check only if no such clients should be supported (docs/UPDATE_CHECK.md, 'Installer size cap')." }
 # Standard "<hash>  <filename>" format (two spaces), readable by sha256sum -c; ASCII, no BOM.
 $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $setup).Hash.ToLowerInvariant()
 $sumFile = "$setup.sha256"

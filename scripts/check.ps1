@@ -89,7 +89,7 @@ try {
     Write-Host '== inno setup choice =='
     powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'inno_setup_test.ps1')
     if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: inno setup choice'; exit 1 }
-    # The pinned versions and the legacy installer cap (one copy, in scripts/engine_version.txt).
+    # The pinned versions (one copy, in scripts/engine_version.txt).
     Write-Host '== engine version =='
     powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'engine_version_test.ps1')
     if ($LASTEXITCODE -ne 0) { Write-Host 'CHECK FAILED: engine version'; exit 1 }

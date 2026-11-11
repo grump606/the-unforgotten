@@ -4,6 +4,8 @@ Replaces the fixed 21-stop line with a branching map the player chooses a path t
 `docs/LEVELS_DESIGN.md` describes the line it replaces. Work proceeds in phases, one small PR each, on the
 `map-route` integration branch.
 
+**Chapter 1:** this whole map (two districts, two bosses) is Chapter 1 of the game; see [`CHAPTERS_PLAN.md`](CHAPTERS_PLAN.md).
+
 **Naming:** the player sees the two acts as districts, "The Quiet Streets" and "The Dead Country" (`RouteMap.DISTRICT_NAMES`, shown in the map
 header by `MapView.district_name` and named in the tutorial). The code and this document keep the word "act".
 
