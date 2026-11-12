@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"waterproof_satchel"
+display_name = "Waterproof Satchel"
+description = "Max HP +12."
+from_chapter = 2
+kind = 0
+amount = 12
+price = 90

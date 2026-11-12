@@ -131,18 +131,23 @@ func _test_pools_by_chapter() -> void:
 	var before_cards := StarterContent.reward_pool(&"deserter", 1).size()
 	var before_vendor := StarterContent.vendor_pool(&"deserter", 1).size()
 	var before_relics := StarterContent.relic_pool(&"deserter", 1).size()
-	_check(StarterContent.reward_pool(&"deserter").size() == before_cards and StarterContent.relic_pool(&"deserter").size() == before_relics, "today every pool is the same in every chapter")
-	var card: CardData = null
-	for candidate in StarterContent.reward_pool(&"deserter", 1):
-		card = candidate
-		break
+	var all_cards := StarterContent.reward_pool(&"deserter").size()
+	var all_relics := StarterContent.relic_pool(&"deserter").size()
+	_check(all_cards == StarterContent.reward_pool(&"deserter", 2).size() and all_relics == StarterContent.relic_pool(&"deserter", 2).size(), "chapter 2 offers everything there is")
+	_check(before_cards == all_cards - 6 and before_relics == all_relics - 4, "chapter 2 adds six deserter cards and four relics (three neutral, one class) to what chapter 1 offers")
+	for card in StarterContent.reward_pool(&"deserter", 1):
+		_check(card.from_chapter == 1, "chapter 1 never offers a chapter 2 card: %s" % card.id)
+	for relic in StarterContent.relic_pool(&"deserter", 1):
+		_check(relic.from_chapter == 1, "chapter 1 never offers a chapter 2 relic: %s" % relic.id)
+	# Tagging an old card or relic as chapter 2 removes it from chapter 1's pools and only there.
+	var card: CardData = StarterContent.reward_pool(&"deserter", 1)[0]
 	var relic: RelicData = StarterContent.relic_pool(&"deserter", 1)[0]
 	card.from_chapter = 2
 	relic.from_chapter = 2
 	ContentRegistry.clear_cache()
 	_check(StarterContent.reward_pool(&"deserter", 1).size() == before_cards - 1 and not StarterContent.reward_pool(&"deserter", 1).has(card), "a chapter 2 card is not rewarded in chapter 1")
 	_check(StarterContent.vendor_pool(&"deserter", 1).size() == before_vendor - 1 and StarterContent.relic_pool(&"deserter", 1).size() == before_relics - 1, "nor sold, nor is a chapter 2 relic")
-	_check(StarterContent.reward_pool(&"deserter", 2).size() == before_cards and StarterContent.relic_pool(&"deserter", 2).size() == before_relics, "chapter 2 offers old and new")
+	_check(StarterContent.reward_pool(&"deserter", 2).size() == all_cards and StarterContent.relic_pool(&"deserter", 2).size() == all_relics, "chapter 2 offers old and new")
 	_check(StarterContent.reward_pool(&"deserter").has(card) and StarterContent.vendor_pool(&"deserter").has(card), "the unrestricted pool (a save's deck check) has every card")
 	var run_state := RunState.new(1, &"deserter", true)
 	_check(not run_state._unowned_relics().has(relic), "a chapter 1 run does not roll a chapter 2 relic")

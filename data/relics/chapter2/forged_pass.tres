@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"forged_pass"
+display_name = "Forged Pass"
+description = "The first card you play each turn also draws 2 cards."
+character = &"thief"
+from_chapter = 2
+kind = 5
+amount = 2
+price = 90

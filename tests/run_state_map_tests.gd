@@ -384,7 +384,7 @@ func _test_elite() -> void:
 	_check(skipper.relics.size() == skipper_relics + 1 and not skipper.elite_spoils_pending(), "skipping the card takes the spoils first")
 	# A character that owns every relic gets gold instead.
 	var full := RunState.new(72, &"deserter", true)
-	full.relics.assign(StarterContent.relic_pool(&"deserter"))
+	full.relics.assign(StarterContent.relic_pool(&"deserter", 1))
 	_check(_walk_to_elite(full), "an elite node for the full-relics case")
 	full.start_combat()
 	var full_gold := full.gold
@@ -602,7 +602,7 @@ func _test_treasure() -> void:
 	var relics_before := run_state.relics.size()
 	_check(run_state.open_treasure() and run_state.treasure_opened(), "the chest opens")
 	var relic := run_state.treasure_relic()
-	_check(relic != null and relic.price >= RunState.TREASURE_MIN_RELIC_PRICE and StarterContent.relic_pool(&"deserter").has(relic), "the relic is from the pool and not in the cheapest tier")
+	_check(relic != null and relic.price >= RunState.TREASURE_MIN_RELIC_PRICE and StarterContent.relic_pool(&"deserter", 1).has(relic), "the relic is from the pool and not in the cheapest tier")
 	_check(run_state.rng_state() != rng_before and not run_state.at_stop_boundary(), "opening rolls with the run RNG and the open chest is not a boundary")
 	var rng_open := run_state.rng_state()
 	_check(run_state.open_treasure() and run_state.treasure_relic() == relic and run_state.rng_state() == rng_open, "opening again changes nothing")
@@ -614,11 +614,11 @@ func _test_treasure() -> void:
 	_check(run_state.player.max_hp == max_hp + (relic.amount if relic.kind == RelicData.Kind.MAX_HP else 0), "a max-HP relic raises max HP, others do not")
 	# A max-HP relic from a chest raises max HP and HP once, here.
 	var flask: RelicData = null
-	for candidate in StarterContent.relic_pool(&"deserter"):
+	for candidate in StarterContent.relic_pool(&"deserter", 1):
 		if candidate.kind == RelicData.Kind.MAX_HP:
 			flask = candidate
 	var owned := _chest_run(9, &"deserter")
-	for candidate in StarterContent.relic_pool(&"deserter"):
+	for candidate in StarterContent.relic_pool(&"deserter", 1):
 		if candidate != flask:
 			owned.relics.append(candidate)
 	var hp_before := owned.player.hp
@@ -638,23 +638,23 @@ func _test_treasure() -> void:
 			if got == null:
 				_check(held.treasure_gold() == RunState.TREASURE_FALLBACK_GOLD, "%s: with every relic owned the chest holds gold" % character)
 				break
-			_check(not seen.has(got.id) and StarterContent.relic_pool(character).has(got), "%s: chest %d gives a new relic from the pool (%s)" % [character, guard, got.id])
+			_check(not seen.has(got.id) and StarterContent.relic_pool(character, 1).has(got), "%s: chest %d gives a new relic from the pool (%s)" % [character, guard, got.id])
 			seen[got.id] = true
 			held.take_treasure()
 			# A fresh chest: put the run back inside the same stop.
 			held.restore_map(held.route, held.current_node, held.visited, true)
-		_check(seen.size() == StarterContent.relic_pool(character).size(), "%s: repeated chests hand out the whole pool once (%d relics)" % [character, seen.size()])
+		_check(seen.size() == StarterContent.relic_pool(character, 1).size(), "%s: repeated chests hand out the whole pool once (%d relics)" % [character, seen.size()])
 	# Gold fallback.
 	var rich := _chest_run(5, &"thief")
-	rich.relics.assign(StarterContent.relic_pool(&"thief"))
+	rich.relics.assign(StarterContent.relic_pool(&"thief", 1))
 	var gold_before := rich.gold
 	rich.open_treasure()
 	_check(rich.treasure_relic() == null and rich.treasure_gold() == RunState.TREASURE_FALLBACK_GOLD and rich.treasure_opened(), "a character with every relic finds gold")
-	_check(rich.take_treasure() and rich.gold == gold_before + RunState.TREASURE_FALLBACK_GOLD and rich.relics.size() == StarterContent.relic_pool(&"thief").size(), "taking the gold pays it and adds no relic")
+	_check(rich.take_treasure() and rich.gold == gold_before + RunState.TREASURE_FALLBACK_GOLD and rich.relics.size() == StarterContent.relic_pool(&"thief", 1).size(), "taking the gold pays it and adds no relic")
 	# The price floor yields when nothing dearer is left.
 	var cheap := _chest_run(5, &"medium")
 	var pricey := 0
-	for candidate in StarterContent.relic_pool(&"medium"):
+	for candidate in StarterContent.relic_pool(&"medium", 1):
 		if candidate.price >= RunState.TREASURE_MIN_RELIC_PRICE:
 			cheap.relics.append(candidate)
 			pricey += 1

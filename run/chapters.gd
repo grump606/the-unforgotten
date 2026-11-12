@@ -6,7 +6,7 @@ extends RefCounted
 const COUNT := 1
 const CHAPTER_1_DISTRICT_NAMES: Array[String] = ["The Quiet Streets", "The Dead Country"]
 ## Chapter 2's per-class budget factors (tuned with tools/run_sim.gd --chapters 2, docs/CHAPTER2_PLAN.md).
-const CHAPTER_2_CLASS_DIFFICULTY := {&"deserter": 1.04, &"thief": 1.22, &"medium": 1.10, &"stray": 0.85}
+const CHAPTER_2_CLASS_DIFFICULTY := {&"deserter": 1.11, &"thief": 1.28, &"medium": 1.135, &"stray": 0.86}
 ## Chapter 2's districts (proposed names, docs/CHAPTER2_PLAN.md, "Names").
 const CHAPTER_2_DISTRICT_NAMES: Array[String] = ["The Flooded Stacks", "The Reading Rooms"]
 const CHAPTER_1_BUDGET_START: Array[float] = [34.0, 46.0]

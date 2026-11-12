@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"brass_reading_lamp"
+display_name = "Brass Reading Lamp"
+description = "Start each fight with Glimpse 3."
+from_chapter = 2
+kind = 12
+amount = 3
+price = 80

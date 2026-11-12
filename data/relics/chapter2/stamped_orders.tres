@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"stamped_orders"
+display_name = "Stamped Orders"
+description = "Gain 4 Block at the start of every turn."
+character = &"deserter"
+from_chapter = 2
+kind = 2
+amount = 4
+price = 90

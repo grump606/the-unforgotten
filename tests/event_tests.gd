@@ -515,13 +515,13 @@ func _test_relics() -> void:
 		relic_effect.pool = EventEffect.Pool.NEUTRAL
 		var run_state := _custom([[relic_effect]], character)
 		var result := run_state.resolve_event_choice(0)
-		_check(result.ok and run_state.relics.size() == 1 and run_state.relics[0].character == &"" and StarterContent.relic_pool(character).has(run_state.relics[0]), "%s: a neutral relic from the pool is given" % character)
+		_check(result.ok and run_state.relics.size() == 1 and run_state.relics[0].character == &"" and StarterContent.relic_pool(character, 1).has(run_state.relics[0]), "%s: a neutral relic from the pool is given" % character)
 		_check(result.text.contains(run_state.relics[0].display_name), "%s: the outcome names the relic" % character)
 	# The pool shrinks: a neutral pool with nothing neutral left never widens to the character's own relics.
 	var any := _eff(K.GAIN_RELIC)
 	any.pool = EventEffect.Pool.NEUTRAL
 	var run_state := _custom([[any]], &"thief")
-	for relic in StarterContent.relic_pool(&"thief"):
+	for relic in StarterContent.relic_pool(&"thief", 1):
 		if relic.character == &"":
 			run_state.relics.append(relic)
 	var neutral_state := run_state.event_choice_state(0)
@@ -535,7 +535,7 @@ func _test_relics() -> void:
 	_check(String(full_pool.event_choice_state(0)["summary"]).contains("neutral relic"), "with a neutral relic left the text still names the relic")
 	var neutral_win := _gamble(100, [any])
 	run_state = _custom([[neutral_win]], &"thief")
-	for relic in StarterContent.relic_pool(&"thief"):
+	for relic in StarterContent.relic_pool(&"thief", 1):
 		if relic.character == &"":
 			run_state.relics.append(relic)
 	var gold_before := run_state.gold
@@ -543,24 +543,24 @@ func _test_relics() -> void:
 	_check(result.ok and run_state.gold == gold_before + RunState.EVENT_RELIC_FALLBACK_GOLD and run_state.relics.size() == owned_count, "a won neutral relic gamble with none left pays gold, not a class relic")
 	# Never a duplicate, never past the pool; at the end the button is disabled and a gamble pays gold instead.
 	run_state = _custom([[any]], &"stray")
-	run_state.relics.assign(StarterContent.relic_pool(&"stray"))
+	run_state.relics.assign(StarterContent.relic_pool(&"stray", 1))
 	var state := run_state.event_choice_state(0)
 	_check(bool(state["enabled"]) and String(state["summary"]).contains("gold"), "a relic button pays gold when nothing is left: %s" % state["summary"])
 	var win := _gamble(100, [any])
 	run_state = _custom([[win]], &"stray")
-	run_state.relics.assign(StarterContent.relic_pool(&"stray"))
+	run_state.relics.assign(StarterContent.relic_pool(&"stray", 1))
 	var gold := run_state.gold
 	result = run_state.resolve_event_choice(0)
-	_check(result.ok and run_state.gold == gold + RunState.EVENT_RELIC_FALLBACK_GOLD and run_state.relics.size() == StarterContent.relic_pool(&"stray").size(), "a won relic gamble with nothing left pays gold instead")
+	_check(result.ok and run_state.gold == gold + RunState.EVENT_RELIC_FALLBACK_GOLD and run_state.relics.size() == StarterContent.relic_pool(&"stray", 1).size(), "a won relic gamble with nothing left pays gold instead")
 	# A max-HP relic raises max HP and HP once, as in a shop.
 	var flask: RelicData = null
-	for candidate in StarterContent.relic_pool(&"deserter"):
+	for candidate in StarterContent.relic_pool(&"deserter", 1):
 		if candidate.kind == RelicData.Kind.MAX_HP:
 			flask = candidate
 	var any_pool := _eff(K.GAIN_RELIC)
 	any_pool.pool = EventEffect.Pool.ANY
 	run_state = _custom([[any_pool]], &"deserter")
-	for relic in StarterContent.relic_pool(&"deserter"):
+	for relic in StarterContent.relic_pool(&"deserter", 1):
 		if relic != flask:
 			run_state.relics.append(relic)
 	var max_before := run_state.player.max_hp

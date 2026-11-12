@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"clerks_seal"
+display_name = "Clerk's Seal"
+description = "Start each fight with 6 Block."
+from_chapter = 2
+kind = 1
+amount = 6
+price = 85

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"dust_of_the_stacks"
+display_name = "Dust of the Stacks"
+description = "When the quarry dies, 3 more Scent passes on."
+character = &"stray"
+from_chapter = 2
+kind = 19
+amount = 3
+price = 85

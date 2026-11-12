@@ -181,6 +181,31 @@ const ALL_CARD_PATHS: Array[String] = [
 	IRON_SKIN_PATH, BULWARK_VOW_PATH, NICK_AND_RUN_PATH, BLOOD_PRICE_PATH, PACK_INSTINCT_PATH, LOOSE_CHANGE_PATH, SLIPPED_POCKET_PATH, SPARE_KEY_PATH,
 	# The Stray
 	CATCH_THE_SCENT_PATH, SNAP_PATH, BRISTLE_PATH, RUN_DOWN_PATH, WORRY_PATH, CIRCLE_PATH, NOSE_TO_THE_WIND_PATH, OLD_WOUND_PATH, HOWL_PATH, POUNCE_PATH, SAVAGE_PATH, BRING_DOWN_PATH, HACKLES_PATH, TEAR_LOOSE_PATH, GO_FERAL_PATH,
+	# Chapter 2 (docs/CHAPTER2_PLAN.md): six cards per class, offered from Chapter 2 on (CardData.from_chapter = 2).
+	"res://data/cards/chapter2/wall_of_orders.tres",
+	"res://data/cards/chapter2/standing_order.tres",
+	"res://data/cards/chapter2/hold_the_archive.tres",
+	"res://data/cards/chapter2/brace_and_breathe.tres",
+	"res://data/cards/chapter2/siege_stance.tres",
+	"res://data/cards/chapter2/veterans_resolve.tres",
+	"res://data/cards/chapter2/ledger_slip.tres",
+	"res://data/cards/chapter2/cut_and_run.tres",
+	"res://data/cards/chapter2/filing_error.tres",
+	"res://data/cards/chapter2/back_door.tres",
+	"res://data/cards/chapter2/master_key.tres",
+	"res://data/cards/chapter2/grand_heist.tres",
+	"res://data/cards/chapter2/ink_in_the_margin.tres",
+	"res://data/cards/chapter2/dead_weight.tres",
+	"res://data/cards/chapter2/reading_aloud.tres",
+	"res://data/cards/chapter2/dead_letters.tres",
+	"res://data/cards/chapter2/every_name.tres",
+	"res://data/cards/chapter2/the_long_wake.tres",
+	"res://data/cards/chapter2/nose_through_paper.tres",
+	"res://data/cards/chapter2/bared_teeth.tres",
+	"res://data/cards/chapter2/bloodhound.tres",
+	"res://data/cards/chapter2/savage_shake.tres",
+	"res://data/cards/chapter2/pack_leader.tres",
+	"res://data/cards/chapter2/final_rush.tres",
 ]
 ## Status cards: Dormant cards that enemies add to the player's piles mid-fight (Dread: Dormant; Murmur:
 ## Dormant and Fading). An explicit id -> path table, kept OUT of ALL_CARD_PATHS, the reward pools,
@@ -205,6 +230,14 @@ const RELIC_PATHS: Array[String] = [
 	"res://data/relics/cracked_lorgnette.tres", "res://data/relics/hushing_veil.tres", "res://data/relics/mourners_armband.tres",
 	"res://data/relics/iron_stakes.tres", "res://data/relics/pressed_flower.tres", "res://data/relics/candle_stub.tres",
 	"res://data/relics/hunters_whistle.tres", "res://data/relics/wolf_fang.tres", "res://data/relics/bloody_muzzle.tres",
+	# Chapter 2: three neutral relics and one per class (RelicData.from_chapter = 2).
+	"res://data/relics/chapter2/brass_reading_lamp.tres",
+	"res://data/relics/chapter2/waterproof_satchel.tres",
+	"res://data/relics/chapter2/clerks_seal.tres",
+	"res://data/relics/chapter2/stamped_orders.tres",
+	"res://data/relics/chapter2/forged_pass.tres",
+	"res://data/relics/chapter2/tide_mark.tres",
+	"res://data/relics/chapter2/dust_of_the_stacks.tres",
 ]
 ## Every event of the "?" stops (docs/EVENTS_DESIGN.md), in a fixed order. Add an event by putting its .tres in data/events
 ## and listing it here (a test fails for a file that is not listed).

@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" uid="uid://cvqeldq7ry1bu" path="res://combat/card_data.gd" id="1_card"]
+[ext_resource type="Script" uid="uid://v0wf0vn2ro0b" path="res://combat/card_effect.gd" id="2_effect"]
+[ext_resource type="Script" path="res://combat/remembered_data.gd" id="9_rem"]
+
+[sub_resource type="Resource" id="e1"]
+script = ExtResource("2_effect")
+kind = 23
+amount = 8
+bonus = 6
+
+[sub_resource type="Resource" id="re1"]
+script = ExtResource("2_effect")
+kind = 23
+amount = 10
+bonus = 7
+
+[sub_resource type="Resource" id="Rem"]
+script = ExtResource("9_rem")
+effects = Array[ExtResource("2_effect")]([SubResource("re1")])
+
+[resource]
+script = ExtResource("1_card")
+id = &"final_rush"
+display_name = "Final Rush"
+cost = 3
+effects = Array[ExtResource("2_effect")]([SubResource("e1")])
+character = &"stray"
+from_chapter = 2
+forgotten = true
+rarity = 2
+remembered = SubResource("Rem")
