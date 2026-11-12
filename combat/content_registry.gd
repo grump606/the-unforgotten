@@ -7,6 +7,8 @@ extends RefCounted
 # Content caches. The resources are immutable shared data, so the lists derived from them are built once
 # and handed out as copies (callers may reorder or trim what they get). A failed load is never cached, so
 # its cause keeps being logged. Tests that swap content call clear_cache().
+## The chapter argument of the pools that means "every chapter".
+const ALL_CHAPTERS := 99
 static var _cards_cache: Array[CardData] = []
 static var _relics_cache: Array[RelicData] = []
 static var _events_cache: Array[EventData] = []
@@ -20,6 +22,7 @@ static func clear_cache() -> void:
 	_cards_cache = []
 	_relics_cache = []
 	_events_cache = []
+	_chapter_events_cache = {}
 	_pool_cache = {}
 	_enemy_paths_by_id = {}
 	_enemy_ids_cache = []
@@ -42,13 +45,15 @@ static func all_cards() -> Array[CardData]:
 ## The distinct cards a character can be offered as rewards: every neutral card plus the cards tagged for
 ## `character_id`, except the basic cards (Shove, Slip Past), which they start with and can buy but are never
 ## offered. Empty (cause logged) if any card fails to load.
-static func reward_pool(character_id: StringName) -> Array[CardData]:
-	var key := "reward:%s" % character_id
+## `chapter` limits it to the cards available by then (CardData.from_chapter); the default, ALL_CHAPTERS, is every card
+## (what a save's deck is validated against).
+static func reward_pool(character_id: StringName, chapter: int = ALL_CHAPTERS) -> Array[CardData]:
+	var key := "reward:%s:%d" % [character_id, chapter]
 	if _pool_cache.has(key):
 		return (_pool_cache[key] as Array[CardData]).duplicate()
 	var pool: Array[CardData] = []
 	for card in all_cards():
-		if (card.character == &"" or card.character == character_id) and not card.basic:
+		if (card.character == &"" or card.character == character_id) and not card.basic and card.from_chapter <= chapter:
 			pool.append(card)
 	if not pool.is_empty():
 		_pool_cache[key] = pool.duplicate()
@@ -56,13 +61,13 @@ static func reward_pool(character_id: StringName) -> Array[CardData]:
 
 
 ## The cards a vendor may stock for `character_id`: the reward pool plus the basic cards.
-static func vendor_pool(character_id: StringName) -> Array[CardData]:
-	var key := "vendor:%s" % character_id
+static func vendor_pool(character_id: StringName, chapter: int = ALL_CHAPTERS) -> Array[CardData]:
+	var key := "vendor:%s:%d" % [character_id, chapter]
 	if _pool_cache.has(key):
 		return (_pool_cache[key] as Array[CardData]).duplicate()
 	var pool: Array[CardData] = []
 	for card in all_cards():
-		if card.character == &"" or card.character == character_id:
+		if (card.character == &"" or card.character == character_id) and card.from_chapter <= chapter:
 			pool.append(card)
 	if not pool.is_empty():
 		_pool_cache[key] = pool.duplicate()
@@ -87,13 +92,13 @@ static func all_relics() -> Array[RelicData]:
 
 
 ## The relics a vendor may offer `character_id`: every neutral relic plus the ones tagged for them.
-static func relic_pool(character_id: StringName) -> Array[RelicData]:
-	var key := "relic:%s" % character_id
+static func relic_pool(character_id: StringName, chapter: int = ALL_CHAPTERS) -> Array[RelicData]:
+	var key := "relic:%s:%d" % [character_id, chapter]
 	if _pool_cache.has(key):
 		return (_pool_cache[key] as Array[RelicData]).duplicate()
 	var pool: Array[RelicData] = []
 	for relic in all_relics():
-		if relic.character == &"" or relic.character == character_id:
+		if (relic.character == &"" or relic.character == character_id) and relic.from_chapter <= chapter:
 			pool.append(relic)
 	if not pool.is_empty():
 		_pool_cache[key] = pool.duplicate()
@@ -112,6 +117,43 @@ static func all_events() -> Array[EventData]:
 			events.append(event)
 		_events_cache = events
 	return _events_cache.duplicate()
+
+
+## Test hook: when non-empty, replaces StarterContent.CHAPTER_EVENT_PATHS (chapter -> Array[String]).
+static var chapter_event_paths_override := {}
+static var _chapter_events_cache := {}
+
+
+static func _chapter_event_paths() -> Dictionary:
+	return chapter_event_paths_override if not chapter_event_paths_override.is_empty() else StarterContent.CHAPTER_EVENT_PATHS
+
+
+## The events of chapter `chapter`'s "?" stops: its own list when StarterContent.CHAPTER_EVENT_PATHS has one for it, else all_events().
+## A list that fails to load falls back to all_events() (the cause is logged).
+static func events_for(chapter: int) -> Array[EventData]:
+	var paths: Array = _chapter_event_paths().get(chapter, [])
+	if chapter <= 1 or paths.is_empty():
+		return all_events()
+	var key := "%d:%s" % [chapter, ",".join(PackedStringArray(paths))]
+	if not _chapter_events_cache.has(key):
+		var events: Array[EventData] = []
+		for path in paths:
+			var event := load_event(path)
+			if event == null:
+				return all_events()
+			events.append(event)
+		_chapter_events_cache[key] = events
+	return (_chapter_events_cache[key] as Array[EventData]).duplicate()
+
+
+## Chapter 1's events plus every other chapter's.
+static func every_event() -> Array[EventData]:
+	var events := all_events()
+	for chapter in _chapter_event_paths():
+		for event in events_for(chapter):
+			if not events.has(event):
+				events.append(event)
+	return events
 
 
 ## Returns null (after logging an error) if the resource is missing or not an EventData.

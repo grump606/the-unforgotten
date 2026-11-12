@@ -13,6 +13,8 @@ enum TargetMode { SINGLE_ENEMY, ALL_ENEMIES, SELF }
 @export var target_mode: TargetMode = TargetMode.SINGLE_ENEMY
 ## Which character this card belongs to; empty means neutral (every character can take it).
 @export var character: StringName = &""
+## The first chapter whose rewards and shops may offer this card (1 = from the start). A card added for Chapter 2 sets 2.
+@export var from_chapter: int = 1
 ## Keywords (see docs/MECHANICS_PLAN.md). All default to false, so existing cards are unchanged.
 ## forgotten: once played, goes to the Forgotten pile instead of the discard pile.
 ## fading: still in hand at end of turn means it becomes Forgotten; it never counts toward the 5 kept.

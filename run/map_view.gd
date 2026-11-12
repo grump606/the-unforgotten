@@ -235,7 +235,7 @@ func tooltip_for(id: int) -> String:
 		RouteMap.NodeType.SHOP:
 			return "Shop"
 		RouteMap.NodeType.STORY:
-			var beat := StoryContent.beat(n.beat_index, _character) if n.beat_index >= 0 and n.beat_index < StoryContent.beat_count() else null
+			var beat := StoryContent.beat(n.beat_index, _character, chapter) if n.beat_index >= 0 and n.beat_index < StoryContent.beat_count(chapter) else null
 			if beat != null and beat.title != "":
 				return "Story: " + beat.title
 			return "Story"

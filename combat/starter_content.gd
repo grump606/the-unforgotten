@@ -214,6 +214,9 @@ const EVENT_PATHS: Array[String] = [
 	"res://data/events/window_that_is_lit.tres", "res://data/events/empty_sentry_box.tres", "res://data/events/quiet_choir.tres",
 	"res://data/events/name_broker.tres", "res://data/events/cracked_bell.tres", "res://data/events/erasers_chalk.tres",
 ]
+## The events of a chapter other than the first, by chapter number (docs/CHAPTER2_PLAN.md). A chapter without an entry plays
+## Chapter 1's events (EVENT_PATHS). Their .tres files live in data/events/chapter<N>/.
+const CHAPTER_EVENT_PATHS := {}
 ## Playable characters, in the order a selection screen lists them.
 const CHARACTER_PATHS := {
 	&"deserter": "res://data/characters/deserter.tres",
@@ -307,6 +310,16 @@ static func all_events() -> Array[EventData]:
 	return ContentRegistry.all_events()
 
 
+## The events a "?" stop of chapter `chapter` draws from: that chapter's own list when it has one, else Chapter 1's.
+static func events_for(chapter: int) -> Array[EventData]:
+	return ContentRegistry.events_for(chapter)
+
+
+## Every event of every chapter (what a save's seen-list and the bounds on max HP are checked against).
+static func every_event() -> Array[EventData]:
+	return ContentRegistry.every_event()
+
+
 ## A card of the normal pools (not a status or created card) by id, or null when there is none.
 static func card_by_id(card_id: StringName) -> CardData:
 	for card in all_cards():
@@ -348,13 +361,13 @@ static func all_cards() -> Array[CardData]:
 ## The distinct cards a character can be offered as rewards: every neutral card plus the cards tagged for
 ## `character_id`, except the basic cards (Shove, Slip Past), which they start with and can buy but are never
 ## offered. Empty (cause logged) if any card fails to load.
-static func reward_pool(character_id: StringName) -> Array[CardData]:
-	return ContentRegistry.reward_pool(character_id)
+static func reward_pool(character_id: StringName, chapter: int = ContentRegistry.ALL_CHAPTERS) -> Array[CardData]:
+	return ContentRegistry.reward_pool(character_id, chapter)
 
 
 ## The cards a vendor may stock for `character_id`: the reward pool plus the basic cards.
-static func vendor_pool(character_id: StringName) -> Array[CardData]:
-	return ContentRegistry.vendor_pool(character_id)
+static func vendor_pool(character_id: StringName, chapter: int = ContentRegistry.ALL_CHAPTERS) -> Array[CardData]:
+	return ContentRegistry.vendor_pool(character_id, chapter)
 
 
 ## Every relic that loads, in RELIC_PATHS order. Empty (cause logged) if any fails to load.
@@ -363,8 +376,8 @@ static func all_relics() -> Array[RelicData]:
 
 
 ## The relics a vendor may offer `character_id`: every neutral relic plus the ones tagged for them.
-static func relic_pool(character_id: StringName) -> Array[RelicData]:
-	return ContentRegistry.relic_pool(character_id)
+static func relic_pool(character_id: StringName, chapter: int = ContentRegistry.ALL_CHAPTERS) -> Array[RelicData]:
+	return ContentRegistry.relic_pool(character_id, chapter)
 
 
 ## The character with this id, or null (cause logged) for an unknown id or a resource that fails to load.

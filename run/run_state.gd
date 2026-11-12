@@ -726,7 +726,7 @@ func current_beat() -> StoryBeat:
 	var stop := current_stop()
 	if stop == null or stop.type != StopType.STORY:
 		return null
-	return StoryContent.beat(stop.beat_index, character.id)
+	return StoryContent.beat(stop.beat_index, character.id, chapter)
 
 
 ## Moves past a STORY stop. Returns false if not at one.
@@ -745,7 +745,7 @@ func vendor() -> Vendor:
 	if stop == null or stop.type != StopType.VENDOR:
 		return null
 	if _vendor == null:
-		_vendor = Vendor.new(deck, _rng, 0, StarterContent.vendor_pool(character.id), _unowned_relics(), _wallet, StarterContent.rarity_weights(rarity_tier()))
+		_vendor = Vendor.new(deck, _rng, 0, StarterContent.vendor_pool(character.id, chapter), _unowned_relics(), _wallet, StarterContent.rarity_weights(rarity_tier()))
 	return _vendor
 
 
@@ -907,7 +907,7 @@ func _grant_relic(relic: RelicData) -> void:
 ## The character's relic pool minus the relics already owned.
 func _unowned_relics() -> Array[RelicData]:
 	var left: Array[RelicData] = []
-	for relic in StarterContent.relic_pool(character.id):
+	for relic in StarterContent.relic_pool(character.id, chapter):
 		if not relics.has(relic):
 			left.append(relic)
 	return left
@@ -943,7 +943,7 @@ func current_event() -> EventData:
 		return null
 	if _event != null:
 		return _event
-	var all := StarterContent.all_events()
+	var all := StarterContent.events_for(chapter)
 	if all.is_empty():
 		return null
 	var unseen: Array[EventData] = []
@@ -1145,7 +1145,7 @@ func finish_event() -> bool:
 		return false
 	if _event == null:
 		# Nothing was shown yet: only a stop whose content failed to load may be passed.
-		if not StarterContent.all_events().is_empty():
+		if not StarterContent.events_for(chapter).is_empty():
 			return false
 	elif not _event_resolved or not _event_pending.is_empty():
 		return false
@@ -1271,7 +1271,7 @@ func _apply_event_effect(effect: EventEffect, lines: Array[String], gambles: Arr
 func _event_card_candidates(effect: EventEffect) -> Array[CardData]:
 	var found: Array[CardData] = []
 	var wanted_pool: EventEffect.Pool = EventEffect.Pool.CLASS if effect.kind == EventEffect.Kind.PICK_CARD else effect.pool
-	for card in _distinct_cards(StarterContent.reward_pool(character.id)):
+	for card in _distinct_cards(StarterContent.reward_pool(character.id, chapter)):
 		var neutral: bool = card.character == &""
 		if wanted_pool == EventEffect.Pool.NEUTRAL and not neutral:
 			continue
@@ -1387,7 +1387,7 @@ func _roll_rewards() -> void:
 	# class cards, then neutral cards to fill, then any class cards left over.
 	var class_cards: Array[CardData] = []
 	var neutral_cards: Array[CardData] = []
-	for card in _reward_candidates(_distinct_cards(StarterContent.reward_pool(character.id))):
+	for card in _reward_candidates(_distinct_cards(StarterContent.reward_pool(character.id, chapter))):
 		if card.character == &"":
 			neutral_cards.append(card)
 		else:

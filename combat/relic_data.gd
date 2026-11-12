@@ -39,6 +39,8 @@ const PLAYS_BLOCK_EVERY := 3
 @export var description: String
 ## Which character may be offered this relic; empty means neutral (everyone), like cards.
 @export var character: StringName = &""
+## The first chapter whose shops, chests and spoils may offer this relic (1 = from the start; docs/CHAPTER2_PLAN.md).
+@export var from_chapter: int = 1
 @export var kind: Kind = Kind.MAX_HP
 @export var amount: int = 0
 @export var price: int = 0

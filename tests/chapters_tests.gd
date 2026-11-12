@@ -39,6 +39,8 @@ func run() -> int:
 	for row in RouteMap.ROWS:
 		_check(is_equal_approx(StarterContent.fight_budget(row), StarterContent.fight_budget(row, 1)), "fight_budget defaults to chapter 1 (row %d)" % row)
 	_test_chapter_2_content()
+	_test_events_and_story_by_chapter()
+	_test_pools_by_chapter()
 	return _failures
 
 
@@ -91,3 +93,60 @@ func _test_chapter_2_content() -> void:
 			if not ok:
 				misses += 1
 	_check(misses == 0, "every chapter 2 pack (%d) is built from chapter 2's own enemies" % packs)
+
+
+## Events and story beats are chosen by chapter; a chapter without its own plays Chapter 1's.
+func _test_events_and_story_by_chapter() -> void:
+	var first := StarterContent.EVENT_PATHS[0]
+	var second := StarterContent.EVENT_PATHS[1]
+	_check(StarterContent.events_for(1).size() == StarterContent.EVENT_PATHS.size() and StarterContent.events_for(2).size() == StarterContent.EVENT_PATHS.size(), "with no chapter events every chapter draws Chapter 1's")
+	ContentRegistry.chapter_event_paths_override = {2: [first, second]}
+	ContentRegistry.clear_cache()
+	var own := StarterContent.events_for(2)
+	_check(own.size() == 2 and own[0].id == load(first).id, "chapter 2 draws only its own events when it has a list")
+	_check(StarterContent.events_for(1).size() == StarterContent.EVENT_PATHS.size() and StarterContent.events_for(3).size() == StarterContent.EVENT_PATHS.size(), "other chapters are unaffected")
+	_check(StarterContent.every_event().size() == StarterContent.EVENT_PATHS.size(), "every_event is the union without repeats")
+	var run_state := RunState.new(3, &"deserter", true)
+	run_state.chapter = 2
+	var event_node := -1
+	for id in run_state.route.node_count():
+		if run_state.route.node(id).type == RouteMap.NodeType.EVENT:
+			event_node = id
+			break
+	if event_node != -1:
+		run_state.restore_map(run_state.route, event_node, [] as Array[int], true)
+		run_state.chapter = 2
+		var picked := run_state.current_event()
+		_check(picked != null and (picked.id == load(first).id or picked.id == load(second).id), "a chapter 2 event stop draws from chapter 2's list")
+	ContentRegistry.chapter_event_paths_override = {}
+	ContentRegistry.clear_cache()
+	_check(StoryContent.paths_for(1) == StoryContent.BEAT_PATHS and StoryContent.paths_for(2) == StoryContent.BEAT_PATHS and StoryContent.beat_count(2) == StoryContent.beat_count(1), "a chapter without its own beats plays Chapter 1's")
+	_check(StoryContent.beat(0, &"deserter", 2) != null and StoryContent.beat(0, &"", 2).title == StoryContent.beat(0, &"", 1).title, "and reads the same beat")
+
+
+## A card or relic with from_chapter 2 is offered from Chapter 2 on and never before; everything else is unchanged.
+func _test_pools_by_chapter() -> void:
+	var before_cards := StarterContent.reward_pool(&"deserter", 1).size()
+	var before_vendor := StarterContent.vendor_pool(&"deserter", 1).size()
+	var before_relics := StarterContent.relic_pool(&"deserter", 1).size()
+	_check(StarterContent.reward_pool(&"deserter").size() == before_cards and StarterContent.relic_pool(&"deserter").size() == before_relics, "today every pool is the same in every chapter")
+	var card: CardData = null
+	for candidate in StarterContent.reward_pool(&"deserter", 1):
+		card = candidate
+		break
+	var relic: RelicData = StarterContent.relic_pool(&"deserter", 1)[0]
+	card.from_chapter = 2
+	relic.from_chapter = 2
+	ContentRegistry.clear_cache()
+	_check(StarterContent.reward_pool(&"deserter", 1).size() == before_cards - 1 and not StarterContent.reward_pool(&"deserter", 1).has(card), "a chapter 2 card is not rewarded in chapter 1")
+	_check(StarterContent.vendor_pool(&"deserter", 1).size() == before_vendor - 1 and StarterContent.relic_pool(&"deserter", 1).size() == before_relics - 1, "nor sold, nor is a chapter 2 relic")
+	_check(StarterContent.reward_pool(&"deserter", 2).size() == before_cards and StarterContent.relic_pool(&"deserter", 2).size() == before_relics, "chapter 2 offers old and new")
+	_check(StarterContent.reward_pool(&"deserter").has(card) and StarterContent.vendor_pool(&"deserter").has(card), "the unrestricted pool (a save's deck check) has every card")
+	var run_state := RunState.new(1, &"deserter", true)
+	_check(not run_state._unowned_relics().has(relic), "a chapter 1 run does not roll a chapter 2 relic")
+	run_state.chapter = 2
+	_check(run_state._unowned_relics().has(relic), "a chapter 2 run does")
+	card.from_chapter = 1
+	relic.from_chapter = 1
+	ContentRegistry.clear_cache()
+	_check(StarterContent.reward_pool(&"deserter", 1).size() == before_cards, "restored")

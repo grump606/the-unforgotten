@@ -246,7 +246,7 @@ static func event_max_hp_gain(visits: int) -> int:
 	if visits <= 0:
 		return 0
 	var gains: Array[int] = []
-	for event in StarterContent.all_events():
+	for event in StarterContent.every_event():
 		var best := 0
 		for choice in event.choices:
 			best = maxi(best, _max_hp_rise(choice.effects))
@@ -531,7 +531,7 @@ static func _check_events_seen(d: Dictionary, _run: RunState, got: Accepted) -> 
 		if typeof(raw) != TYPE_ARRAY or (raw as Array).size() > 200:
 			return "bad events_seen list"
 		var known_ids := {}
-		for event in StarterContent.all_events():
+		for event in StarterContent.every_event():
 			known_ids[String(event.id)] = true
 		for entry in raw:
 			if typeof(entry) != TYPE_STRING:
