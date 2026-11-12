@@ -527,6 +527,9 @@ func status_chips() -> Array[Dictionary]:
 		chips.append(_chip(&"hold", unit.hold, "Hold %d" % unit.hold, CardView.kind_color(CardEffect.Kind.HOLD)))
 	if unit.thorns > 0:
 		chips.append(_chip(&"thorns", unit.thorns, "Thorns %d" % unit.thorns, CardView.kind_color(CardEffect.Kind.THORNS)))
+	var enemy := unit as EnemyUnit
+	if enemy != null and enemy.data != null and enemy.data.unseen:
+		chips.append(_chip(&"unseen", 1, "Unseen: cannot be targeted while another enemy is alive", Color(0.66, 0.70, 0.84), "?"))
 	return chips
 
 

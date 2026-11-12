@@ -39,7 +39,7 @@ extends Resource
 ## tools/smart_policy.gd (_effect_value for a fight, _effect_score for a deck, _nominal_damage_once for a
 ## damage kind; each logs an error for a kind it does not know). tests/mechanics_tests.gd walks every
 ## Kind for describe, vendor value, reach and a Combat handler; tests/bot_kind_tests.gd checks the bots.
-enum Kind { DAMAGE, BLOCK, DRAW, EXPOSE, HOLD, DAMAGE_PER_BLOCK, DAMAGE_IF_BLOCK, THORNS, GAIN_ENERGY, DAMAGE_PER_PLAY, HAUNT, LOSE_HP, HEAL_PER_HAUNTED, DAMAGE_PER_HAUNT, SHAKEN, FRAYED, MALICE, WARD, GLIMPSE, ADD_CARD, RECALL, DAMAGE_PER_FORGOTTEN, SCENT, DAMAGE_PER_SCENT }
+enum Kind { DAMAGE, BLOCK, DRAW, EXPOSE, HOLD, DAMAGE_PER_BLOCK, DAMAGE_IF_BLOCK, THORNS, GAIN_ENERGY, DAMAGE_PER_PLAY, HAUNT, LOSE_HP, HEAL_PER_HAUNTED, DAMAGE_PER_HAUNT, SHAKEN, FRAYED, MALICE, WARD, GLIMPSE, ADD_CARD, RECALL, DAMAGE_PER_FORGOTTEN, SCENT, DAMAGE_PER_SCENT, FILE }
 
 @export var kind: Kind = Kind.DAMAGE
 @export var amount: int = 0
@@ -209,4 +209,6 @@ func _describe_base() -> String:
 			return "Scent %d" % amount
 		Kind.DAMAGE_PER_SCENT:
 			return "Deal %d, +%d per Scent (spends it)" % [amount, bonus]
+		Kind.FILE:
+			return "File %d" % amount
 	return ""

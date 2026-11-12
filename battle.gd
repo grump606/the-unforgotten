@@ -452,9 +452,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 ## Moves the selection to the first living enemy if the current one is defeated.
 func _keep_target_alive() -> void:
-	if _combat.enemies[_target_index].is_dead():
+	if _combat.enemies[_target_index].is_dead() or _combat.is_shielded(_combat.enemies[_target_index]):
 		for i in _combat.enemies.size():
-			if not _combat.enemies[i].is_dead():
+			if not _combat.enemies[i].is_dead() and not _combat.is_shielded(_combat.enemies[i]):
 				_target_index = i
 				return
 
@@ -552,7 +552,7 @@ func _sync_boss_bar() -> void:
 
 
 func _select_target(index: int) -> void:
-	if _combat == null or index < 0 or index >= _combat.enemies.size() or _combat.enemies[index].is_dead():
+	if _combat == null or index < 0 or index >= _combat.enemies.size() or _combat.enemies[index].is_dead() or _combat.is_shielded(_combat.enemies[index]):
 		return
 	_target_index = index
 	_refresh()
@@ -563,7 +563,7 @@ func _cycle_target(direction: int) -> void:
 	var count := _combat.enemies.size()
 	for step in range(1, count):
 		var index := posmod(_target_index + direction * step, count)
-		if not _combat.enemies[index].is_dead():
+		if not _combat.enemies[index].is_dead() and not _combat.is_shielded(_combat.enemies[index]):
 			_select_target(index)
 			return
 

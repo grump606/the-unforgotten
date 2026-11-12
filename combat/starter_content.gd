@@ -439,6 +439,7 @@ const THREAT_STATUS_POINTS := {
 	CardEffect.Kind.FRAYED: 2.0,
 	CardEffect.Kind.MALICE: 3.0,
 	CardEffect.Kind.ADD_CARD: 3.0,
+	CardEffect.Kind.FILE: 3.0,
 }
 ## Map mode budget curve. A regular fight on run row `row` (0 to RouteMap.ROWS - 1) gets a total pack threat of
 ## MAP_DIFFICULTY * lerp(start, end, local), where `local` runs 0 to 1 over the act's rows 0 to 14. Index 0 is
@@ -594,6 +595,7 @@ static func elite_named(enemy: EnemyData) -> EnemyData:
 	named.phase_two_intents = enemy.phase_two_intents
 	named.phase_two_hp_percent = enemy.phase_two_hp_percent
 	named.phase_two_title = enemy.phase_two_title
+	named.unseen = enemy.unseen
 	return named
 
 

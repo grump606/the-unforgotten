@@ -39,6 +39,11 @@ Enemy Omens (phase 5b): The Husher and The Unnamed apply Shaken to you, the Thre
 Hold, Haunt, Expose, Recall (return cards from the Forgotten pile to your hand) and adding a card to a pile are unchanged or described on the cards themselves.
 
 
+## File and Unseen (added for Chapter 2, `docs/CHAPTER2_PLAN.md`)
+
+- **File N:** sends N cards from your hand to the BOTTOM of your draw pile; the dearest card (highest cost, the leftmost of equals) goes first, and an Anchored card is never filed. An enemy intent with File acts in the enemy phase, so it files the cards you KEPT at the end of your turn; the next turn then draws back up to the hand size, so the filed card is not lost, only a long way from being drawn again. A player card with File does the same to your own hand. Nothing is reshuffled (`CardPiles.file_from_hand`).
+- **Unseen:** an enemy marked `unseen` (`EnemyData.unseen`) cannot be targeted while another enemy that is not Unseen is alive. A single-target card aimed at it lands on the first enemy that can be targeted, the default target skips it, and the battle screen will not select it. An all-enemies card still reaches it. When every living enemy is Unseen, or it is the last one, it can be targeted normally. It is shown as a pill with a "?" (`Combat.is_shielded`).
+
 ## Scent and the quarry
 
 - Scent marks one quarry among a card's targets. A hit that spends Scent and kills the quarry still counts as the quarry's death: the `QUARRY_KILL_HEAL` relic and the `QUARRY_DIES` Oaths fire, and no Scent is passed on to an heir because it was spent (owner decision; implemented in the combat engine by a teammate in this pass).

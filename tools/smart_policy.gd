@@ -150,6 +150,8 @@ const DORMANT_ADD_COST := 2.0
 const TYPICAL_FORGOTTEN := 3
 ## card_score of one Glimpse card (a typical junk card seen, not always there to bin).
 const GLIMPSE_SCORE_PER_CARD := 0.5
+## card_score of one File card (tucking a card away is rarely wanted: a small positive for cycling).
+const FILE_SCORE_PER_CARD := 0.5
 ## card_score of one Recall pick: about a typical card, discounted since the Forgotten pile may be empty.
 const RECALL_SCORE_PER_CARD := 4.0
 ## A Forgotten card played leaves the fight: its play must be worth this much more than nothing, so a
@@ -438,6 +440,8 @@ static func _effect_value(combat: Combat, card: CardData, hand_index: int, effec
 			value += _recall_value(combat, effect, energy_left)
 		CardEffect.Kind.ADD_CARD:
 			value += _added_value(combat, effect, energy_left)
+		CardEffect.Kind.FILE:
+			pass # an enemy's tool; a File card of ours is never worth playing for its own sake
 		_:
 			# BLOCK is priced by _play_value and never reaches here, so any kind landing here is new.
 			SimPolicy.bot_error("SmartPolicy._effect_value: no valuation for CardEffect.Kind %d" % effect.kind)
@@ -1001,6 +1005,8 @@ static func _effect_score(card: CardData, effect: CardEffect, weights: Dictionar
 			total += amount * float(weights.get("recall", RECALL_SCORE_PER_CARD))
 		CardEffect.Kind.ADD_CARD:
 			total += _added_score(effect, weights, depth)
+		CardEffect.Kind.FILE:
+			total += amount * FILE_SCORE_PER_CARD
 		_:
 			# Damage kinds (and Haunt) were priced above by _nominal_damage; a zero-damage one lands here.
 			if not effect.is_damage() and effect.kind != CardEffect.Kind.HAUNT:

@@ -15,6 +15,10 @@ extends Resource
 @export_range(1, 99) var phase_two_hp_percent: int = 50
 ## Banner text shown by the UI when phase two begins (presentation only).
 @export var phase_two_title: String = ""
+## Unseen: while another enemy that is not Unseen is alive, this one cannot be targeted. A card aimed at it
+## lands on the first enemy that can be (and the battle screen will not select it); an all-enemies card still
+## reaches it. Once it is the only kind left, it can be targeted normally. See Combat.is_shielded().
+@export var unseen: bool = false
 
 
 static func make(enemy_name: String, hp: int, enemy_intents: Array[CardEffect], enemy_id: StringName = &"", haunt_cap: int = 0) -> EnemyData:

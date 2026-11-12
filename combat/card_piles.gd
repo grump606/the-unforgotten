@@ -128,6 +128,27 @@ func add_card(card: CardData, pile: CardEffect.Pile, hand_limit: int = -1) -> Ca
 	return pile
 
 
+## Files up to `count` cards from the hand: each goes to the BOTTOM of the draw pile (the start of the array) and
+## leaves the hand. The most expensive card goes first, the leftmost of equals; an Anchored card is never filed
+## (it cannot be discarded either). Returns how many were filed. The draw pile is not reshuffled: a filed card is
+## simply a long way from being drawn again.
+func file_from_hand(count: int) -> int:
+	var filed := 0
+	for _n in maxi(count, 0):
+		var pick := -1
+		for i in hand.size():
+			if hand[i].anchor:
+				continue
+			if pick == -1 or hand[i].cost > hand[pick].cost:
+				pick = i
+		if pick == -1:
+			break
+		draw_pile.insert(0, hand[pick])
+		hand.remove_at(pick)
+		filed += 1
+	return filed
+
+
 ## The top `n` cards of the draw pile in the order they would be drawn (index 0 is drawn first; the
 ## top of the pile is the END of the array). Looks only at what is there: never reshuffles.
 func top_cards(n: int) -> Array[CardData]:

@@ -66,6 +66,8 @@ const RECALL_VALUE_PER_CARD := 3
 const TYPICAL_FORGOTTEN := 2
 ## Scent: a point of it is worth about two points of damage over the hits that follow; a spender assumes a stack of 3.
 const SCENT_VALUE_PER_POINT := 2
+## A played File card tucks cards away (it is an enemy's tool in the main); worth a little as deck cycling.
+const FILE_VALUE_PER_CARD := 1
 const TYPICAL_SCENT := 3
 ## An Oath is worth its effect this many times: about how often a trigger fires in a fight.
 const OATH_FIRINGS := 3
@@ -199,6 +201,8 @@ static func _base_effect_value(effect: CardEffect, amount: int, added_depth: int
 			return amount + effect.bonus * TYPICAL_SCENT
 		CardEffect.Kind.ADD_CARD:
 			return amount * _added_card_value(effect.card, added_depth)
+		CardEffect.Kind.FILE:
+			return amount * FILE_VALUE_PER_CARD
 	return UNVALUED
 
 

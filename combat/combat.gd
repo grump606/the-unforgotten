@@ -575,13 +575,27 @@ func _resolve_target(target_index: int) -> EnemyUnit:
 		return _first_living()
 	if target_index < 0 or target_index >= enemies.size() or enemies[target_index].is_dead():
 		return null
+	# A card aimed at an Unseen enemy lands on the first enemy that can be targeted instead.
+	if is_shielded(enemies[target_index]):
+		return _first_living()
 	return enemies[target_index]
 
 
-## The first enemy still alive, or null.
+## True for a living Unseen enemy while another enemy that is not Unseen is alive: it cannot be targeted
+## (see EnemyData.unseen). False for every other enemy, and for an Unseen one once no other kind is left.
+func is_shielded(enemy: EnemyUnit) -> bool:
+	if enemy == null or enemy.is_dead() or enemy.data == null or not enemy.data.unseen:
+		return false
+	for other in enemies:
+		if not other.is_dead() and not (other.data != null and other.data.unseen):
+			return true
+	return false
+
+
+## The first enemy still alive that can be targeted, or null.
 func _first_living() -> EnemyUnit:
 	for enemy in enemies:
-		if not enemy.is_dead():
+		if not enemy.is_dead() and not is_shielded(enemy):
 			return enemy
 	return null
 
@@ -735,7 +749,7 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 		CardEffect.Kind.SCENT, CardEffect.Kind.HAUNT, CardEffect.Kind.EXPOSE, CardEffect.Kind.SHAKEN, \
 		CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
 			_apply_status_effect(effect, source, target, amount)
-		CardEffect.Kind.DRAW, CardEffect.Kind.GLIMPSE, CardEffect.Kind.RECALL, CardEffect.Kind.ADD_CARD:
+		CardEffect.Kind.DRAW, CardEffect.Kind.GLIMPSE, CardEffect.Kind.RECALL, CardEffect.Kind.ADD_CARD, CardEffect.Kind.FILE:
 			_apply_pile_effect(effect, source, amount)
 		_:
 			Combat.engine_error("Combat._apply: no handler for CardEffect kind %d" % effect.kind)
@@ -802,6 +816,9 @@ func _apply_pile_effect(effect: CardEffect, source: Combatant, amount: int) -> v
 			# Only the player has piles to pick from; the pick opens after the card resolves.
 			if source == player and amount > 0:
 				_choice_queue.append({"kind": effect.kind, "amount": amount})
+		CardEffect.Kind.FILE:
+			# Acts on the player's hand whoever it comes from: an enemy intent files the cards you kept.
+			piles.file_from_hand(amount)
 		CardEffect.Kind.ADD_CARD:
 			# A card's copies and an enemy intent's both land in the player's piles.
 			if effect.card == null:

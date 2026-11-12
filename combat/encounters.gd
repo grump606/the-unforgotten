@@ -81,6 +81,7 @@ static func scaled(enemy: EnemyData, factor: float, damage_factor: float = -1.0)
 	scaled_enemy.phase_two_intents = _scaled_intents(enemy.phase_two_intents, damage_scale)
 	scaled_enemy.phase_two_hp_percent = enemy.phase_two_hp_percent
 	scaled_enemy.phase_two_title = enemy.phase_two_title
+	scaled_enemy.unseen = enemy.unseen
 	return scaled_enemy
 
 
