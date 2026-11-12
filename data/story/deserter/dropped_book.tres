@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "The Dropped Book"
+text = "The Eraser falls, and the book falls with it. It does not close. Every page lies open at once, and every page is names, a thousand thousand of them, and not one is crossed out. They were never erased. They were only put away.\n\nUnder the breathing door a stair runs down into the dark, and the stair is wet. Somewhere below, a voice that sounded like a call is reading aloud.\n\nYou did not leave them behind after all. They were kept, every one, in drawers. You go down to find out who kept them."
+button_text = "Descend"

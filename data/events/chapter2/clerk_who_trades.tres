@@ -1,0 +1,69 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 8
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 25
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Surrender a card"
+outcome = "The clerk stamps it, files it, and counts you out your coins. A line in the ledger goes grey, and so does something in you."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 3
+amount = -60
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 7
+rarity = 2
+count = 3
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Buy a file"
+outcome = "The clerk slides a folder under the grille, and in it are three cards you could not have found yourself. Take one. It will not offer again."
+not_for = &"thief"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e3"), SubResource("Resource_e4")])
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 3
+amount = -50
+
+[sub_resource type="Resource" id="Resource_e6"]
+script = ExtResource("3_effect")
+kind = 7
+rarity = 2
+count = 3
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Haggle for a file"
+outcome = "You know the look of a clerk who is bluffing about its prices. Fifty, and no questions, and a folder under the grille."
+only_for = &"thief"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e5"), SubResource("Resource_e6")])
+
+[sub_resource type="Resource" id="Resource_c4"]
+script = ExtResource("2_choice")
+label = "Decline"
+outcome = "The clerk writes that down."
+
+[resource]
+script = ExtResource("1_event")
+id = &"clerk_who_trades"
+title = "The Clerk Who Trades"
+body = "A clerk sits behind a brass grille with a ledger open, a stamp in one hand. It will take anything that has been filed, it says, and it will give back anything that can be found. It has been doing this since before the water."
+scene = &"battle_archive"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

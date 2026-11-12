@@ -279,7 +279,7 @@ func _test_class_variants() -> void:
 
 ## No matter the class, the HP, the gold or the deck, an event always has a button that costs nothing.
 func _test_free_exit() -> void:
-	for event in StarterContent.all_events():
+	for event in StarterContent.every_event():
 		for character in CHARACTERS:
 			var run_state := _event_run(2, character)
 			run_state.gold = 0
@@ -950,7 +950,7 @@ func _test_curses() -> void:
 
 ## Every event, every class, every button: pressing it never errors, leaves a consistent state and can be finished.
 func _test_every_event_every_class() -> void:
-	for event in StarterContent.all_events():
+	for event in StarterContent.every_event():
 		for character in CHARACTERS:
 			var buttons := event.choices_for(character).size()
 			for pick in buttons:

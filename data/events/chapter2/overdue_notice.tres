@@ -1,0 +1,71 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 3
+amount = -45
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 8
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Pay the fine"
+outcome = "The coins vanish into a slot that was not there a moment ago, and the notice crumbles. Something you carried for a long time is gone."
+not_for = &"thief"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 8
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Take the notice down"
+outcome = "You pull the nail with two fingers, fold the notice, and put it in your pocket. It was never going to be collected on. It was only ever a way of being noticed."
+only_for = &"thief"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e3")])
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 60
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 10
+
+[sub_resource type="Resource" id="Resource_e6"]
+script = ExtResource("3_effect")
+kind = 12
+amount = 45
+win = Array[ExtResource("3_effect")]([SubResource("Resource_e4")])
+lose = Array[ExtResource("3_effect")]([SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Argue it"
+outcome = "You argue the way you would with a magistrate, quick and low. For a moment it seems to be working."
+win_outcome = "The notice flutters, and drops a purse into your hand."
+lose_outcome = "The clerk, wherever they are, is not moved."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e6")])
+
+[sub_resource type="Resource" id="Resource_c4"]
+script = ExtResource("2_choice")
+label = "Walk away"
+outcome = "You leave the notice where it is. You feel it on the back of your neck for some distance."
+
+[resource]
+script = ExtResource("1_event")
+id = &"overdue_notice"
+title = "The Overdue Notice"
+body = "A notice nailed to the end of a shelf, in a clerk's tidy hand. It has your name on it, and an amount, and a date long past. The nail is new."
+class_body = {"thief": "A notice nailed to the end of a shelf, in a clerk's tidy hand. It has your name on it, and an amount, and a date long past. The nail is new. You know that nail. You put it there."}
+scene = &"battle_archive"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

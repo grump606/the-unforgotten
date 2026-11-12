@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "The Registrar's Desk"
+text = "A desk at the end of the last room, higher than the others, and a figure at it with a pen and a stamp. The voice is very clear now. It is not calling you. It is reading, aloud, from a page you cannot see, the thing it is copying.\n\nThe Registrar says it only copies. It has never written a word. The one who writes, it says, is farther in, and has not finished, and is very tired, and will not stop.\n\nA pen, a stamp, a ledger, a lamp, a coat on the back of the chair. You tally what could be taken. It is all paper, and all of it is somebody's."
+button_text = "Face the Registrar"

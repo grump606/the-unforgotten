@@ -11,9 +11,14 @@ func show() -> void:
 	add_backdrop(EndScene.new())
 	var box := panel("End of Chapter %d" % run.chapter, true)
 	style_banner(box.get_child(0) as Label)
-	var line := make_label(CLOSING_LINE)
+	# The chapter's closing beat when it has one (per class), else the neutral line.
+	var beat := StoryContent.break_beat(run.chapter, run.character.id if run.character != null else &"")
+	var line := make_label(("%s
+
+%s" % [beat.title, beat.text]) if beat != null else CLOSING_LINE)
+	line.name = "ClosingBeat"
 	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	line.custom_minimum_size = Vector2(420, 0)
+	line.custom_minimum_size = Vector2(480, 0)
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(line)
 	var heal := mini(run.player.max_hp - run.player.hp, roundi(run.player.max_hp * RunState.CHAPTER_BREAK_HEAL_FRACTION))

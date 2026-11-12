@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "A Name, Misfiled"
+text = "The stairs end in water. Below the quiet city lies a long, low room of drawers, shelf on shelf, lamps burning a hand above the flood. Nothing here is crossed out. Everything is filed.\n\nNear the door one drawer hangs open. In it is a card in a careful hand, and the card is your name. It is not erased. Someone kept it, and put it in the wrong place.\n\nYou smell it before you can read it: paper, ink, and under them, faint, a hand that once fed you. The tag on the card is a collar tag. It has your name on it. It has always had your name on it."
+button_text = "Take the card"

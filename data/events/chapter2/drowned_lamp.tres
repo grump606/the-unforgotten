@@ -1,0 +1,54 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 0
+amount = 12
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Sit and read by it"
+outcome = "The words are only names, but the light is warm on your hands, and for a while you are not in a hurry."
+class_outcome = {"stray": "You drink from the flood, which is cold and clean, and lie a while under the lamp as under a sun."}
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1")])
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 10
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 8
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 12
+amount = 50
+win = Array[ExtResource("3_effect")]([SubResource("Resource_e2")])
+lose = Array[ExtResource("3_effect")]([SubResource("Resource_e3")])
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Lift the lamp out of the water"
+outcome = "The cord is wet and the glass is hot. You hold it up to the dark and wait to see what the dark does."
+win_outcome = "Something gleams in the base of the lamp. You take it."
+lose_outcome = "The water remembers it has been disturbed."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e4")])
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Leave it burning"
+outcome = "It has burned this long without you. You let it go on."
+
+[resource]
+script = ExtResource("1_event")
+id = &"drowned_lamp"
+title = "The Drowned Reading Lamp"
+body = "A green reading lamp, still lit, standing in a foot of water on a desk that has been under it for years. The light shows no sign of going out. It lies across the page of a ledger no one is reading."
+scene = &"battle_archive"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3")])

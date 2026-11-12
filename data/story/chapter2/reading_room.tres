@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "The Reading Room"
+text = "Beyond the flood the rooms are dry. Rows of desks, green lamps, high windows with no sky in them. For once the people here look up when you enter, and for once they are not afraid.\n\nAt the far desk someone reads aloud from a ledger, quietly, name after name. The rhythm is the voice that has been calling you. It is the same breath, with the same pauses. It has been reading from here all along.\n\nYou do not say your name. You listen until they reach it."
+button_text = "Listen to the end"

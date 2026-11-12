@@ -1,0 +1,54 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 10
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 11
+card_id = &"murmur"
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 12
+amount = 50
+win = Array[ExtResource("3_effect")]([SubResource("Resource_e1")])
+lose = Array[ExtResource("3_effect")]([SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Open it"
+outcome = "The seal gives. You read the first line before you have decided whether you want to."
+class_outcome = {"medium": "You hear who wrote it before you finish the line. It is someone you have been listening to all your life."}
+win_outcome = "Folded inside is something small and heavy. It was meant for you."
+lose_outcome = "There is no letter. There is only a whisper, and it follows you out."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e3")])
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 20
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Return it to the sender"
+outcome = "You do not know who that is, but the clerk at the next desk does, and pays you a few coins for the trouble."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e4")])
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Burn it"
+outcome = "The letter curls and goes black, and the flame does not smell of paper at all."
+
+[resource]
+script = ExtResource("1_event")
+id = &"misdelivered_letter"
+title = "The Misdelivered Letter"
+body = "A letter on a shelf, among ten thousand others. It has your name on it, in a hand that is not quite handwriting. It is stamped across the front in red: Return to sender."
+scene = &"battle_archive"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3")])

@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "The Last Entry"
+text = "The Registrar falls, and the ledger on its desk falls open to the last page. At the foot of it your name is being written. The ink is wet. The stroke is slow and steady, and no hand holds the pen.\n\nYou understand then that the voice was never calling you home. It was reading your name aloud as it was set down. Whoever writes has not finished. Under the desk a stair goes further down, dry as bone.\n\nYou turn from the desk and go down."
+button_text = "Go down the stair"

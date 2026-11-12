@@ -1,0 +1,72 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 3
+amount = -20
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 4
+amount = 2
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Write your name"
+outcome = "The fee is small, the way fees are, and the pen is dry until you press. Your name comes out blacker than you meant. Something lifts off you, and settles."
+class_label = {"deserter": "Write your name and unit"}
+class_outcome = {"deserter": "Name, rank, unit. It is the last form you ever filled in, and the first you have filled in gladly."}
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 50
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 11
+card_id = &"dread"
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Write another name"
+outcome = "It comes easily, as if you had been waiting for the chance. The clerk's stamp comes down on it and it is almost true. A smudge of something else stays on your hand."
+not_for = &"thief"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e3"), SubResource("Resource_e4")])
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 40
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Write the name you keep for such places"
+outcome = "You have had it ready for years. It comes out without a flicker, and the stamp takes it, and the clerk counts you out forty without looking up."
+only_for = &"thief"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_e6"]
+script = ExtResource("3_effect")
+kind = 0
+amount = 4
+
+[sub_resource type="Resource" id="Resource_c4"]
+script = ExtResource("2_choice")
+label = "Leave it blank"
+outcome = "You set the pen down on the glass. For a moment it feels like having said something."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e6")])
+
+[resource]
+script = ExtResource("1_event")
+id = &"the_form"
+title = "The Form"
+body = "A form on a clerk's desk, under glass. At the top, Name, and a line to write it on. A pen lies beside it, dry. Everything below the line is already filled in, in handwriting you almost know."
+class_body = {"deserter": "A form on a clerk's desk, under glass. At the top, Name and Unit, and a line for each. A pen lies beside it, dry. Everything below the lines is already filled in, in handwriting you almost know."}
+scene = &"battle_archive"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

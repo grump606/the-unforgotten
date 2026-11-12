@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 12
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 10
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Force the door"
+outcome = "It gives on the second try, with a sound like a bone. You go through, and what you find in the dark is yours to take."
+not_for = &"stray"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 10
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Follow the scent"
+outcome = "You follow it to the hinge, to the lock, and then to a place where the latch lifts the way a hand did once. The door opens for you, quietly."
+only_for = &"stray"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e3")])
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 4
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 30
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Look through the gap"
+outcome = "You see enough. A drawer, and a purse beside it, and a hand that withdraws from the light. You take the purse and are not stopped."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e4"), SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_c4"]
+script = ExtResource("2_choice")
+label = "Close the door"
+outcome = "It clicks shut. The dry air is gone."
+
+[resource]
+script = ExtResource("1_event")
+id = &"back_stacks"
+title = "The Back Stacks"
+body = "A door marked STAFF, ajar. A draught of dry air comes out of it, smelling of paper and old lamp oil, the first dry air you have felt in a long time. Beyond it is a room that is not on any plan."
+class_body = {"stray": "A door marked STAFF, ajar. A draught of dry air comes out of it, and in the draught a scent, thin and old and almost warm. Someone has been in and out of this door for a long, long time."}
+scene = &"battle_archive"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

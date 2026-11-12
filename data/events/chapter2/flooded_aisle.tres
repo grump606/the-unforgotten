@@ -1,0 +1,68 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 6
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 40
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Wade through"
+outcome = "The cold takes your breath. You come out the far side with your pockets heavy and your hands raw from the shelves."
+not_for = &"stray"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 40
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Swim the aisle"
+outcome = "You go through it the way you would a river, low and steady and without fuss, and come out the far side with a sodden purse you did not drop."
+only_for = &"stray"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e3")])
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 3
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 9
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Carry the books above the water"
+outcome = "You lift each one clear of the flood as long as your arms will hold. One falls open in your hands, and you read it, and you will remember it."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e4"), SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_e6"]
+script = ExtResource("3_effect")
+kind = 0
+amount = 8
+
+[sub_resource type="Resource" id="Resource_c4"]
+script = ExtResource("2_choice")
+label = "Wait for the water to fall"
+outcome = "It does not fall. But you sit, and the shelves are quiet, and your heart slows."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e6")])
+
+[resource]
+script = ExtResource("1_event")
+id = &"flooded_aisle"
+title = "The Flooded Aisle"
+body = "A long aisle between shelves that reach the ceiling, the water chest-deep and black. Books float on it, open, their pages spreading. The way on is straight through."
+scene = &"battle_archive"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

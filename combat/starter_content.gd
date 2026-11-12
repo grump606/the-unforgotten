@@ -216,7 +216,20 @@ const EVENT_PATHS: Array[String] = [
 ]
 ## The events of a chapter other than the first, by chapter number (docs/CHAPTER2_PLAN.md). A chapter without an entry plays
 ## Chapter 1's events (EVENT_PATHS). Their .tres files live in data/events/chapter<N>/.
-const CHAPTER_EVENT_PATHS := {}
+const CHAPTER_EVENT_PATHS := {
+	2: [
+		"res://data/events/chapter2/card_catalogue.tres",
+		"res://data/events/chapter2/drowned_lamp.tres",
+		"res://data/events/chapter2/the_form.tres",
+		"res://data/events/chapter2/clerk_who_trades.tres",
+		"res://data/events/chapter2/flooded_aisle.tres",
+		"res://data/events/chapter2/misdelivered_letter.tres",
+		"res://data/events/chapter2/the_stamp.tres",
+		"res://data/events/chapter2/silent_patron.tres",
+		"res://data/events/chapter2/overdue_notice.tres",
+		"res://data/events/chapter2/back_stacks.tres",
+	],
+}
 ## Playable characters, in the order a selection screen lists them.
 const CHARACTER_PATHS := {
 	&"deserter": "res://data/characters/deserter.tres",

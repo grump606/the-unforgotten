@@ -1,0 +1,61 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 6
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 7
+rarity = 1
+count = 3
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Pull the open drawer"
+outcome = "The card you draw is thin as a leaf and cold from the water. It costs you something to hold it, and it is worth it."
+not_for = &"thief"
+class_outcome = {"medium": "The card in the drawer was already in your hand. It only wanted you to notice."}
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 7
+rarity = 1
+count = 3
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Pick the drawer's lock"
+outcome = "The lock was never the point. It opens for you without a sound, and the card inside is yours to choose."
+only_for = &"thief"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e3")])
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 6
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Flip through quickly"
+outcome = "You skim the dates and take what is nearest the front. It is not what you came for, but it will do."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e4")])
+
+[sub_resource type="Resource" id="Resource_c4"]
+script = ExtResource("2_choice")
+label = "Close the drawer"
+outcome = "It slides shut with a sound like someone clearing their throat."
+
+[resource]
+script = ExtResource("1_event")
+id = &"card_catalogue"
+title = "The Card Catalogue"
+body = "A cabinet of drawers, one of them open, the water up to the brass handles. Every card inside is typed, dated and filed. You do not recognise the hand, and you do not like how neatly it knows what you need."
+class_body = {"medium": "A cabinet of drawers, one of them open, the water up to the brass handles. The cards inside whisper as you come near, the way the dead do when they have been waiting to be asked."}
+scene = &"battle_archive"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

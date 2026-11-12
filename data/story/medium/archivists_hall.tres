@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "The Kind Archivist's Hall"
+text = "A hall of sealed drawers, each the size of a sleeping child. The Archivist keeps it, thin and tender, a lamp in each hand. Nothing is lost here, it says. Nobody is lost. They are only kept.\n\nYou ask who it keeps them for. The Archivist smiles at its lamps and does not answer. Behind the drawers water drips in time, like someone counting.\n\nThe drawers are full of the dead, politely quiet. None of them is asleep. They are listening, to see whether you will open one."
+button_text = "Face the Archivist"

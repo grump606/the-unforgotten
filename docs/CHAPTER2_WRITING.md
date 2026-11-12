@@ -1,6 +1,6 @@
 # Chapter 2: the writing outline (events and story beats)
 
-**Status: outlines for the owner's approval. No event or story text is written or built yet.** Written 2026-11-12. This is the writing pass
+**Status: written and built 2026-11-12, on the owner's "continue with your recommendations" (the outlines below were not individually reviewed, so expect edits).** The text is in `data/story/chapter2/`, `data/story/chapter1/dropped_book.tres` (the break after Chapter 1), each class's folder `data/story/<class>/` and `data/events/chapter2/`, registered in `StoryContent.CHAPTER_BEAT_PATHS`, `StoryContent.BREAK_BEAT_PATHS` and `StarterContent.CHAPTER_EVENT_PATHS`; the break screen shows the closing beat; `tests/chapter2_content_tests.gd` checks lengths, versions and shape. **Six** beats were written, not five: the break after Chapter 1 ("The Dropped Book", which opens the Registry) needed its own, so 6 beats x 5 versions = 30 texts. The text has not been run through the `writegood` skill yet. Written 2026-11-12. This is the writing pass
 of `CHAPTER2_PLAN.md` (item 5). Approve, change or strike anything; full text follows only after you do. Voice: Chapter 1's (plain, quiet,
 a little sorrowful, no monster words). The Registry setting is in `CHAPTER2_PLAN.md`.
 
