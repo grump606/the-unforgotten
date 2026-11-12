@@ -1148,7 +1148,31 @@ times as lethal as a regular fight (it was about 10 times), and elites are 18 to
 Elite visits per run barely move (greedy 2.0 to 2.4, smart 0.55 to 0.64). The greedy bot's escape rates (63 to 79%) are now above the 50 to 70%
 band the sims aim for, so a value between 1.2 and 1.35 (about 1.25) is the next thing to try if playtesters find the map too easy.
 
-## Elite modifier ideas (not built)
+## Elite modifiers (built 2026-11-12)
+
+Ideas 1, 2 and 4 below are built (`run/elite_modifiers.gd`, `tests/elite_modifier_tests.gd`); idea 3 (a named roster) is not. Every elite node gets one
+modifier, drawn from the map's seed and the node id (a pure function, so nothing is saved and the map generator's numbers are untouched, so every
+existing map is identical): **Plated** (each elite enemy starts with 6 Block in the first district, 10 in the second), **Enraged** (each elite
+enemy gets a second phase at half HP with attacks 1.3x), **Marked** (the player starts the fight Shaken 1). The map tooltip, the battle log and the sim
+name it. **Marked first used Exposed** (the first enemy phase at 1.5x) and was far too harsh: elite lethality 25% against 17% for the other two,
+and 13 points off the greedy bot's escape rate, so it became Shaken (about 5 points).
+
+Measured with `tools/run_sim.gd --map --character all --runs 300 --elite-modifier <none|plated|enraged|marked>` (all four classes, escapes out of 1200):
+
+| Modifier | Greedy escapes | Smart escapes | Elite lethality (greedy, mean of classes) |
+| --- | --- | --- | --- |
+| none (the old game, budget 1.2) | 810 (67.5%) | 694 (57.8%) | about 9% |
+| Plated | 703 | 675 | about 17% |
+| Enraged | 734 | 668 | about 16% |
+| Marked (Exposed, dropped) | 649 | 620 | about 23% |
+| Marked (Shaken) | 744 | 670 | about 14% |
+| the normal mix at budget 1.2 | 706 | 647 | about 18% |
+| **the normal mix at budget 1.1 (now)** | **802 (66.8%)** | **704 (58.7%)** | about 9% |
+
+So the modifiers added about 7 points of difficulty for the greedy bot and about 3 for the smart one, and `RunState.ELITE_BUDGET_MULTIPLIER` went from 1.2 to 1.1
+to give it back: the elites are the same difficulty overall but now have texture. Each modifier can be measured on its own with `--elite-modifier`.
+
+## Elite modifier ideas (original proposals; 1, 2 and 4 are built, see above)
 
 Proposals only: none of this exists, and each one is a design decision for the owner. Each idea reuses a system that is already in place.
 

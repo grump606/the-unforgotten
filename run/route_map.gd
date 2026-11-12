@@ -398,6 +398,14 @@ static func backdrop_pool(char_id: StringName) -> Array[StringName]:
 ## Builds the map for `map_seed`. Same arguments, same map; uses its own RNG only. Config entries of the
 ## wrong shape fall back to the defaults (see `make_config`). If no attempt validates, the last map is
 ## returned with an error pushed, so a caller that checks `validate()` sees what is wrong.
+## The EliteModifiers.Kind of elite node `id`, or -1 for any other node.
+func elite_modifier(id: int) -> int:
+	var n := node(id)
+	if n == null or n.type != NodeType.ELITE or EliteModifiers.forced == EliteModifiers.FORCE_NONE:
+		return -1
+	return EliteModifiers.for_node(seed_value, id)
+
+
 static func generate(map_seed: int, char_id: StringName, overrides: Dictionary = {}) -> RouteMap:
 	var cfg := make_config(overrides)
 	var rng := RandomNumberGenerator.new()

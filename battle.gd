@@ -50,6 +50,8 @@ var seed_override: int = -1
 var boss_fight := false
 ## Shown as the first log line of a boss fight ("Boss" or "Mid-boss"); both use the boss backdrop.
 var boss_label := "Boss"
+## Map mode: the EliteModifiers.Kind of this elite fight (-1 for none), named in the log.
+var elite_modifier := -1
 ## Map mode: an elite fight. Its enemies are drawn a little larger (Fighter.ELITE_SCALE) and the log says so.
 var elite_fight := false
 ## Show the ~2 s boss entrance before turn 1. Off by default when running headless so UI tests that drive a boss
@@ -217,6 +219,8 @@ func _attach(combat: Combat) -> void:
 		_log_label.append_text("[b]%s fight[/b]\n" % boss_label)
 	elif elite_fight:
 		_log_label.append_text("[b]Elite fight[/b]\n")
+		if elite_modifier >= 0:
+			_log_label.append_text("%s\n" % EliteModifiers.line(elite_modifier))
 	_new_fight_button.hide()
 	_begin_batch()
 	_combat.start()

@@ -26,7 +26,8 @@ const POLICIES: Array[String] = ["greedy", "smart"]
 const ALL_CHARACTERS := "all"
 ## Row bands of the death summary (a map has 30 rows).
 const BAND_ROWS := 5
-const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [--runs N] [--seed S] [--policy P] [--character C] [--map] [--route R] [--chapters N] [--jobs N] [--card-stats] [--help]\n  --runs N    number of whole runs, integer 1 to 1000000 (default 300)\n  --seed S    base random seed, integer (default 1)\n  --policy P  greedy (default) or smart (stronger lookahead player)\n  --character C  deserter (default), thief, medium, stray, or all (the four classes, one report each)\n  --map      play runs in map mode (default route: first node for greedy; the smart rules for smart) and print extra summary lines\n  --route R  map mode route strategy: first, fighter, cautious, mixed, random or smart (needs --map)\n  --chapters N  map mode: play N chapters in a row (1 to 3, default 1; later chapters reuse Chapter 1's content for now), with a chapter-break report (needs --map)
+const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [--runs N] [--seed S] [--policy P] [--character C] [--map] [--route R] [--chapters N] [--elite-modifier M] [--jobs N] [--card-stats] [--help]\n  --runs N    number of whole runs, integer 1 to 1000000 (default 300)\n  --seed S    base random seed, integer (default 1)\n  --policy P  greedy (default) or smart (stronger lookahead player)\n  --character C  deserter (default), thief, medium, stray, or all (the four classes, one report each)\n  --map      play runs in map mode (default route: first node for greedy; the smart rules for smart) and print extra summary lines\n  --route R  map mode route strategy: first, fighter, cautious, mixed, random or smart (needs --map)\n  --chapters N  map mode: play N chapters in a row (1 to 3, default 1; later chapters reuse Chapter 1's content for now), with a chapter-break report (needs --map)
+  --elite-modifier M  measuring hook: none, plated, enraged or marked (every elite uses it); default is the normal draw
   --jobs N   run the sim in N parallel processes and merge the results (default 1)\n  --card-stats  also print how often each card was played and held\n  --help     print this usage and exit 0"
 
 var _smart := false
@@ -55,6 +56,7 @@ func _initialize() -> void:
 	_smart = opts["policy"] == "smart"
 	_map = opts["map"]
 	_chapters = opts["chapters"]
+	EliteModifiers.forced = opts["elite_modifier"]
 	Chapters.count_override = _chapters if _chapters > 1 else 0
 	_route = opts["route"] if opts["route"] != "" else (RoutePolicy.SMART if _smart else RoutePolicy.FIRST)
 	_card_stats = opts["card_stats"]
@@ -452,6 +454,8 @@ func _run_parallel(opts: Dictionary, characters: Array[StringName]) -> Dictionar
 			if opts["map"]:
 				child_args.append("--map")
 				child_args.append_array(["--route", _route, "--chapters", str(_chapters)])
+				if EliteModifiers.forced != -1:
+					child_args.append_array(["--elite-modifier", ["plated", "enraged", "marked"][EliteModifiers.forced] if EliteModifiers.forced >= 0 else "none"])
 			if opts["card_stats"]:
 				child_args.append("--card-stats")
 			job["pid"] = OS.create_process(OS.get_executable_path(), child_args)
@@ -497,7 +501,7 @@ static func merge_tallies(into: Dictionary, other: Dictionary) -> void:
 
 ## Returns the options (every key of the usage text) or an empty dictionary (after printing why) on bad input.
 func _parse_args(args: PackedStringArray) -> Dictionary:
-	var opts := {"runs": DEFAULT_RUNS, "seed": DEFAULT_SEED, "policy": "greedy", "character": String(StarterContent.DEFAULT_CHARACTER_ID), "card_stats": false, "map": false, "route": "", "chapters": 1, "jobs": 1, "shard_index": 0, "shard_count": 0, "shard_out": ""}
+	var opts := {"runs": DEFAULT_RUNS, "seed": DEFAULT_SEED, "policy": "greedy", "character": String(StarterContent.DEFAULT_CHARACTER_ID), "card_stats": false, "map": false, "route": "", "chapters": 1, "elite_modifier": -1, "jobs": 1, "shard_index": 0, "shard_count": 0, "shard_out": ""}
 	var i := 0
 	while i < args.size():
 		var name := args[i]
@@ -509,7 +513,7 @@ func _parse_args(args: PackedStringArray) -> Dictionary:
 			opts["map"] = true
 			i += 1
 			continue
-		if name != "--runs" and name != "--seed" and name != "--policy" and name != "--character" and name != "--route" and name != "--chapters" and name != "--jobs" and name != "--shard" and name != "--shard-out":
+		if name != "--runs" and name != "--seed" and name != "--policy" and name != "--character" and name != "--route" and name != "--chapters" and name != "--elite-modifier" and name != "--jobs" and name != "--shard" and name != "--shard-out":
 			printerr("run_sim: unknown argument '%s'\n%s" % [name, USAGE])
 			return {}
 		if name == "--character":
@@ -531,6 +535,15 @@ func _parse_args(args: PackedStringArray) -> Dictionary:
 				printerr("run_sim: --route must be one of %s\n%s" % [", ".join(RoutePolicy.ROUTES), USAGE])
 				return {}
 			opts["route"] = args[i + 1]
+			i += 2
+			continue
+		if name == "--elite-modifier":
+			var wanted := {"none": EliteModifiers.FORCE_NONE, "plated": EliteModifiers.Kind.PLATED, "enraged": EliteModifiers.Kind.ENRAGED, "marked": EliteModifiers.Kind.MARKED}
+			if i + 1 >= args.size() or not wanted.has(args[i + 1]):
+				printerr("run_sim: --elite-modifier must be one of none, plated, enraged, marked
+%s" % USAGE)
+				return {}
+			opts["elite_modifier"] = wanted[args[i + 1]]
 			i += 2
 			continue
 		if name == "--shard":

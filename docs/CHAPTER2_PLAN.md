@@ -240,7 +240,7 @@ when numbers change.
    - Not yet tuned: boss HP (a fixed fight; check turns-to-kill in the sim), Chapter 3 (still a stub), elite modifiers (next).
    - Original item: , including their new effects, placeholder art, bots that handle the new effects. Tune the
    curve and the boss HP against the target above.
-3. **Elite modifiers** (engine first, then the shortlist), measured in the sim.
+3. **Done 2026-11-12. Elite modifiers** (Plated, Enraged, Marked: `run/elite_modifiers.gd`, `docs/MAP_DESIGN.md`, "Elite modifiers (built)") for every chapter including Chapter 1, measured per modifier in the sim; the elite budget went from 1.2 to 1.1 to keep elite difficulty where it was. Original item: elite modifiers (engine first, then the shortlist), measured in the sim.
 
 **Gate 2: Chapter 2 is complete without art.**
 4. **Plumbing 4 to 7** (events, story, cards and relics, backdrops by chapter).

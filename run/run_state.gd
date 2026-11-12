@@ -54,7 +54,7 @@ const TREASURE_MIN_RELIC_PRICE := 65
 const TREASURE_FALLBACK_GOLD := 100
 ## Elite fights (map mode, docs/MAP_DESIGN.md "Phase 5a"): the pack's threat budget is the row's budget times this (on top of the
 ## class difficulty), the win pays this much extra gold, and its spoils always hold a relic (see ELITE_RELIC_FALLBACK_GOLD).
-const ELITE_BUDGET_MULTIPLIER := 1.2
+const ELITE_BUDGET_MULTIPLIER := 1.1
 const ELITE_GOLD_BONUS := 20
 ## Gold an elite drops instead of a relic when the character owns every relic of its pool.
 const ELITE_RELIC_FALLBACK_GOLD := 60
@@ -475,10 +475,21 @@ func start_combat() -> Combat:
 		if stop.elite:
 			difficulty *= ELITE_BUDGET_MULTIPLIER
 		enemies = StarterContent.budget_encounter(stop.enemy_count, _rng, stop.row, difficulty, stop.elite, chapter)
+		if elite_modifier() == EliteModifiers.Kind.ENRAGED:
+			EliteModifiers.enrage(enemies)
 	else:
 		enemies = StarterContent.varied_encounter(stop.enemy_count, _rng, stop.tier, stop.fight)
 	_active_combat = Combat.create(player, deck, enemies, _rng.randi(), relics)
+	if _active_combat != null and debug_encounter.is_empty() and elite_modifier() >= 0:
+		EliteModifiers.apply_to_combat(_active_combat, elite_modifier(), stop.row / RouteMap.ACT_ROWS)
 	return _active_combat
+
+
+## The EliteModifiers.Kind of the elite fight the player is at, or -1 (not at an elite, or in line mode).
+func elite_modifier() -> int:
+	if route == null or current_node < 0 or not in_elite_stop():
+		return -1
+	return route.elite_modifier(current_node)
 
 
 ## "Boss" for the final boss fight, "Mid-boss" for the mid-boss, "" for a regular fight. A debug

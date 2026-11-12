@@ -24,6 +24,7 @@ func show(on_finished: Callable, on_start_over: Callable) -> void:
 	battle.boss_fight = label != ""
 	battle.boss_label = label if label != "" else "Boss"
 	battle.elite_fight = label == "" and run.in_elite_stop()
+	battle.elite_modifier = run.elite_modifier() if battle.elite_fight else -1
 	battle.character_id = run.character.id if run.character != null else &""
 	battle.destination_key = run.battle_backdrop()
 	battle.relics = run.relics
