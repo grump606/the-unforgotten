@@ -26,10 +26,13 @@ const POLICIES: Array[String] = ["greedy", "smart"]
 const ALL_CHARACTERS := "all"
 ## Row bands of the death summary (a map has 30 rows).
 const BAND_ROWS := 5
-const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [--runs N] [--seed S] [--policy P] [--character C] [--map] [--route R] [--jobs N] [--card-stats] [--help]\n  --runs N    number of whole runs, integer 1 to 1000000 (default 300)\n  --seed S    base random seed, integer (default 1)\n  --policy P  greedy (default) or smart (stronger lookahead player)\n  --character C  deserter (default), thief, medium, stray, or all (the four classes, one report each)\n  --map      play runs in map mode (default route: first node for greedy; the smart rules for smart) and print extra summary lines\n  --route R  map mode route strategy: first, fighter, cautious, mixed, random or smart (needs --map)\n  --jobs N   run the sim in N parallel processes and merge the results (default 1)\n  --card-stats  also print how often each card was played and held\n  --help     print this usage and exit 0"
+const USAGE := "Usage: godot --headless --path . -s res://tools/run_sim.gd -- [--runs N] [--seed S] [--policy P] [--character C] [--map] [--route R] [--chapters N] [--jobs N] [--card-stats] [--help]\n  --runs N    number of whole runs, integer 1 to 1000000 (default 300)\n  --seed S    base random seed, integer (default 1)\n  --policy P  greedy (default) or smart (stronger lookahead player)\n  --character C  deserter (default), thief, medium, stray, or all (the four classes, one report each)\n  --map      play runs in map mode (default route: first node for greedy; the smart rules for smart) and print extra summary lines\n  --route R  map mode route strategy: first, fighter, cautious, mixed, random or smart (needs --map)\n  --chapters N  map mode: play N chapters in a row (1 to 3, default 1; later chapters reuse Chapter 1's content for now), with a chapter-break report (needs --map)
+  --jobs N   run the sim in N parallel processes and merge the results (default 1)\n  --card-stats  also print how often each card was played and held\n  --help     print this usage and exit 0"
 
 var _smart := false
 var _map := false
+## How many chapters a map run plays (--chapters); 1 is the plain run.
+var _chapters := 1
 var _route := ""
 var _card_stats := false
 var _plays := {} # card id -> times played across all runs
@@ -51,6 +54,8 @@ func _initialize() -> void:
 	var base_seed: int = opts["seed"]
 	_smart = opts["policy"] == "smart"
 	_map = opts["map"]
+	_chapters = opts["chapters"]
+	Chapters.count_override = _chapters if _chapters > 1 else 0
 	_route = opts["route"] if opts["route"] != "" else (RoutePolicy.SMART if _smart else RoutePolicy.FIRST)
 	_card_stats = opts["card_stats"]
 	var characters: Array[StringName] = []
@@ -125,6 +130,7 @@ func _simulate(runs: int, base_seed: int, shard_index: int, shard_count: int) ->
 	var gold_end := 0
 	var relics_end := 0
 	var runs_played := 0
+	var breaks := {} # chapter -> runs that finished it and reached the break (map mode with --chapters)
 	for i in runs:
 		if i % shard_count != shard_index:
 			continue
@@ -136,8 +142,15 @@ func _simulate(runs: int, base_seed: int, shard_index: int, shard_count: int) ->
 		var stalled := false
 		var last_desc := ""
 		while not run.finished:
-			var index := run.stop_index
+			# Rows count over all chapters, so a later chapter's stops do not overwrite the first one's tallies.
+			var index := run.stop_index + (run.chapter - 1) * RouteMap.ROWS
 			var stop := run.current_stop()
+			if stop == null and run.chapter_break:
+				breaks[run.chapter] = breaks.get(run.chapter, 0) + 1
+				if not run.start_next_chapter():
+					printerr("run_sim: the chapter break could not be left")
+					return {}
+				continue
 			if stop == null:
 				# Map mode between stops: pick the next node.
 				var pick := SmartPolicy.choose_route(run, _route) if _smart else SimPolicy.choose_route(run, _route)
@@ -163,7 +176,7 @@ func _simulate(runs: int, base_seed: int, shard_index: int, shard_count: int) ->
 					if not run.complete_combat(result == 1):
 						printerr("run_sim: complete_combat rejected the result at stop %d" % index)
 						return {}
-					# A boss win has no reward to take.
+					# The last boss's win has no reward to take; a chapter's end boss has its spoils.
 					if result == 1 and run.reward_pending() and not _take_reward(run):
 						return {}
 				RunState.StopType.REST:
@@ -228,13 +241,14 @@ func _simulate(runs: int, base_seed: int, shard_index: int, shard_count: int) ->
 			escape_hp += run.player.hp
 			escape_deck += run.deck.size()
 		elif not stalled:
-			deaths_at[run.stop_index] = deaths_at.get(run.stop_index, 0) + 1
+			var death_row := run.stop_index + (run.chapter - 1) * RouteMap.ROWS
+			deaths_at[death_row] = deaths_at.get(death_row, 0) + 1
 			var desc: String = last_desc
 			deaths_by_desc[desc] = deaths_by_desc.get(desc, 0) + 1
 	return {
 		"runs": runs_played, "events_played": events_played, "escapes": escapes, "heals_used": heals_used,
 		"removes_used": removes_used, "stalls": stalls, "runs_with_relics": runs_with_relics,
-		"escapes_with_relics": escapes_with_relics, "relics_bought": relics_bought, "escape_hp": escape_hp,
+		"breaks": breaks, "escapes_with_relics": escapes_with_relics, "relics_bought": relics_bought, "escape_hp": escape_hp,
 		"escape_deck": escape_deck, "deaths_at": deaths_at, "deaths_by_desc": deaths_by_desc,
 		"entering": entering, "stop_desc": stop_desc, "visits": visits, "fights": fights, "enemies": enemies,
 		"runs_with_elite": runs_with_elite, "escapes_with_elite": escapes_with_elite, "gold_end": gold_end, "relics_end": relics_end, "plays": _plays, "held": _held,
@@ -337,24 +351,39 @@ func _report_map(stats: Dictionary, runs: int) -> void:
 	print("")
 	print("Map summary (route strategy %s)" % _route)
 	print("Escape rate 95%% CI (Wilson): %.1f%% to %.1f%%" % [100.0 * interval[0], 100.0 * interval[1]])
+	var acts_total := RouteMap.ACTS * _chapters
 	var by_act: Array[int] = []
-	by_act.resize(RouteMap.ACTS)
+	by_act.resize(acts_total)
 	by_act.fill(0)
-	var band_count := RouteMap.ROWS / BAND_ROWS
+	var band_count := RouteMap.ROWS * _chapters / BAND_ROWS
 	var by_band: Array[int] = []
 	by_band.resize(band_count)
 	by_band.fill(0)
 	for row: int in deaths_at:
-		by_act[clampi(row / RouteMap.ACT_ROWS, 0, RouteMap.ACTS - 1)] += deaths_at[row]
+		by_act[clampi(row / RouteMap.ACT_ROWS, 0, acts_total - 1)] += deaths_at[row]
 		by_band[clampi(row / BAND_ROWS, 0, band_count - 1)] += deaths_at[row]
 	var acts: PackedStringArray = []
-	for act in RouteMap.ACTS:
+	for act in acts_total:
 		acts.append("act %d %d (%.1f%%)" % [act + 1, by_act[act], 100.0 * by_act[act] / runs])
 	print("Deaths by act: %s" % ", ".join(acts))
 	var bands: PackedStringArray = []
 	for band in band_count:
 		bands.append("rows %d-%d %d" % [band * BAND_ROWS, band * BAND_ROWS + BAND_ROWS - 1, by_band[band]])
 	print("Deaths by row band: %s" % ", ".join(bands))
+	if _chapters > 1:
+		var by_chapter: PackedStringArray = []
+		var through: PackedStringArray = []
+		var breaks: Dictionary = stats["breaks"]
+		for chapter in _chapters:
+			var died := 0
+			for row: int in deaths_at:
+				if row / RouteMap.ROWS == chapter:
+					died += deaths_at[row]
+			by_chapter.append("chapter %d %d (%.1f%%)" % [chapter + 1, died, 100.0 * died / runs])
+			if chapter < _chapters - 1:
+				through.append("chapter %d %s" % [chapter + 1, _rate(breaks.get(chapter + 1, 0), runs)])
+		print("Deaths by chapter: %s" % ", ".join(by_chapter))
+		print("Runs that reached the break after: %s" % ", ".join(through))
 	var mid_row := RouteMap.BOSS_LOCAL_ROW
 	var final_row := RouteMap.ROWS - 1
 	print("Mean HP on arrival at the mid-boss: %s (%d runs reached it), at the final boss: %s (%d runs reached it)" % [_mean_hp(entering, mid_row), _reached(entering, mid_row), _mean_hp(entering, final_row), _reached(entering, final_row)])
@@ -422,7 +451,7 @@ func _run_parallel(opts: Dictionary, characters: Array[StringName]) -> Dictionar
 				"--shard", "%d/%d" % [job["shard"], shards], "--shard-out", job["file"]])
 			if opts["map"]:
 				child_args.append("--map")
-				child_args.append_array(["--route", _route])
+				child_args.append_array(["--route", _route, "--chapters", str(_chapters)])
 			if opts["card_stats"]:
 				child_args.append("--card-stats")
 			job["pid"] = OS.create_process(OS.get_executable_path(), child_args)
@@ -468,7 +497,7 @@ static func merge_tallies(into: Dictionary, other: Dictionary) -> void:
 
 ## Returns the options (every key of the usage text) or an empty dictionary (after printing why) on bad input.
 func _parse_args(args: PackedStringArray) -> Dictionary:
-	var opts := {"runs": DEFAULT_RUNS, "seed": DEFAULT_SEED, "policy": "greedy", "character": String(StarterContent.DEFAULT_CHARACTER_ID), "card_stats": false, "map": false, "route": "", "jobs": 1, "shard_index": 0, "shard_count": 0, "shard_out": ""}
+	var opts := {"runs": DEFAULT_RUNS, "seed": DEFAULT_SEED, "policy": "greedy", "character": String(StarterContent.DEFAULT_CHARACTER_ID), "card_stats": false, "map": false, "route": "", "chapters": 1, "jobs": 1, "shard_index": 0, "shard_count": 0, "shard_out": ""}
 	var i := 0
 	while i < args.size():
 		var name := args[i]
@@ -480,7 +509,7 @@ func _parse_args(args: PackedStringArray) -> Dictionary:
 			opts["map"] = true
 			i += 1
 			continue
-		if name != "--runs" and name != "--seed" and name != "--policy" and name != "--character" and name != "--route" and name != "--jobs" and name != "--shard" and name != "--shard-out":
+		if name != "--runs" and name != "--seed" and name != "--policy" and name != "--character" and name != "--route" and name != "--chapters" and name != "--jobs" and name != "--shard" and name != "--shard-out":
 			printerr("run_sim: unknown argument '%s'\n%s" % [name, USAGE])
 			return {}
 		if name == "--character":
@@ -529,6 +558,12 @@ func _parse_args(args: PackedStringArray) -> Dictionary:
 				printerr("run_sim: --runs must be 1 to %d\n%s" % [MAX_RUNS, USAGE])
 				return {}
 			opts["runs"] = value
+		elif name == "--chapters":
+			if value < 1 or value > 3:
+				printerr("run_sim: --chapters must be 1 to 3
+%s" % USAGE)
+				return {}
+			opts["chapters"] = value
 		elif name == "--jobs":
 			if value < 1:
 				printerr("run_sim: --jobs must be >= 1\n%s" % USAGE)
@@ -539,6 +574,10 @@ func _parse_args(args: PackedStringArray) -> Dictionary:
 		i += 2
 	if opts["route"] != "" and not opts["map"]:
 		printerr("run_sim: --route needs --map\n%s" % USAGE)
+		return {}
+	if opts["chapters"] > 1 and not opts["map"]:
+		printerr("run_sim: --chapters needs --map
+%s" % USAGE)
 		return {}
 	if opts["shard_count"] > 0 and (opts["shard_out"] == "" or opts["character"] == ALL_CHARACTERS):
 		printerr("run_sim: --shard needs --shard-out and a single --character\n%s" % USAGE)
@@ -558,6 +597,9 @@ func _play_combat(run: RunState) -> int:
 
 ## Takes the best offered card per the header heuristic. False on a RunState failure.
 func _take_reward(run: RunState) -> bool:
+	if run.boss_spoils_pending():
+		# A chapter's end boss: the relic (or gold) and then the break; no card is offered.
+		return run.take_boss_spoils()
 	if _smart:
 		# A null pick skips the reward; the policy may also use a free Heal or Remove instead.
 		if not SmartPolicy.take_reward(run):

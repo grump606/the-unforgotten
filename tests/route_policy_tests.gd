@@ -372,8 +372,9 @@ func _test_shard_merge_equals_single_process() -> void:
 		["--runs", "6", "--seed", "3", "--map", "--route", "mixed", "--character", "thief"],
 		["--runs", "4", "--seed", "2", "--policy", "smart", "--character", "medium", "--card-stats"],
 		["--runs", "2", "--seed", "5", "--map", "--route", "random", "--character", "all"],
+		["--runs", "4", "--seed", "4", "--map", "--chapters", "2", "--character", "deserter"],
 	]
-	var jobs := [2, 3, 2]
+	var jobs := [2, 3, 2, 2]
 	for index in cases.size():
 		var single := _sim_output(cases[index])
 		var parallel := _sim_output(cases[index] + ["--jobs", str(jobs[index])])
@@ -381,6 +382,10 @@ func _test_shard_merge_equals_single_process() -> void:
 		_check(single == parallel, "case %d: --jobs %d merges to the single-process report" % [index, jobs[index]])
 	_check(_sim_output(["--map", "--runs", "2", "--route", "bogus"]).contains("--route must be one of"), "a bad route name is rejected")
 	_check(_sim_output(["--runs", "2", "--route", "mixed"]).contains("--route needs --map"), "--route without --map is rejected")
+	_check(_sim_output(["--runs", "2", "--chapters", "2"]).contains("--chapters needs --map"), "--chapters without --map is rejected")
+	_check(_sim_output(["--map", "--runs", "2", "--chapters", "4"]).contains("--chapters must be 1 to 3"), "--chapters 4 is rejected")
+	var two := _sim_output(["--runs", "6", "--seed", "4", "--map", "--chapters", "2"])
+	_check(two.contains("Deaths by chapter: chapter 1") and two.contains("Runs that reached the break after: chapter 1"), "a two-chapter run reports deaths by chapter and the break")
 
 
 ## A map-mode run (class deserter) walked with `first` to the first choice of two or more nodes.

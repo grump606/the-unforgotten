@@ -1,0 +1,34 @@
+class_name ChapterBreakScreen
+extends RunScreen
+## Between chapters (docs/CHAPTERS_DESIGN.md, section 6): a run summary, the heal the next chapter starts with and a
+## button to begin it. The save is made before this screen opens, so quitting here resumes here.
+
+## One neutral closing line until each character has its own (writing work, docs/CHAPTERS_DESIGN.md).
+const CLOSING_LINE := "The way opens behind you, and further on a voice still calls."
+
+
+func show() -> void:
+	add_backdrop(EndScene.new())
+	var box := panel("End of Chapter %d" % run.chapter, true)
+	style_banner(box.get_child(0) as Label)
+	var line := make_label(CLOSING_LINE)
+	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	line.custom_minimum_size = Vector2(420, 0)
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(line)
+	var heal := mini(run.player.max_hp - run.player.hp, roundi(run.player.max_hp * RunState.CHAPTER_BREAK_HEAL_FRACTION))
+	var summary := make_label("HP %d/%d  ·  Gold %d\nDeck: %d cards  ·  Keepsakes: %d\nThe next chapter begins with +%d HP." % [
+		run.player.hp, run.player.max_hp, run.gold, run.deck.size(), run.relics.size(), heal,
+	])
+	summary.name = "BreakSummary"
+	summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(summary)
+	var begin := add_button(box, "Begin Chapter %d" % (run.chapter + 1), _begin)
+	begin.name = "BeginChapterButton"
+	style_service(begin)
+
+
+func _begin() -> void:
+	sfx(&"confirm")
+	run.start_next_chapter()
+	refresh.call()

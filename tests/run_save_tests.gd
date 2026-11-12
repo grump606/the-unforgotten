@@ -331,7 +331,7 @@ func _test_migration_v2_to_v3() -> void:
 
 
 func _test_remembered_cards() -> void:
-	_check(RunSave.LINE_VERSION == 4 and RunSave.VERSION == 5 and RunSave.MIN_VERSION == 2, "line saves are v4, the newest format is v5 and v2 is still read")
+	_check(RunSave.LINE_VERSION == 4 and RunSave.VERSION == 6 and RunSave.MIN_VERSION == 2, "line saves are v4, the newest format is v6 and v2 is still read")
 	var state := RunState.new(7, &"thief")
 	var picks: Array[int] = []
 	for i in state.deck.size():

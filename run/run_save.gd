@@ -11,9 +11,12 @@ extends RefCounted
 ## The newest format this game reads and writes. Line runs keep writing LINE_VERSION so a v4 reader
 ## (every release before map saves) can still load them; only a map run writes MAP_VERSION. A save
 ## above VERSION is rejected, a v2 to v4 save loads as a line run exactly as before.
-const VERSION := 5
+const VERSION := 6
 const LINE_VERSION := 4
 const MAP_VERSION := 5
+## A map run past Chapter 1, or standing at a chapter break, writes this (adds `chapter` and `chapter_break`). A Chapter 1
+## run in progress keeps writing MAP_VERSION so the previous release can still read it. A v5 save loads as Chapter 1.
+const CHAPTER_VERSION := 6
 ## The oldest format migrate() can upgrade. Anything older is rejected.
 const MIN_VERSION := 2
 ## The Thief's id before it was renamed (releases up to 0.7.3); accepted on load and mapped to "thief".
@@ -68,6 +71,13 @@ static func line_signature(run: RunState) -> String:
 	return ",".join(parts)
 
 
+## The format `run` is written in (see the version constants).
+static func _version_for(run: RunState) -> int:
+	if not run.uses_map():
+		return LINE_VERSION
+	return CHAPTER_VERSION if run.chapter > 1 or run.chapter_break else MAP_VERSION
+
+
 static func to_dict(run: RunState) -> Dictionary:
 	var ids: Array = []
 	for card in run.deck:
@@ -79,7 +89,7 @@ static func to_dict(run: RunState) -> Dictionary:
 	for relic in run.relics:
 		relic_ids.append(String(relic.id))
 	var data := {
-		"version": MAP_VERSION if run.uses_map() else LINE_VERSION,
+		"version": _version_for(run),
 		"character": String(run.character.id),
 		"hp": run.player.hp,
 		"max_hp": run.player.max_hp,
@@ -106,6 +116,9 @@ static func to_dict(run: RunState) -> Dictionary:
 		for id in run.events_seen:
 			seen_ids.append(String(id))
 		data["events_seen"] = seen_ids
+		if _version_for(run) >= CHAPTER_VERSION:
+			data["chapter"] = run.chapter
+			data["chapter_break"] = run.chapter_break
 		data.erase("line") # the stop line does not exist in map mode (stops are placeholders)
 	return data
 
@@ -129,6 +142,11 @@ class Accepted extends RefCounted:
 	var visited: Array[int] = []
 	var at_node := false
 	var events_seen: Array[StringName] = []
+	## Chapter saves (v6): the chapter and whether the save is at its break. A v5 save is Chapter 1, no break.
+	var chapter := 1
+	var chapter_break := false
+	## How far the run has got in rows, over all chapters: what the deck, gold and relic bounds scale with.
+	var bound_index := 0
 
 
 static func from_dict(data: Variant) -> Result:
@@ -155,6 +173,7 @@ static func from_dict(data: Variant) -> Result:
 	got.is_map = _int(d, "version", 0, 1000000) >= MAP_VERSION
 	var checks: Array[Callable] = [_check_line_and_stop]
 	if got.is_map:
+		checks.append(_check_chapter)
 		checks.append(_check_map)
 	for later in [_check_relics, _check_numbers, _check_rng_state, _check_deck, _check_offered, _check_events_seen]:
 		checks.append(later)
@@ -173,6 +192,8 @@ static func from_dict(data: Variant) -> Result:
 	run.stop_index = got.stop_index
 	if got.is_map:
 		run.restore_map(got.route, got.current_node, got.visited, got.at_node)
+		run.chapter = got.chapter
+		run.chapter_break = got.chapter_break
 	run.restore_rng_state(got.rng_state.to_int())
 	return _ok(run)
 
@@ -320,24 +341,43 @@ static func _check_line_and_stop(d: Dictionary, run: RunState, got: Accepted) ->
 	if stop_index == null:
 		return "bad stop_index"
 	got.stop_index = stop_index
+	got.bound_index = stop_index
 	return ""
 
 
 ## max_hp, hp and gold. hp is bounded by max_hp, so that order stays. Needs the relics (max_hp and gold are
 ## bounded by them) and the stop_index, so _check_relics and _check_line_and_stop run first.
 static func _check_numbers(d: Dictionary, run: RunState, got: Accepted) -> String:
-	var max_hp: Variant = _int(d, "max_hp", 1, max_hp_allowed(run, got.relics, got.stop_index, got.is_map))
+	var max_hp: Variant = _int(d, "max_hp", 1, max_hp_allowed(run, got.relics, got.bound_index, got.is_map))
 	if max_hp == null:
 		return "bad max_hp"
 	var hp: Variant = _int(d, "hp", 1, max_hp)
 	if hp == null:
 		return "bad hp"
-	var gold: Variant = _int(d, "gold", 0, max_gold(run, got.stop_index, got.relics, got.is_map))
+	var gold: Variant = _int(d, "gold", 0, max_gold(run, got.bound_index, got.relics, got.is_map))
 	if gold == null:
 		return "bad gold"
 	got.max_hp = max_hp
 	got.hp = hp
 	got.gold = gold
+	return ""
+
+
+## The chapter fields of a v6 save (a v5 save has none: Chapter 1, no break). Sets how far the run has got in rows,
+## which the deck, gold and relic bounds scale with. Runs before _check_map, which needs `chapter_break`.
+static func _check_chapter(d: Dictionary, _run: RunState, got: Accepted) -> String:
+	if _int(d, "version", 0, 1000000) < CHAPTER_VERSION:
+		return ""
+	var chapter: Variant = _int(d, "chapter", 1, Chapters.count())
+	if chapter == null:
+		return "bad chapter"
+	if typeof(d.get("chapter_break")) != TYPE_BOOL:
+		return "bad chapter_break"
+	got.chapter = chapter
+	got.chapter_break = d["chapter_break"]
+	if got.chapter_break and chapter >= Chapters.count():
+		return "this save is at a chapter break after the last chapter"
+	got.bound_index = got.stop_index + (chapter - 1) * RouteMap.ROWS
 	return ""
 
 
@@ -375,6 +415,8 @@ static func _check_map(d: Dictionary, run: RunState, got: Accepted) -> String:
 	if typeof(d.get("at_node")) != TYPE_BOOL:
 		return "bad at_node"
 	var at_node: bool = d["at_node"]
+	if got.chapter_break and current == -1:
+		return "this save is at a chapter break but has not played the chapter"
 	if current == -1:
 		if not visited.is_empty() or at_node or got.stop_index != 0:
 			return "this save has not chosen a node yet but records progress"
@@ -390,7 +432,10 @@ static func _check_map(d: Dictionary, run: RunState, got: Accepted) -> String:
 					return "the visited path does not begin on the first row"
 			elif not route.next_ids(visited[i - 1]).has(visited[i]):
 				return "the visited path uses a road that is not on the map"
-		if not at_node and route.next_ids(current).is_empty():
+		if got.chapter_break:
+			if at_node or route.node(current).type != RouteMap.NodeType.BOSS or not route.next_ids(current).is_empty():
+				return "this save is at a chapter break but not after the chapter's end boss"
+		elif not at_node and route.next_ids(current).is_empty():
 			return "this save is past the last row of the map"
 	got.route = route
 	got.current_node = current
@@ -417,7 +462,7 @@ static func _check_rng_state(d: Dictionary, _run: RunState, got: Accepted) -> St
 ## Also leaves the id -> card table in `got` for the offered check.
 static func _check_deck(d: Dictionary, run: RunState, got: Accepted) -> String:
 	var raw_deck: Variant = d.get("deck")
-	if typeof(raw_deck) != TYPE_ARRAY or (raw_deck as Array).is_empty() or (raw_deck as Array).size() > max_deck(run, got.stop_index, got.is_map):
+	if typeof(raw_deck) != TYPE_ARRAY or (raw_deck as Array).is_empty() or (raw_deck as Array).size() > max_deck(run, got.bound_index, got.is_map):
 		return "bad deck"
 	var known := {}
 	for card in StarterContent.vendor_pool(run.character.id):
@@ -451,7 +496,7 @@ static func _check_deck(d: Dictionary, run: RunState, got: Accepted) -> String:
 			card = variant
 		deck.append(card)
 		copies[entry_id] = copies.get(entry_id, 0) + 1
-		if copies[entry_id] > max_copies(run, card.id, got.stop_index, got.is_map):
+		if copies[entry_id] > max_copies(run, card.id, got.bound_index, got.is_map):
 			return "this save holds more copies of a card than a run can collect"
 	got.known_cards = known
 	got.deck = deck
@@ -505,7 +550,7 @@ static func _check_relics(d: Dictionary, run: RunState, got: Accepted) -> String
 	var known_relics := {}
 	for relic in StarterContent.relic_pool(run.character.id):
 		known_relics[String(relic.id)] = relic
-	if typeof(raw_relics) != TYPE_ARRAY or (raw_relics as Array).size() > mini(known_relics.size(), max_relics(run, got.stop_index, got.is_map)):
+	if typeof(raw_relics) != TYPE_ARRAY or (raw_relics as Array).size() > mini(known_relics.size(), max_relics(run, got.bound_index, got.is_map)):
 		return "bad relics list"
 	for entry in raw_relics:
 		if typeof(entry) != TYPE_STRING or not known_relics.has(entry) or relics.has(known_relics[entry]):

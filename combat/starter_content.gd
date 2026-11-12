@@ -446,8 +446,8 @@ const THREAT_STATUS_POINTS := {
 ## the act change like the line's second-act pools. The numbers are a straight-line fit of the line's average pack
 ## threat per regular fight number (fights 0 to 3 are act 1, 4 to 7 act 2; measured by tools/threat_table.gd).
 ## MAP_DIFFICULTY is the one knob for the overall difficulty of map fights.
-const BUDGET_ACT_START: Array[float] = [34.0, 46.0]
-const BUDGET_ACT_END: Array[float] = [50.0, 62.0]
+const BUDGET_ACT_START: Array[float] = Chapters.CHAPTER_1_BUDGET_START
+const BUDGET_ACT_END: Array[float] = Chapters.CHAPTER_1_BUDGET_END
 const MAP_DIFFICULTY := 1.9
 ## Map mode only: each character's own multiplier on the budget (on top of MAP_DIFFICULTY), because the four
 ## characters are not equally robust (Stray has the fewest HP). A character that is not listed uses 1.0.
@@ -506,13 +506,15 @@ static func pack_threat(enemies: Array[EnemyData]) -> float:
 	return total / THREAT_REF_DPS
 
 
-## The budget (target pack threat) of a regular fight on run row `row` (clamped to 0..29): see BUDGET_ACT_START.
-static func fight_budget(row: int) -> float:
+## The budget (target pack threat) of a regular fight on row `row` of chapter `chapter` (row clamped to 0..29): see
+## ChapterData.budget_start. BUDGET_ACT_START and BUDGET_ACT_END are Chapter 1's curve.
+static func fight_budget(row: int, chapter: int = 1) -> float:
+	var data := Chapters.chapter(chapter)
 	var r := clampi(row, 0, RouteMap.ROWS - 1)
 	# An act past the end of the curve arrays reuses the last entry rather than indexing out of range.
-	var act := mini(r / RouteMap.ACT_ROWS, mini(BUDGET_ACT_START.size(), BUDGET_ACT_END.size()) - 1)
+	var act := mini(r / RouteMap.ACT_ROWS, mini(data.budget_start.size(), data.budget_end.size()) - 1)
 	var local := float(r % RouteMap.ACT_ROWS) / float(RouteMap.ACT_ROWS - 1)
-	return MAP_DIFFICULTY * lerpf(BUDGET_ACT_START[act], BUDGET_ACT_END[act], local)
+	return MAP_DIFFICULTY * lerpf(data.budget_start[act], data.budget_end[act], local)
 
 
 ## The map-mode budget multiplier of character `character_id` (see MAP_CLASS_DIFFICULTY).

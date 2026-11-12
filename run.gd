@@ -42,6 +42,7 @@ var _rest := RestScreen.new()
 var _treasure := TreasureScreen.new()
 var _event := EventScreen.new()
 var _end := EndScreen.new()
+var _break := ChapterBreakScreen.new()
 ## The map seam (map mode only): a screen that is attached like the others, has `show_map(run: RunState)`
 ## and emits `node_chosen(node_id: int)`. MapScreen is the real one; FallbackMapScreen is a plain list of
 ## buttons that works without it, so swapping is changing this line.
@@ -57,6 +58,9 @@ var _journey_text := ""
 
 func _ready() -> void:
 	get_window().title = "The Unforgotten"
+	# Development builds only: THE_UNFORGOTTEN_CHAPTERS=2 plays a second chapter (the same content as the first for now).
+	if OS.is_debug_build() and OS.get_environment("THE_UNFORGOTTEN_CHAPTERS").is_valid_int():
+		Chapters.count_override = clampi(OS.get_environment("THE_UNFORGOTTEN_CHAPTERS").to_int(), 1, 3)
 	set_process(false) # only while queued art is waiting to decode (see _warm_next_stop)
 	MenuStyle.apply(self)
 	Motion.load_from(settings_path)
@@ -244,6 +248,12 @@ func _show_stop() -> void:
 		_update_header()
 		_end.attach(_run, _body, _show_stop)
 		_end.show(_new_run.bind(_show_stop), _show_main_menu)
+	elif _run.chapter_break:
+		# The save is made first, so quitting on the break screen resumes on it.
+		_autosave()
+		_update_header()
+		_open(_break)
+		_break.show()
 	elif _run.reward_pending():
 		_update_header()
 		_open(_reward)
@@ -330,9 +340,13 @@ func _update_header() -> void:
 	_header.text = prefix + "%s\nJourney %d/%d  ·  %s  ·  %s  ·  Gold %d  ·  Deck %d" % [
 		stop_text, position, _run.stops.size(), player.display_name, hp_text, _run.gold, _run.deck.size(),
 	]
+	if Chapters.count() > 1:
+		_header.text = _header.text.replace("\nJourney ", "\nChapter %d  ·  Journey " % _run.chapter)
 	_notice_shown = _notice != ""
 	_stop_title = stop_text
 	_journey_text = "Journey %d/%d" % [position, _run.stops.size()]
+	if Chapters.count() > 1:
+		_journey_text = "Chapter %d  ·  %s" % [_run.chapter, _journey_text]
 	_pause_button.visible = not _run.finished
 	var fighting := _fighting()
 	_header_strip.set_relics([] as Array[RelicData] if fighting else _run.relics)

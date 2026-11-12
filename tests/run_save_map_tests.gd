@@ -168,7 +168,7 @@ func _rejects(data: Dictionary, label: String, expected := "") -> void:
 # --- Tests ----------------------------------------------------------------------------------------------
 
 func _test_format_rules() -> void:
-	_check(RunSave.VERSION == 5 and RunSave.MIN_VERSION == 2, "the format reads 2 to 5")
+	_check(RunSave.VERSION == 6 and RunSave.MAP_VERSION == 5 and RunSave.MIN_VERSION == 2, "the format reads 2 to 6, and a chapter 1 map run still writes 5")
 	var line := RunSave.to_dict(RunState.new(3))
 	_check(line["version"] == 4 and not line.has("map") and not line.has("current_node"), "a line run still writes version 4 with no map fields")
 	var map_run := RunState.new(3, &"deserter", true)
@@ -313,7 +313,7 @@ func _test_version_gate() -> void:
 	var newer := _json_copy(data)
 	newer["version"] = RunSave.VERSION + 1
 	var result := RunSave.from_dict(newer)
-	_check(result.run == null and result.error.contains("newer version") and result.error.contains("save format 6") and result.error.contains("up to 5"), "a save above the newest format says so accurately: %s" % result.error)
+	_check(result.run == null and result.error.contains("newer version") and result.error.contains("save format 7") and result.error.contains("up to 6"), "a save above the newest format says so accurately: %s" % result.error)
 	_cleanup()
 	var file := FileAccess.open(test_path, FileAccess.WRITE)
 	file.store_string(JSON.stringify(newer))

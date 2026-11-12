@@ -35,7 +35,14 @@ const MAP_FIGHT_HEAL_MISSING_FRACTION := 0.6
 ## and keeps doing so. Below 1.0 a route full of rests is worth less, which narrows the gap between routes.
 const MAP_REST_HEAL_FRACTION := 0.5
 ## Map mode only: HP recovered, as a share of max HP, on beating the mid-boss (the act-1 boss), on top of the line's gold and card.
-const MAP_MID_BOSS_HEAL_FRACTION := 1.0
+const MAP_MID_BOSS_HEAL_FRACTION := 0.75
+## HP recovered, as a share of max HP, when a new chapter begins (docs/CHAPTERS_DESIGN.md, section 1).
+const CHAPTER_BREAK_HEAL_FRACTION := 0.75
+## A chapter's end boss pays this much gold and a boss relic: one priced at least BOSS_MIN_RELIC_PRICE when the character
+## has any left (else any relic, else END_BOSS_FALLBACK_GOLD in its place). No card reward (docs/CHAPTERS_DESIGN.md, 2a).
+const END_BOSS_GOLD := 60
+const BOSS_MIN_RELIC_PRICE := 70
+const END_BOSS_FALLBACK_GOLD := 100
 ## Map mode only: the share of the line's gold per won regular fight (Vendor.gold_for_win) that a map fight pays. A map run
 ## has about 11 fights against the line's 8, so the same pay per fight would leave a lot of gold unspent. The mid-boss bonus,
 ## the skip gold and relic gold are not scaled.
@@ -137,6 +144,10 @@ var stop_index: int = 0
 var route: RouteMap = null
 ## Map mode: the id of the node the player is at, -1 before the first choice.
 var current_node: int = -1
+## The chapter being played (1 to Chapters.count()). Each chapter is a fresh map; deck, relics and gold carry over.
+var chapter: int = 1
+## True between a chapter's end boss and the next chapter (the break). The map then sits on its last node.
+var chapter_break := false
 ## Map mode: the ids of the nodes taken so far, in order.
 var visited: Array[int] = []
 ## Debug launch (run/debug_launch.gd): when non-empty, the next fight uses these enemy ids instead of the stop's encounter.
@@ -171,6 +182,9 @@ var map_win_heal := 0
 ## fight is won, so a save made on arrival (before the fight) always yields the same relic.
 var _elite_spoils := false
 var _elite_relic: RelicData = null
+## A chapter's end boss: `_boss_spoils` while the relic waits to be taken, `_boss_relic` null when none is left (gold instead).
+var _boss_spoils := false
+var _boss_relic: RelicData = null
 ## Map mode: the bonus gold the last won elite fight paid. Display only, not saved.
 var elite_bonus_gold := 0
 ## Relics bought from vendors this run, in purchase order. Saved with the run (as ids).
@@ -277,6 +291,79 @@ func choose_node(id: int) -> bool:
 	visited.append(id)
 	stop_index = n.row
 	_map_stop = _stop_for_node(n)
+	return true
+
+
+## Map mode: the player stands at the end of chapter `chapter` and a further chapter exists.
+func can_enter_chapter_break() -> bool:
+	return route != null and not finished and not chapter_break and chapter < Chapters.count() 		and current_node >= 0 and route.node(current_node).type == RouteMap.NodeType.BOSS and _map_stop == null
+
+
+## Starts the break after the chapter's end boss. False, changing nothing, unless `can_enter_chapter_break()`.
+func enter_chapter_break() -> bool:
+	if not can_enter_chapter_break():
+		return false
+	chapter_break = true
+	return true
+
+
+## True from winning a chapter's end boss until its relic is taken.
+func boss_spoils_pending() -> bool:
+	return _boss_spoils and _reward_pending
+
+
+## The relic waiting after a chapter's end boss, or null when none is pending or the character owned every relic.
+func boss_relic() -> RelicData:
+	return _boss_relic if boss_spoils_pending() else null
+
+
+## The gold the spoils hold instead of a relic (END_BOSS_FALLBACK_GOLD when every relic is owned, else 0).
+func boss_spoils_fallback_gold() -> int:
+	return END_BOSS_FALLBACK_GOLD if boss_spoils_pending() and _boss_relic == null else 0
+
+
+## Takes the boss relic (or the fallback gold) and opens the chapter break. False, changing nothing, when none waits.
+func take_boss_spoils() -> bool:
+	if not boss_spoils_pending():
+		return false
+	if _boss_relic != null:
+		_grant_relic(_boss_relic)
+	else:
+		gold += END_BOSS_FALLBACK_GOLD
+	_boss_spoils = false
+	_boss_relic = null
+	_reward_pending = false
+	_map_stop = null
+	chapter_break = true
+	return true
+
+
+## The seed of chapter `n`'s map, derived from the previous chapter's map seed (Chapter 1 uses the run's own), so it does
+## not depend on how much of the run RNG the earlier chapters used.
+static func chapter_map_seed(previous_seed: int, n: int) -> int:
+	return hash([previous_seed, n])
+
+
+## From the break: heals CHAPTER_BREAK_HEAL_FRACTION of max HP, generates the next chapter's map and stands at its start.
+## Deck, relics, gold and max HP carry over; per-stop state is cleared. False, changing nothing, outside a break.
+func start_next_chapter() -> bool:
+	if not chapter_break or route == null or chapter >= Chapters.count():
+		return false
+	player.hp = mini(player.max_hp, player.hp + roundi(player.max_hp * CHAPTER_BREAK_HEAL_FRACTION))
+	chapter += 1
+	chapter_break = false
+	route = RouteMap.generate(chapter_map_seed(route.seed_value, chapter), character.id)
+	current_node = -1
+	visited.clear()
+	stop_index = 0
+	_map_stop = null
+	reward_remove_used = false
+	reward_heal_used = false
+	map_win_heal = 0
+	elite_bonus_gold = 0
+	_treasure_opened = false
+	_treasure_relic = null
+	_reset_event()
 	return true
 
 
@@ -438,7 +525,15 @@ func complete_combat(victory: bool) -> bool:
 		escaped = false
 		return true
 	if stop.boss:
-		# The boss ends the line: no gold (nothing left to spend it on), no card to pick.
+		if route != null and chapter < Chapters.count():
+			# A chapter's end boss, with more chapters to come: gold and a boss relic, then the break.
+			gold += END_BOSS_GOLD
+			_boss_relic = _roll_relic(BOSS_MIN_RELIC_PRICE)
+			_boss_spoils = true
+			_reward_pending = true
+			_reward_choices.clear()
+			return true
+		# The last boss ends the run: no gold (nothing left to spend it on), no card to pick.
 		_advance()
 		return true
 	var win_gold := map_win_gold(stop.enemy_count) if route != null else Vendor.gold_for_win(stop.enemy_count)

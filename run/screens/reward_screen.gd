@@ -20,8 +20,12 @@ func show() -> void:
 	var stop := run.current_stop()
 	backdrop.set_variant(stop.boss or stop.mid_boss, run.character.id, run.battle_backdrop())
 	add_backdrop(backdrop)
+	if run.boss_spoils_pending():
+		_show_spoils("Chapter %d complete" % run.chapter, "+%d gold" % RunState.END_BOSS_GOLD, run.boss_relic(), run.boss_spoils_fallback_gold(), _take_boss_spoils)
+		return
 	if run.elite_spoils_pending() and not removing:
-		_show_spoils()
+		var gold_line := "+%d gold" % run.elite_bonus_gold if run.elite_bonus_gold > 0 else ""
+		_show_spoils("Elite spoils", gold_line, run.elite_relic(), run.elite_spoils_gold(), _take_spoils)
 		return
 	if removing:
 		var picker := panel("Pick a card to remove from your deck.", true)
@@ -46,23 +50,21 @@ func show() -> void:
 
 
 ## The first half of an elite's reward: the relic (or the fallback gold) with "Take it", then the usual card choice.
-func _show_spoils() -> void:
-	var gold_line := "\n+%d gold" % run.elite_bonus_gold if run.elite_bonus_gold > 0 else ""
-	var box := panel("Elite spoils" + gold_line, true)
+func _show_spoils(heading: String, gold_line: String, relic: RelicData, fallback_gold: int, on_take: Callable) -> void:
+	var box := panel(heading + ("\n" + gold_line if gold_line != "" else ""), true)
 	box.name = "EliteSpoils"
 	style_banner(box.get_child(0) as Label)
-	var relic := run.elite_relic()
 	if relic == null:
 		var note := make_label("You already carry every keepsake it could have held.")
 		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		note.custom_minimum_size = Vector2(ELITE_PANEL_WIDTH, 0)
 		box.add_child(note)
-		var gold := make_label("%d gold" % run.elite_spoils_gold())
+		var gold := make_label("%d gold" % fallback_gold)
 		gold.name = "SpoilsGold"
 		gold.add_theme_font_size_override("font_size", 18)
 		gold.add_theme_color_override("font_color", MenuStyle.AMBER)
 		box.add_child(gold)
-		add_button(box, "Take the gold", _take_spoils).name = "TakeSpoilsButton"
+		add_button(box, "Take the gold", on_take).name = "TakeSpoilsButton"
 		return
 	var view := RelicView.new()
 	view.name = "SpoilsRelic"
@@ -82,12 +84,18 @@ func _show_spoils() -> void:
 	effect.add_theme_font_size_override("font_size", 13)
 	effect.add_theme_color_override("font_color", Color("#bcc5bd"))
 	box.add_child(effect)
-	add_button(box, "Take it", _take_spoils).name = "TakeSpoilsButton"
+	add_button(box, "Take it", on_take).name = "TakeSpoilsButton"
 
 
 func _take_spoils() -> void:
 	sfx(&"reward")
 	run.take_elite_spoils()
+	refresh.call()
+
+
+func _take_boss_spoils() -> void:
+	sfx(&"reward")
+	run.take_boss_spoils()
 	refresh.call()
 
 

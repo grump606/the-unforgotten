@@ -824,7 +824,7 @@ with 5 to 6 rests; (3) the budget step of +11 at the start of act 2 sat exactly 
 |---|---|---|---|
 | `MAP_FIGHT_HEAL_FRACTION` (new, map only): flat share of max HP healed after a won regular fight | none | 0.05 | `RunState` |
 | `MAP_FIGHT_HEAL_MISSING_FRACTION` (new): share of the missing HP healed after a won regular fight | none | 0.6 | `RunState` |
-| `MAP_MID_BOSS_HEAL_FRACTION` (new): share of max HP healed on beating the mid-boss | none | 1.0 (a full heal) | `RunState` |
+| `MAP_MID_BOSS_HEAL_FRACTION` (new): share of max HP healed on beating the mid-boss | none | 0.75 (was 1.0, a full heal, until 2026-11-12) | `RunState` |
 | `MAP_REST_HEAL_FRACTION` (new): what the Rest choice heals in map mode (the line still heals to full) | full | 0.5 of max HP, capped at the wound | `RunState` |
 | `MAP_GOLD_FACTOR` (new): share of `Vendor.gold_for_win` a map fight pays (mid-boss bonus, skip gold, relic gold are not scaled) | 1.0 | 0.65 | `RunState` |
 | `StarterContent.MAP_DIFFICULTY` | 1.0 | 1.9 | `StarterContent` |
@@ -1168,3 +1168,9 @@ Proposals only: none of this exists, and each one is a design decision for the o
    for an elite fight, plus a sim run to see the lethality lines in the report move by a sensible amount.
 
 Any of these moves elite lethality, so re-run the elite sim lines (see Phase 5c) and retune `RunState.ELITE_BUDGET_MULTIPLIER` after.
+
+## Save format 6 (chapters)
+
+`RunSave.VERSION` is 6. A map run writes **6** only past Chapter 1 or at a chapter break (`RunSave.CHAPTER_VERSION`; it adds `chapter` and
+`chapter_break`); a Chapter 1 run in progress still writes 5 so the previous release can read it, and a v5 save loads as Chapter 1. A break
+save must stand on the chapter's end boss with the whole path visited. See [`CHAPTERS_DESIGN.md`](CHAPTERS_DESIGN.md), section 5.
