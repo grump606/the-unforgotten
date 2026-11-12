@@ -5,6 +5,7 @@
 
 **Settled:** 3 chapters; each has a mid-boss and an end boss (`CHAPTERS_PLAN.md`). **Settled (owner, 2026-11-12):** one continuous run;
 the deck, relics and gold carry over; HP gets a partial heal at each chapter break.
+**Settled (owner, 2026-11-12, later):** the story has a **final boss after Chapter 3's end boss**; "Escaped" is reached after that fight, not after Chapter 3's end boss. The finale's shape (a short set-piece fight or a short map) is open, see `CHAPTER2_PLAN.md`; until it is decided the code treats the last chapter's end boss as the end, as written below.
 **Settled (owner, 2026-11-12):** all chapters are the same length (30 rows); the break heal is 0.75 of max HP; the old "Escaped" ending stays until Chapter 2 exists; a chapter's end boss gives a boss relic and gold (no card reward); the mid-boss heal is 0.75.
 
 ## What exists today (the facts this design builds on)
