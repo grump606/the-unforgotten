@@ -107,20 +107,20 @@ static func trio_paths() -> Array[String]:
 	return _trio_cache.duplicate()
 
 
-## The boss fight: the Conductor alone. Empty (cause logged) if it fails to load,
+## The chapter's end boss fight (Chapter 1: the Conductor) alone. Empty (cause logged) if it fails to load,
 ## and Combat needs at least one enemy, so callers must check.
-static func boss_encounter() -> Array[EnemyData]:
+static func boss_encounter(chapter: int = 1) -> Array[EnemyData]:
 	var enemies: Array[EnemyData] = []
-	var boss := ContentRegistry.load_enemy(StarterContent.CONDUCTOR_PATH)
+	var boss := ContentRegistry.load_enemy(Chapters.chapter(chapter).end_boss_path)
 	if boss != null:
 		enemies.append(boss)
 	return enemies
 
 
 ## The mid-run boss fight: the Brakeman alone. Empty (cause logged) if it fails to load.
-static func mid_boss_encounter() -> Array[EnemyData]:
+static func mid_boss_encounter(chapter: int = 1) -> Array[EnemyData]:
 	var enemies: Array[EnemyData] = []
-	var boss := ContentRegistry.load_enemy(StarterContent.BRAKEMAN_PATH)
+	var boss := ContentRegistry.load_enemy(Chapters.chapter(chapter).mid_boss_path)
 	if boss != null:
 		enemies.append(boss)
 	return enemies

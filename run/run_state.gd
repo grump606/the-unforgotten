@@ -467,14 +467,14 @@ func start_combat() -> Combat:
 			if enemy != null:
 				enemies.append(enemy)
 	elif stop.boss:
-		enemies = StarterContent.boss_encounter()
+		enemies = StarterContent.boss_encounter(chapter)
 	elif stop.mid_boss:
-		enemies = StarterContent.mid_boss_encounter()
+		enemies = StarterContent.mid_boss_encounter(chapter)
 	elif route != null and stop.row >= 0:
 		var difficulty := StarterContent.map_class_difficulty(character.id)
 		if stop.elite:
 			difficulty *= ELITE_BUDGET_MULTIPLIER
-		enemies = StarterContent.budget_encounter(stop.enemy_count, _rng, stop.row, difficulty, stop.elite)
+		enemies = StarterContent.budget_encounter(stop.enemy_count, _rng, stop.row, difficulty, stop.elite, chapter)
 	else:
 		enemies = StarterContent.varied_encounter(stop.enemy_count, _rng, stop.tier, stop.fight)
 	_active_combat = Combat.create(player, deck, enemies, _rng.randi(), relics)

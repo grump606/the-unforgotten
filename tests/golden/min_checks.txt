@@ -9,5 +9,5 @@
 # To refresh after adding tests: run the full check, copy the printed "CHECKS: n" into TOTAL_CHECKS and the
 # number of ui_*_test.gd files into UI_STEPS, and commit the file with the tests. Only ever raise a value.
 # Lower one only when tests were removed on purpose, and say so in the commit message.
-TOTAL_CHECKS=193369
+TOTAL_CHECKS=193396
 UI_STEPS=33

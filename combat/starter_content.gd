@@ -540,16 +540,16 @@ static var last_pack_info := {}
 ## drawn from `rng` (up to PACK_MAX_ATTEMPTS); if none fits, the legal pack closest to the budget is used. Only `rng` is consumed, so the same seed, row and count give the same pack.
 ## Shared resources are never changed (enemies are copies and scaled() makes new ones). Enemies that fail to load
 ## are left out (cause logged); if none of a pack loads it falls back to a known enemy, so the pack is never empty.
-static func budget_encounter(count: int, rng: RandomNumberGenerator, row: int, budget_multiplier: float = 1.0, elite: bool = false) -> Array[EnemyData]:
+static func budget_encounter(count: int, rng: RandomNumberGenerator, row: int, budget_multiplier: float = 1.0, elite: bool = false, chapter: int = 1) -> Array[EnemyData]:
 	var n := clampi(count, ELITE_MIN_ENEMIES if elite else 1, Combat.MAX_ENEMIES)
-	var target := fight_budget(row) * budget_multiplier
+	var target := fight_budget(row, chapter) * budget_multiplier
 	var big_pair_chance := TIER1_BIG_PAIR_CHANCE if row >= RouteMap.ACT_ROWS else BIG_PAIR_CHANCE
 	var best: Array[EnemyData] = []
 	var best_miss := INF
 	var best_info := {}
 	for attempt in PACK_MAX_ATTEMPTS:
 		var base: Array[EnemyData] = []
-		for path in _pack_paths(n, rng, big_pair_chance):
+		for path in _pack_paths(n, rng, big_pair_chance, chapter):
 			var enemy := _budget_enemy(path)
 			if enemy != null:
 				base.append(enemy)
@@ -624,21 +624,23 @@ static func _fallback_enemy() -> EnemyData:
 
 
 ## The enemy paths of a pack of `count`, drawn from the pools in the order varied_encounter draws them.
-static func _pack_paths(count: int, rng: RandomNumberGenerator, big_pair_chance: float) -> Array[String]:
+static func _pack_paths(count: int, rng: RandomNumberGenerator, big_pair_chance: float, chapter: int = 1) -> Array[String]:
+	var pools := Chapters.chapter(chapter)
 	var paths: Array[String] = []
 	match count:
 		1:
-			paths.append(Encounters.pick_path(ALL_ENEMY_PATHS, rng))
+			paths.append(Encounters.pick_path(pools.enemy_paths, rng))
 		2:
 			if rng.randf() < big_pair_chance:
-				paths.append(Encounters.pick_path(PAIR_BIG_ENEMY_PATHS, rng))
-				paths.append(Encounters.pick_path(SMALL_ENEMY_PATHS, rng))
+				paths.append(Encounters.pick_path(pools.big_paths, rng))
+				paths.append(Encounters.pick_path(pools.small_paths, rng))
 			else:
-				paths.append(Encounters.pick_path(SMALL_ENEMY_PATHS, rng))
-				paths.append(Encounters.pick_path(SMALL_ENEMY_PATHS, rng))
+				paths.append(Encounters.pick_path(pools.small_paths, rng))
+				paths.append(Encounters.pick_path(pools.small_paths, rng))
 		_:
+			var trio := pools.trio_paths()
 			for i in count:
-				paths.append(Encounters.pick_path(Encounters.trio_paths(), rng))
+				paths.append(Encounters.pick_path(trio, rng))
 	return paths
 
 
@@ -702,10 +704,10 @@ static func scaled(enemy: EnemyData, factor: float, damage_factor: float = -1.0)
 
 ## The boss fight: the Conductor alone. Empty (cause logged) if it fails to load,
 ## and Combat needs at least one enemy, so callers must check.
-static func boss_encounter() -> Array[EnemyData]:
-	return Encounters.boss_encounter()
+static func boss_encounter(chapter: int = 1) -> Array[EnemyData]:
+	return Encounters.boss_encounter(chapter)
 
 
 ## The mid-run boss fight: the Brakeman alone. Empty (cause logged) if it fails to load.
-static func mid_boss_encounter() -> Array[EnemyData]:
-	return Encounters.mid_boss_encounter()
+static func mid_boss_encounter(chapter: int = 1) -> Array[EnemyData]:
+	return Encounters.mid_boss_encounter(chapter)

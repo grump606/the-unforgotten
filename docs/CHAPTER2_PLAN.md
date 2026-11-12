@@ -230,7 +230,7 @@ the Chapter 2 artwork is commissioned only after that pass. Each item is its own
 when numbers change.
 
 **Gate 1: Chapter 2 plays, in the sim.**
-1. **Plumbing 1 to 3** (pool, bosses, budget by chapter) with a **stub Chapter 2** (placeholder enemies cloned from Chapter 1 with new names,
+1. **Done 2026-11-12. Plumbing 1 to 3** (`ChapterData` carries the enemy pools, the boss paths and the budget curve; `Encounters.boss_encounter(chapter)`, `StarterContent.budget_encounter(..., chapter)`, `RunState.start_combat` pass the chapter; `Chapters` builds Chapters 2 and 3 as stubs that reuse Chapter 1's enemies and bosses with their own curve, `Chapters.STUB_CURVES`; `tests/chapters_tests.gd` proves Chapter 1's packs are unchanged). First stub curve: Chapter 2 66 to 82, Chapter 3 84 to 100 (before MAP_DIFFICULTY). **First sim finding** (200 runs, `--chapters 3`): the share of Chapter 2 starters that reach its break is greedy 90, 74, 61 and 39% and smart 82, 95, 78 and 59% for the Deserter, Thief, Medium and Stray, against a 47 to 61% target; one curve cannot land every class, so tuning needs the per-class factor (`MAP_CLASS_DIFFICULTY`) as well, and the Stray needs the most help. The original item:  with a **stub Chapter 2** (placeholder enemies cloned from Chapter 1 with new names,
    its own curve), behind `THE_UNFORGOTTEN_CHAPTERS=2`. Done when a two-chapter sim runs and the Chapter 1 golden maps and tests are unchanged.
 2. **The seven enemies and two bosses as data**, including their new effects, placeholder art, bots that handle the new effects. Tune the
    curve and the boss HP against the target above.
