@@ -38,4 +38,56 @@ func run() -> int:
 	_check(StarterContent.boss_encounter(2).size() == 1 and StarterContent.mid_boss_encounter(2).size() == 1, "later chapters load their bosses")
 	for row in RouteMap.ROWS:
 		_check(is_equal_approx(StarterContent.fight_budget(row), StarterContent.fight_budget(row, 1)), "fight_budget defaults to chapter 1 (row %d)" % row)
+	_test_chapter_2_content()
 	return _failures
+
+
+## Chapter 2's enemies and bosses (data only; docs/CHAPTER2_PLAN.md): registered, loadable, distinct from Chapter 1's, sane, and
+## good enough for the pack builder to fill its budget.
+func _test_chapter_2_content() -> void:
+	var two := Chapters.chapter(2)
+	_check(two.district_names.size() == RouteMap.ACTS and two.district_names[0] == "The Flooded Stacks" and two.district_names[1] == "The Reading Rooms", "chapter 2 has its district names")
+	_check(two.mid_boss_title == "The Archivist" and two.end_boss_title == "The Registrar" and Chapters.chapter(1).mid_boss_title == "The Bellkeeper", "boss titles per chapter")
+	_check(MapView.district_name(0, 2) == two.district_names[0] and MapView.district_name(0) == Chapters.chapter(1).district_names[0], "the map names the districts of its chapter")
+	_check(StarterContent.CHAPTER2_ENEMY_PATHS.size() == 7 and StarterContent.CHAPTER2_BOSS_PATHS.size() == 2, "seven regular enemies and two bosses")
+	var ids := {}
+	var every: Array[String] = []
+	every.append_array(StarterContent.CHAPTER2_ENEMY_PATHS)
+	every.append_array(StarterContent.CHAPTER2_BOSS_PATHS)
+	for path in every:
+		var enemy := load(path) as EnemyData
+		_check(enemy != null, "chapter 2 enemy loads: %s" % path)
+		if enemy == null:
+			continue
+		_check(not ids.has(enemy.id) and path.get_file().trim_suffix(".tres") == String(enemy.id), "id is unique and is the file name: %s" % enemy.id)
+		ids[enemy.id] = true
+		_check(enemy.max_hp > 0 and not enemy.intents.is_empty() and enemy.display_name != "", "has HP, intents and a name: %s" % enemy.id)
+		_check(Fighter.art_key_for(enemy.id) == &"ghost", "no art key yet, so it draws as the generic ghost (placeholder): %s" % enemy.id)
+		_check(StarterContent.enemy_by_id(enemy.id) != null, "enemy_by_id finds it: %s" % enemy.id)
+		_check(not Chapters.chapter(1).enemy_paths.has(path) and not StarterContent.ALL_ENEMY_PATHS.has(path), "Chapter 1 never draws it: %s" % enemy.id)
+	for path in StarterContent.CHAPTER2_BOSS_PATHS:
+		var boss := load(path) as EnemyData
+		_check(boss != null and not boss.phase_two_intents.is_empty() and boss.phase_two_title != "", "a boss has a second phase and a banner: %s" % path)
+	var misfiled := load(StarterContent.MISFILED_PATH) as EnemyData
+	_check(misfiled != null and misfiled.unseen, "The Misfiled is Unseen")
+	for path in every:
+		var enemy := load(path) as EnemyData
+		_check(enemy == null or enemy.id == &"the_misfiled" or not enemy.unseen, "only The Misfiled is Unseen")
+	_check(two.mid_boss_path == StarterContent.ARCHIVIST_PATH and two.end_boss_path == StarterContent.REGISTRAR_PATH, "chapter 2's bosses")
+	_check(StarterContent.boss_encounter(2)[0].id == &"the_registrar" and StarterContent.mid_boss_encounter(2)[0].id == &"the_archivist", "chapter 2 fights its own bosses")
+	_check(StarterContent.boss_encounter(1)[0].id == &"the_conductor", "chapter 1 still fights the Eraser")
+	# The pack builder fills chapter 2's budget over many rows and sizes, without falling back.
+	var misses := 0
+	var packs := 0
+	for row in RouteMap.ROWS:
+		for count in [1, 2, 3]:
+			var rng := RandomNumberGenerator.new()
+			rng.seed = row * 100 + count
+			var pack := StarterContent.budget_encounter(count, rng, row, 1.0, false, 2)
+			packs += 1
+			var ok: bool = not pack.is_empty() and not StarterContent.last_pack_info["fallback"]
+			for enemy in pack:
+				ok = ok and not Chapters.chapter(1).enemy_paths.any(func(p: String) -> bool: return (load(p) as EnemyData).id == enemy.id)
+			if not ok:
+				misses += 1
+	_check(misses == 0, "every chapter 2 pack (%d) is built from chapter 2's own enemies" % packs)

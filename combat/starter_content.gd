@@ -138,6 +138,23 @@ const BRAKEMAN_PATH := "res://data/enemies/the_brakeman.tres"
 const EXTENDED_DECK_SIZE := 14
 ## The bosses, which only appear through boss_encounter() and mid_boss_encounter().
 const BOSS_ENEMY_PATHS: Array[String] = [CONDUCTOR_PATH, BRAKEMAN_PATH]
+## Chapter 2 (docs/CHAPTER2_PLAN.md): the Registry's enemies, kept apart from Chapter 1's registry above so Chapter 1 never draws them.
+## Names are proposals until the owner confirms them. The Misfiled is Unseen; the bosses are the Archivist (mid) and the Registrar (end).
+const LEDGER_CLERK_PATH := "res://data/enemies/chapter2/ledger_clerk.tres"
+const DROWNED_PORTER_PATH := "res://data/enemies/chapter2/drowned_porter.tres"
+const SHELF_WRAITH_PATH := "res://data/enemies/chapter2/shelf_wraith.tres"
+const INDEX_MOTH_PATH := "res://data/enemies/chapter2/index_moth.tres"
+const MISFILED_PATH := "res://data/enemies/chapter2/the_misfiled.tres"
+const PRESSING_HAND_PATH := "res://data/enemies/chapter2/pressing_hand.tres"
+const COPYIST_PATH := "res://data/enemies/chapter2/copyist.tres"
+const ARCHIVIST_PATH := "res://data/enemies/chapter2/the_archivist.tres"
+const REGISTRAR_PATH := "res://data/enemies/chapter2/the_registrar.tres"
+const CHAPTER2_ENEMY_PATHS: Array[String] = [LEDGER_CLERK_PATH, DROWNED_PORTER_PATH, SHELF_WRAITH_PATH, INDEX_MOTH_PATH, MISFILED_PATH, PRESSING_HAND_PATH, COPYIST_PATH]
+const CHAPTER2_BIG_PATHS: Array[String] = [DROWNED_PORTER_PATH]
+const CHAPTER2_SMALL_PATHS: Array[String] = [LEDGER_CLERK_PATH, SHELF_WRAITH_PATH, INDEX_MOTH_PATH, MISFILED_PATH, PRESSING_HAND_PATH, COPYIST_PATH]
+## Left out of trios as Chapter 1's Lost Shade is: the sturdy small enemies. None yet; set from the sims.
+const CHAPTER2_TRIO_EXCLUDED_PATHS: Array[String] = []
+const CHAPTER2_BOSS_PATHS: Array[String] = [ARCHIVIST_PATH, REGISTRAR_PATH]
 ## Every card, in a fixed order. A card's `character` tag says who may take it (empty = everyone).
 const ALL_CARD_PATHS: Array[String] = [
 	SHOVE_PATH, SLIP_PAST_PATH, GLIMPSE_EXIT_PATH, BRACE_PATH, FLURRY_PATH, SWEEP_PATH,
@@ -519,8 +536,8 @@ static func fight_budget(row: int, chapter: int = 1) -> float:
 
 
 ## The map-mode budget multiplier of character `character_id` (see MAP_CLASS_DIFFICULTY).
-static func map_class_difficulty(character_id: StringName) -> float:
-	return MAP_CLASS_DIFFICULTY.get(character_id, 1.0)
+static func map_class_difficulty(character_id: StringName, chapter: int = 1) -> float:
+	return float(MAP_CLASS_DIFFICULTY.get(character_id, 1.0)) * float(Chapters.chapter(chapter).class_difficulty.get(character_id, 1.0))
 
 
 ## What the last `budget_encounter` call did, for the measuring tool and tests: `scale` (the total multiplier m),

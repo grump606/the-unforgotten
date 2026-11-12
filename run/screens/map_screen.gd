@@ -29,6 +29,7 @@ func show() -> void:
 ## Builds the view from plain data (the part of `show` that needs no RunState) and returns it.
 func present(route: RouteMap, visited: Array[int], current: int, reachable: Array[int], character_id: StringName, status := "") -> MapView:
 	view = MapView.new()
+	view.chapter = run.chapter if run != null else 1
 	view.name = "MapView"
 	view.set_status(status)
 	view.set_data(route, visited, current, reachable, character_id)

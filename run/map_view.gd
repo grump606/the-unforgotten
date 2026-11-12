@@ -33,7 +33,8 @@ const EVENT_CREAM := Color("#efe6d0")
 const EVENT_VIOLET := Color("#8d96e6")
 const EVENT_TEAL := Color("#6fd0c4")
 
-const BOSS_NAMES := {RouteMap.NodeType.MID_BOSS: "The Bellkeeper", RouteMap.NodeType.BOSS: "The Eraser"}
+## The chapter being shown (its district and boss names); set by MapScreen.
+var chapter: int = 1
 
 ## Node states, as `state_of` reports them.
 const VISITED := &"visited"
@@ -151,10 +152,21 @@ func shown_ids() -> Array[int]:
 
 ## "Row 7/15": the row of the next choice (else of the current node) within the shown act.
 ## The player-facing name of district (act) `act`, 0-based; a number past the list reads "District N".
-static func district_name(act: int) -> String:
-	if act >= 0 and act < RouteMap.DISTRICT_NAMES.size():
-		return RouteMap.DISTRICT_NAMES[act]
+static func district_name(act: int, chapter_number: int = 1) -> String:
+	var names := Chapters.chapter(chapter_number).district_names
+	if act >= 0 and act < names.size():
+		return names[act]
 	return "District %d" % (act + 1)
+
+
+## The label under a boss node ("" for any other type).
+func boss_name(type: RouteMap.NodeType) -> String:
+	var data := Chapters.chapter(chapter)
+	if type == RouteMap.NodeType.MID_BOSS:
+		return data.mid_boss_title
+	if type == RouteMap.NodeType.BOSS:
+		return data.end_boss_title
+	return ""
 
 
 func progress_text() -> String:
@@ -416,7 +428,7 @@ func _draw_header() -> void:
 	var strip := Rect2(0, 0, size.x, 64.0 * s)
 	draw_rect(strip, Color(0.04, 0.05, 0.08, 0.72))
 	draw_line(Vector2(0, strip.size.y), Vector2(size.x, strip.size.y), Color(BRASS, 0.7), 2.0)
-	var title := district_name(_act)
+	var title := district_name(_act, chapter)
 	_text(title, Vector2(28.0 * s, 42.0 * s), int(30 * s), Color("#d7d0bc"))
 	var title_w := _font().get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, int(30 * s)).x
 	_text(progress_text(), Vector2(28.0 * s + title_w + 18.0 * s, 41.0 * s), int(17 * s), BONE_DIM)
@@ -512,8 +524,8 @@ func _draw_node(id: int) -> void:
 			var px := c.x + (i - (count - 1) * 0.5) * gap
 			draw_circle(Vector2(px, y), 3.7 * s, Color(0, 0, 0, 0.7 * alpha))
 			draw_circle(Vector2(px, y), 3.0 * s, Color(BONE.r * k, BONE.g * k, BONE.b * k, alpha))
-	elif BOSS_NAMES.has(n.type):
-		_text(BOSS_NAMES[n.type], Vector2(c.x - 70.0 * s, c.y + r + 17.0 * s), int(13 * s), Color(BONE, alpha), 140.0 * s, HORIZONTAL_ALIGNMENT_CENTER)
+	elif boss_name(n.type) != "":
+		_text(boss_name(n.type), Vector2(c.x - 70.0 * s, c.y + r + 17.0 * s), int(13 * s), Color(BONE, alpha), 140.0 * s, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _draw_tick(at: Vector2, g: float) -> void:

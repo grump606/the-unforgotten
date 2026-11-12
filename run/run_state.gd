@@ -471,7 +471,7 @@ func start_combat() -> Combat:
 	elif stop.mid_boss:
 		enemies = StarterContent.mid_boss_encounter(chapter)
 	elif route != null and stop.row >= 0:
-		var difficulty := StarterContent.map_class_difficulty(character.id)
+		var difficulty := StarterContent.map_class_difficulty(character.id, chapter)
 		if stop.elite:
 			difficulty *= ELITE_BUDGET_MULTIPLIER
 		enemies = StarterContent.budget_encounter(stop.enemy_count, _rng, stop.row, difficulty, stop.elite, chapter)
