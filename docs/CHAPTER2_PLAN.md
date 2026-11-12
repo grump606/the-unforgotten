@@ -214,7 +214,7 @@ backdrop, a text card) lets every other piece be built and tuned first; painting
 
 | Item | Count |
 | --- | --- |
-| Story beats | 6 (opening, 4 map beats, break) x 4 classes + 6 neutral = 30 |
+| Story beats | 5 (the four map beats, the first being the arrival, and the break) x 4 classes + 5 neutral = 25; see `CHAPTER2_WRITING.md` |
 | Events | 10 (about 3 lines of text and 2 to 4 buttons each) |
 | Enemy and boss names and intent text | 9 |
 | Card and relic names and descriptions | 31 |
