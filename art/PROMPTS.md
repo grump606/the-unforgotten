@@ -85,3 +85,19 @@ Wiring: `Fighter.ART_KEYS` and `HEIGHTS` (new ids use their own id as the art ke
 `StoryScene.key_for_beat(beat, chapter)`, and the events' `scene` field. Known gaps: the pictures have not been looked at inside the game window yet (headless checks only);
 the Misfiled faces up and right a little instead of left; the Copyist is a very narrow figure.
 Size: about 42 MB of new PNG in the repository (sprites and auras 22, screens 15 and cards 9.5 before the installer's own compression); see `docs/REPO_SIZE.md`.
+
+## Chapter 3 art (the Scriptorium, 2026-11-13)
+
+Same method as Chapter 2: `codex exec ... -i <references> - < prompt.txt`, one call per image, 5 to 6 in parallel, every prompt carrying the shared style block plus
+"Setting: the Scriptorium, a copy room of desks, pens, ink and paper" (ink-black, wet blue-black and pale paper tones added to the palette) and
+"match the attached existing ... exactly in painted style, palette, rendering, lighting and level of detail". Chapter 1 and 2 images of the same kind were the references.
+
+| Kind | Count | Files | Notes |
+| --- | --- | --- | --- |
+| Stage sprites | 10 | `art/layers/<id>/sprite.png` for `inkwell_imp`, `pen_knight`, `smudge`, `penwiper`, `scroll_mother`, `the_unfinished`, `ledger_wolf`, `the_blotter`, `the_warden_of_the_inkwell`, `the_scrivener` | full body, facing left, warm rim light; trimmed, at most 900 tall and 1000 wide, alpha of 240 or more set to 255; the Scrivener is drawn old, thin and kind rather than monstrous (his three phases share one sprite) |
+| Elite auras | 7 | `sprite_elite.png`, `PaintedArt.ELITE_PADS` | the Chapter 2 aura recipe (pads 0.367 / 0.2444 / 0.0889 of the sprite), prompt "bold, clearly visible flames, at least as strong as a campfire"; leftover magenta removed |
+| Battle backdrops | 7 | `battle_scriptorium`, `battle_copy_desks`, `battle_blotting_hall`, `battle_ink_cellar`, `battle_blotters_alcove` (mid-boss), `battle_wardens_door` (boss), `battle_scrivener_lamp` (finale) `/bg.png`, 1536x864 | wired in `Chapters._build(3)`; chapter 3 events use the four shared ones |
+| Story paintings | 4 | `story_scriptorium_arrival`, `story_blotters_alcove`, `story_the_margin`, `story_wardens_door` `/bg.png` | three more (the finale's desk, the Scrivener and the open door) were painted and are kept outside the repository until the finale beats get a picture |
+| Card art | 24 | `art/layers/cards/<card id>/art.png`, 800x300 | three Chapter 1 cards of the same class as references; one close-cropped vignette per card in the class's accent colours |
+
+Relic icons are drawn in code. Gaps: not yet looked at in the game window; the Scrivener keeps one sprite for all three phases.

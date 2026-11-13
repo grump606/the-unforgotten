@@ -57,5 +57,5 @@ id = &"ink_well_deep"
 title = "The Deep Inkwell"
 body = "A well sunk into the floor, full of ink so black it takes the lamplight and gives nothing back. A ladder goes down. Something small and bright glints at the bottom, if you look at it sideways."
 class_body = {"stray": "A well sunk into the floor, full of ink so black it takes the lamplight and gives nothing back. A ladder goes down. Something at the bottom smells of metal and of hands, faint and old."}
-scene = &"battle_stacks"
+scene = &"battle_scriptorium"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

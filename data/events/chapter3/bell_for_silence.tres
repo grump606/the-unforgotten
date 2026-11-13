@@ -55,5 +55,5 @@ id = &"bell_for_silence"
 title = "The Bell for Silence"
 body = "A small brass bell on a cord, and under it a card in a clerk's hand: Ring for quiet. Everywhere else in the Scriptorium, pens scratch. Here, the air is held very still, as if the bell had already been rung."
 class_body = {"stray": "A small brass bell on a cord, and under it a card you cannot read. Everywhere else in the Scriptorium, pens scratch. Here, the air is held very still, and the cord hangs low enough for your nose."}
-scene = &"battle_stacks"
+scene = &"battle_scriptorium"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

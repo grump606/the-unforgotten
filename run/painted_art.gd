@@ -17,6 +17,10 @@ const ELITE_PADS := {
 	&"ledger_clerk": Vector3i(367, 206, 75), &"drowned_porter": Vector3i(219, 220, 80), &"shelf_wraith": Vector3i(367, 163, 59),
 	&"index_moth": Vector3i(367, 165, 60), &"the_misfiled": Vector3i(309, 220, 80), &"pressing_hand": Vector3i(367, 165, 60),
 	&"copyist": Vector3i(142, 220, 80),
+	# Chapter 3 (the Scriptorium).
+	&"inkwell_imp": Vector3i(367, 190, 69), &"pen_knight": Vector3i(243, 220, 80), &"smudge": Vector3i(218, 220, 80),
+	&"penwiper": Vector3i(367, 162, 59), &"scroll_mother": Vector3i(220, 220, 80), &"the_unfinished": Vector3i(184, 220, 80),
+	&"ledger_wolf": Vector3i(367, 193, 70),
 }
 const PLAYER_DIR := "res://art/layers/players/%s/figure.png"
 const SCREEN_DIR := "res://art/layers/screens/%s/bg.png"

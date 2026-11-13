@@ -60,5 +60,5 @@ script = ExtResource("1_event")
 id = &"copy_desk"
 title = "The Copy Desk"
 body = "A copying desk under a hooded lamp. On it lies a half-finished page, and the page is a list of your own cards, written out in a careful hand. The last line stops in the middle of a word."
-scene = &"battle_reading_room"
+scene = &"battle_blotting_hall"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

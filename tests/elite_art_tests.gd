@@ -17,7 +17,7 @@ func _every_sprite_has_its_elite() -> void:
 		var plain := PaintedArt.enemy_figure(key)
 		if plain.is_empty() or not plain.get("sprite", false):
 			continue
-		if key == &"conductor" or key == &"brakeman" or key == &"the_archivist" or key == &"the_registrar":
+		if key == &"conductor" or key == &"brakeman" or key == &"the_archivist" or key == &"the_registrar" or key == &"the_blotter" or key == &"the_warden_of_the_inkwell" or key == &"the_scrivener":
 			continue # bosses are never elites
 		var elite := PaintedArt.enemy_elite_figure(key)
 		_check(not elite.is_empty(), "%s: an elite sprite is there and matches its padded size" % key)

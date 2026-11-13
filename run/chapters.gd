@@ -14,6 +14,8 @@ const CHAPTER_3_CLASS_DIFFICULTY := {&"deserter": 1.2, &"thief": 2.8, &"medium":
 const CHAPTER_3_BOSS_FACTOR := {&"deserter": 1.1, &"thief": 3.4, &"medium": 0.9, &"stray": 0.6}
 ## Chapter 2's districts (proposed names, docs/CHAPTER2_PLAN.md, "Names").
 const CHAPTER_2_DISTRICT_NAMES: Array[String] = ["The Flooded Stacks", "The Reading Rooms"]
+## Chapter 3's districts (docs/CHAPTER3_PLAN.md).
+const CHAPTER_3_DISTRICT_NAMES: Array[String] = ["The Dry Stacks", "The Scriptorium"]
 const CHAPTER_1_BUDGET_START: Array[float] = [34.0, 46.0]
 const CHAPTER_1_BUDGET_END: Array[float] = [50.0, 62.0]
 ## The most chapters that can be built (Chapter 1 and the stubs after it).
@@ -94,15 +96,15 @@ static func _build(n: int) -> ChapterData:
 	c.mid_boss_title = "The Bellkeeper"
 	c.end_boss_title = "The Eraser"
 	if n == 3:
-		# Chapter 3 (docs/CHAPTER3_PLAN.md): its own enemies and bosses; backdrops, story moods and district names are STUBS borrowed from Chapter 2 until written.
-		c.district_names = CHAPTER_2_DISTRICT_NAMES.duplicate()
+		# Chapter 3 (docs/CHAPTER3_PLAN.md): its own enemies and bosses; backdrops and story paintings are its own (art/PROMPTS.md).
+		c.district_names = CHAPTER_3_DISTRICT_NAMES.duplicate()
 		c.class_difficulty = CHAPTER_3_CLASS_DIFFICULTY.duplicate()
 		c.pack_scale_max = 2.6
 		c.boss_class_factor = CHAPTER_3_BOSS_FACTOR.duplicate()
-		c.shared_backdrops.assign([&"battle_stacks", &"battle_catalogue", &"battle_reading_room", &"battle_gallery"])
-		c.mid_boss_backdrop = &"battle_archivists_hall"
-		c.boss_backdrop = &"battle_registrars_desk"
-		c.story_moods.assign([&"registry_arrival", &"archivists_hall", &"reading_room", &"registrars_desk"])
+		c.shared_backdrops.assign([&"battle_scriptorium", &"battle_copy_desks", &"battle_blotting_hall", &"battle_ink_cellar"])
+		c.mid_boss_backdrop = &"battle_blotters_alcove"
+		c.boss_backdrop = &"battle_wardens_door"
+		c.story_moods.assign([&"scriptorium_arrival", &"blotters_alcove", &"the_margin", &"wardens_door"])
 		c.mid_boss_title = "The Blotter"
 		c.end_boss_title = "The Warden of the Inkwell"
 		c.mid_boss = &"the_blotter"
@@ -114,7 +116,7 @@ static func _build(n: int) -> ChapterData:
 		c.small_paths.assign(StarterContent.CHAPTER3_SMALL_PATHS)
 		c.trio_excluded_paths.assign(StarterContent.CHAPTER3_TRIO_EXCLUDED_PATHS)
 		c.finale_boss_path = StarterContent.SCRIVENER_PATH
-		c.finale_backdrop = RouteMap.BOSS_BACKDROP
+		c.finale_backdrop = &"battle_scrivener_lamp"
 		c.finale_button = "Face the Scrivener"
 		return c
 	c.mid_boss = &"the_brakeman"

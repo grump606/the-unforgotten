@@ -58,5 +58,5 @@ id = &"proofreader"
 title = "The Proofreader"
 body = "A reader at a high desk with a red pencil, going through a line of strangers one by one. They mark each one in the margin and do not look at their faces. They have not yet looked at you."
 class_body = {"thief": "A reader at a high desk with a red pencil, going through a line of strangers one by one. They mark each one in the margin and do not look at their faces. The pencil sits on the edge of the desk, an easy reach from where you stand."}
-scene = &"battle_gallery"
+scene = &"battle_ink_cellar"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

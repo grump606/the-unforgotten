@@ -60,5 +60,5 @@ id = &"the_unwritten_page"
 title = "The Unwritten Page"
 body = "A bound book on a lectern, and in the middle of it, one blank page, kept apart by a ribbon. Every other page in the Scriptorium is full. This one is clean, and bright as a field of snow."
 class_body = {"stray": "A bound book on a lectern, and in the middle of it, one blank page, kept apart by a ribbon. It smells of nothing at all, the one clean thing in this place, and it is just the height of a paw."}
-scene = &"battle_reading_room"
+scene = &"battle_blotting_hall"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

@@ -68,5 +68,5 @@ id = &"self_writing_pen"
 title = "The Pen That Writes Itself"
 body = "A pen lies across an open page, and it is moving. It writes in a hand that leans the way yours does, and it does not stop for breath. The line it is writing has not reached your name yet."
 class_body = {"deserter": "A pen lies across an open page, and it is moving. It writes in neat block capitals, the way a service record is kept, and it does not stop for breath. The line it is writing has not reached your name yet."}
-scene = &"battle_reading_room"
+scene = &"battle_blotting_hall"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

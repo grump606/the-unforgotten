@@ -49,5 +49,5 @@ id = &"the_index_of_names"
 title = "The Index of Names"
 body = "A cabinet of narrow drawers, each with a card in its brass frame. All of the cards are blank but one. That one is in a hand like your own, and it is not finished."
 class_body = {"medium": "A cabinet of narrow drawers, each with a card in its brass frame. The cards are blank, but not silent: the dead are leaning on the other side of them. One drawer is open, and the card in it is yours, and it is not finished."}
-scene = &"battle_catalogue"
+scene = &"battle_copy_desks"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3")])

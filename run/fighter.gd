@@ -37,7 +37,10 @@ const ART_KEYS := {
 	&"ledger_clerk": &"ledger_clerk", &"drowned_porter": &"drowned_porter", &"shelf_wraith": &"shelf_wraith", &"index_moth": &"index_moth",
 	&"the_misfiled": &"the_misfiled", &"pressing_hand": &"pressing_hand", &"copyist": &"copyist",
 	&"the_archivist": &"the_archivist", &"the_registrar": &"the_registrar",
-	&"the_scrivener": &"the_registrar", # STUB: the finale boss borrows the Registrar's sprite until its own is painted
+	# Chapter 3 (the Scriptorium): each uses its own id as the art key.
+	&"inkwell_imp": &"inkwell_imp", &"pen_knight": &"pen_knight", &"smudge": &"smudge", &"penwiper": &"penwiper",
+	&"scroll_mother": &"scroll_mother", &"the_unfinished": &"the_unfinished", &"ledger_wolf": &"ledger_wolf",
+	&"the_blotter": &"the_blotter", &"the_warden_of_the_inkwell": &"the_warden_of_the_inkwell", &"the_scrivener": &"the_scrivener",
 	&"proto_pest": &"hound", # the debug-only prototype enemy borrows the hound's figure
 	&"proto_dreadkeeper": &"whisperer", # likewise the Dreadkeeper borrows the whisperer's
 }
@@ -47,6 +50,8 @@ const HEIGHTS := {
 	&"hound": 115.0, &"crow": 105.0, &"conductor": 210.0, &"brakeman": 215.0, &"ghost": 140.0,
 	&"ledger_clerk": 150.0, &"drowned_porter": 200.0, &"shelf_wraith": 110.0, &"index_moth": 100.0, &"the_misfiled": 135.0,
 	&"pressing_hand": 115.0, &"copyist": 170.0, &"the_archivist": 215.0, &"the_registrar": 220.0,
+	&"inkwell_imp": 105.0, &"pen_knight": 200.0, &"smudge": 165.0, &"penwiper": 130.0, &"scroll_mother": 190.0,
+	&"the_unfinished": 175.0, &"ledger_wolf": 115.0, &"the_blotter": 215.0, &"the_warden_of_the_inkwell": 220.0, &"the_scrivener": 225.0,
 }
 const DEFAULT_HEIGHT := 170.0
 ## Boss figures are drawn this much larger than a regular enemy (shrunk only if the stage is too short).

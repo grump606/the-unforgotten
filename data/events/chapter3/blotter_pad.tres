@@ -61,5 +61,5 @@ id = &"blotter_pad"
 title = "The Blotter Pad"
 body = "A great blotter pad on a slanted desk, grey with ink. It has soaked up every name written on it, and under the lamp you can see them backwards, layered one over another, none of them clear."
 class_body = {"medium": "A great blotter pad on a slanted desk, grey with ink. It has soaked up every name written on it, and as you come near they murmur, all together, like a room of people trying not to be the first to speak."}
-scene = &"battle_catalogue"
+scene = &"battle_copy_desks"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])
