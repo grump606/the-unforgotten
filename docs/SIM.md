@@ -46,3 +46,29 @@ Escape rate, 300 runs per cell, seed 1, all four classes, run with `--character 
 - Elites cost the Medium the most (about 11 points with both bots). Before elites the Stray differed by about 20 points between the greedy and smart bots (76.7% against 56.7%); that gap has not been looked into.
 - An elite is 1.2 times the row's threat budget (`RunState.ELITE_BUDGET_MULTIPLIER`, 1.35 until 2026-11-10) and drops a relic and 20 gold; that multiplier is the first knob for the map's difficulty. The rows above are the 1.35 run; the 1.2 figures (greedy `mixed` 72.0 / 69.0 / 63.0 / 79.0%, smart `smart` 62.3 / 56.3 / 53.7 / 59.0%, Deserter / Thief / Medium / Stray) and the elite lethality are in `docs/MAP_DESIGN.md`, "Phase 5c". The `--map` report now prints `Elite lethality` and `Runs that fought an elite` lines.
 - The line rows are the 22-stop line before the map became the default: the baseline for line mode, which players no longer see.
+
+## Chapter 2 bot confirmation (2026-11-12, Gate 2 of `docs/CHAPTER2_PLAN.md`)
+
+`tools/run_sim.gd --map --chapters 2 --seed 1 --runs 400 --jobs 4 --character <class>` with both policies, the Chapter 2 content as built (seven
+enemies, two bosses, ten events, 24 cards and 7 relics, elite modifiers), with no script errors and no bot or engine errors logged. The target is
+that a chapter's survival is about 15% lower than the previous chapter's, read relative, per class (mean of the greedy and smart bots; "survival" is
+the share of runs that start the chapter and finish it).
+
+| Class | Ch 1 survival (greedy / smart) | Ch 2 survival (greedy / smart) | Ch 2 mean | Target (0.85 x ch 1 mean) |
+| --- | --- | --- | --- | --- |
+| Deserter | 67.5% / 65.5% | 55.9% / 58.0% | 57.0% | 56.5% |
+| Thief | 68.0% / 56.3% | 27.6% / 80.0% | 53.8% | 52.7% |
+| Medium | 56.0% / 53.8% | 39.3% / 55.8% | 47.6% | 46.7% |
+| Stray | 73.8% / 57.5% | 53.9% / 62.6% | 58.2% | 55.8% |
+
+- **The class means are on target**, by `CHAPTER_2_CLASS_DIFFICULTY` (Deserter 1.11, Thief 1.28, Medium 1.135, Stray 0.90, on top of Chapter 1's class factors and the
+  66 to 82 curve) and `CHAPTER_2_BOSS_FACTOR` (Stray 0.7). The Thief's two bots still disagree (greedy 28%, smart 80%): the greedy bot ends with a deck of about 47 cards.
+  Use the smart bot as the Thief reference (`docs/CHAPTER2_PLAN.md`).
+- **Bosses** (loss rate of those who reach them, 300 runs, mean of the four classes): the Archivist (170 HP) about 2 to 3%, the Registrar (165 HP) about 5%, against 3% and 0.5% for
+  Chapter 1's Bellkeeper and Eraser. Both Chapter 2 bosses were first too weak (0%) at 120 and 130 HP.
+- **Stalls** (a fight not finished in the 50-turn cap, the run counted lost): 0 for every class and bot except the smart Deserter, which loses about 1.5% of its runs
+  (7 in 400) to the Archivist: a pure-Block deck cannot kill a 170-HP boss that Blocks 14 a cycle fast enough. At 210 HP it was 3%, so it is a long-fight effect and not a bug;
+  a person would simply take longer.
+- **Elite lethality** (share of elite visits that end the run, Chapters 1 and 2 together): greedy 18 to 27%, smart 13 to 24%, in line with Chapter 1 alone (about 9 to 14%)
+  plus the harder Chapter 2 elites.
+- **Chapter 3 is still a stub** (Chapter 1's content on a 84 to 100 curve) and has no confirmation.

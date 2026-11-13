@@ -110,21 +110,31 @@ static func trio_paths() -> Array[String]:
 
 ## The chapter's end boss fight (Chapter 1: the Conductor) alone. Empty (cause logged) if it fails to load,
 ## and Combat needs at least one enemy, so callers must check.
-static func boss_encounter(chapter: int = 1) -> Array[EnemyData]:
+static func boss_encounter(chapter: int = 1, character_id: StringName = &"") -> Array[EnemyData]:
 	var enemies: Array[EnemyData] = []
 	var boss := ContentRegistry.load_enemy(Chapters.chapter(chapter).end_boss_path)
 	if boss != null:
-		enemies.append(boss)
+		enemies.append(_for_class(boss, chapter, character_id))
 	return enemies
 
 
 ## The mid-run boss fight: the Brakeman alone. Empty (cause logged) if it fails to load.
-static func mid_boss_encounter(chapter: int = 1) -> Array[EnemyData]:
+static func mid_boss_encounter(chapter: int = 1, character_id: StringName = &"") -> Array[EnemyData]:
 	var enemies: Array[EnemyData] = []
 	var boss := ContentRegistry.load_enemy(Chapters.chapter(chapter).mid_boss_path)
 	if boss != null:
-		enemies.append(boss)
+		enemies.append(_for_class(boss, chapter, character_id))
 	return enemies
+
+
+## A boss of chapter 2 or later for `character_id`: HP and attacks each scaled by the square root of the chapter's class factor
+## (ChapterData.boss_class_factor), so the boss's threat follows the factor the way a pack's budget does. Chapter 1's bosses are never
+## scaled (their numbers are shipped), and neither is a boss for no class or a class without a factor.
+static func _for_class(boss: EnemyData, chapter: int, character_id: StringName) -> EnemyData:
+	if chapter < 2 or character_id == &"":
+		return boss
+	var factor := float(Chapters.chapter(chapter).boss_class_factor.get(character_id, 1.0))
+	return scaled(boss, sqrt(factor), sqrt(factor)) if not is_equal_approx(factor, 1.0) else boss
 
 
 static func pick_path(paths: Array[String], rng: RandomNumberGenerator) -> String:

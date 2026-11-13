@@ -15,6 +15,9 @@ var budget_end: Array[float] = []
 ## A multiplier on the fight budget per character id, on top of StarterContent.MAP_CLASS_DIFFICULTY (a class that is not
 ## listed uses 1.0): the four classes do not carry their decks into a later chapter equally well (docs/CHAPTER2_PLAN.md).
 var class_difficulty: Dictionary = {}
+## Like class_difficulty but for the chapter's two bosses (fixed fights, not budgeted): their HP and attacks are each scaled by the
+## square root of this. A class that is not listed uses 1.0.
+var boss_class_factor: Dictionary = {}
 ## Enemy ids of the chapter's two bosses, and their resource paths (what boss fights load).
 var mid_boss: StringName = &""
 var end_boss: StringName = &""

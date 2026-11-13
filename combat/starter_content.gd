@@ -782,10 +782,10 @@ static func scaled(enemy: EnemyData, factor: float, damage_factor: float = -1.0)
 
 ## The boss fight: the Conductor alone. Empty (cause logged) if it fails to load,
 ## and Combat needs at least one enemy, so callers must check.
-static func boss_encounter(chapter: int = 1) -> Array[EnemyData]:
-	return Encounters.boss_encounter(chapter)
+static func boss_encounter(chapter: int = 1, character_id: StringName = &"") -> Array[EnemyData]:
+	return Encounters.boss_encounter(chapter, character_id)
 
 
 ## The mid-run boss fight: the Brakeman alone. Empty (cause logged) if it fails to load.
-static func mid_boss_encounter(chapter: int = 1) -> Array[EnemyData]:
-	return Encounters.mid_boss_encounter(chapter)
+static func mid_boss_encounter(chapter: int = 1, character_id: StringName = &"") -> Array[EnemyData]:
+	return Encounters.mid_boss_encounter(chapter, character_id)

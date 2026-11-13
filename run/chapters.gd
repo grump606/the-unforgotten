@@ -6,7 +6,9 @@ extends RefCounted
 const COUNT := 1
 const CHAPTER_1_DISTRICT_NAMES: Array[String] = ["The Quiet Streets", "The Dead Country"]
 ## Chapter 2's per-class budget factors (tuned with tools/run_sim.gd --chapters 2, docs/CHAPTER2_PLAN.md).
-const CHAPTER_2_CLASS_DIFFICULTY := {&"deserter": 1.11, &"thief": 1.28, &"medium": 1.135, &"stray": 0.86}
+const CHAPTER_2_CLASS_DIFFICULTY := {&"deserter": 1.11, &"thief": 1.28, &"medium": 1.135, &"stray": 0.90}
+## Chapter 2's per-class boss factors (the Stray's 37 HP loses far more often to the Registrar than the other classes).
+const CHAPTER_2_BOSS_FACTOR := {&"deserter": 1.0, &"thief": 1.0, &"medium": 1.0, &"stray": 0.7}
 ## Chapter 2's districts (proposed names, docs/CHAPTER2_PLAN.md, "Names").
 const CHAPTER_2_DISTRICT_NAMES: Array[String] = ["The Flooded Stacks", "The Reading Rooms"]
 const CHAPTER_1_BUDGET_START: Array[float] = [34.0, 46.0]
@@ -53,6 +55,7 @@ static func _build(n: int) -> ChapterData:
 		# Chapter 2 has its own enemies and bosses (still without art or a final curve; see docs/CHAPTER2_PLAN.md).
 		c.district_names = CHAPTER_2_DISTRICT_NAMES.duplicate()
 		c.class_difficulty = CHAPTER_2_CLASS_DIFFICULTY.duplicate()
+		c.boss_class_factor = CHAPTER_2_BOSS_FACTOR.duplicate()
 		c.mid_boss_title = "The Archivist"
 		c.end_boss_title = "The Registrar"
 		c.mid_boss = &"the_archivist"
