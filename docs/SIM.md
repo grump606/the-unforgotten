@@ -89,3 +89,17 @@ about 15% below Chapter 2's (48 / 46 / 41 / 49):
 The Thief's smart bot stays above target even at a 3.4 class factor (the budget saturates); revisit once Chapter 3's cards exist. The Scrivener is 400 HP
 and its attacks are scaled 1.4x from the first draft. These numbers will move when the Chapter 3 cards and relics are in the pool, so the real
 confirmation (400 runs per class and bot) is the Gate 2 step.
+
+### Chapter 3 second pass (with Chapter 3's cards, relics and events in the pool; 200 runs per class and bot, seed 1)
+
+Factors now `CHAPTER_3_CLASS_DIFFICULTY` deserter 1.3, thief 3.4, medium 1.35, stray 1.05 and `CHAPTER_3_BOSS_FACTOR` 1.1 / 3.0 / 0.85 / 0.65.
+
+| Class | mean survival (target) | smart survival | finale lost (smart) |
+| --- | --- | --- | --- |
+| Deserter | 40% (48) | 40% | 5 of 25 |
+| Thief | 30% (46), greedy unreliable | 59% | 2 of 54 |
+| Medium | 47% (41) | 44% | 9 of 25 |
+| Stray | 42% (49) | 52% | 8 of 42 |
+
+The results swing a lot between runs of the factors (a 0.15 change moved the Medium from 24% to 63%), so these are close, not final. Open: the Thief's smart bot is
+still too strong in both the chapter and the finale; the Deserter slightly hard in the chapter. The 400-run confirmation comes after the playtest and art.

@@ -10,8 +10,8 @@ const CHAPTER_2_CLASS_DIFFICULTY := {&"deserter": 1.11, &"thief": 1.28, &"medium
 ## Chapter 2's per-class boss factors (the Stray's 37 HP loses far more often to the Registrar than the other classes).
 const CHAPTER_2_BOSS_FACTOR := {&"deserter": 1.0, &"thief": 1.0, &"medium": 1.0, &"stray": 0.7}
 ## Chapter 3's per-class factors (a first tuning pass, 200 runs per class and bot; see docs/SIM.md). The boss factor also scales the finale.
-const CHAPTER_3_CLASS_DIFFICULTY := {&"deserter": 1.25, &"thief": 3.4, &"medium": 1.5, &"stray": 0.95}
-const CHAPTER_3_BOSS_FACTOR := {&"deserter": 0.95, &"thief": 2.5, &"medium": 0.9, &"stray": 0.5}
+const CHAPTER_3_CLASS_DIFFICULTY := {&"deserter": 1.3, &"thief": 3.4, &"medium": 1.35, &"stray": 1.05}
+const CHAPTER_3_BOSS_FACTOR := {&"deserter": 1.1, &"thief": 3.0, &"medium": 0.85, &"stray": 0.65}
 ## Chapter 2's districts (proposed names, docs/CHAPTER2_PLAN.md, "Names").
 const CHAPTER_2_DISTRICT_NAMES: Array[String] = ["The Flooded Stacks", "The Reading Rooms"]
 const CHAPTER_1_BUDGET_START: Array[float] = [34.0, 46.0]
