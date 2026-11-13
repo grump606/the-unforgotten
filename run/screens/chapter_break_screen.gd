@@ -22,18 +22,20 @@ func show() -> void:
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(line)
 	var heal := mini(run.player.max_hp - run.player.hp, roundi(run.player.max_hp * RunState.CHAPTER_BREAK_HEAL_FRACTION))
-	var summary := make_label("HP %d/%d  ·  Gold %d\nDeck: %d cards  ·  Keepsakes: %d\nThe next chapter begins with +%d HP." % [
-		run.player.hp, run.player.max_hp, run.gold, run.deck.size(), run.relics.size(), heal,
+	var finale := run.can_start_finale()
+	var summary := make_label("HP %d/%d  ·  Gold %d\nDeck: %d cards  ·  Keepsakes: %d\nThe %s begins with +%d HP." % [
+		run.player.hp, run.player.max_hp, run.gold, run.deck.size(), run.relics.size(), "finale" if finale else "next chapter", heal,
 	])
 	summary.name = "BreakSummary"
 	summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(summary)
-	var begin := add_button(box, "Begin Chapter %d" % (run.chapter + 1), _begin)
+	var begin := add_button(box, Chapters.chapter(run.chapter).finale_button if finale else "Begin Chapter %d" % (run.chapter + 1), _begin)
 	begin.name = "BeginChapterButton"
 	style_service(begin)
 
 
 func _begin() -> void:
 	sfx(&"confirm")
-	run.start_next_chapter()
+	if not run.start_finale():
+		run.start_next_chapter()
 	refresh.call()

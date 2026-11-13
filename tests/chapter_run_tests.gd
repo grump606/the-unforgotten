@@ -25,6 +25,7 @@ func run() -> int:
 	Chapters.count_override = 1
 	_test_single_chapter_game()
 	_test_open_ended_game()
+	_test_finale()
 	return _failures
 
 
@@ -170,4 +171,63 @@ func _test_open_ended_game() -> void:
 	_check(second.relics.size() == relics + 1, "after the relic is taken")
 	Chapters.count_override = 3
 	_check(not Chapters.open_ended(), "with the count overridden the game is not open ended")
+	Chapters.count_override = 1
+
+
+## A complete game (three chapters): the last chapter's end boss leads to the break, then the finale, a boss fight with no map.
+func _finale_run() -> RunState:
+	var run := _run_at_end_boss()
+	run.chapter = 3
+	run.restore_map(run.route, run.current_node, run.visited, true)
+	run.chapter = 3
+	return run
+
+
+func _test_finale() -> void:
+	Chapters.count_override = 3
+	_check(Chapters.has_finale() and not Chapters.open_ended(), "three chapters is a complete game with a finale")
+	var run := _finale_run()
+	_check(run.complete_combat(true) and run.boss_spoils_pending() and not run.finished, "the last chapter's end boss pays its spoils first")
+	_check(run.take_boss_spoils() and run.chapter_break and run.can_start_finale() and not run.finished and not run.to_be_continued, "then the break, which leads to the finale")
+	_check(not run.start_next_chapter(), "there is no chapter 4")
+	run.player.hp = 5
+	var max_hp := run.player.max_hp
+	_check(run.at_stop_boundary() and RunSave.to_dict(run)["chapter_break"] == true, "the break is a save point")
+	var break_save := RunSave.from_dict(JSON.parse_string(JSON.stringify(RunSave.to_dict(run))))
+	_check(break_save.error == "" and break_save.run.can_start_finale(), "a break save at the end of the last chapter loads")
+	_check(run.start_finale() and run.finale and not run.chapter_break, "the finale starts")
+	_check(run.player.hp == mini(max_hp, 5 + roundi(max_hp * RunState.CHAPTER_BREAK_HEAL_FRACTION)), "after the break heal")
+	var stop := run.current_stop()
+	_check(stop != null and stop.finale and stop.boss and stop.describe() == "Finale" and run.boss_label() == "Final boss", "the finale is a final-boss combat stop")
+	_check(run.battle_backdrop() == Chapters.chapter(3).finale_backdrop, "on the chapter's finale backdrop")
+	_check(not run.start_finale(), "it starts once")
+	var save := RunSave.to_dict(run)
+	_check(int(save["version"]) == RunSave.CHAPTER_VERSION and save["finale"] == true and save["chapter"] == 3, "a finale save is v6 with finale true")
+	var back := RunSave.from_dict(JSON.parse_string(JSON.stringify(save)))
+	_check(back.error == "" and back.run.finale and back.run.current_stop().finale and not back.run.chapter_break, "it loads into the finale")
+	var combat := run.start_combat()
+	_check(combat != null and combat.enemies.size() == 1 and combat.enemies[0].data.id == &"the_scrivener", "the fight is the Scrivener alone")
+	_check(combat.enemies[0].data.phase_two_intents.size() > 0 and combat.enemies[0].data.phase_three_intents.size() > 0, "with three phases")
+	combat.abandon()
+	var gold := run.gold
+	var relics := run.relics.size()
+	_check(run.complete_combat(true) and run.finished and run.escaped and not run.to_be_continued, "winning it ends the run as an escape")
+	_check(run.gold == gold and run.relics.size() == relics and not run.reward_pending(), "with no gold, relic or card reward")
+	var lost := _finale_run()
+	lost.complete_combat(true)
+	lost.take_boss_spoils()
+	lost.start_finale()
+	_check(lost.complete_combat(false) and lost.finished and not lost.escaped, "losing it ends the run as a defeat")
+	# Bad saves.
+	var bad := RunSave.to_dict(back.run)
+	for case in [["finale", "yes"], ["chapter", 2]]:
+		var copy := bad.duplicate(true)
+		copy[case[0]] = case[1]
+		_check(RunSave.from_dict(JSON.parse_string(JSON.stringify(copy)))["error"] != "", "rejects finale save with %s = %s" % [case[0], str(case[1])])
+	var both := bad.duplicate(true)
+	both["chapter_break"] = true
+	_check(RunSave.from_dict(JSON.parse_string(JSON.stringify(both)))["error"] != "", "a save cannot be at the break and in the finale")
+	Chapters.count_override = 2
+	_check(RunSave.from_dict(JSON.parse_string(JSON.stringify(bad)))["error"] != "", "a finale save is rejected when the game has no finale")
+	_check(not _finale_run().can_start_finale(), "no finale with two chapters")
 	Chapters.count_override = 1

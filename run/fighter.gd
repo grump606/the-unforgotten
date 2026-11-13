@@ -37,6 +37,7 @@ const ART_KEYS := {
 	&"ledger_clerk": &"ledger_clerk", &"drowned_porter": &"drowned_porter", &"shelf_wraith": &"shelf_wraith", &"index_moth": &"index_moth",
 	&"the_misfiled": &"the_misfiled", &"pressing_hand": &"pressing_hand", &"copyist": &"copyist",
 	&"the_archivist": &"the_archivist", &"the_registrar": &"the_registrar",
+	&"the_scrivener": &"the_registrar", # STUB: the finale boss borrows the Registrar's sprite until its own is painted
 	&"proto_pest": &"hound", # the debug-only prototype enemy borrows the hound's figure
 	&"proto_dreadkeeper": &"whisperer", # likewise the Dreadkeeper borrows the whisperer's
 }

@@ -12,6 +12,7 @@ func run() -> int:
 	_test_switch_by_haunt()
 	_test_switch_by_thorns()
 	_test_bosses_define_phase_two()
+	_test_phase_three()
 	return _failures
 
 
@@ -145,3 +146,59 @@ func _test_bosses_define_phase_two() -> void:
 		_check(data.phase_two_hp_percent >= 1 and data.phase_two_hp_percent <= 99, "%s has a sane phase two threshold" % data.display_name)
 		for intent in data.phase_two_intents:
 			_check(intent.kind in [CardEffect.Kind.DAMAGE, CardEffect.Kind.BLOCK, CardEffect.Kind.EXPOSE, CardEffect.Kind.MALICE, CardEffect.Kind.ADD_CARD], "%s phase two intents use enemy intent kinds" % data.display_name)
+
+
+## Three phases (the finale boss): 66% and 33%, one switch per threshold, a single hit crossing both announces both.
+func _three_phase_boss() -> EnemyData:
+	var data := _boss()
+	data.phase_two_hp_percent = 66
+	data.phase_two_title = "Second"
+	data.phase_three_intents = _fxs([_fx(CardEffect.Kind.DAMAGE, 11)])
+	data.phase_three_hp_percent = 33
+	data.phase_three_title = "Third"
+	return data
+
+
+## Plays the card in hand whose first effect deals `amount` (the hand is shuffled, so a test cannot count on an index).
+func _play_damage(combat: Combat, amount: int) -> void:
+	for i in combat.piles.hand.size():
+		if combat.piles.hand[i].effects[0].amount == amount:
+			combat.play_card(i, 0)
+			return
+
+
+func _test_phase_three() -> void:
+	var data := _three_phase_boss()
+	_check(data.title_for_phase(2) == "Second" and data.title_for_phase(3) == "Third" and data.title_for_phase(1) == "" and data.title_for_phase(4) == "", "each phase has its banner text")
+	var combat := _fight(data, [_card([_fx(CardEffect.Kind.DAMAGE, 30)]), _card([_fx(CardEffect.Kind.DAMAGE, 50)]), _card([_fx(CardEffect.Kind.DAMAGE, 40)])] as Array[CardData])
+	var phases: Array[int] = []
+	combat.enemy_phase_changed.connect(func(_enemy: EnemyUnit, phase: int) -> void: phases.append(phase))
+	var boss := combat.enemies[0]
+	_play_damage(combat, 30)
+	_check(boss.hp == 70 and boss.phase == 1 and phases.is_empty(), "above 66% it is still in phase one")
+	_play_damage(combat, 50)
+	_check(boss.hp == 20 and boss.phase == 3, "one hit that crosses 66% and 33% takes it to phase three")
+	_check(phases.size() == 2 and phases[0] == 2 and phases[1] == 3, "and announces phase two, then phase three")
+	_check(boss.current_intent().amount == 11 and boss.active_intents() == data.phase_three_intents, "phase three runs its own cycle from the start")
+	# One step at a time.
+	var steady := _fight(_three_phase_boss(), [_card([_fx(CardEffect.Kind.DAMAGE, 35)]), _card([_fx(CardEffect.Kind.DAMAGE, 36)])] as Array[CardData])
+	var seen: Array[int] = []
+	steady.enemy_phase_changed.connect(func(_enemy: EnemyUnit, phase: int) -> void: seen.append(phase))
+	_play_damage(steady, 35)
+	_check(steady.enemies[0].phase == 2 and seen.size() == 1 and seen[0] == 2, "a hit to 65% is phase two only")
+	_play_damage(steady, 36)
+	_check(steady.enemies[0].phase == 3 and seen.size() == 2 and seen[1] == 3, "a hit to 30% then reaches phase three")
+	# Without a phase two there is no phase three, and phase two alone behaves as before.
+	var no_two := _boss(false)
+	no_two.phase_three_intents = _fxs([_fx(CardEffect.Kind.DAMAGE, 9)])
+	var alone := _fight(no_two, [_card([_fx(CardEffect.Kind.DAMAGE, 90)])] as Array[CardData])
+	_play_damage(alone, 90)
+	_check(alone.enemies[0].phase == 1, "phase three needs phase two")
+	var plain := _fight(_boss(), [_card([_fx(CardEffect.Kind.DAMAGE, 90)])] as Array[CardData])
+	_play_damage(plain, 90)
+	_check(plain.enemies[0].phase == 2, "a two-phase enemy never reaches phase three")
+	# The copies the pack builder and the elite rename make keep it.
+	var scaled := Encounters.scaled(data, 1.5)
+	_check(scaled.phase_three_intents.size() == 1 and scaled.phase_three_intents[0].amount == 17 and scaled.phase_three_hp_percent == 33 and scaled.phase_three_title == "Third", "a scaled copy keeps phase three, its damage scaled")
+	var named := StarterContent.elite_named(data)
+	_check(named.phase_three_intents.size() == 1 and named.phase_three_title == "Third", "an elite copy keeps it")

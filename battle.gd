@@ -663,8 +663,8 @@ func _on_enemy_acted(enemy: EnemyUnit, intent: CardEffect) -> void:
 
 ## A boss (or any enemy with a phase two) enters its second phase: banner, flash, shake, harsher backdrop
 ## and an immediate redraw so the new phase's intent shows.
-func _on_enemy_phase_changed(enemy: EnemyUnit, _new_phase: int) -> void:
-	var title := enemy.data.phase_two_title if enemy.data.phase_two_title != "" else "Enraged"
+func _on_enemy_phase_changed(enemy: EnemyUnit, new_phase: int) -> void:
+	var title := enemy.data.title_for_phase(new_phase) if enemy.data.title_for_phase(new_phase) != "" else "Enraged"
 	_log_label.append_text("[b]%s: %s[/b]\n" % [enemy.display_name, title])
 	var index := _combat.enemies.find(enemy)
 	if index >= 0 and index < _enemy_views.size():

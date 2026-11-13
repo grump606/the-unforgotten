@@ -25,6 +25,11 @@ var mid_boss_backdrop: StringName = &""
 var boss_backdrop: StringName = &""
 ## The window painting of each of the chapter's story beats (RouteMap.STORY_LOCAL_ROWS order), as the part after "story_".
 var story_moods: Array[StringName] = []
+## The finale after the last planned chapter (Chapters.has_finale): the final boss's resource path and battle backdrop, and what the
+## break screen's button says ("Face the Scrivener"). Empty for a chapter without one.
+var finale_boss_path := ""
+var finale_backdrop: StringName = &""
+var finale_button := ""
 ## Enemy ids of the chapter's two bosses, and their resource paths (what boss fights load).
 var mid_boss: StringName = &""
 var end_boss: StringName = &""

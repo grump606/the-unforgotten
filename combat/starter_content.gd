@@ -155,6 +155,9 @@ const CHAPTER2_SMALL_PATHS: Array[String] = [LEDGER_CLERK_PATH, SHELF_WRAITH_PAT
 ## Left out of trios as Chapter 1's Lost Shade is: the sturdy small enemies. None yet; set from the sims.
 const CHAPTER2_TRIO_EXCLUDED_PATHS: Array[String] = []
 const CHAPTER2_BOSS_PATHS: Array[String] = [ARCHIVIST_PATH, REGISTRAR_PATH]
+## Chapter 3's finale boss (docs/CHAPTER3_PLAN.md): a STUB for now. It is not in an encounter pool; only finale_encounter() builds it.
+const SCRIVENER_PATH := "res://data/enemies/chapter3/the_scrivener.tres"
+const CHAPTER3_BOSS_PATHS: Array[String] = [SCRIVENER_PATH]
 ## Every card, in a fixed order. A card's `character` tag says who may take it (empty = everyone).
 const ALL_CARD_PATHS: Array[String] = [
 	SHOVE_PATH, SLIP_PAST_PATH, GLIMPSE_EXIT_PATH, BRACE_PATH, FLURRY_PATH, SWEEP_PATH,
@@ -671,6 +674,9 @@ static func elite_named(enemy: EnemyData) -> EnemyData:
 	named.phase_two_intents = enemy.phase_two_intents
 	named.phase_two_hp_percent = enemy.phase_two_hp_percent
 	named.phase_two_title = enemy.phase_two_title
+	named.phase_three_intents = enemy.phase_three_intents
+	named.phase_three_hp_percent = enemy.phase_three_hp_percent
+	named.phase_three_title = enemy.phase_three_title
 	named.unseen = enemy.unseen
 	return named
 
@@ -789,3 +795,8 @@ static func boss_encounter(chapter: int = 1, character_id: StringName = &"") -> 
 ## The mid-run boss fight: the Brakeman alone. Empty (cause logged) if it fails to load.
 static func mid_boss_encounter(chapter: int = 1, character_id: StringName = &"") -> Array[EnemyData]:
 	return Encounters.mid_boss_encounter(chapter, character_id)
+
+
+## The finale fight of `chapter` (the final boss alone); empty when that chapter has no finale or the boss fails to load.
+static func finale_encounter(chapter: int = 3, character_id: StringName = &"") -> Array[EnemyData]:
+	return Encounters.finale_encounter(chapter, character_id)

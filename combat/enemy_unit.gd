@@ -4,7 +4,8 @@ extends Combatant
 
 var data: EnemyData
 
-## 1 normally; 2 once the enemy has crossed its `phase_two_hp_percent` threshold (see EnemyData).
+## 1 normally; 2 once the enemy has crossed its `phase_two_hp_percent` threshold, 3 once it has crossed `phase_three_hp_percent`
+## after that (see EnemyData).
 var phase: int = 1
 
 var _intent_index: int = 0
@@ -18,7 +19,12 @@ func _init(enemy_data: EnemyData) -> void:
 
 ## The intent cycle for the current phase.
 func active_intents() -> Array[CardEffect]:
-	return data.phase_two_intents if phase == 2 else data.intents
+	match phase:
+		2:
+			return data.phase_two_intents
+		3:
+			return data.phase_three_intents
+	return data.intents
 
 
 ## What this enemy will do on its next turn, or null if it has no intents.
@@ -29,16 +35,21 @@ func current_intent() -> CardEffect:
 	return intents[_intent_index % intents.size()]
 
 
-## Switches to phase two, once, when a living enemy with a phase two is at or below its HP threshold.
-## The new cycle starts from its first intent. Returns true only on the turn it switches.
+## Moves to the next phase, once per call, when a living enemy that has one is at or below that phase's HP threshold (phase two, then
+## phase three). The new cycle starts from its first intent. Returns true only when it switches; a hit that crosses both thresholds
+## needs two calls, which Combat makes.
 func check_phase() -> bool:
-	if phase != 1 or data.phase_two_intents.is_empty() or is_dead():
+	if is_dead():
 		return false
-	if hp * 100 > max_hp * data.phase_two_hp_percent:
-		return false
-	phase = 2
-	_intent_index = 0
-	return true
+	if phase == 1 and not data.phase_two_intents.is_empty() and hp * 100 <= max_hp * data.phase_two_hp_percent:
+		phase = 2
+		_intent_index = 0
+		return true
+	if phase == 2 and not data.phase_three_intents.is_empty() and hp * 100 <= max_hp * data.phase_three_hp_percent:
+		phase = 3
+		_intent_index = 0
+		return true
+	return false
 
 
 func advance_intent() -> void:

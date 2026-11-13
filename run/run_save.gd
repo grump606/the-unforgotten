@@ -75,7 +75,7 @@ static func line_signature(run: RunState) -> String:
 static func _version_for(run: RunState) -> int:
 	if not run.uses_map():
 		return LINE_VERSION
-	return CHAPTER_VERSION if run.chapter > 1 or run.chapter_break else MAP_VERSION
+	return CHAPTER_VERSION if run.chapter > 1 or run.chapter_break or run.finale else MAP_VERSION
 
 
 static func to_dict(run: RunState) -> Dictionary:
@@ -119,6 +119,8 @@ static func to_dict(run: RunState) -> Dictionary:
 		if _version_for(run) >= CHAPTER_VERSION:
 			data["chapter"] = run.chapter
 			data["chapter_break"] = run.chapter_break
+			if run.finale:
+				data["finale"] = true # only written when true, so every other v6 save is unchanged
 		data.erase("line") # the stop line does not exist in map mode (stops are placeholders)
 	return data
 
@@ -145,6 +147,8 @@ class Accepted extends RefCounted:
 	## Chapter saves (v6): the chapter and whether the save is at its break. A v5 save is Chapter 1, no break.
 	var chapter := 1
 	var chapter_break := false
+	## True when the save was made on arrival at the finale (v6, optional key).
+	var finale := false
 	## How far the run has got in rows, over all chapters: what the deck, gold and relic bounds scale with.
 	var bound_index := 0
 
@@ -194,6 +198,8 @@ static func from_dict(data: Variant) -> Result:
 		run.restore_map(got.route, got.current_node, got.visited, got.at_node)
 		run.chapter = got.chapter
 		run.chapter_break = got.chapter_break
+		if got.finale:
+			run.restore_finale()
 	run.restore_rng_state(got.rng_state.to_int())
 	return _ok(run)
 
@@ -375,8 +381,14 @@ static func _check_chapter(d: Dictionary, _run: RunState, got: Accepted) -> Stri
 		return "bad chapter_break"
 	got.chapter = chapter
 	got.chapter_break = d["chapter_break"]
-	if got.chapter_break and chapter >= Chapters.count():
+	if got.chapter_break and chapter >= Chapters.count() and not Chapters.has_finale():
 		return "this save is at a chapter break after the last chapter"
+	if d.has("finale"):
+		if typeof(d["finale"]) != TYPE_BOOL:
+			return "bad finale"
+		got.finale = d["finale"]
+		if got.finale and (got.chapter_break or chapter != Chapters.count() or not Chapters.has_finale()):
+			return "this save is in a finale that does not exist"
 	got.bound_index = got.stop_index + (chapter - 1) * RouteMap.ROWS
 	return ""
 
@@ -432,7 +444,10 @@ static func _check_map(d: Dictionary, run: RunState, got: Accepted) -> String:
 					return "the visited path does not begin on the first row"
 			elif not route.next_ids(visited[i - 1]).has(visited[i]):
 				return "the visited path uses a road that is not on the map"
-		if got.chapter_break:
+		if got.finale:
+			if not at_node or route.node(current).type != RouteMap.NodeType.BOSS:
+				return "this save is in the finale but not at the chapter's end boss"
+		elif got.chapter_break:
 			if at_node or route.node(current).type != RouteMap.NodeType.BOSS or not route.next_ids(current).is_empty():
 				return "this save is at a chapter break but not after the chapter's end boss"
 		elif not at_node and route.next_ids(current).is_empty():

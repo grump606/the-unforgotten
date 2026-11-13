@@ -81,6 +81,9 @@ static func scaled(enemy: EnemyData, factor: float, damage_factor: float = -1.0)
 	scaled_enemy.phase_two_intents = _scaled_intents(enemy.phase_two_intents, damage_scale)
 	scaled_enemy.phase_two_hp_percent = enemy.phase_two_hp_percent
 	scaled_enemy.phase_two_title = enemy.phase_two_title
+	scaled_enemy.phase_three_intents = _scaled_intents(enemy.phase_three_intents, damage_scale)
+	scaled_enemy.phase_three_hp_percent = enemy.phase_three_hp_percent
+	scaled_enemy.phase_three_title = enemy.phase_three_title
 	scaled_enemy.unseen = enemy.unseen
 	return scaled_enemy
 
@@ -122,6 +125,18 @@ static func boss_encounter(chapter: int = 1, character_id: StringName = &"") -> 
 static func mid_boss_encounter(chapter: int = 1, character_id: StringName = &"") -> Array[EnemyData]:
 	var enemies: Array[EnemyData] = []
 	var boss := ContentRegistry.load_enemy(Chapters.chapter(chapter).mid_boss_path)
+	if boss != null:
+		enemies.append(_for_class(boss, chapter, character_id))
+	return enemies
+
+
+## The finale: the final boss alone, scaled for the class like the other bosses of its chapter.
+static func finale_encounter(chapter: int = 3, character_id: StringName = &"") -> Array[EnemyData]:
+	var enemies: Array[EnemyData] = []
+	var path := Chapters.chapter(chapter).finale_boss_path
+	if path == "":
+		return enemies
+	var boss := ContentRegistry.load_enemy(path)
 	if boss != null:
 		enemies.append(_for_class(boss, chapter, character_id))
 	return enemies

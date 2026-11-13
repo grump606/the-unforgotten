@@ -151,7 +151,7 @@ shrinking the backdrops (lossy export, 1280x720) before Chapter 3's art.
 Each item is its own PR with `scripts/check.ps1` green and the sims re-run when numbers change; art comes last.
 
 **Gate 1: Chapter 3 plays in the sim, with a stub finale.**
-1. The finale stop and the three-phase enemy, behind `THE_UNFORGOTTEN_CHAPTERS=3`, with a stub Scrivener (a re-skinned Registrar). Chapter 1 and 2 behaviour unchanged.
+1. **Done 2026-11-13: the finale stop and the three-phase enemy**, behind `THE_UNFORGOTTEN_CHAPTERS=3` (`Chapters.has_finale()` is true at three chapters, so the shipped game is unchanged): `EnemyData.phase_three_*` and `EnemyUnit` phases 1 to 3 (a hit crossing two thresholds announces both; banners by `title_for_phase`); `RunState.finale`, `can_start_finale()`, `start_finale()` (the break's button reads "Face the Scrivener", heal 0.75, no reward on a win), the finale as a boss `Stop` with `finale = true`; `RunSave` format 6 gains an optional `finale` key; the sim plays it (it is the row after the last end boss; "Finale" in the deaths list); a stub `the_scrivener` (260 HP, three phases at 66% and 33%, existing effects only, the Registrar's sprite). Chapters 1 and 2 behave exactly as before. Original item: the finale stop and the three-phase enemy, behind the env switch, with a stub Scrivener (a re-skinned Registrar).
 2. The new effect(s), the seven enemies, the three bosses as data; tune the curve and the finale against the targets.
 
 **Gate 2: Chapter 3 is complete without art.**

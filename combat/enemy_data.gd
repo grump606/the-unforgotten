@@ -15,6 +15,21 @@ extends Resource
 @export_range(1, 99) var phase_two_hp_percent: int = 50
 ## Banner text shown by the UI when phase two begins (presentation only).
 @export var phase_two_title: String = ""
+## Optional third phase (the finale boss): once HP is at or below this percent of max, and the enemy is already in phase two,
+## it switches to `phase_three_intents`. It needs a phase two, and its threshold is below phase two's.
+@export var phase_three_intents: Array[CardEffect] = []
+@export_range(1, 98) var phase_three_hp_percent: int = 33
+@export var phase_three_title: String = ""
+
+
+## The banner text of phase `phase` (2 or 3); "" for any other, or when the data names none.
+func title_for_phase(phase: int) -> String:
+	match phase:
+		2:
+			return phase_two_title
+		3:
+			return phase_three_title
+	return ""
 ## Unseen: while another enemy that is not Unseen is alive, this one cannot be targeted. A card aimed at it
 ## lands on the first enemy that can be (and the battle screen will not select it); an all-enemies card still
 ## reaches it. Once it is the only kind left, it can be targeted normally. See Combat.is_shielded().

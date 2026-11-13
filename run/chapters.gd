@@ -40,6 +40,11 @@ static func open_ended() -> bool:
 	return count_override == 0 and COUNT < PLANNED
 
 
+## True when the run has every planned chapter: the last one's end boss is then followed by the finale (a single boss fight, no map).
+static func has_finale() -> bool:
+	return count() >= PLANNED
+
+
 ## Chapter `number` (1-based), clamped to 1..MAX_BUILT. Chapters past COUNT are development stubs (see _build).
 static func chapter(number: int = 1) -> ChapterData:
 	var n := clampi(number, 1, MAX_BUILT)
@@ -85,6 +90,11 @@ static func _build(n: int) -> ChapterData:
 	c.story_moods.assign([&"boarding", &"conductor", &"platform", &"last_light"])
 	c.mid_boss_title = "The Bellkeeper"
 	c.end_boss_title = "The Eraser"
+	if n == 3:
+		# STUB: the finale is a placeholder Scrivener (docs/CHAPTER3_PLAN.md) until the real one is built.
+		c.finale_boss_path = StarterContent.SCRIVENER_PATH
+		c.finale_backdrop = RouteMap.BOSS_BACKDROP
+		c.finale_button = "Face the Scrivener"
 	c.mid_boss = &"the_brakeman"
 	c.end_boss = &"the_conductor"
 	c.mid_boss_path = StarterContent.BRAKEMAN_PATH

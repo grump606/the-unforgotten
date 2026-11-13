@@ -30,7 +30,7 @@ signal state_changed
 ## `targets` are the enemies the card hit (empty for SELF cards).
 signal card_played(card: CardData, targets: Array[EnemyUnit])
 signal enemy_acted(enemy: EnemyUnit, intent: CardEffect)
-## An enemy crossed its HP threshold and began phase 2 (`enemy.phase == 2`; its next intent is already the new one).
+## An enemy crossed an HP threshold and began phase 2 or 3 (`enemy.phase`; its next intent is already the new one).
 signal enemy_phase_changed(enemy: EnemyUnit, phase: int)
 signal combat_ended(victory: bool)
 
@@ -982,5 +982,6 @@ func _quarry_died(carried: int) -> void:
 func _check_phases() -> void:
 	_pass_on_scent()
 	for enemy in enemies:
-		if not enemy.is_dead() and enemy.check_phase():
+		# A hit that crosses two thresholds announces each phase in turn.
+		while not enemy.is_dead() and enemy.check_phase():
 			enemy_phase_changed.emit(enemy, enemy.phase)

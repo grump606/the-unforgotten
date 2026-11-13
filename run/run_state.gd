@@ -81,6 +81,8 @@ class Stop:
 	var mid_boss: bool
 	## Map mode: an elite fight (tougher pack, relic drop). Set by `_stop_for_node`, never on the line.
 	var elite: bool = false
+	## The finale after the last chapter (RunState.start_finale): a boss stop that is not on the map. Winning it ends the run as an escape.
+	var finale: bool = false
 	var tier: int
 	var fight: int
 	## Map mode only: the stop's row and node id in the route (-1 on a line stop).
@@ -112,6 +114,8 @@ class Stop:
 	func describe() -> String:
 		match type:
 			StopType.COMBAT:
+				if finale:
+					return "Finale"
 				if boss:
 					return "Boss"
 				if mid_boss:
@@ -146,6 +150,8 @@ var route: RouteMap = null
 var current_node: int = -1
 ## The chapter being played (1 to Chapters.count()). Each chapter is a fresh map; deck, relics and gold carry over.
 var chapter: int = 1
+## True while the finale is being played (after the last chapter's break; `_map_stop` is the finale stop). Saved with a run.
+var finale := false
 ## True once the last chapter that exists is won while more are planned (Chapters.open_ended): the run is over, with "To be continued".
 var to_be_continued := false
 ## True between a chapter's end boss and the next chapter (the break). The map then sits on its last node.
@@ -336,14 +342,48 @@ func take_boss_spoils() -> bool:
 	_boss_relic = null
 	_reward_pending = false
 	_map_stop = null
-	if chapter < Chapters.count():
-		chapter_break = true
+	if chapter < Chapters.count() or Chapters.has_finale():
+		chapter_break = true # (after the last chapter of a complete game the break leads to the finale)
 	else:
 		# The last chapter that exists: the journey stops here for now.
 		finished = true
 		escaped = false
 		to_be_continued = true
 	return true
+
+
+## True at the break after the last chapter of a complete game (Chapters.has_finale): the next step is the finale, not a chapter.
+func can_start_finale() -> bool:
+	return chapter_break and route != null and chapter == Chapters.count() and Chapters.has_finale()
+
+
+## From that break: heals CHAPTER_BREAK_HEAL_FRACTION of max HP and opens the finale, a boss fight with no map. Deck, relics and gold are as they
+## were. False, changing nothing, anywhere else.
+func start_finale() -> bool:
+	if not can_start_finale():
+		return false
+	player.hp = mini(player.max_hp, player.hp + roundi(player.max_hp * CHAPTER_BREAK_HEAL_FRACTION))
+	chapter_break = false
+	finale = true
+	_map_stop = _finale_stop()
+	return true
+
+
+## The finale's stop: a boss combat on the chapter's finale backdrop, on the same row as the end boss it follows.
+func _finale_stop() -> Stop:
+	var stop := Stop.new(StopType.COMBAT, 1, 0, true)
+	stop.finale = true
+	stop.row = RouteMap.ROWS - 1
+	stop.node_id = current_node
+	stop.backdrop = Chapters.chapter(chapter).finale_backdrop
+	return stop
+
+
+## RunSave: puts a run restored at the end boss into the finale (the save was made on its arrival).
+func restore_finale() -> void:
+	finale = true
+	chapter_break = false
+	_map_stop = _finale_stop()
 
 
 ## The seed of chapter `n`'s map, derived from the previous chapter's map seed (Chapter 1 uses the run's own), so it does
@@ -474,6 +514,8 @@ func start_combat() -> Combat:
 				enemy = debug_enemy_resolver.call(enemy_id)
 			if enemy != null:
 				enemies.append(enemy)
+	elif stop.finale:
+		enemies = StarterContent.finale_encounter(chapter, character.id)
 	elif stop.boss:
 		enemies = StarterContent.boss_encounter(chapter, character.id)
 	elif stop.mid_boss:
@@ -510,6 +552,8 @@ func boss_label() -> String:
 	var stop := current_stop()
 	if stop == null:
 		return ""
+	if stop.finale:
+		return "Final boss"
 	if stop.boss:
 		return "Boss"
 	return "Mid-boss" if stop.mid_boss else ""
@@ -544,7 +588,7 @@ func complete_combat(victory: bool) -> bool:
 		escaped = false
 		return true
 	if stop.boss:
-		if route != null and (chapter < Chapters.count() or (chapter == Chapters.count() and Chapters.open_ended())):
+		if route != null and not stop.finale and (chapter < Chapters.count() or (chapter == Chapters.count() and (Chapters.open_ended() or Chapters.has_finale()))):
 			# A chapter's end boss, with more chapters to come (or still to be written): gold and a boss relic, then the break
 			# (or, after the last chapter that exists, "To be continued").
 			gold += END_BOSS_GOLD

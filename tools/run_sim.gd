@@ -145,11 +145,11 @@ func _simulate(runs: int, base_seed: int, shard_index: int, shard_count: int) ->
 		var last_desc := ""
 		while not run.finished:
 			# Rows count over all chapters, so a later chapter's stops do not overwrite the first one's tallies.
-			var index := run.stop_index + (run.chapter - 1) * RouteMap.ROWS
+			var index := run.stop_index + (run.chapter - 1) * RouteMap.ROWS + (1 if run.finale else 0) # the finale is the row after its chapter's end boss
 			var stop := run.current_stop()
 			if stop == null and run.chapter_break:
 				breaks[run.chapter] = breaks.get(run.chapter, 0) + 1
-				if not run.start_next_chapter():
+				if not (run.start_finale() or run.start_next_chapter()):
 					printerr("run_sim: the chapter break could not be left")
 					return {}
 				continue
@@ -243,7 +243,7 @@ func _simulate(runs: int, base_seed: int, shard_index: int, shard_count: int) ->
 			escape_hp += run.player.hp
 			escape_deck += run.deck.size()
 		elif not stalled:
-			var death_row := run.stop_index + (run.chapter - 1) * RouteMap.ROWS
+			var death_row := run.stop_index + (run.chapter - 1) * RouteMap.ROWS + (1 if run.finale else 0)
 			deaths_at[death_row] = deaths_at.get(death_row, 0) + 1
 			var desc: String = last_desc
 			deaths_by_desc[desc] = deaths_by_desc.get(desc, 0) + 1
