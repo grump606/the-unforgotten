@@ -172,6 +172,6 @@ Each item is its own PR with `scripts/check.ps1` green and the sims re-run when 
 4. **The finale's shape:** **extend `EnemyData`** with phase-three fields (the Scrivener is one enemy with three phases at 66% and 33% HP). Target loss rate **about 15%** of those who reach it.
 5. **Before the finale:** **nothing**; the break (heal 0.75, a save) is the rest.
 6. **A fourth elite modifier:** **no**.
-7. **The installer cap:** **raise `MAX_INSTALLER_BYTES` in the next patch release** (v0.10.x), one release before Chapter 3 needs it (`docs/UPDATE_CHECK.md`, "Installer size cap").
+7. **The installer cap:** **raise `MAX_INSTALLER_BYTES` in the next patch release** (v0.10.x), one release before Chapter 3 needs it (`docs/UPDATE_CHECK.md`, "Installer size cap"). Done 2026-11-13 on `main` (300 to 400 MiB, for v0.10.1). Note: Chapter 3's installer (about 175 to 185 MiB) is under the old 300 MiB cap too, so v0.10.0 players could take it in-game either way; the raise is headroom for later.
 
 Next: the v0.10.x patch that raises the cap (and fixes anything the Chapter 2 playtest finds), then Gate 1 of "Order of work".

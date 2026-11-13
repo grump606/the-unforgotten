@@ -92,10 +92,11 @@ static func notice_text(tag: String, current: String) -> String:
 ## Where a release's files live. The host and path are fixed here; only a tag that already passed
 ## is_valid_tag is ever spliced in, so nothing from the reply can choose where the game downloads from.
 const DOWNLOAD_BASE := "https://github.com/grump606/the-unforgotten/releases/download/"
-## The installer is about 123 MiB (v0.8.2: tests/golden/latest_installer_size.txt); anything past this is refused
+## The installer is about 158 MiB (v0.10.0: tests/golden/latest_installer_size.txt); anything past this is refused
 ## while downloading. Keep it at least 1.5x the latest release (tests/update_check_tests.gd checks), or in-game
-## updates fail silently when the art grows.
-const MAX_INSTALLER_BYTES := 300 * 1024 * 1024
+## updates fail silently when the art grows. Raised from 300 to 400 MiB for v0.10.1, one release before Chapter 3's larger
+## installer (about 175 to 185 MiB); games released up to v0.10.0 keep the 300 MiB cap.
+const MAX_INSTALLER_BYTES := 400 * 1024 * 1024
 ## An RSA-3072 signature is 384 bytes; the limit leaves headroom.
 const MAX_SIGNATURE_BYTES := 1024
 ## The exported game's file name; self-update only runs from a build with exactly this name.
