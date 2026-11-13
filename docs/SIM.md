@@ -72,3 +72,20 @@ the share of runs that start the chapter and finish it).
 - **Elite lethality** (share of elite visits that end the run, Chapters 1 and 2 together): greedy 18 to 27%, smart 13 to 24%, in line with Chapter 1 alone (about 9 to 14%)
   plus the harder Chapter 2 elites.
 - **Chapter 3 is still a stub** (Chapter 1's content on a 84 to 100 curve) and has no confirmation.
+
+## Chapter 3 first tuning pass (data enemies, no cards or events yet; 200 runs per class and bot, seed 1, `--chapters 3`)
+
+Chapter 3 now has its own seven enemies, the Blotter, the Warden of the Inkwell and the Scrivener (`data/enemies/chapter3/`), with per-class factors
+`CHAPTER_3_CLASS_DIFFICULTY` and `CHAPTER_3_BOSS_FACTOR` in `run/chapters.gd`. Conditional Chapter 3 survival (of those who reach it), target
+about 15% below Chapter 2's (48 / 46 / 41 / 49):
+
+| Class | greedy | smart | finale lost (smart) |
+| --- | --- | --- | --- |
+| Deserter | 40% | 55% | 7 of 37 |
+| Thief | 0% (deck bloat, unreliable) | 62% | 7 of 56 |
+| Medium | 11% | 66% | 5 of 42 |
+| Stray | 37% | 70% | 15 of 57 |
+
+The Thief's smart bot stays above target even at a 3.4 class factor (the budget saturates); revisit once Chapter 3's cards exist. The Scrivener is 400 HP
+and its attacks are scaled 1.4x from the first draft. These numbers will move when the Chapter 3 cards and relics are in the pool, so the real
+confirmation (400 runs per class and bot) is the Gate 2 step.
