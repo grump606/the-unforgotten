@@ -57,5 +57,5 @@ id = &"card_catalogue"
 title = "The Card Catalogue"
 body = "A cabinet of drawers, one of them open, the water up to the brass handles. Every card inside is typed, dated and filed. You do not recognise the hand, and you do not like how neatly it knows what you need."
 class_body = {"medium": "A cabinet of drawers, one of them open, the water up to the brass handles. The cards inside whisper as you come near, the way the dead do when they have been waiting to be asked."}
-scene = &"battle_archive"
+scene = &"battle_catalogue"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

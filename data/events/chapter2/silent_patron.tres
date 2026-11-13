@@ -56,5 +56,5 @@ id = &"silent_patron"
 title = "The Silent Patron"
 body = "A reader sits very upright at a desk, a ledger under one hand, a lamp lit beside them. They do not look up. They have not moved since the lamp was lit, and they will not, you think, until it goes out."
 class_body = {"medium": "A reader sits very upright at a desk, a ledger under one hand, a lamp lit beside them. They do not look up. They are one of the quiet ones, and they have been waiting, you think, for someone who would sit and listen."}
-scene = &"battle_archive"
+scene = &"battle_reading_room"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

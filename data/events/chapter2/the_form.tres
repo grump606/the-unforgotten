@@ -68,5 +68,5 @@ id = &"the_form"
 title = "The Form"
 body = "A form on a clerk's desk, under glass. At the top, Name, and a line to write it on. A pen lies beside it, dry. Everything below the line is already filled in, in handwriting you almost know."
 class_body = {"deserter": "A form on a clerk's desk, under glass. At the top, Name and Unit, and a line for each. A pen lies beside it, dry. Everything below the lines is already filled in, in handwriting you almost know."}
-scene = &"battle_archive"
+scene = &"battle_reading_room"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

@@ -33,6 +33,10 @@ const ART_KEYS := {
 	&"gate_warden": &"warden", &"lost_shade": &"shade", &"skittering_wisp": &"wisp", &"hollow_colossus": &"colossus",
 	&"pale_whisperer": &"whisperer", &"cinder_hound": &"hound", &"mourning_crow": &"crow",
 	&"the_conductor": &"conductor", &"the_brakeman": &"brakeman",
+	# Chapter 2 (the Registry): each uses its own id as the art key.
+	&"ledger_clerk": &"ledger_clerk", &"drowned_porter": &"drowned_porter", &"shelf_wraith": &"shelf_wraith", &"index_moth": &"index_moth",
+	&"the_misfiled": &"the_misfiled", &"pressing_hand": &"pressing_hand", &"copyist": &"copyist",
+	&"the_archivist": &"the_archivist", &"the_registrar": &"the_registrar",
 	&"proto_pest": &"hound", # the debug-only prototype enemy borrows the hound's figure
 	&"proto_dreadkeeper": &"whisperer", # likewise the Dreadkeeper borrows the whisperer's
 }
@@ -40,6 +44,8 @@ const ART_KEYS := {
 const HEIGHTS := {
 	&"warden": 195.0, &"shade": 150.0, &"wisp": 100.0, &"colossus": 200.0, &"whisperer": 175.0,
 	&"hound": 115.0, &"crow": 105.0, &"conductor": 210.0, &"brakeman": 215.0, &"ghost": 140.0,
+	&"ledger_clerk": 150.0, &"drowned_porter": 200.0, &"shelf_wraith": 110.0, &"index_moth": 100.0, &"the_misfiled": 135.0,
+	&"pressing_hand": 115.0, &"copyist": 170.0, &"the_archivist": 215.0, &"the_registrar": 220.0,
 }
 const DEFAULT_HEIGHT := 170.0
 ## Boss figures are drawn this much larger than a regular enemy (shrunk only if the stage is too short).

@@ -381,9 +381,9 @@ func rebuild_links() -> void:
 ## The battle backdrops a regular fight may use for a character: the three shared keys, the character's own
 ## (only for a known character, i.e. a key of BattleBackdrop.TINTS) and the neutral key. An unknown or empty
 ## id gives the four keys without one. The two boss keys are never in the pool.
-static func backdrop_pool(char_id: StringName) -> Array[StringName]:
+static func backdrop_pool(char_id: StringName, chapter_number: int = 1) -> Array[StringName]:
 	var pool: Array[StringName] = []
-	pool.assign(SHARED_BACKDROPS)
+	pool.assign(SHARED_BACKDROPS if chapter_number <= 1 else Chapters.chapter(chapter_number).shared_backdrops)
 	if BattleBackdrop.TINTS.has(char_id):
 		var own := StringName("battle_" + String(char_id))
 		if not pool.has(own):
@@ -398,6 +398,10 @@ static func backdrop_pool(char_id: StringName) -> Array[StringName]:
 ## Builds the map for `map_seed`. Same arguments, same map; uses its own RNG only. Config entries of the
 ## wrong shape fall back to the defaults (see `make_config`). If no attempt validates, the last map is
 ## returned with an error pushed, so a caller that checks `validate()` sees what is wrong.
+## The chapter this map is for (1 unless it was generated for a later one): its backdrops come from that chapter's ChapterData.
+var chapter: int = 1
+
+
 ## The EliteModifiers.Kind of elite node `id`, or -1 for any other node.
 func elite_modifier(id: int) -> int:
 	var n := node(id)
@@ -406,14 +410,14 @@ func elite_modifier(id: int) -> int:
 	return EliteModifiers.for_node(seed_value, id)
 
 
-static func generate(map_seed: int, char_id: StringName, overrides: Dictionary = {}) -> RouteMap:
+static func generate(map_seed: int, char_id: StringName, overrides: Dictionary = {}, chapter_number: int = 1) -> RouteMap:
 	var cfg := make_config(overrides)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = map_seed
 	var map: RouteMap = null
 	var problems: Array[String] = []
 	for attempt in MAX_ATTEMPTS:
-		map = _build(rng, map_seed, char_id, cfg)
+		map = _build(rng, map_seed, char_id, cfg, chapter_number)
 		problems = map.validate()
 		if problems.is_empty():
 			return map
@@ -421,8 +425,9 @@ static func generate(map_seed: int, char_id: StringName, overrides: Dictionary =
 	return map
 
 
-static func _build(rng: RandomNumberGenerator, map_seed: int, char_id: StringName, cfg: Dictionary) -> RouteMap:
+static func _build(rng: RandomNumberGenerator, map_seed: int, char_id: StringName, cfg: Dictionary, chapter_number: int = 1) -> RouteMap:
 	var map := RouteMap.new()
+	map.chapter = chapter_number
 	map.seed_value = map_seed
 	map.character_id = char_id
 	map.kind = KIND_GENERATED
@@ -451,10 +456,10 @@ func _make_nodes(rng: RandomNumberGenerator) -> void:
 				n.beat_index = info["beat"]
 			elif row_type == NodeType.MID_BOSS:
 				n.enemy_count = 1
-				n.backdrop = MID_BOSS_BACKDROP
+				n.backdrop = Chapters.chapter(chapter).mid_boss_backdrop
 			elif row_type == NodeType.BOSS:
 				n.enemy_count = 1
-				n.backdrop = BOSS_BACKDROP
+				n.backdrop = Chapters.chapter(chapter).boss_backdrop
 			nodes.append(n)
 			ids.append(n.id)
 		_rows.append(ids)
@@ -791,7 +796,7 @@ func _assign_backdrops(rng: RandomNumberGenerator) -> void:
 
 
 func _try_backdrops(rng: RandomNumberGenerator, allow_repeat: bool) -> bool:
-	var pool := backdrop_pool(character_id)
+	var pool := backdrop_pool(character_id, chapter)
 	var memo := {}
 	var last_used := {}
 	for key in pool:
@@ -1130,15 +1135,15 @@ func _check_counts(v: Array[String]) -> void:
 
 
 func _check_backdrops(v: Array[String]) -> void:
-	var pool := backdrop_pool(character_id)
+	var pool := backdrop_pool(character_id, chapter)
 	var memo := {}
 	for n in nodes:
 		if n.type == NodeType.MID_BOSS:
-			if n.backdrop != MID_BOSS_BACKDROP:
-				v.append("%s must use %s" % [_describe(n), MID_BOSS_BACKDROP])
+			if n.backdrop != Chapters.chapter(chapter).mid_boss_backdrop:
+				v.append("%s must use %s" % [_describe(n), Chapters.chapter(chapter).mid_boss_backdrop])
 		elif n.type == NodeType.BOSS:
-			if n.backdrop != BOSS_BACKDROP:
-				v.append("%s must use %s" % [_describe(n), BOSS_BACKDROP])
+			if n.backdrop != Chapters.chapter(chapter).boss_backdrop:
+				v.append("%s must use %s" % [_describe(n), Chapters.chapter(chapter).boss_backdrop])
 		elif n.type == NodeType.FIGHT or n.type == NodeType.ELITE:
 			if not pool.has(n.backdrop):
 				v.append("%s uses backdrop '%s', which is not in the pool" % [_describe(n), n.backdrop])
@@ -1160,10 +1165,13 @@ func to_dict() -> Dictionary:
 			"id": n.id, "row": n.row, "col": n.col, "type": int(n.type), "enemy_count": n.enemy_count,
 			"backdrop": String(n.backdrop), "beat_index": n.beat_index, "act": n.act, "next": n.next.duplicate(),
 		})
-	return {
+	var data := {
 		"version": 1, "kind": String(kind), "seed": seed_value, "character_id": String(character_id),
 		"config": config.duplicate(true), "nodes": list,
 	}
+	if chapter > 1:
+		data["chapter"] = chapter # only a later chapter writes it, so a Chapter 1 map is saved exactly as before
+	return data
 
 
 ## Rebuilds a map from `to_dict()` output (also after a JSON round trip). Null if the data is malformed:
@@ -1193,6 +1201,7 @@ static func from_dict(data: Dictionary) -> RouteMap:
 	map.seed_value = int(data.get("seed", 0))
 	map.character_id = StringName(char_value)
 	map.kind = map_kind
+	map.chapter = clampi(int(data.get("chapter", 1)), 1, Chapters.MAX_BUILT)
 	map.config = make_config(raw_config)
 	var last_row := (ROWS if map_kind == KIND_GENERATED else raw.size()) - 1
 	for i in raw.size():

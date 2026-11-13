@@ -367,7 +367,7 @@ func _show_map() -> void:
 	PaintedArt.advance_stop() # drops art not used for the last two stops
 	for id in _run.reachable_nodes():
 		var n := _run.route.node(id)
-		PaintedArt.queue_for_stop(int(RunState.stop_type_for_node(n.type)), _run.character.id, n.beat_index)
+		PaintedArt.queue_for_stop(int(RunState.stop_type_for_node(n.type)), _run.character.id, n.beat_index, _run.chapter)
 		if n.backdrop != &"":
 			PaintedArt.queue_screen(n.backdrop)
 	set_process(PaintedArt.pending() > 0)
@@ -572,7 +572,7 @@ func _warm_next_stop() -> void:
 		return
 	PaintedArt.advance_stop() # drops art not used for the last two stops
 	var next_stop := _run.stops[next_index]
-	PaintedArt.queue_for_stop(int(next_stop.type), _run.character.id, next_stop.beat_index)
+	PaintedArt.queue_for_stop(int(next_stop.type), _run.character.id, next_stop.beat_index, _run.chapter)
 	var backdrop := DestinationArt.battle_key(next_index)
 	if backdrop != &"":
 		PaintedArt.queue_screen(backdrop)

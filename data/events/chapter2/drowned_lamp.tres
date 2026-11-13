@@ -50,5 +50,5 @@ script = ExtResource("1_event")
 id = &"drowned_lamp"
 title = "The Drowned Reading Lamp"
 body = "A green reading lamp, still lit, standing in a foot of water on a desk that has been under it for years. The light shows no sign of going out. It lies across the page of a ledger no one is reading."
-scene = &"battle_archive"
+scene = &"battle_stacks"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3")])

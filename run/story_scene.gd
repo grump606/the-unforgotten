@@ -4,6 +4,8 @@ extends ScreenScene
 
 const BAR := 34.0
 var beat_index := 0
+## The chapter being played (its beats have their own window paintings).
+var chapter := 1
 
 func _init() -> void:
 	super(2033, 28)
@@ -13,7 +15,11 @@ func mood() -> StringName:
 
 
 ## The painting key of a story beat (art/layers/screens/<key>/bg.png).
-static func key_for_beat(beat: int) -> StringName:
+static func key_for_beat(beat: int, chapter_number: int = 1) -> StringName:
+	if chapter_number > 1:
+		var moods := Chapters.chapter(chapter_number).story_moods
+		if beat >= 0 and beat < moods.size():
+			return StringName("story_" + String(moods[beat]))
 	var mood_name := mood_for(beat)
 	return &"story_generic" if mood_name == &"tunnel" else StringName("story_" + String(mood_name))
 
@@ -32,7 +38,7 @@ static func mood_for(beat: int) -> StringName:
 
 func _draw_scene(w: float, h: float) -> void:
 	var win := Rect2(0, BAR, w, h - 2.0 * BAR)
-	var key := key_for_beat(beat_index)
+	var key := key_for_beat(beat_index, chapter)
 	if not _draw_painted_bg(key, win, 1.08, 0.4):
 		_draw_destination(win)
 	draw_rect(Rect2(0, 0, w, BAR), Color.BLACK)

@@ -352,7 +352,7 @@ func start_next_chapter() -> bool:
 	player.hp = mini(player.max_hp, player.hp + roundi(player.max_hp * CHAPTER_BREAK_HEAL_FRACTION))
 	chapter += 1
 	chapter_break = false
-	route = RouteMap.generate(chapter_map_seed(route.seed_value, chapter), character.id)
+	route = RouteMap.generate(chapter_map_seed(route.seed_value, chapter), character.id, {}, chapter)
 	current_node = -1
 	visited.clear()
 	stop_index = 0

@@ -251,7 +251,7 @@ when numbers change.
    all green, and the numbers written into `docs/SIM.md`. This is the gate: nothing is painted before it passes.
 
 **Then the artwork.**
-8. **Art**, enemies and bosses first (the most visible), then backdrops and rest paintings, then card and relic art.
+8. **Done 2026-11-12 (first pass): art**, generated with ChatGPT through the Codex CLI against Chapter 1's paintings as style references (`art/PROMPTS.md`, "Chapter 2 art"): nine sprites, seven elite auras, six battle backdrops, four story paintings and 24 card illustrations, all wired. Not made: relic icons (relics are drawn from their effect kind) and per-district rest paintings. Not yet seen in the game window. Original item: art, enemies and bosses first (the most visible), then backdrops and rest paintings, then card and relic art.
 9. **Tune with testers** (`docs/PLAYTEST_CHECKLIST.md`, with a Chapter 2 section), then step 6 of `CHAPTERS_DESIGN.md`: switch the ending, set
    `Chapters.COUNT = 2`, release.
 

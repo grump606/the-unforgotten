@@ -64,5 +64,5 @@ script = ExtResource("1_event")
 id = &"flooded_aisle"
 title = "The Flooded Aisle"
 body = "A long aisle between shelves that reach the ceiling, the water chest-deep and black. Books float on it, open, their pages spreading. The way on is straight through."
-scene = &"battle_archive"
+scene = &"battle_stacks"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

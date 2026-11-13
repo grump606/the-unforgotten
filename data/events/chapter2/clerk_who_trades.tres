@@ -65,5 +65,5 @@ script = ExtResource("1_event")
 id = &"clerk_who_trades"
 title = "The Clerk Who Trades"
 body = "A clerk sits behind a brass grille with a ledger open, a stamp in one hand. It will take anything that has been filed, it says, and it will give back anything that can be found. It has been doing this since before the water."
-scene = &"battle_archive"
+scene = &"battle_catalogue"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

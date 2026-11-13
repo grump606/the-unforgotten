@@ -61,3 +61,27 @@ Known weaknesses of this prompt: the aura is wider and softer than asked (a glow
 fringe at its edge, and the Skittering Wisp's aura is pale and low-contrast. A tighter prompt ("discrete flame tongues only, no glow, at most
 4% of the figure height from the outline, clean alpha") gave crisper but patchier flames on a test of the Threshold Keeper.
 
+
+## Chapter 2 art (the Registry, 2026-11-12)
+
+Made with ChatGPT through the Codex CLI (`codex exec --skip-git-repo-check --ephemeral -s workspace-write -C <scratch dir> -i <reference images> - < prompt.txt`),
+one call per image (about 15,000 tokens each), 3 to 6 in parallel, then post-processed in Python (Pillow). Every prompt attached 2 or 3 Chapter 1 images of the same
+kind as style references and repeated the shared style block ("match the attached existing ... exactly in painted style, palette, rendering, lighting and level of detail").
+The names, roles and sizes of the new enemies are in `docs/CHAPTER2_PLAN.md` (names are proposals).
+
+| Kind | Count | Files | Reference images | Parameters and post-processing |
+| --- | --- | --- | --- | --- |
+| Stage sprites | 9 | `art/layers/<id>/sprite.png` (`ledger_clerk`, `drowned_porter`, `shelf_wraith`, `index_moth`, `the_misfiled`, `pressing_hand`, `copyist`, `the_archivist`, `the_registrar`) | 2 to 3 Chapter 1 sprites chosen by size and kind (for example the Colossus and the Threshold Keeper for the Porter, the Eraser and the Bellkeeper for the Registrar) | one character, full body, facing left, three-quarter pose, hard silhouette with a warm rim light, real transparent background, same size class as the Chapter 1 enemy it stands beside; trimmed to the opaque box, scaled to at most 900 tall and 1000 wide, and alpha of 240 or more set to 255 (the generator returns about 98.8% alpha, which the elite-art test reads as "not opaque") |
+| Elite auras | 7 | `art/layers/<id>/sprite_elite.png`, `PaintedArt.ELITE_PADS` | the padded sprite and its flat magenta silhouette (the Chapter 1 recipe above) | aura only, orange outer flame about #FF5A1A with a pale yellow core about #FFE58A, exactly the padded canvas size; two (the Porter and the Copyist) were redone with "bold, clearly visible flames, at least as strong as a campfire" because the first aura was too faint; leftover magenta removed; composited under the sprite |
+| Battle backdrops | 6 | `art/layers/screens/battle_stacks`, `battle_catalogue`, `battle_reading_room`, `battle_gallery`, `battle_archivists_hall` (mid-boss), `battle_registrars_desk` (boss) `/bg.png`, 1536x864 | `battle_archive`, `battle_street`, `battle_threshold`, `battle_bell_court` | horizon or subject in the top 55%, a calm dark low-detail lower third, darker side edges, no bright highlight larger than a lamp, no characters or text, opaque |
+| Story paintings | 4 | `art/layers/screens/story_registry_arrival`, `story_archivists_hall`, `story_reading_room`, `story_registrars_desk` `/bg.png`, 1536x864 | `story_boarding`, `story_platform`, `battle_threshold` | as above, shown dimmed behind the beat's card |
+| Card art | 24 | `art/layers/cards/<card id>/art.png`, 800x300 | 3 Chapter 1 cards of the same class | one bold close-cropped vignette that reads at 136x50, the class's accent colours (rust and steel, teal and brass, violet and bone, blue-grey mastiff), no frame or text |
+
+Relic icons were **not** needed: relics are drawn in code from their effect kind (`docs/RELIC_ART_DESIGN.md`), and every new relic reuses an existing kind.
+Rest paintings per district were not made either: the rest screen paints by class (`rest_<class>`), which is unchanged.
+
+Wiring: `Fighter.ART_KEYS` and `HEIGHTS` (new ids use their own id as the art key), `PaintedArt.ELITE_PADS`, `ChapterData.shared_backdrops`, `mid_boss_backdrop`,
+`boss_backdrop` and `story_moods`, `RouteMap.generate(..., chapter)` (a chapter 2 map picks chapter 2's backdrops; only a later chapter writes `chapter` into the saved map),
+`StoryScene.key_for_beat(beat, chapter)`, and the events' `scene` field. Known gaps: the pictures have not been looked at inside the game window yet (headless checks only);
+the Misfiled faces up and right a little instead of left; the Copyist is a very narrow figure.
+Size: about 42 MB of new PNG in the repository (sprites and auras 22, screens 15 and cards 9.5 before the installer's own compression); see `docs/REPO_SIZE.md`.

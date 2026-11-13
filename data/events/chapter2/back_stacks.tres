@@ -58,5 +58,5 @@ id = &"back_stacks"
 title = "The Back Stacks"
 body = "A door marked STAFF, ajar. A draught of dry air comes out of it, smelling of paper and old lamp oil, the first dry air you have felt in a long time. Beyond it is a room that is not on any plan."
 class_body = {"stray": "A door marked STAFF, ajar. A draught of dry air comes out of it, and in the draught a scent, thin and old and almost warm. Someone has been in and out of this door for a long, long time."}
-scene = &"battle_archive"
+scene = &"battle_stacks"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

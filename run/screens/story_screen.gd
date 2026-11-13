@@ -8,6 +8,7 @@ func show() -> void:
 	# The destination painting sits behind the panel.
 	var story := StoryScene.new()
 	story.beat_index = run.current_stop().beat_index
+	story.chapter = run.chapter
 	add_backdrop(story)
 	if beat == null:
 		# Load failure is logged by the run; the stop must still be passable.

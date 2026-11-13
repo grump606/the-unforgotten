@@ -41,6 +41,7 @@ func run() -> int:
 	_test_chapter_2_content()
 	_test_events_and_story_by_chapter()
 	_test_pools_by_chapter()
+	_test_chapter_2_art_and_maps()
 	return _failures
 
 
@@ -64,7 +65,7 @@ func _test_chapter_2_content() -> void:
 		_check(not ids.has(enemy.id) and path.get_file().trim_suffix(".tres") == String(enemy.id), "id is unique and is the file name: %s" % enemy.id)
 		ids[enemy.id] = true
 		_check(enemy.max_hp > 0 and not enemy.intents.is_empty() and enemy.display_name != "", "has HP, intents and a name: %s" % enemy.id)
-		_check(Fighter.art_key_for(enemy.id) == &"ghost", "no art key yet, so it draws as the generic ghost (placeholder): %s" % enemy.id)
+		_check(Fighter.art_key_for(enemy.id) == enemy.id and Fighter.HEIGHTS.has(enemy.id) and PaintedArt.enemy_figure(enemy.id).has("tex"), "it has an art key, a height and a painted sprite: %s" % enemy.id)
 		_check(StarterContent.enemy_by_id(enemy.id) != null, "enemy_by_id finds it: %s" % enemy.id)
 		_check(not Chapters.chapter(1).enemy_paths.has(path) and not StarterContent.ALL_ENEMY_PATHS.has(path), "Chapter 1 never draws it: %s" % enemy.id)
 	for path in StarterContent.CHAPTER2_BOSS_PATHS:
@@ -157,3 +158,38 @@ func _test_pools_by_chapter() -> void:
 	relic.from_chapter = 1
 	ContentRegistry.clear_cache()
 	_check(StarterContent.reward_pool(&"deserter", 1).size() == before_cards, "restored")
+
+
+## Chapter 2's paintings exist and its maps use them; Chapter 1's maps (and saves of them) are untouched.
+func _test_chapter_2_art_and_maps() -> void:
+	var two := Chapters.chapter(2)
+	var keys: Array[StringName] = []
+	keys.append_array(two.shared_backdrops)
+	keys.append(two.mid_boss_backdrop)
+	keys.append(two.boss_backdrop)
+	for mood in two.story_moods:
+		keys.append(StringName("story_" + String(mood)))
+	for key in keys:
+		_check(ResourceLoader.exists(PaintedArt.SCREEN_DIR % key), "the painting exists: %s" % key)
+	_check(two.story_moods.size() == StoryContent.beat_count(2) and StoryScene.key_for_beat(2, 2) == &"story_reading_room" and StoryScene.key_for_beat(2, 1) == &"story_platform", "story beats pick their chapter's window painting")
+	var map := RouteMap.generate(21, &"stray", {}, 2)
+	_check(map.chapter == 2 and map.validate().is_empty(), "a chapter 2 map is valid")
+	var pool := RouteMap.backdrop_pool(&"stray", 2)
+	var boss_ok := true
+	var mid_ok := true
+	var fights_ok := true
+	for n in map.nodes:
+		if n.type == RouteMap.NodeType.BOSS:
+			boss_ok = n.backdrop == two.boss_backdrop
+		elif n.type == RouteMap.NodeType.MID_BOSS:
+			mid_ok = n.backdrop == two.mid_boss_backdrop
+		elif n.type == RouteMap.NodeType.FIGHT or n.type == RouteMap.NodeType.ELITE:
+			fights_ok = fights_ok and pool.has(n.backdrop) and two.shared_backdrops.size() == 4
+	_check(boss_ok and mid_ok and fights_ok, "its bosses and fights use chapter 2's backdrops")
+	var back := RouteMap.from_dict(map.to_dict())
+	_check(back != null and back.chapter == 2 and back.validate().is_empty() and back.to_dict() == map.to_dict(), "a chapter 2 map round-trips with its chapter")
+	var first := RouteMap.generate(21, &"stray")
+	_check(not first.to_dict().has("chapter") and first.chapter == 1 and RouteMap.from_dict(first.to_dict()).chapter == 1, "a chapter 1 map is written exactly as before")
+	_check(first.to_dict() == RouteMap.generate(21, &"stray", {}, 1).to_dict(), "and generating it with an explicit chapter 1 changes nothing")
+	for seed_value in 30:
+		_check(RouteMap.generate(seed_value, &"deserter", {}, 2).validate().is_empty(), "chapter 2 map seed %d is valid" % seed_value)

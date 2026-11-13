@@ -56,6 +56,10 @@ static func _build(n: int) -> ChapterData:
 		c.district_names = CHAPTER_2_DISTRICT_NAMES.duplicate()
 		c.class_difficulty = CHAPTER_2_CLASS_DIFFICULTY.duplicate()
 		c.boss_class_factor = CHAPTER_2_BOSS_FACTOR.duplicate()
+		c.shared_backdrops.assign([&"battle_stacks", &"battle_catalogue", &"battle_reading_room", &"battle_gallery"])
+		c.mid_boss_backdrop = &"battle_archivists_hall"
+		c.boss_backdrop = &"battle_registrars_desk"
+		c.story_moods.assign([&"registry_arrival", &"archivists_hall", &"reading_room", &"registrars_desk"])
 		c.mid_boss_title = "The Archivist"
 		c.end_boss_title = "The Registrar"
 		c.mid_boss = &"the_archivist"
@@ -67,6 +71,10 @@ static func _build(n: int) -> ChapterData:
 		c.small_paths.assign(StarterContent.CHAPTER2_SMALL_PATHS)
 		c.trio_excluded_paths.assign(StarterContent.CHAPTER2_TRIO_EXCLUDED_PATHS)
 		return c
+	c.shared_backdrops.assign(RouteMap.SHARED_BACKDROPS)
+	c.mid_boss_backdrop = RouteMap.MID_BOSS_BACKDROP
+	c.boss_backdrop = RouteMap.BOSS_BACKDROP
+	c.story_moods.assign([&"boarding", &"conductor", &"platform", &"last_light"])
 	c.mid_boss_title = "The Bellkeeper"
 	c.end_boss_title = "The Eraser"
 	c.mid_boss = &"the_brakeman"

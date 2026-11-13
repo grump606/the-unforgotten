@@ -13,6 +13,10 @@ const ELITE_PADS := {
 	&"warden": Vector3i(160, 220, 80), &"shade": Vector3i(184, 220, 80), &"wisp": Vector3i(275, 220, 80),
 	&"colossus": Vector3i(246, 220, 80), &"whisperer": Vector3i(142, 220, 80),
 	&"hound": Vector3i(304, 165, 60), &"crow": Vector3i(248, 165, 60),
+	# Chapter 2 (the Registry); the bosses are never elites.
+	&"ledger_clerk": Vector3i(367, 206, 75), &"drowned_porter": Vector3i(219, 220, 80), &"shelf_wraith": Vector3i(367, 163, 59),
+	&"index_moth": Vector3i(367, 165, 60), &"the_misfiled": Vector3i(309, 220, 80), &"pressing_hand": Vector3i(367, 165, 60),
+	&"copyist": Vector3i(142, 220, 80),
 }
 const PLAYER_DIR := "res://art/layers/players/%s/figure.png"
 const SCREEN_DIR := "res://art/layers/screens/%s/bg.png"
@@ -150,7 +154,7 @@ static func draw_cover(ci: CanvasItem, tex: Texture2D, rect: Rect2, zoom := 1.0,
 
 
 ## The art files the screen after a run stop will draw (`stop_type` is a RunState.StopType value; `character_id` picks the class backdrops and `story_beat`, a STORY stop's beat_index or -1, its own window painting).
-static func paths_for_stop(stop_type: int, character_id: StringName = &"", story_beat := -1) -> Array[String]:
+static func paths_for_stop(stop_type: int, character_id: StringName = &"", story_beat := -1, chapter_number := 1) -> Array[String]:
 	var names: Array[StringName] = []
 	var extra: Array[String] = []
 	match stop_type:
@@ -163,7 +167,7 @@ static func paths_for_stop(stop_type: int, character_id: StringName = &"", story
 			names.append(&"rest")
 		RunState.StopType.STORY:
 			if story_beat >= 0:
-				names.append(StoryScene.key_for_beat(story_beat))
+				names.append(StoryScene.key_for_beat(story_beat, chapter_number))
 		RunState.StopType.VENDOR:
 			names.append(&"vendor")
 			extra.append("res://art/layers/screens/vendor/keeper.png")
@@ -191,8 +195,8 @@ static var _queue: Array[String] = []
 
 
 ## Queues the art for a run stop's next screen instead of decoding it now (the paths of paths_for_stop).
-static func queue_for_stop(stop_type: int, character_id: StringName = &"", story_beat := -1) -> void:
-	queue_paths(paths_for_stop(stop_type, character_id, story_beat))
+static func queue_for_stop(stop_type: int, character_id: StringName = &"", story_beat := -1, chapter_number := 1) -> void:
+	queue_paths(paths_for_stop(stop_type, character_id, story_beat, chapter_number))
 
 
 ## Queues a screen background (art/layers/screens/<name>/bg.png).

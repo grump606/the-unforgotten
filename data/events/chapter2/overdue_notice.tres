@@ -67,5 +67,5 @@ id = &"overdue_notice"
 title = "The Overdue Notice"
 body = "A notice nailed to the end of a shelf, in a clerk's tidy hand. It has your name on it, and an amount, and a date long past. The nail is new."
 class_body = {"thief": "A notice nailed to the end of a shelf, in a clerk's tidy hand. It has your name on it, and an amount, and a date long past. The nail is new. You know that nail. You put it there."}
-scene = &"battle_archive"
+scene = &"battle_gallery"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

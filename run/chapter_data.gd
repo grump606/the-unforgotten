@@ -18,6 +18,13 @@ var class_difficulty: Dictionary = {}
 ## Like class_difficulty but for the chapter's two bosses (fixed fights, not budgeted): their HP and attacks are each scaled by the
 ## square root of this. A class that is not listed uses 1.0.
 var boss_class_factor: Dictionary = {}
+## Battle backdrop keys (art/layers/screens/<key>/bg.png): the shared ones a regular fight may use (a class's own and the neutral key
+## are added, as in Chapter 1), and the two boss fights'.
+var shared_backdrops: Array[StringName] = []
+var mid_boss_backdrop: StringName = &""
+var boss_backdrop: StringName = &""
+## The window painting of each of the chapter's story beats (RouteMap.STORY_LOCAL_ROWS order), as the part after "story_".
+var story_moods: Array[StringName] = []
 ## Enemy ids of the chapter's two bosses, and their resource paths (what boss fights load).
 var mid_boss: StringName = &""
 var end_boss: StringName = &""

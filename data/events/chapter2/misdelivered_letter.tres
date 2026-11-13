@@ -50,5 +50,5 @@ script = ExtResource("1_event")
 id = &"misdelivered_letter"
 title = "The Misdelivered Letter"
 body = "A letter on a shelf, among ten thousand others. It has your name on it, in a hand that is not quite handwriting. It is stamped across the front in red: Return to sender."
-scene = &"battle_archive"
+scene = &"battle_reading_room"
 choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3")])
