@@ -1,6 +1,6 @@
 # Next steps
 
-Last updated after the v0.9.1 release (2026-11-10). `main` is at v0.9.1 (v0.9.1 added the elite art, the 1.2 elite multiplier, the tutorial and district names, and the Remember preview); the next release needs a version bump.
+Last updated for v0.10.0 (2026-11-12): **Chapter 2, the Registry**, the chapter structure (a break and a boss reward after Chapter 1; "To be continued" after Chapter 2), seven new enemies and two bosses, ten events, 24 cards, 7 relics, the File and Unseen effects, elite modifiers (Plated, Enraged, Marked; elite budget 1.1) and about 42 MB of new art. v0.9.1 before it added the elite art, the 1.2 elite multiplier, the tutorial and district names, and the Remember preview. The next work is Chapter 3 and the final boss (`docs/CHAPTERS_PLAN.md`) and playtesting Chapter 2 (`docs/CHAPTER2_PLAN.md`).
 Numbers such as the stop count and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`SIM.md`](SIM.md).
 
 ## State

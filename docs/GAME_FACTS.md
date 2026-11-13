@@ -5,11 +5,11 @@ should link here instead of restating a number. When the game changes, change th
 "Source" column says where the number really lives, and the test that would catch a mismatch where
 there is one.
 
-Last checked against v0.9.1 (the route map as the default New Journey).
+Last checked against v0.10.0 (Chapter 2 and the chapter structure).
 
 | Fact | Value | Source |
 | --- | --- | --- |
-| Game version | 0.9.1 | `config/version` in `project.godot` (and `export_presets.cfg`, checked by `scripts/release.ps1`) |
+| Game version | 0.10.0 | `config/version` in `project.godot` (and `export_presets.cfg`, checked by `scripts/release.ps1`) |
 | Engine | Godot 4.7.2 stable | `scripts/engine_version.txt` |
 | New Journey | The route map (a run is `RunState.new(seed, character, true)`) | `new_runs_use_map := true` in `run.gd`; `RunState._init` defaults `use_map` to false, so a bare `RunState.new(...)` and a sim without `--map` still play the line |
 | Chapters | 2 exist (`Chapters.COUNT`), 3 planned (`Chapters.PLANNED`): each is 2 districts x 15 rows with a mid-boss and an end boss. Chapter 1's end boss leads to a break and Chapter 2; Chapter 2's ends the run with "To be continued" (`RunState.to_be_continued`) until Chapter 3 exists, then a final boss follows Chapter 3 | `run/chapters.gd`; `docs/CHAPTERS_DESIGN.md`, `docs/CHAPTER2_PLAN.md` |
