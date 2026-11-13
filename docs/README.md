@@ -15,6 +15,7 @@ Numbers (stops, map size, node mix, elites, events, save version, characters, re
 | [`../README.md`](../README.md) | Current | Overview, how to run, test, build and release |
 | [`GAME_FACTS.md`](GAME_FACTS.md) | Current | The one place for counts and stats |
 | [`NEXT_STEPS.md`](NEXT_STEPS.md) | Current | Released vs unreleased work, and what to do next |
+| [`CHAPTER3_PLAN.md`](CHAPTER3_PLAN.md) | Plan (nothing built) | Chapter 3 (the Scriptorium) and the final boss: story, enemies, effects, the finale's flow, difficulty targets, art and size |
 | [`CHAPTER2_WRITING.md`](CHAPTER2_WRITING.md) | Outline for approval (nothing written) | Chapter 2's five story beats (with class angles) and ten events |
 | [`CHAPTER2_PLAN.md`](CHAPTER2_PLAN.md) | Plan (nothing built) | Chapter 2: the Registry story, enemies, bosses, events, cards and relics, difficulty and the plumbing it needs |
 | [`CHAPTERS_DESIGN.md`](CHAPTERS_DESIGN.md) | Draft design (nothing built) | Phase B: chapter as data, carry-over, saves (v6), the break screen, build order |

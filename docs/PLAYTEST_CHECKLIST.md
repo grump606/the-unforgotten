@@ -44,3 +44,18 @@ The numbers are tuned against bots, not people. Play with a pen: note what felt 
 
 ## After
 Bring me: the class and stop you died at, the three cards or fights that felt worst, and anything you would change. Likely knobs: the Brakeman's `max_haunt` (`data/enemies/the_brakeman.tres`), class HP, `REST_HEAL`, `REWARD_HEAL`, card costs, `Fighter` constants (`HEIGHTS`, `PLAYER_HEIGHT`, `ENEMY_GAP`, `LUNGE_TIME`) and `battle.gd` `ENEMY_STAGGER`.
+
+## v0.10.0: Chapter 2 (the Registry)
+
+Play a full run through the Eraser, the break and the Registry. The numbers are tuned against bots (`docs/SIM.md`, "Chapter 2 bot confirmation"), not people.
+
+- [ ] **Length.** How long does a full run take? Two chapters is 60 rows; note where you wanted to stop, and whether the break felt like a good place to save.
+- [ ] **The break.** Is the summary clear? Does the 0.75 heal and the closing text feel like a breath? Did the boss relic (and 60 gold) feel worth a boss?
+- [ ] **File** (The Misfiled, the Archivist): did you understand why a kept card went to the bottom of your draw pile? Did it change what you kept?
+- [ ] **Unseen** (The Misfiled): was it clear why you could not target it, and when you could?
+- [ ] **Elite modifiers** (Plated, Enraged, Marked; all chapters): readable on the map tooltip and in the battle log? Any one that felt unfair?
+- [ ] **Difficulty by class.** Chapter 2 should feel about 15% harder than Chapter 1 to survive. Note the class and the stop where a run ended. The Stray has 37 HP and the Registrar was tuned down for it, so say if it still feels too hard.
+- [ ] **The new cards and relics.** Which felt strong or dead? Cards: Siege Stance, Master Key, Grand Heist, Every Name, The Long Wake, Pack Leader, Final Rush were the rare ones.
+- [ ] **Events.** Any button you would never press? Any price that felt wrong? (Chapter 2's ten are in `docs/CHAPTER2_WRITING.md`.)
+- [ ] **The ending.** After the Registrar, the game says "To be continued". Does that read as an intended pause or as the game breaking?
+- [ ] **Art.** Any sprite that sits wrong on the stage, a backdrop that hides the UI, a card picture that does not read at card size. (The Misfiled and the Copyist were the two flagged.)
