@@ -8,10 +8,17 @@ extends RunScreen
 ## `on_continue` (when valid) adds a Continue button that returns to the main menu.
 func show(on_new_run: Callable, on_continue := Callable()) -> void:
 	var title := "Someone speaks your name. This time, you answer." if run.escaped else "They return you to the quiet. Somewhere, a voice still calls."
+	if run.to_be_continued:
+		var beat := StoryContent.break_beat(run.chapter, run.character.id if run.character != null else &"")
+		title = ("%s
+
+%s" % [beat.title, beat.text]) if beat != null else "The way down opens, and the voice is closer."
+
 	var scene := EndScene.new()
 	scene.escaped = run.escaped
 	add_backdrop(scene)
-	var box := panel("%s\nOutcome: %s" % [title, "Escaped" if run.escaped else "Defeated"], true)
+	var outcome := "Escaped" if run.escaped else ("To be continued" if run.to_be_continued else "Defeated")
+	var box := panel("%s\nOutcome: %s" % [title, outcome], true)
 	style_banner(box.get_child(0) as Label)
 	var summary := Label.new()
 	summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

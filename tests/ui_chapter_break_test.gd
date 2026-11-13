@@ -93,7 +93,7 @@ func _initialize() -> void:
 	check(not run_state.reachable_nodes().is_empty(), "the map offers first choices")
 
 	print("ui chapter break test: %d failure(s)" % fails)
-	Chapters.count_override = 0
+	Chapters.count_override = 1
 	RunSave.delete(save_path)
 	DirAccess.remove_absolute(settings_path)
 	quit(1 if fails > 0 else 0)

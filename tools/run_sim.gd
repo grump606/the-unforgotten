@@ -57,7 +57,7 @@ func _initialize() -> void:
 	_map = opts["map"]
 	_chapters = opts["chapters"]
 	EliteModifiers.forced = opts["elite_modifier"]
-	Chapters.count_override = _chapters if _chapters > 1 else 0
+	Chapters.count_override = _chapters # the sims play exactly the chapters asked for (1 by default), never the open-ended shipped game
 	_route = opts["route"] if opts["route"] != "" else (RoutePolicy.SMART if _smart else RoutePolicy.FIRST)
 	_card_stats = opts["card_stats"]
 	var characters: Array[StringName] = []

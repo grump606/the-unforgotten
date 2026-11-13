@@ -3,7 +3,7 @@ extends RefCounted
 ## The chapters of a run. Only Chapter 1 exists; chapter(n) is the one place later chapters are added.
 ## The Chapter 1 values below are the ones that used to live in RouteMap and StarterContent.
 
-const COUNT := 1
+const COUNT := 2
 const CHAPTER_1_DISTRICT_NAMES: Array[String] = ["The Quiet Streets", "The Dead Country"]
 ## Chapter 2's per-class budget factors (tuned with tools/run_sim.gd --chapters 2, docs/CHAPTER2_PLAN.md).
 const CHAPTER_2_CLASS_DIFFICULTY := {&"deserter": 1.11, &"thief": 1.28, &"medium": 1.135, &"stray": 0.90}
@@ -22,6 +22,8 @@ const STUB_CURVES := {
 	3: [[84.0, 92.0], [92.0, 100.0]],
 }
 
+## The chapters the finished game will have (docs/CHAPTERS_PLAN.md). COUNT is how many exist now.
+const PLANNED := 3
 ## 0 means COUNT. Tests and the debug stub set it to reach a chapter that has no content yet.
 static var count_override := 0
 static var _cache: Dictionary = {}
@@ -30,6 +32,12 @@ static var _cache: Dictionary = {}
 ## How many chapters a run has.
 static func count() -> int:
 	return count_override if count_override > 0 else COUNT
+
+
+## True in the shipped game while chapters are still to come: beating the last built chapter's end boss then ends the run with
+## "To be continued" and not with an escape. Tests and the sims set `count_override`, which turns this off (a run then ends as it did).
+static func open_ended() -> bool:
+	return count_override == 0 and COUNT < PLANNED
 
 
 ## Chapter `number` (1-based), clamped to 1..MAX_BUILT. Chapters past COUNT are development stubs (see _build).

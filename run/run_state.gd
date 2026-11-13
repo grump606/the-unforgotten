@@ -146,6 +146,8 @@ var route: RouteMap = null
 var current_node: int = -1
 ## The chapter being played (1 to Chapters.count()). Each chapter is a fresh map; deck, relics and gold carry over.
 var chapter: int = 1
+## True once the last chapter that exists is won while more are planned (Chapters.open_ended): the run is over, with "To be continued".
+var to_be_continued := false
 ## True between a chapter's end boss and the next chapter (the break). The map then sits on its last node.
 var chapter_break := false
 ## Map mode: the ids of the nodes taken so far, in order.
@@ -334,7 +336,13 @@ func take_boss_spoils() -> bool:
 	_boss_relic = null
 	_reward_pending = false
 	_map_stop = null
-	chapter_break = true
+	if chapter < Chapters.count():
+		chapter_break = true
+	else:
+		# The last chapter that exists: the journey stops here for now.
+		finished = true
+		escaped = false
+		to_be_continued = true
 	return true
 
 
@@ -536,8 +544,9 @@ func complete_combat(victory: bool) -> bool:
 		escaped = false
 		return true
 	if stop.boss:
-		if route != null and chapter < Chapters.count():
-			# A chapter's end boss, with more chapters to come: gold and a boss relic, then the break.
+		if route != null and (chapter < Chapters.count() or (chapter == Chapters.count() and Chapters.open_ended())):
+			# A chapter's end boss, with more chapters to come (or still to be written): gold and a boss relic, then the break
+			# (or, after the last chapter that exists, "To be continued").
 			gold += END_BOSS_GOLD
 			_boss_relic = _roll_relic(BOSS_MIN_RELIC_PRICE)
 			_boss_spoils = true

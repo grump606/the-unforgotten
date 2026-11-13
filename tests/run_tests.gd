@@ -10,6 +10,8 @@ var _total_checks := 0
 
 func _initialize() -> void:
 	TestBase.sweep_stale_scratch()
+	# The older suites play the one-chapter game; the chapter suites set the count they need and put this back.
+	Chapters.count_override = 1
 	var failures := _run_discovered_files()
 	# The floor comes from the committed record (tests/golden/min_checks.txt) minus a tolerance, not from a constant
 	# edited by hand: a suite that silently runs less (a method no longer called, a loop gone empty) fails the run.

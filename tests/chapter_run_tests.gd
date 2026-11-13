@@ -22,8 +22,9 @@ func run() -> int:
 	_test_boss_reward()
 	_test_save_versions()
 	_test_save_validation()
-	Chapters.count_override = 0
+	Chapters.count_override = 1
 	_test_single_chapter_game()
+	_test_open_ended_game()
 	return _failures
 
 
@@ -68,7 +69,7 @@ func _test_boss_reward() -> void:
 	_check(not run.take_boss_spoils(), "the spoils are taken once")
 	_check(run.start_next_chapter() and run.chapter == 2, "and the next chapter starts")
 	# The last chapter's boss still ends the run as before.
-	Chapters.count_override = 0
+	Chapters.count_override = 1
 	var last := _run_at_end_boss()
 	last.restore_map(last.route, last.current_node, last.visited, true)
 	_check(last.complete_combat(true) and last.finished and last.escaped and not last.boss_spoils_pending(), "the last chapter's boss ends the run as before")
@@ -91,7 +92,7 @@ func _test_break_refused() -> void:
 	_check(not run.can_enter_chapter_break() and not run.enter_chapter_break(), "no break at the start of a run")
 	var line := RunState.new(7, &"deserter")
 	_check(not line.enter_chapter_break() and not line.start_next_chapter(), "line runs have no chapters")
-	Chapters.count_override = 0
+	Chapters.count_override = 1
 	var last := _run_at_end_boss()
 	_check(not last.can_enter_chapter_break(), "the last chapter's boss ends the run instead of opening a break")
 	Chapters.count_override = 2
@@ -148,3 +149,25 @@ func _test_single_chapter_game() -> void:
 	data["chapter"] = 1
 	data["chapter_break"] = true
 	_check(RunSave.from_dict(JSON.parse_string(JSON.stringify(data)))["error"] != "", "with one chapter a break save is rejected")
+
+
+## The shipped game (no count override) while chapter 3 is still to be written: chapter 1 ends in a break, chapter 2 ends in "To be continued".
+func _test_open_ended_game() -> void:
+	Chapters.count_override = 0
+	_check(Chapters.count() == Chapters.COUNT and Chapters.open_ended(), "the shipped game is open ended")
+	var first := _run_at_end_boss()
+	first.restore_map(first.route, first.current_node, first.visited, true)
+	_check(first.complete_combat(true) and first.boss_spoils_pending() and first.take_boss_spoils() and first.chapter_break and not first.finished, "chapter 1's boss leads to the break")
+	var second := _run_at_end_boss()
+	second.chapter = 2
+	second.restore_map(second.route, second.current_node, second.visited, true)
+	second.chapter = 2
+	var relics := second.relics.size()
+	var gold := second.gold
+	_check(second.complete_combat(true) and second.boss_spoils_pending() and not second.finished, "chapter 2's boss still pays its spoils first")
+	_check(second.gold == gold + RunState.END_BOSS_GOLD, "the gold is paid")
+	_check(second.take_boss_spoils() and second.finished and not second.escaped and second.to_be_continued and not second.chapter_break, "then the journey ends with To be continued, not an escape")
+	_check(second.relics.size() == relics + 1, "after the relic is taken")
+	Chapters.count_override = 3
+	_check(not Chapters.open_ended(), "with the count overridden the game is not open ended")
+	Chapters.count_override = 1
