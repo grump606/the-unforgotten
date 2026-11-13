@@ -1,7 +1,6 @@
 # Chapter 3 and the finale: the plan
 
-**Status: plan for the owner's review. Nothing here is built.** Written 2026-11-13, after v0.10.0 (Chapter 2) shipped. Items marked **Decision**
-are the owner's call; names, enemies and numbers are proposals. It follows the shape of [`CHAPTER2_PLAN.md`](CHAPTER2_PLAN.md), which worked, and
+**Status: plan, all seven owner decisions answered 2026-11-13 (see the end). Nothing here is built.** Written after v0.10.0 (Chapter 2) shipped. Names, enemies and numbers are still proposals to tune. It follows the shape of [`CHAPTER2_PLAN.md`](CHAPTER2_PLAN.md), which worked, and
 reuses everything the chapter machinery already does ([`CHAPTERS_DESIGN.md`](CHAPTERS_DESIGN.md)).
 
 **Settled earlier (owner, 2026-11-10 to 2026-11-12):** 3 chapters of the same shape (2 districts x 15 rows, a mid-boss and an end boss each); deck,
@@ -165,10 +164,14 @@ Each item is its own PR with `scripts/check.ps1` green and the sims re-run when 
 
 ## Decisions for the owner
 
-1. **The story's answer** (the Scrivener is the first of the forgotten who cannot stop remembering; the escape is the one name it cannot finish). Keep, change, or replace?
-2. **Names:** the Scriptorium, the districts, the Blotter, the Warden of the Inkwell, the Scrivener, the seven enemies (all placeholders; I would not build under a name until you confirm).
-3. **New effects:** Cross Out only (recommended), plus Blot or Unwritten, or none.
-4. **The finale's shape:** three phases (forget, file, write) with the extension of `EnemyData`, or three linked enemies. And its target loss rate (15% proposed).
-5. **A rest before the finale:** none (recommended) or one.
-6. **A fourth elite modifier** for Chapter 3 (recommended: no).
-7. **The installer cap:** raise it in the next release (v0.10.x) so Chapter 3 fits.
+**All answered 2026-11-13:**
+
+1. **The story's answer:** the Scrivener is the first of the forgotten, who could not stop remembering and writes every name so that no one is lost; a kept name cannot leave; the escape is the one name it cannot finish.
+2. **Names:** the proposals stand (the Scriptorium, the Dry Stacks, the Blotter, the Warden of the Inkwell, the Scrivener, the seven enemies).
+3. **New effects:** **Cross Out only.** Blot is made from a Dormant status card with no new rule; no Unwritten trait.
+4. **The finale's shape:** **extend `EnemyData`** with phase-three fields (the Scrivener is one enemy with three phases at 66% and 33% HP). Target loss rate **about 15%** of those who reach it.
+5. **Before the finale:** **nothing**; the break (heal 0.75, a save) is the rest.
+6. **A fourth elite modifier:** **no**.
+7. **The installer cap:** **raise `MAX_INSTALLER_BYTES` in the next patch release** (v0.10.x), one release before Chapter 3 needs it (`docs/UPDATE_CHECK.md`, "Installer size cap").
+
+Next: the v0.10.x patch that raises the cap (and fixes anything the Chapter 2 playtest finds), then Gate 1 of "Order of work".
