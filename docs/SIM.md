@@ -116,3 +116,15 @@ then the factors were retuned: `CHAPTER_3_CLASS_DIFFICULTY` deserter 1.2, thief 
 | Thief | 22% greedy unreliable (46) | 43% | 8 of 56 |
 | Medium | 43% (41) | 40% | 5 of 32 |
 | Stray | 40% (49) | 51% | 16 of 58 (0.65; set to 0.6 after) |
+
+### Chapter 3 confirmation (400 runs per class and bot, seed 1, `--chapters 3`, all Chapter 3 content in the pool)
+
+| Class | greedy | smart | mean (target) | finale lost, smart |
+| --- | --- | --- | --- | --- |
+| Deserter | 45% | 55% | 50% (48) | 18 of 78 |
+| Thief | 0% (deck bloat, unreliable) | 47% | smart is the reference (46) | 15 of 85 |
+| Medium | 50% | 39% | 45% (41) | 8 of 42 |
+| Stray | 33% | 57% | 45% (49) | 15 of 82 |
+
+Every class is within about 5 points of target. The finale loses 18 to 23% of the smart runs that reach it (target 15%), a little hard; the greedy Deserter loses almost all
+(its bot cannot play three phases), as the greedy bots do against the Registrar. Revisit after the playtest.
