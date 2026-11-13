@@ -696,7 +696,7 @@ static func budget_encounter(count: int, rng: RandomNumberGenerator, row: int, b
 				base.append(enemy)
 		if base.is_empty():
 			continue
-		var fit := _fit_scale(base, target)
+		var fit := _fit_scale(base, target, chapter)
 		var pack := _scaled_pack(base, fit["scale"])
 		var threat := pack_threat(pack)
 		var miss := absf(threat - target) / maxf(target, 0.001)
@@ -714,7 +714,7 @@ static func budget_encounter(count: int, rng: RandomNumberGenerator, row: int, b
 		var base: Array[EnemyData] = []
 		for i in n:
 			base.append(stand_in.duplicate(true) as EnemyData)
-		var fit := _fit_scale(base, target)
+		var fit := _fit_scale(base, target, chapter)
 		best = _scaled_pack(base, fit["scale"])
 		best_info = _pack_info(n, fit, target, pack_threat(best), PACK_MAX_ATTEMPTS, true)
 	last_pack_info = best_info
@@ -796,17 +796,18 @@ static func _hp_share(count: int) -> float:
 
 ## The legal range of the total multiplier m for a pack of `count`: the HP factor m^share and the damage factor
 ## m^(1 - share) must both lie in PACK_SCALE_MIN..PACK_SCALE_MAX. Returns [m_min, m_max].
-static func pack_multiplier_bounds(count: int) -> Array[float]:
+static func pack_multiplier_bounds(count: int, chapter: int = 1) -> Array[float]:
 	var share := _hp_share(count)
+	var scale_max := maxf(PACK_SCALE_MAX, Chapters.chapter(chapter).pack_scale_max)
 	var low := maxf(pow(PACK_SCALE_MIN, 1.0 / share), pow(PACK_SCALE_MIN, 1.0 / (1.0 - share)))
-	var high := minf(pow(PACK_SCALE_MAX, 1.0 / share), pow(PACK_SCALE_MAX, 1.0 / (1.0 - share)))
+	var high := minf(pow(scale_max, 1.0 / share), pow(scale_max, 1.0 / (1.0 - share)))
 	return [low, high]
 
 
 ## The total multiplier m, inside pack_multiplier_bounds, that brings the scaled `base` pack's threat closest to
 ## `target` (threat rises with m, so bisect), and whether the bounds stopped it reaching the target.
-static func _fit_scale(base: Array[EnemyData], target: float) -> Dictionary:
-	var bounds := pack_multiplier_bounds(base.size())
+static func _fit_scale(base: Array[EnemyData], target: float, chapter: int = 1) -> Dictionary:
+	var bounds := pack_multiplier_bounds(base.size(), chapter)
 	var low_threat := pack_threat(_scaled_pack(base, bounds[0]))
 	if low_threat >= target:
 		return {"scale": bounds[0], "bound_hit": low_threat > target * 1.02}

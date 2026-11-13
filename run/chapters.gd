@@ -10,8 +10,8 @@ const CHAPTER_2_CLASS_DIFFICULTY := {&"deserter": 1.11, &"thief": 1.28, &"medium
 ## Chapter 2's per-class boss factors (the Stray's 37 HP loses far more often to the Registrar than the other classes).
 const CHAPTER_2_BOSS_FACTOR := {&"deserter": 1.0, &"thief": 1.0, &"medium": 1.0, &"stray": 0.7}
 ## Chapter 3's per-class factors (a first tuning pass, 200 runs per class and bot; see docs/SIM.md). The boss factor also scales the finale.
-const CHAPTER_3_CLASS_DIFFICULTY := {&"deserter": 1.3, &"thief": 3.4, &"medium": 1.35, &"stray": 1.05}
-const CHAPTER_3_BOSS_FACTOR := {&"deserter": 1.1, &"thief": 3.0, &"medium": 0.85, &"stray": 0.65}
+const CHAPTER_3_CLASS_DIFFICULTY := {&"deserter": 1.2, &"thief": 2.8, &"medium": 1.25, &"stray": 1.05}
+const CHAPTER_3_BOSS_FACTOR := {&"deserter": 1.1, &"thief": 3.4, &"medium": 0.9, &"stray": 0.6}
 ## Chapter 2's districts (proposed names, docs/CHAPTER2_PLAN.md, "Names").
 const CHAPTER_2_DISTRICT_NAMES: Array[String] = ["The Flooded Stacks", "The Reading Rooms"]
 const CHAPTER_1_BUDGET_START: Array[float] = [34.0, 46.0]
@@ -97,6 +97,7 @@ static func _build(n: int) -> ChapterData:
 		# Chapter 3 (docs/CHAPTER3_PLAN.md): its own enemies and bosses; backdrops, story moods and district names are STUBS borrowed from Chapter 2 until written.
 		c.district_names = CHAPTER_2_DISTRICT_NAMES.duplicate()
 		c.class_difficulty = CHAPTER_3_CLASS_DIFFICULTY.duplicate()
+		c.pack_scale_max = 2.6
 		c.boss_class_factor = CHAPTER_3_BOSS_FACTOR.duplicate()
 		c.shared_backdrops.assign([&"battle_stacks", &"battle_catalogue", &"battle_reading_room", &"battle_gallery"])
 		c.mid_boss_backdrop = &"battle_archivists_hall"

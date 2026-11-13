@@ -103,3 +103,16 @@ Factors now `CHAPTER_3_CLASS_DIFFICULTY` deserter 1.3, thief 3.4, medium 1.35, s
 
 The results swing a lot between runs of the factors (a 0.15 change moved the Medium from 24% to 63%), so these are close, not final. Open: the Thief's smart bot is
 still too strong in both the chapter and the finale; the Deserter slightly hard in the chapter. The 400-run confirmation comes after the playtest and art.
+
+### Chapter 3 third pass: the Thief fix (300 runs per class and bot, seed 1)
+
+**Cause:** the Thief's chapter 3 packs were stuck at `StarterContent.PACK_SCALE_MAX` (1.8), so no class factor above about 1.6 made them harder; the Thief's strong
+survivors (about 52 HP on arrival) were never really tested. **Fix:** `ChapterData.pack_scale_max` (chapter 3: 2.6; chapters 1 and 2 keep 1.8, and their sim results are unchanged),
+then the factors were retuned: `CHAPTER_3_CLASS_DIFFICULTY` deserter 1.2, thief 2.8, medium 1.25, stray 1.05; `CHAPTER_3_BOSS_FACTOR` 1.1 / 3.4 / 0.9 / 0.6.
+
+| Class | mean survival (target) | smart survival | finale lost (smart) |
+| --- | --- | --- | --- |
+| Deserter | 50% (48) | 60% | 12 of 63 |
+| Thief | 22% greedy unreliable (46) | 43% | 8 of 56 |
+| Medium | 43% (41) | 40% | 5 of 32 |
+| Stray | 40% (49) | 51% | 16 of 58 (0.65; set to 0.6 after) |
