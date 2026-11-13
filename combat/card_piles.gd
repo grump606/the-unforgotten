@@ -149,6 +149,25 @@ func file_from_hand(count: int) -> int:
 	return filed
 
 
+## Crosses out up to `count` cards from the hand: each goes to the Forgotten pile, the dearest first (as file_from_hand);
+## an Anchored card stays. Returns how many were crossed out.
+func cross_out_from_hand(count: int) -> int:
+	var crossed := 0
+	for _n in maxi(count, 0):
+		var pick := -1
+		for i in hand.size():
+			if hand[i].anchor:
+				continue
+			if pick == -1 or hand[i].cost > hand[pick].cost:
+				pick = i
+		if pick == -1:
+			break
+		forgotten.append(hand[pick])
+		hand.remove_at(pick)
+		crossed += 1
+	return crossed
+
+
 ## The top `n` cards of the draw pile in the order they would be drawn (index 0 is drawn first; the
 ## top of the pile is the END of the array). Looks only at what is there: never reshuffles.
 func top_cards(n: int) -> Array[CardData]:

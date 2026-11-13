@@ -44,6 +44,7 @@ const EFFECT_TEXT := {
 	CardEffect.Kind.WARD: ["Ward", "Flat bonus to Block from cards. Stacks; lasts the fight."],
 	CardEffect.Kind.GLIMPSE: ["Glimpse", "Look at the top N cards of your draw pile; discard any."],
 	CardEffect.Kind.ADD_CARD: ["Add", "Puts copies of a card into the pile named."],
+	CardEffect.Kind.CROSS_OUT: ["Cross out", "Sends N cards from your hand to the Forgotten pile (the dearest first; Anchored cards stay). Recall can bring them back."],
 	CardEffect.Kind.FILE: ["File", "Sends N cards from your hand to the bottom of your draw pile (the dearest first; Anchored cards stay)."],
 	CardEffect.Kind.RECALL: ["Recall", "Return N Forgotten cards to your hand."],
 	CardEffect.Kind.DAMAGE_PER_FORGOTTEN: ["Forgotten damage", "Damage scales with the Forgotten pile."],

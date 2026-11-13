@@ -11,7 +11,7 @@ const ICON_PRIORITY: Array[CardEffect.Kind] = [
 	CardEffect.Kind.THORNS, CardEffect.Kind.EXPOSE, CardEffect.Kind.HOLD, CardEffect.Kind.GAIN_ENERGY,
 	CardEffect.Kind.DRAW, CardEffect.Kind.HEAL_PER_HAUNTED, CardEffect.Kind.LOSE_HP,
 	CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD,
-	CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL, CardEffect.Kind.SCENT, CardEffect.Kind.FILE,
+	CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL, CardEffect.Kind.SCENT, CardEffect.Kind.FILE, CardEffect.Kind.CROSS_OUT,
 ]
 ## Every kind that draw_icon has a glyph for (a test walks CardEffect.Kind and fails if one is missing, so a
 ## new kind cannot silently draw nothing).
@@ -21,7 +21,7 @@ const ICON_KINDS: Array[CardEffect.Kind] = [
 	CardEffect.Kind.DAMAGE_PER_PLAY, CardEffect.Kind.HAUNT, CardEffect.Kind.LOSE_HP, CardEffect.Kind.HEAL_PER_HAUNTED,
 	CardEffect.Kind.DAMAGE_PER_HAUNT, CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD,
 	CardEffect.Kind.GLIMPSE, CardEffect.Kind.ADD_CARD, CardEffect.Kind.RECALL, CardEffect.Kind.DAMAGE_PER_FORGOTTEN,
-	CardEffect.Kind.SCENT, CardEffect.Kind.DAMAGE_PER_SCENT, CardEffect.Kind.FILE,
+	CardEffect.Kind.SCENT, CardEffect.Kind.DAMAGE_PER_SCENT, CardEffect.Kind.FILE, CardEffect.Kind.CROSS_OUT,
 ]
 const KIND_COLORS := {
 	CardEffect.Kind.DAMAGE: MenuStyle.DAMAGE, CardEffect.Kind.BLOCK: MenuStyle.BLOCK,
@@ -35,6 +35,7 @@ const KIND_COLORS := {
 	CardEffect.Kind.DAMAGE_PER_FORGOTTEN: MenuStyle.DAMAGE,
 	CardEffect.Kind.SCENT: Color(0.62, 0.74, 0.92), CardEffect.Kind.DAMAGE_PER_SCENT: MenuStyle.DAMAGE,
 	CardEffect.Kind.FILE: Color(0.66, 0.60, 0.80),
+	CardEffect.Kind.CROSS_OUT: Color(0.80, 0.36, 0.40),
 }
 ## Ids that get the fist icon (shoves and body blows), the one per-id exception to the rules below.
 const FIST_IDS: Array[StringName] = [&"shove", &"shoulder_charge"]
@@ -438,6 +439,10 @@ static func _draw_resource_icon(ci: CanvasItem, kind: int, c: Vector2, r: float,
 			_fill(ci, _pts([Vector2(-0.55, -0.9), Vector2(0.45, -0.9), Vector2(0.45, 0.0), Vector2(-0.55, 0.0)], c, r), col)
 			ci.draw_line(c + Vector2(-0.8, 0.40) * r, c + Vector2(0.8, 0.40) * r, col, w * 1.6)
 			ci.draw_line(c + Vector2(-0.8, 0.78) * r, c + Vector2(0.8, 0.78) * r, col.darkened(0.3), w * 1.6)
+		CardEffect.Kind.CROSS_OUT:
+			# A card struck through: a card with a slash across it.
+			_fill(ci, _pts([Vector2(-0.6, -0.9), Vector2(0.6, -0.9), Vector2(0.6, 0.9), Vector2(-0.6, 0.9)], c, r), col.darkened(0.3))
+			ci.draw_line(c + Vector2(-0.85, 0.85) * r, c + Vector2(0.85, -0.85) * r, col, w * 1.8)
 		CardEffect.Kind.RECALL:
 			# A returning arrow: an open circle whose head curls back in.
 			var end_angle := deg_to_rad(215)

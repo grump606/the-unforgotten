@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" uid="uid://53jioqmfs8lr" path="res://combat/enemy_data.gd" id="1_enemy"]
+[ext_resource type="Script" uid="uid://v0wf0vn2ro0b" path="res://combat/card_effect.gd" id="2_effect"]
+
+[sub_resource type="Resource" id="Resource_a1"]
+script = ExtResource("2_effect")
+kind = 1
+amount = 12
+
+[sub_resource type="Resource" id="Resource_a2"]
+script = ExtResource("2_effect")
+kind = 0
+amount = 8
+
+[sub_resource type="Resource" id="Resource_a3"]
+script = ExtResource("2_effect")
+kind = 14
+amount = 2
+
+[sub_resource type="Resource" id="Resource_a4"]
+script = ExtResource("2_effect")
+kind = 0
+amount = 12
+
+[resource]
+script = ExtResource("1_enemy")
+id = &"scroll_mother"
+display_name = "Scroll Mother"
+max_hp = 30
+intents = Array[ExtResource("2_effect")]([SubResource("Resource_a1"), SubResource("Resource_a2"), SubResource("Resource_a3"), SubResource("Resource_a4")])

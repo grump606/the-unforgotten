@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" uid="uid://53jioqmfs8lr" path="res://combat/enemy_data.gd" id="1_enemy"]
+[ext_resource type="Script" uid="uid://v0wf0vn2ro0b" path="res://combat/card_effect.gd" id="2_effect"]
+
+[sub_resource type="Resource" id="Resource_a1"]
+script = ExtResource("2_effect")
+kind = 0
+amount = 3
+hits = 4
+
+[sub_resource type="Resource" id="Resource_a2"]
+script = ExtResource("2_effect")
+kind = 0
+amount = 7
+
+[resource]
+script = ExtResource("1_enemy")
+id = &"penwiper"
+display_name = "Penwiper"
+max_hp = 16
+intents = Array[ExtResource("2_effect")]([SubResource("Resource_a1"), SubResource("Resource_a2")])

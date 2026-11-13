@@ -8,6 +8,7 @@ func run() -> int:
 	_test_file_from_hand()
 	_test_file_intent()
 	_test_file_text()
+	_test_cross_out()
 	_test_unseen_targeting()
 	_test_unseen_all_enemies_and_alone()
 	_test_unseen_survives_scaling()
@@ -75,6 +76,28 @@ func _test_file_intent() -> void:
 	_check(own.play_card(index, 0), "a File card plays")
 	_check(own.piles.hand.size() == hand_before - 1 - 2, "and files two more cards from the hand")
 	own.abandon()
+
+
+func _test_cross_out() -> void:
+	var piles := CardPiles.new(_deck(12, _card(1, _dmg(1))), RandomNumberGenerator.new())
+	piles.hand.clear()
+	var cheap := _card(1, _dmg(1))
+	var dear := _card(3, _dmg(1))
+	var anchored := _card(4, _dmg(1))
+	anchored.anchor = true
+	piles.hand.append_array([cheap, dear, anchored])
+	_check(piles.cross_out_from_hand(1) == 1 and piles.forgotten == [dear] and piles.hand == [cheap, anchored], "Cross out sends the dearest card to the Forgotten pile")
+	_check(piles.cross_out_from_hand(5) == 1 and piles.forgotten.size() == 2 and piles.hand == [anchored], "an Anchored card stays, and only what can be crossed out goes")
+	_check(piles.cross_out_from_hand(0) == 0 and piles.cross_out_from_hand(-2) == 0, "a non-positive count crosses out nothing")
+	var intents: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.CROSS_OUT, 1)]
+	var combat := Combat.new(Combatant.new("p", 40), _deck(20, _card(1, _dmg(1))), _enemies(1, 99, intents))
+	combat.start()
+	var keep_all: Array[int] = []
+	combat.end_player_turn(keep_all)
+	_check(combat.piles.forgotten.size() == 1, "an enemy's Cross Out sends one kept card to the Forgotten pile")
+	combat.abandon()
+	var effect := CardEffect.make(CardEffect.Kind.CROSS_OUT, 1)
+	_check(effect.describe() == "Cross out 1" and CardGlossary.EFFECT_TEXT.has(CardEffect.Kind.CROSS_OUT), "Cross out has a line and a glossary entry")
 
 
 func _test_file_text() -> void:

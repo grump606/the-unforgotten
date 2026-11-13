@@ -203,6 +203,8 @@ static func _base_effect_value(effect: CardEffect, amount: int, added_depth: int
 			return amount * _added_card_value(effect.card, added_depth)
 		CardEffect.Kind.FILE:
 			return amount * FILE_VALUE_PER_CARD
+		CardEffect.Kind.CROSS_OUT:
+			return 0
 	return UNVALUED
 
 

@@ -2,29 +2,35 @@
 
 [ext_resource type="Script" uid="uid://53jioqmfs8lr" path="res://combat/enemy_data.gd" id="1_enemy"]
 [ext_resource type="Script" uid="uid://v0wf0vn2ro0b" path="res://combat/card_effect.gd" id="2_effect"]
+[ext_resource type="Resource" path="res://data/status/dread.tres" id="card_dread"]
 
 [sub_resource type="Resource" id="Resource_a1"]
+script = ExtResource("2_effect")
+kind = 25
+amount = 1
+
+[sub_resource type="Resource" id="Resource_a2"]
 script = ExtResource("2_effect")
 kind = 0
 amount = 14
 
-[sub_resource type="Resource" id="Resource_a2"]
+[sub_resource type="Resource" id="Resource_a3"]
 script = ExtResource("2_effect")
 kind = 1
 amount = 12
 
-[sub_resource type="Resource" id="Resource_a3"]
+[sub_resource type="Resource" id="Resource_a4"]
 script = ExtResource("2_effect")
 kind = 0
 amount = 10
 hits = 3
 
-[sub_resource type="Resource" id="Resource_a4"]
+[sub_resource type="Resource" id="Resource_a5"]
 script = ExtResource("2_effect")
 kind = 3
 amount = 2
 
-[sub_resource type="Resource" id="Resource_a5"]
+[sub_resource type="Resource" id="Resource_a6"]
 script = ExtResource("2_effect")
 kind = 0
 amount = 20
@@ -41,55 +47,67 @@ amount = 16
 
 [sub_resource type="Resource" id="Resource_b3"]
 script = ExtResource("2_effect")
+kind = 19
+amount = 2
+card = ExtResource("card_dread")
+pile = 1
+
+[sub_resource type="Resource" id="Resource_b4"]
+script = ExtResource("2_effect")
 kind = 0
 amount = 12
 hits = 3
 
-[sub_resource type="Resource" id="Resource_b4"]
+[sub_resource type="Resource" id="Resource_b5"]
 script = ExtResource("2_effect")
 kind = 16
 amount = 2
 
-[sub_resource type="Resource" id="Resource_b5"]
+[sub_resource type="Resource" id="Resource_b6"]
 script = ExtResource("2_effect")
 kind = 0
 amount = 24
 
 [sub_resource type="Resource" id="Resource_c1"]
 script = ExtResource("2_effect")
-kind = 0
-amount = 18
+kind = 25
+amount = 1
 
 [sub_resource type="Resource" id="Resource_c2"]
 script = ExtResource("2_effect")
-kind = 24
-amount = 3
+kind = 0
+amount = 20
 
 [sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_effect")
+kind = 16
+amount = 2
+
+[sub_resource type="Resource" id="Resource_c4"]
 script = ExtResource("2_effect")
 kind = 0
 amount = 14
 hits = 3
 
-[sub_resource type="Resource" id="Resource_c4"]
+[sub_resource type="Resource" id="Resource_c5"]
 script = ExtResource("2_effect")
 kind = 3
 amount = 2
 
-[sub_resource type="Resource" id="Resource_c5"]
+[sub_resource type="Resource" id="Resource_c6"]
 script = ExtResource("2_effect")
 kind = 0
-amount = 30
+amount = 32
 
 [resource]
 script = ExtResource("1_enemy")
 id = &"the_scrivener"
 display_name = "Scrivener"
 max_hp = 260
-intents = Array[ExtResource("2_effect")]([SubResource("Resource_a1"), SubResource("Resource_a2"), SubResource("Resource_a3"), SubResource("Resource_a4"), SubResource("Resource_a5")])
-phase_two_intents = Array[ExtResource("2_effect")]([SubResource("Resource_b1"), SubResource("Resource_b2"), SubResource("Resource_b3"), SubResource("Resource_b4"), SubResource("Resource_b5")])
+intents = Array[ExtResource("2_effect")]([SubResource("Resource_a1"), SubResource("Resource_a2"), SubResource("Resource_a3"), SubResource("Resource_a4"), SubResource("Resource_a5"), SubResource("Resource_a6")])
+phase_two_intents = Array[ExtResource("2_effect")]([SubResource("Resource_b1"), SubResource("Resource_b2"), SubResource("Resource_b3"), SubResource("Resource_b4"), SubResource("Resource_b5"), SubResource("Resource_b6")])
 phase_two_hp_percent = 66
 phase_two_title = "It files what it kept"
-phase_three_intents = Array[ExtResource("2_effect")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4"), SubResource("Resource_c5")])
+phase_three_intents = Array[ExtResource("2_effect")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4"), SubResource("Resource_c5"), SubResource("Resource_c6")])
 phase_three_hp_percent = 33
 phase_three_title = "It writes your name"

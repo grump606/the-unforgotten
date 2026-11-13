@@ -440,7 +440,7 @@ static func _effect_value(combat: Combat, card: CardData, hand_index: int, effec
 			value += _recall_value(combat, effect, energy_left)
 		CardEffect.Kind.ADD_CARD:
 			value += _added_value(combat, effect, energy_left)
-		CardEffect.Kind.FILE:
+		CardEffect.Kind.FILE, CardEffect.Kind.CROSS_OUT:
 			pass # an enemy's tool; a File card of ours is never worth playing for its own sake
 		_:
 			# BLOCK is priced by _play_value and never reaches here, so any kind landing here is new.
@@ -1007,6 +1007,8 @@ static func _effect_score(card: CardData, effect: CardEffect, weights: Dictionar
 			total += _added_score(effect, weights, depth)
 		CardEffect.Kind.FILE:
 			total += amount * FILE_SCORE_PER_CARD
+		CardEffect.Kind.CROSS_OUT:
+			total -= amount * FILE_SCORE_PER_CARD * 2.0 # an enemy's tool: losing a card is worse than filing it
 		_:
 			# Damage kinds (and Haunt) were priced above by _nominal_damage; a zero-damage one lands here.
 			if not effect.is_damage() and effect.kind != CardEffect.Kind.HAUNT:

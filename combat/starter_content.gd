@@ -157,7 +157,22 @@ const CHAPTER2_TRIO_EXCLUDED_PATHS: Array[String] = []
 const CHAPTER2_BOSS_PATHS: Array[String] = [ARCHIVIST_PATH, REGISTRAR_PATH]
 ## Chapter 3's finale boss (docs/CHAPTER3_PLAN.md): a STUB for now. It is not in an encounter pool; only finale_encounter() builds it.
 const SCRIVENER_PATH := "res://data/enemies/chapter3/the_scrivener.tres"
-const CHAPTER3_BOSS_PATHS: Array[String] = [SCRIVENER_PATH]
+const BLOTTER_PATH := "res://data/enemies/chapter3/the_blotter.tres"
+const INKWELL_WARDEN_PATH := "res://data/enemies/chapter3/the_warden_of_the_inkwell.tres"
+const CHAPTER3_BOSS_PATHS: Array[String] = [BLOTTER_PATH, INKWELL_WARDEN_PATH, SCRIVENER_PATH]
+## Chapter 3 (the Scriptorium, docs/CHAPTER3_PLAN.md): seven regular enemies. The Unfinished is Unseen. (The plan's "Blotter" caster is named
+## Smudge here so it does not share a name with the mid-boss.)
+const INKWELL_IMP_PATH := "res://data/enemies/chapter3/inkwell_imp.tres"
+const PEN_KNIGHT_PATH := "res://data/enemies/chapter3/pen_knight.tres"
+const SMUDGE_PATH := "res://data/enemies/chapter3/smudge.tres"
+const PENWIPER_PATH := "res://data/enemies/chapter3/penwiper.tres"
+const SCROLL_MOTHER_PATH := "res://data/enemies/chapter3/scroll_mother.tres"
+const UNFINISHED_PATH := "res://data/enemies/chapter3/the_unfinished.tres"
+const LEDGER_WOLF_PATH := "res://data/enemies/chapter3/ledger_wolf.tres"
+const CHAPTER3_ENEMY_PATHS: Array[String] = [INKWELL_IMP_PATH, PEN_KNIGHT_PATH, SMUDGE_PATH, PENWIPER_PATH, SCROLL_MOTHER_PATH, UNFINISHED_PATH, LEDGER_WOLF_PATH]
+const CHAPTER3_BIG_PATHS: Array[String] = [PEN_KNIGHT_PATH]
+const CHAPTER3_SMALL_PATHS: Array[String] = [INKWELL_IMP_PATH, SMUDGE_PATH, PENWIPER_PATH, SCROLL_MOTHER_PATH, UNFINISHED_PATH, LEDGER_WOLF_PATH]
+const CHAPTER3_TRIO_EXCLUDED_PATHS: Array[String] = []
 ## Every card, in a fixed order. A card's `character` tag says who may take it (empty = everyone).
 const ALL_CARD_PATHS: Array[String] = [
 	SHOVE_PATH, SLIP_PAST_PATH, GLIMPSE_EXIT_PATH, BRACE_PATH, FLURRY_PATH, SWEEP_PATH,
@@ -519,6 +534,7 @@ const THREAT_STATUS_POINTS := {
 	CardEffect.Kind.MALICE: 3.0,
 	CardEffect.Kind.ADD_CARD: 3.0,
 	CardEffect.Kind.FILE: 3.0,
+	CardEffect.Kind.CROSS_OUT: 6.0,
 }
 ## Map mode budget curve. A regular fight on run row `row` (0 to RouteMap.ROWS - 1) gets a total pack threat of
 ## MAP_DIFFICULTY * lerp(start, end, local), where `local` runs 0 to 1 over the act's rows 0 to 14. Index 0 is

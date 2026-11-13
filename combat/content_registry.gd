@@ -234,7 +234,7 @@ static func enemy_ids() -> Array[StringName]:
 	if not _enemy_ids_cache.is_empty():
 		return _enemy_ids_cache.duplicate()
 	var ids: Array[StringName] = []
-	for path in StarterContent.ALL_ENEMY_PATHS + StarterContent.BOSS_ENEMY_PATHS + StarterContent.CHAPTER2_ENEMY_PATHS + StarterContent.CHAPTER2_BOSS_PATHS + StarterContent.CHAPTER3_BOSS_PATHS:
+	for path in StarterContent.ALL_ENEMY_PATHS + StarterContent.BOSS_ENEMY_PATHS + StarterContent.CHAPTER2_ENEMY_PATHS + StarterContent.CHAPTER2_BOSS_PATHS + StarterContent.CHAPTER3_ENEMY_PATHS + StarterContent.CHAPTER3_BOSS_PATHS:
 		var template := load(path) as EnemyData
 		if template != null:
 			ids.append(template.id)
@@ -249,7 +249,7 @@ static func enemy_by_id(enemy_id: StringName) -> EnemyData:
 		var known := load(_enemy_paths_by_id[enemy_id]) as EnemyData
 		if known != null and known.id == enemy_id:
 			return known.duplicate(true) as EnemyData
-	for path in StarterContent.ALL_ENEMY_PATHS + StarterContent.BOSS_ENEMY_PATHS + StarterContent.CHAPTER2_ENEMY_PATHS + StarterContent.CHAPTER2_BOSS_PATHS + StarterContent.CHAPTER3_BOSS_PATHS:
+	for path in StarterContent.ALL_ENEMY_PATHS + StarterContent.BOSS_ENEMY_PATHS + StarterContent.CHAPTER2_ENEMY_PATHS + StarterContent.CHAPTER2_BOSS_PATHS + StarterContent.CHAPTER3_ENEMY_PATHS + StarterContent.CHAPTER3_BOSS_PATHS:
 		var template := load(path) as EnemyData
 		if template != null and template.id == enemy_id:
 			_enemy_paths_by_id[enemy_id] = path

@@ -91,10 +91,26 @@ static func _build(n: int) -> ChapterData:
 	c.mid_boss_title = "The Bellkeeper"
 	c.end_boss_title = "The Eraser"
 	if n == 3:
-		# STUB: the finale is a placeholder Scrivener (docs/CHAPTER3_PLAN.md) until the real one is built.
+		# Chapter 3 (docs/CHAPTER3_PLAN.md): its own enemies and bosses; backdrops, story moods and district names are STUBS borrowed from Chapter 2 until written.
+		c.district_names = CHAPTER_2_DISTRICT_NAMES.duplicate()
+		c.shared_backdrops.assign([&"battle_stacks", &"battle_catalogue", &"battle_reading_room", &"battle_gallery"])
+		c.mid_boss_backdrop = &"battle_archivists_hall"
+		c.boss_backdrop = &"battle_registrars_desk"
+		c.story_moods.assign([&"registry_arrival", &"archivists_hall", &"reading_room", &"registrars_desk"])
+		c.mid_boss_title = "The Blotter"
+		c.end_boss_title = "The Warden of the Inkwell"
+		c.mid_boss = &"the_blotter"
+		c.end_boss = &"the_warden_of_the_inkwell"
+		c.mid_boss_path = StarterContent.BLOTTER_PATH
+		c.end_boss_path = StarterContent.INKWELL_WARDEN_PATH
+		c.enemy_paths.assign(StarterContent.CHAPTER3_ENEMY_PATHS)
+		c.big_paths.assign(StarterContent.CHAPTER3_BIG_PATHS)
+		c.small_paths.assign(StarterContent.CHAPTER3_SMALL_PATHS)
+		c.trio_excluded_paths.assign(StarterContent.CHAPTER3_TRIO_EXCLUDED_PATHS)
 		c.finale_boss_path = StarterContent.SCRIVENER_PATH
 		c.finale_backdrop = RouteMap.BOSS_BACKDROP
 		c.finale_button = "Face the Scrivener"
+		return c
 	c.mid_boss = &"the_brakeman"
 	c.end_boss = &"the_conductor"
 	c.mid_boss_path = StarterContent.BRAKEMAN_PATH

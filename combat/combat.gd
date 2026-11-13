@@ -749,7 +749,7 @@ func _apply(effect: CardEffect, source: Combatant, target: Combatant, energy_sca
 		CardEffect.Kind.SCENT, CardEffect.Kind.HAUNT, CardEffect.Kind.EXPOSE, CardEffect.Kind.SHAKEN, \
 		CardEffect.Kind.FRAYED, CardEffect.Kind.MALICE, CardEffect.Kind.WARD:
 			_apply_status_effect(effect, source, target, amount)
-		CardEffect.Kind.DRAW, CardEffect.Kind.GLIMPSE, CardEffect.Kind.RECALL, CardEffect.Kind.ADD_CARD, CardEffect.Kind.FILE:
+		CardEffect.Kind.DRAW, CardEffect.Kind.GLIMPSE, CardEffect.Kind.RECALL, CardEffect.Kind.ADD_CARD, CardEffect.Kind.FILE, CardEffect.Kind.CROSS_OUT:
 			_apply_pile_effect(effect, source, amount)
 		_:
 			Combat.engine_error("Combat._apply: no handler for CardEffect kind %d" % effect.kind)
@@ -819,6 +819,9 @@ func _apply_pile_effect(effect: CardEffect, source: Combatant, amount: int) -> v
 		CardEffect.Kind.FILE:
 			# Acts on the player's hand whoever it comes from: an enemy intent files the cards you kept.
 			piles.file_from_hand(amount)
+		CardEffect.Kind.CROSS_OUT:
+			# Like File, on the player's hand whoever it comes from; the card is lost for the fight (Recall can fetch it).
+			piles.cross_out_from_hand(amount)
 		CardEffect.Kind.ADD_CARD:
 			# A card's copies and an enemy intent's both land in the player's piles.
 			if effect.card == null:
