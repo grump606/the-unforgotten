@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "The Margin"
+text = "Beyond the long rows the pages run out of text and begin to be margin. It is a quiet place. The white at the edges is covered in small marks, no bigger than a thumbnail, hundreds to a sheet.\n\nEach one is a name someone almost kept. A letter started and left, a first stroke, a beginning. You look for your own and do not find it. It is not here, because yours has been written in full.\n\nYou stand among them until your own name begins to feel like a stranger's."
+button_text = "Read on"

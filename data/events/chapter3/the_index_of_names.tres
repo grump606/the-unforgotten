@@ -1,0 +1,53 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 6
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 4
+amount = 2
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Take your card"
+outcome = "You lift it out. It is heavier than paper should be, and it leaves a small hurt in your chest as it settles, and a steadiness behind it."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 3
+amount = -20
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 7
+rarity = 2
+count = 3
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Add a name"
+outcome = "You pay the clerk to enter one more, and the index lets you choose what to write beside it. A card you could not have found otherwise, offered like a loan."
+class_outcome = {"medium": "One of the dead puts a card into your hand through the drawer, and you accept it, and thank them. It is not a loan."}
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e3"), SubResource("Resource_e4")])
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Close the drawer"
+outcome = "It slides shut with the sound of a breath let out."
+
+[resource]
+script = ExtResource("1_event")
+id = &"the_index_of_names"
+title = "The Index of Names"
+body = "A cabinet of narrow drawers, each with a card in its brass frame. All of the cards are blank but one. That one is in a hand like your own, and it is not finished."
+class_body = {"medium": "A cabinet of narrow drawers, each with a card in its brass frame. The cards are blank, but not silent: the dead are leaning on the other side of them. One drawer is open, and the card in it is yours, and it is not finished."}
+scene = &"battle_catalogue"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3")])

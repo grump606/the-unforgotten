@@ -1,0 +1,68 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 0
+amount = 10
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Stand in it"
+outcome = "It is warm on your face and shoulders, and nothing asks anything of you. You stand until you can feel your feet again."
+not_for = &"deserter"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1")])
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 0
+amount = 14
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Stand watch in it"
+outcome = "You take the post as you were taught, straight and still, and let the long habit of it hold you up. When you step out, you are rested in a way a bed never made you."
+only_for = &"deserter"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 60
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 8
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 12
+amount = 50
+win = Array[ExtResource("3_effect")]([SubResource("Resource_e3")])
+lose = Array[ExtResource("3_effect")]([SubResource("Resource_e4")])
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Gather the light"
+outcome = "You cup your hands and try to carry it out. For a moment you almost can."
+win_outcome = "It sets hard in your hands and shows its worth: bright coins, still warm."
+lose_outcome = "It slips away and burns going."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_c4"]
+script = ExtResource("2_choice")
+label = "Step around it"
+outcome = "You go by in the dark, and the light stays where it was."
+
+[resource]
+script = ExtResource("1_event")
+id = &"lamp_of_the_scriptorium"
+title = "The Great Lamp's Spill"
+body = "Far above, the great lamp has spilled a pool of light onto the floor, warm and yellow and perfectly still. The rest of the room is dark. The pool is just wide enough for one person to stand in."
+class_body = {"deserter": "Far above, the great lamp has spilled a pool of light onto the floor, warm and yellow and perfectly still. The rest of the room is dark. It is just wide enough for a sentry, and you know how to stand in a light like that."}
+scene = &"battle_gallery"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

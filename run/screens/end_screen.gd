@@ -14,6 +14,14 @@ func show(on_new_run: Callable, on_continue := Callable()) -> void:
 
 %s" % [beat.title, beat.text]) if beat != null else "The way down opens, and the voice is closer."
 
+	if run.escaped and run.finale:
+		# Winning the finale: the escape text written for it, when the chapter has one.
+		var after := StoryContent.finale_beat(run.chapter, "after", run.character.id if run.character != null else &"")
+		if after != null:
+			title = "%s
+
+%s" % [after.title, after.text]
+
 	var scene := EndScene.new()
 	scene.escaped = run.escaped
 	add_backdrop(scene)

@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "The Blotter's Alcove"
+text = "At the end of the first rows there is an alcove hung with sheets of blotting paper, each one dark with something that has dried and been soaked again. A keeper sits in it with ink to the wrist. It does not rise, and it does not seem to mind you.\n\nWhoever writes here is not unkind, the keeper says. Only unable to put the pen down. It has been asked many times to stop. It has never once been asked what it is afraid will happen if it does.\n\nYou have held a post past the hour when anyone remembered to relieve you. You do not say so, but the keeper looks at you as if you had."
+button_text = "Face the Blotter"

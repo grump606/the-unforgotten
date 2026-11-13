@@ -7,15 +7,15 @@ extends "res://tests/test_base.gd"
 ## Card-text pins such as describe() == "Deal 16" live in the per-class card suites and are labelled there as
 ## balance pins; they change only when a card is rebalanced.
 
-const CARD_COUNT := 136
-const RELIC_COUNT := 28
+const CARD_COUNT := 160
+const RELIC_COUNT := 35
 const ENEMY_POOL_COUNT := 7
 const BOSS_COUNT := 2
 const CHARACTER_COUNT := 4
 const STARTER_DECK_SIZE := 10
 const EXTENDED_DECK_SIZE := 14
 ## Class-tagged cards per character (docs/GAME_FACTS.md); the Stray list in stray_cards_tests.gd is only its 15 non-starter-pool extras.
-const CLASS_CARDS := {&"deserter": 30, &"thief": 32, &"medium": 29, &"stray": 31}
+const CLASS_CARDS := {&"deserter": 36, &"thief": 38, &"medium": 35, &"stray": 37}
 const MAX_HP := {&"deserter": 52, &"thief": 36, &"medium": 56, &"stray": 37}
 
 
@@ -51,8 +51,8 @@ func _test_starting_numbers() -> void:
 
 ## The registries must list every data file: otherwise a total above could pass while a card sits unregistered.
 func _test_every_registered_file_is_counted() -> void:
-	_check(_count_tres("res://data/cards") + _count_tres("res://data/cards/chapter2") == StarterContent.ALL_CARD_PATHS.size(), "every data/cards/*.tres and data/cards/chapter2/*.tres is registered (%d + %d files)" % [_count_tres("res://data/cards"), _count_tres("res://data/cards/chapter2")])
-	_check(_count_tres("res://data/relics") + _count_tres("res://data/relics/chapter2") == StarterContent.RELIC_PATHS.size(), "every data/relics/*.tres and data/relics/chapter2/*.tres is registered (%d + %d files)" % [_count_tres("res://data/relics"), _count_tres("res://data/relics/chapter2")])
+	_check(_count_tres("res://data/cards") + _count_tres("res://data/cards/chapter2") + _count_tres("res://data/cards/chapter3") == StarterContent.ALL_CARD_PATHS.size(), "every data/cards/*.tres and data/cards/chapter2/*.tres and data/cards/chapter3/*.tres is registered (%d + %d + %d files)" % [_count_tres("res://data/cards"), _count_tres("res://data/cards/chapter2"), _count_tres("res://data/cards/chapter3")])
+	_check(_count_tres("res://data/relics") + _count_tres("res://data/relics/chapter2") + _count_tres("res://data/relics/chapter3") == StarterContent.RELIC_PATHS.size(), "every data/relics/*.tres and data/relics/chapter2/*.tres and data/relics/chapter3/*.tres is registered (%d + %d + %d files)" % [_count_tres("res://data/relics"), _count_tres("res://data/relics/chapter2"), _count_tres("res://data/relics/chapter3")])
 	_check(_count_tres("res://data/enemies") == StarterContent.ALL_ENEMY_PATHS.size() + StarterContent.BOSS_ENEMY_PATHS.size(), "every data/enemies/*.tres is a regular enemy or a boss (%d files)" % _count_tres("res://data/enemies"))
 
 

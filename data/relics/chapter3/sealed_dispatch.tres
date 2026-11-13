@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"sealed_dispatch"
+display_name = "Sealed Dispatch"
+description = "Gain 2 Barbs at the start of every turn."
+character = &"deserter"
+from_chapter = 3
+kind = 3
+amount = 2
+price = 85

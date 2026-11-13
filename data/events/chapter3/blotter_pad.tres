@@ -1,0 +1,65 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 8
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 7
+rarity = 1
+count = 3
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Press your hand to it"
+outcome = "The ink is cold and it takes more than it should. When you lift your hand, a name is printed on your palm, and you know what to do with it."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 35
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 11
+card_id = &"murmur"
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Read the mirror-writing"
+outcome = "You hold the page up to the lamp and read it backwards. There is money in the margins, and something else that follows you out."
+not_for = &"medium"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e3"), SubResource("Resource_e4")])
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 35
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Listen to the mirror-writing"
+outcome = "The names speak in turn, and you hear them as you hear the dead. They have nothing to ask of you, and in the margin there is coin they left behind."
+only_for = &"medium"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_c4"]
+script = ExtResource("2_choice")
+label = "Turn it over"
+outcome = "The back is clean. You leave it so."
+
+[resource]
+script = ExtResource("1_event")
+id = &"blotter_pad"
+title = "The Blotter Pad"
+body = "A great blotter pad on a slanted desk, grey with ink. It has soaked up every name written on it, and under the lamp you can see them backwards, layered one over another, none of them clear."
+class_body = {"medium": "A great blotter pad on a slanted desk, grey with ink. It has soaked up every name written on it, and as you come near they murmur, all together, like a room of people trying not to be the first to speak."}
+scene = &"battle_catalogue"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

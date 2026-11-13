@@ -67,7 +67,7 @@ func _run_scene(character: StringName, stop_type: RunState.StopType, owned: Arra
 
 func _initialize() -> void:
 	var relics := StarterContent.all_relics()
-	check(relics.size() == StarterContent.RELIC_PATHS.size() and relics.size() == 28, "the twenty-eight relics load")
+	check(relics.size() == StarterContent.RELIC_PATHS.size() and relics.size() == 35, "the thirty-five relics load")
 
 	# Every Kind has a glyph name; every relic has tooltip text with its name and effect.
 	for kind in RelicData.Kind.values():

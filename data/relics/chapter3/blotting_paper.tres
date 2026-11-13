@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"blotting_paper"
+display_name = "Blotting Paper"
+description = "Heal 4 HP after each won fight."
+from_chapter = 3
+kind = 8
+amount = 4
+price = 90

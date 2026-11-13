@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "The Door That Opens"
+text = "The pen falls, and rolls, and stops. The Scrivener sits very still, and then it lifts its hand and holds it open, and there is nothing in it. In all its years it has never held an empty hand.\n\nOn the desk the last line is still blank. You take the pen and fill it, in your own hand, not a long line, only what is true. Somewhere above, in the quiet city, someone speaks your name. This time you answer.\n\nYou write your name and, under it, home. The ink is dry before you set the pen down."
+button_text = "Step out"

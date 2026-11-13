@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"inked_collar"
+display_name = "Inked Collar"
+description = "Heal 5 when the quarry dies."
+character = &"stray"
+from_chapter = 3
+kind = 20
+amount = 5
+price = 85

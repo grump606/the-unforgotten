@@ -224,6 +224,31 @@ const ALL_CARD_PATHS: Array[String] = [
 	"res://data/cards/chapter2/savage_shake.tres",
 	"res://data/cards/chapter2/pack_leader.tres",
 	"res://data/cards/chapter2/final_rush.tres",
+	# Chapter 3 (docs/CHAPTER3_PLAN.md): six cards per class, offered from Chapter 3 on (CardData.from_chapter = 3).
+	"res://data/cards/chapter3/bulwark_of_ledgers.tres",
+	"res://data/cards/chapter3/last_post.tres",
+	"res://data/cards/chapter3/unbroken_line.tres",
+	"res://data/cards/chapter3/iron_discipline.tres",
+	"res://data/cards/chapter3/roll_call.tres",
+	"res://data/cards/chapter3/final_dispatch.tres",
+	"res://data/cards/chapter3/pocket_the_page.tres",
+	"res://data/cards/chapter3/sleight_of_pen.tres",
+	"res://data/cards/chapter3/forged_signature.tres",
+	"res://data/cards/chapter3/quick_fingers.tres",
+	"res://data/cards/chapter3/clean_getaway.tres",
+	"res://data/cards/chapter3/the_long_con.tres",
+	"res://data/cards/chapter3/whispered_name.tres",
+	"res://data/cards/chapter3/paper_ghost.tres",
+	"res://data/cards/chapter3/unspoken.tres",
+	"res://data/cards/chapter3/struck_from_the_roll.tres",
+	"res://data/cards/chapter3/the_dead_remember.tres",
+	"res://data/cards/chapter3/final_entry.tres",
+	"res://data/cards/chapter3/fresh_trail.tres",
+	"res://data/cards/chapter3/quick_snap.tres",
+	"res://data/cards/chapter3/ink_stained_snout.tres",
+	"res://data/cards/chapter3/run_them_down.tres",
+	"res://data/cards/chapter3/howl_in_the_stacks.tres",
+	"res://data/cards/chapter3/the_last_scent.tres",
 ]
 ## Status cards: Dormant cards that enemies add to the player's piles mid-fight (Dread: Dormant; Murmur:
 ## Dormant and Fading). An explicit id -> path table, kept OUT of ALL_CARD_PATHS, the reward pools,
@@ -256,6 +281,14 @@ const RELIC_PATHS: Array[String] = [
 	"res://data/relics/chapter2/forged_pass.tres",
 	"res://data/relics/chapter2/tide_mark.tres",
 	"res://data/relics/chapter2/dust_of_the_stacks.tres",
+	# Chapter 3: three neutral relics and one per class (RelicData.from_chapter = 3).
+	"res://data/relics/chapter3/scribes_fee.tres",
+	"res://data/relics/chapter3/blotting_paper.tres",
+	"res://data/relics/chapter3/margin_pencil.tres",
+	"res://data/relics/chapter3/sealed_dispatch.tres",
+	"res://data/relics/chapter3/red_pencil.tres",
+	"res://data/relics/chapter3/mourning_ink.tres",
+	"res://data/relics/chapter3/inked_collar.tres",
 ]
 ## Every event of the "?" stops (docs/EVENTS_DESIGN.md), in a fixed order. Add an event by putting its .tres in data/events
 ## and listing it here (a test fails for a file that is not listed).
@@ -279,6 +312,18 @@ const CHAPTER_EVENT_PATHS := {
 		"res://data/events/chapter2/silent_patron.tres",
 		"res://data/events/chapter2/overdue_notice.tres",
 		"res://data/events/chapter2/back_stacks.tres",
+	],
+	3: [
+		"res://data/events/chapter3/copy_desk.tres",
+		"res://data/events/chapter3/blotter_pad.tres",
+		"res://data/events/chapter3/self_writing_pen.tres",
+		"res://data/events/chapter3/bell_for_silence.tres",
+		"res://data/events/chapter3/letter_to_yourself.tres",
+		"res://data/events/chapter3/ink_well_deep.tres",
+		"res://data/events/chapter3/proofreader.tres",
+		"res://data/events/chapter3/lamp_of_the_scriptorium.tres",
+		"res://data/events/chapter3/the_index_of_names.tres",
+		"res://data/events/chapter3/the_unwritten_page.tres",
 	],
 }
 ## Playable characters, in the order a selection screen lists them.

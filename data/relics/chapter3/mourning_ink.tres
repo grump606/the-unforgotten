@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"mourning_ink"
+display_name = "Mourning Ink"
+description = "At the start of every turn, heal 1 HP per Haunted enemy."
+character = &"medium"
+from_chapter = 3
+kind = 10
+amount = 1
+price = 90

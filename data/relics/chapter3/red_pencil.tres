@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"red_pencil"
+display_name = "Red Pencil"
+description = "Your first attack each fight applies Shaken 2."
+character = &"thief"
+from_chapter = 3
+kind = 17
+amount = 2
+price = 90

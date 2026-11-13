@@ -1,0 +1,64 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 8
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 6
+pool = 1
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Write on it"
+outcome = "You strike a card out and write another in its place. The ink takes, and what stands there is not quite what you meant, but it is yours."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 40
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 11
+card_id = &"dread"
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Tear it out"
+outcome = "It comes away with a sound like skin. The page is worth something to someone, and something else clings to your hand where it was."
+not_for = &"stray"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e3"), SubResource("Resource_e4")])
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 6
+rarity = 1
+pool = 1
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Leave a pawprint"
+outcome = "You press one paw on it, gently. The print stays, small and plain and entirely yours, and something in the book gives you a card to remember it by."
+only_for = &"stray"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_c4"]
+script = ExtResource("2_choice")
+label = "Leave it blank"
+outcome = "You leave it under its ribbon, clean. You are not sure it will stay that way."
+
+[resource]
+script = ExtResource("1_event")
+id = &"the_unwritten_page"
+title = "The Unwritten Page"
+body = "A bound book on a lectern, and in the middle of it, one blank page, kept apart by a ribbon. Every other page in the Scriptorium is full. This one is clean, and bright as a field of snow."
+class_body = {"stray": "A bound book on a lectern, and in the middle of it, one blank page, kept apart by a ribbon. It smells of nothing at all, the one clean thing in this place, and it is just the height of a paw."}
+scene = &"battle_reading_room"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

@@ -34,7 +34,7 @@ func _test_beats() -> void:
 		for character in CHARACTERS:
 			var own := StoryContent.break_beat(chapter, character)
 			_check(own != null and own.text != neutral.text, "%s has their own closing beat for chapter %d" % [character, chapter])
-	_check(StoryContent.break_beat(3) == null, "no closing beat for a chapter that has none")
+	_check(StoryContent.break_beat(4) == null, "no closing beat for a chapter that has none")
 	_check(all_titles.size() == 4, "the four map beats have different titles")
 
 

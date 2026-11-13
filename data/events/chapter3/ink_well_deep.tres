@@ -1,0 +1,61 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 10
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 10
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Climb down"
+outcome = "The ink is colder than water and clings like a hand. You come up with your fingers closed on something, and the black running off you for a long while."
+not_for = &"stray"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 10
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Follow the smell down"
+outcome = "You find the ladder by scent and go down it with your eyes shut. You come back up with the thing in your teeth, and the ink slides off you like rain."
+only_for = &"stray"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e3")])
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 4
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 9
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Dip a card"
+outcome = "You lower a card into the black and lift it out. The ink has written something on it that you will not forget."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e4"), SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_c4"]
+script = ExtResource("2_choice")
+label = "Look, and go on"
+outcome = "The glint is still there when you turn away. You do not turn back."
+
+[resource]
+script = ExtResource("1_event")
+id = &"ink_well_deep"
+title = "The Deep Inkwell"
+body = "A well sunk into the floor, full of ink so black it takes the lamplight and gives nothing back. A ladder goes down. Something small and bright glints at the bottom, if you look at it sideways."
+class_body = {"stray": "A well sunk into the floor, full of ink so black it takes the lamplight and gives nothing back. A ladder goes down. Something at the bottom smells of metal and of hands, faint and old."}
+scene = &"battle_stacks"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "The Foot of the Page"
+text = "The Warden falls, and the door swings in on a single desk under a single lamp. A page lies open on it, and the page is yours. Every day you have lived is on it, set down plainly, in a hand that never rushed.\n\nYou read to the end. The last line is blank, a ruled space with the pen still wet beside it. Whoever wrote you has set down all that you were, and has not yet been able to write what comes next.\n\nThe dead press close behind you, reading over your shoulder. None of them speaks. They are waiting to see what you will write."
+button_text = "Go on"

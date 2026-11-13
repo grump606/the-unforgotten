@@ -21,6 +21,18 @@ func show() -> void:
 	line.custom_minimum_size = Vector2(480, 0)
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(line)
+	if run.can_start_finale():
+		# The finale's opening text: the Scrivener speaks before the fight (written for Chapter 3, docs/CHAPTER3_WRITING.md).
+		var before := StoryContent.finale_beat(run.chapter, "before", run.character.id if run.character != null else &"")
+		if before != null:
+			var prelude := make_label("%s
+
+%s" % [before.title, before.text])
+			prelude.name = "FinaleBeat"
+			prelude.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			prelude.custom_minimum_size = Vector2(480, 0)
+			prelude.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			box.add_child(prelude)
 	var heal := mini(run.player.max_hp - run.player.hp, roundi(run.player.max_hp * RunState.CHAPTER_BREAK_HEAL_FRACTION))
 	var finale := run.can_start_finale()
 	var summary := make_label("HP %d/%d  ·  Gold %d\nDeck: %d cards  ·  Keepsakes: %d\nThe %s begins with +%d HP." % [

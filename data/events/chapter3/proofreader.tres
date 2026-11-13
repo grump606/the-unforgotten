@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 3
+amount = -40
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 8
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Be corrected"
+outcome = "The pencil draws a line through one thing about you, and it is gone. It was a kind of weight, and you did not know until now how tired it had made you."
+not_for = &"thief"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1"), SubResource("Resource_e2")])
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 8
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Be corrected, with their own pencil"
+outcome = "You take it while they are marking the stranger ahead of you, and strike out the thing yourself. When the reader reaches for it, you have put it back."
+only_for = &"thief"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e3")])
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 45
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 2
+amount = 6
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Correct them"
+outcome = "You take the pencil from the reader's hand, and they let you. There is a line of text in the margin that says something about them, and the margin pays."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e4"), SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_c4"]
+script = ExtResource("2_choice")
+label = "Walk on"
+outcome = "The reader does not look up. The pencil goes on, marking the line."
+
+[resource]
+script = ExtResource("1_event")
+id = &"proofreader"
+title = "The Proofreader"
+body = "A reader at a high desk with a red pencil, going through a line of strangers one by one. They mark each one in the margin and do not look at their faces. They have not yet looked at you."
+class_body = {"thief": "A reader at a high desk with a red pencil, going through a line of strangers one by one. They mark each one in the margin and do not look at their faces. The pencil sits on the edge of the desk, an easy reach from where you stand."}
+scene = &"battle_gallery"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

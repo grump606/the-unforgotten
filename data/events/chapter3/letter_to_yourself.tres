@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://combat/event_data.gd" id="1_event"]
+[ext_resource type="Script" path="res://combat/event_choice.gd" id="2_choice"]
+[ext_resource type="Script" path="res://combat/event_effect.gd" id="3_effect"]
+
+[sub_resource type="Resource" id="Resource_e1"]
+script = ExtResource("3_effect")
+kind = 9
+
+[sub_resource type="Resource" id="Resource_c1"]
+script = ExtResource("2_choice")
+label = "Open it"
+outcome = "It tells you something you had forgotten, and you are surprised how much of it you still know. One thing in your hand feels as if it had always been there."
+not_for = &"medium"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e1")])
+
+[sub_resource type="Resource" id="Resource_e2"]
+script = ExtResource("3_effect")
+kind = 9
+
+[sub_resource type="Resource" id="Resource_e3"]
+script = ExtResource("3_effect")
+kind = 3
+amount = 15
+
+[sub_resource type="Resource" id="Resource_c2"]
+script = ExtResource("2_choice")
+label = "Open it and listen"
+outcome = "The voice reading it is a stranger's, and it knows you well. When it finishes, it leaves a little coin on the lectern, as the dead sometimes do."
+only_for = &"medium"
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e2"), SubResource("Resource_e3")])
+
+[sub_resource type="Resource" id="Resource_e4"]
+script = ExtResource("3_effect")
+kind = 3
+amount = -25
+
+[sub_resource type="Resource" id="Resource_e5"]
+script = ExtResource("3_effect")
+kind = 4
+amount = 3
+
+[sub_resource type="Resource" id="Resource_c3"]
+script = ExtResource("2_choice")
+label = "Answer it"
+outcome = "You pay for the paper and the ink, and you write back what you would have wanted to be told. The reply, when it comes, is only your own handwriting, steadier than before."
+effects = Array[ExtResource("3_effect")]([SubResource("Resource_e4"), SubResource("Resource_e5")])
+
+[sub_resource type="Resource" id="Resource_c4"]
+script = ExtResource("2_choice")
+label = "Seal it back"
+outcome = "You press the wax closed with your thumb. It is still warm."
+
+[resource]
+script = ExtResource("1_event")
+id = &"letter_to_yourself"
+title = "A Letter to Yourself"
+body = "A letter on a lectern, addressed to you in your own hand. The date on it has not happened yet. The seal is unbroken, and the paper is warm, as if it had just been written."
+class_body = {"medium": "A letter on a lectern, addressed to you in a voice you cannot place. The date on it has not happened yet. The seal is unbroken, and the paper is warm, and someone is reading it aloud, just out of hearing."}
+scene = &"battle_reading_room"
+choices = Array[ExtResource("2_choice")]([SubResource("Resource_c1"), SubResource("Resource_c2"), SubResource("Resource_c3"), SubResource("Resource_c4")])

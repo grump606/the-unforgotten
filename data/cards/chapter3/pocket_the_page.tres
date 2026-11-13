@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" uid="uid://cvqeldq7ry1bu" path="res://combat/card_data.gd" id="1_card"]
+[ext_resource type="Script" uid="uid://v0wf0vn2ro0b" path="res://combat/card_effect.gd" id="2_effect"]
+[ext_resource type="Script" path="res://combat/remembered_data.gd" id="9_rem"]
+
+[sub_resource type="Resource" id="e1"]
+script = ExtResource("2_effect")
+kind = 0
+amount = 3
+
+[sub_resource type="Resource" id="e2"]
+script = ExtResource("2_effect")
+kind = 2
+amount = 1
+
+[sub_resource type="Resource" id="re1"]
+script = ExtResource("2_effect")
+kind = 0
+amount = 4
+
+[sub_resource type="Resource" id="re2"]
+script = ExtResource("2_effect")
+kind = 2
+amount = 2
+
+[sub_resource type="Resource" id="Rem"]
+script = ExtResource("9_rem")
+effects = Array[ExtResource("2_effect")]([SubResource("re1"), SubResource("re2")])
+
+[resource]
+script = ExtResource("1_card")
+id = &"pocket_the_page"
+display_name = "Pocket the Page"
+cost = 0
+effects = Array[ExtResource("2_effect")]([SubResource("e1"), SubResource("e2")])
+character = &"thief"
+from_chapter = 3
+remembered = SubResource("Rem")

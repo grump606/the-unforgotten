@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "The Dry Stair"
+text = "The stair ends in dry air, and the dryness is a relief until you notice what it means. No water has come here in a long time. Desks run away in rows under hanging lamps, and over every desk bent figures write, and the whole room is one soft sound of pens.\n\nThe first pages you pass are the names from the book that fell. Someone has copied them out clean, every letter even, as though the copying were the point.\n\nBeside each name a figure is pencilled in a small neat hand. A price, you think, and then you see it is a value, which is a different thing and a worse one."
+button_text = "Go in"

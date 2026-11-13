@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "The Warden's Door"
+text = "The last door is tall and black with ink, and it is shut. Before it stands the Warden of the Inkwell, wide as the doorway, a great nib in one fist and a dripping well at its feet. It has not moved in a very long time.\n\nIt says it guards the door. You ask what it keeps in. Nothing is kept in, it says. This is not a prison, and its voice cracks on the word. It is only that what lies on the other side must not be interrupted.\n\nEvery lock has its owner's tenderness in it. This one has enough to make you hesitate, and you hate that you have hesitated."
+button_text = "Face the Warden"

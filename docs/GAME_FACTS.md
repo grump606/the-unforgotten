@@ -21,9 +21,9 @@ Last checked against v0.10.0 (Chapter 2 and the chapter structure).
 | Stops on the fixed line | 22, in two acts (still built when `new_runs_use_map` is false) | `RunState._default_line()` in `run/run_state.gd`; `docs/LEVELS_DESIGN.md` |
 | Line stop mix | 4 story beats, 8 regular fights, 1 mid-boss (the Brakeman, shown as Bellkeeper), 1 final boss (the Conductor, shown as Eraser), 3 vendors, 5 rests | same; `tests/rest_content_tests.gd` checks the 5 rests |
 | Playable characters | 4: Deserter (52 HP), Thief (36 HP), Medium (56 HP), Stray (37 HP) | `data/characters/*.tres` |
-| Cards | 136 in all (112 from Chapter 1, 24 added for Chapter 2 with `from_chapter = 2`) | `data/cards/*.tres`, `data/cards/chapter2/*.tres`; `tests/pinned_balance_tests.gd` |
-| Class cards | Deserter 30, Thief 32, Medium 29, Stray 31 (24, 26, 23 and 25 in Chapter 1; each class pool must be at least 22) | `data/cards/*.tres` (`character` tag); `tests/pool_tests.gd` |
-| Relics | 28 (21 from Chapter 1, 7 added for Chapter 2: three neutral, one per class) | `data/relics/*.tres`, `data/relics/chapter2/*.tres`; `docs/RELICS_DESIGN.md` |
+| Cards | 160 in all (112 from Chapter 1, 24 added for Chapter 2 with `from_chapter = 2`, 24 for Chapter 3 with `from_chapter = 3`) | `data/cards/*.tres`, `data/cards/chapter2/*.tres`, `data/cards/chapter3/*.tres`; `tests/pinned_balance_tests.gd` |
+| Class cards | Deserter 36, Thief 38, Medium 35, Stray 37 (24, 26, 23 and 25 in Chapter 1; each class pool must be at least 22) | `data/cards/*.tres` (`character` tag); `tests/pool_tests.gd` |
+| Relics | 35 (21 from Chapter 1, 7 added for Chapter 2 and 7 for Chapter 3: three neutral, one per class each) | `data/relics/*.tres`, `data/relics/chapter2/*.tres`, `data/relics/chapter3/*.tres`; `docs/RELICS_DESIGN.md` |
 | Enemies | 18: Chapter 1's 9 (7 regular, 2 bosses) and Chapter 2's 9 (7 regular, 2 bosses; placeholder art) | `data/enemies/*.tres`, `data/enemies/chapter2/*.tres` |
 | Hand | 5 cards drawn, at most 10 in hand, keep at most 5 at end of turn | `Combat.HAND_SIZE`, `Combat.HAND_MAX` |
 | Energy per turn | 3 | `Combat.ENERGY_PER_TURN` |

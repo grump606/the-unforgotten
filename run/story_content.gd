@@ -22,12 +22,27 @@ const CHAPTER_BEAT_PATHS := {
 		"res://data/story/chapter2/reading_room.tres",
 		"res://data/story/chapter2/registrars_desk.tres",
 	],
+	3: [
+		"res://data/story/chapter3/dry_stair.tres",
+		"res://data/story/chapter3/blotters_alcove.tres",
+		"res://data/story/chapter3/the_margin.tres",
+		"res://data/story/chapter3/wardens_door.tres",
+	],
 }
 ## The closing beat of a chapter, shown on its break screen (key: the chapter that has just ended). The break after Chapter 1 is what
 ## drops the book and opens the Registry; the one after Chapter 2 opens Chapter 3. Class versions sit beside the others by file name.
 const BREAK_BEAT_PATHS := {
 	1: "res://data/story/chapter1/dropped_book.tres",
 	2: "res://data/story/chapter2/last_entry.tres",
+	3: "res://data/story/chapter3/foot_of_the_page.tres",
+}
+## The finale's two texts (key: the chapter whose end boss it follows): "before" shows on the break that leads to the finale, "after" on the end card
+## of an escape. Class versions sit beside them by file name, as for the closing beats.
+const FINALE_BEAT_PATHS := {
+	3: {
+		"before": "res://data/story/chapter3/last_name.tres",
+		"after": "res://data/story/chapter3/door_that_opens.tres",
+	},
 }
 
 
@@ -70,7 +85,18 @@ static func beat(index: int, character_id: StringName = &"", chapter: int = 1) -
 static func break_beat(chapter: int, character_id: StringName = &"") -> StoryBeat:
 	if not BREAK_BEAT_PATHS.has(chapter):
 		return null
-	var path: String = BREAK_BEAT_PATHS[chapter]
+	return _load_beat(BREAK_BEAT_PATHS[chapter], character_id)
+
+
+## The finale text `which` ("before" or "after") of chapter `chapter` for `character_id`, or null when that chapter has no finale.
+static func finale_beat(chapter: int, which: String, character_id: StringName = &"") -> StoryBeat:
+	var own: Dictionary = FINALE_BEAT_PATHS.get(chapter, {})
+	if not own.has(which):
+		return null
+	return _load_beat(own[which], character_id)
+
+
+static func _load_beat(path: String, character_id: StringName) -> StoryBeat:
 	if character_id != &"":
 		var own_path := "res://data/story/%s/%s" % [character_id, path.get_file()]
 		if ResourceLoader.exists(own_path):

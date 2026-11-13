@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StoryBeat" format=3]
+
+[ext_resource type="Script" path="res://run/story_beat.gd" id="1_beat"]
+
+[resource]
+script = ExtResource("1_beat")
+title = "The Last Name"
+text = "The Scrivener sits on the far side of the lamp, and it is not what you expected. It is old and thin and kind, a hand and a pen and a face worn smooth with leaning over pages. It has remembered everyone who ever came down these stairs, and it cannot remember how to stop.\n\nIt says it has written a thousand names and finished every one but a single one. That one it has begun a hundred times, and always the pen slides. It asks you, very gently, to tell it the name. And then, because it cannot help itself, it lifts the pen against you.\n\nYou do not give it a name, and you do not decline to. You wait, and it understands that this too is an answer, and it begins to write."
+button_text = "Face the Scrivener"

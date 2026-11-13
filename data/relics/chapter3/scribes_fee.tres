@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RelicData" format=3]
+
+[ext_resource type="Script" path="res://combat/relic_data.gd" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+id = &"scribes_fee"
+display_name = "Scribe's Fee"
+description = "Gain 6 extra gold after each won fight."
+from_chapter = 3
+kind = 7
+amount = 6
+price = 80

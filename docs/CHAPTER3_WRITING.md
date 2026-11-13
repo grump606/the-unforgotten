@@ -1,6 +1,6 @@
 # Chapter 3: the writing outline (events and story beats)
 
-**Status: proposal, awaiting approval (2026-11-13).** Nothing below is written as final text yet. Approve, change or strike anything; the full text follows
+**Status: the 35 story texts are written (2026-11-13, on the owner's "continue with your recommendations"; the outline was not individually reviewed, so expect edits).** They are in `data/story/chapter3/` (neutral) and `data/story/<class>/`, registered in `StoryContent.CHAPTER_BEAT_PATHS`, `BREAK_BEAT_PATHS` and `FINALE_BEAT_PATHS`; the finale's "before" text shows on the break screen above the "Face the Scrivener" button and "after" on the escape end card; `tests/chapter3_story_tests.gd` checks shape. The events below are still a proposal. Not yet run through `writegood`.
 only after you do. Voice: Chapter 1's (plain, quiet, a little sorrowful, no monster words). Setting and spine: `CHAPTER3_PLAN.md` (the Scriptorium; the
 Scrivener is the first of the forgotten who cannot stop remembering; the escape is the one name it cannot finish).
 
