@@ -758,35 +758,29 @@ static func _budget_enemy(path: String) -> EnemyData:
 	return _load_enemy(path)
 
 
+## The pack builder's last resort (see _fallback_enemy): the first of these paths that loads, else a hand-built
+## stand-in with these numbers.
+const FALLBACK_ENEMY_PATHS: Array[String] = [LOST_SHADE_PATH, WARDEN_PATH, WISP_PATH]
+const FALLBACK_ENEMY_NAME := "Lost Shade"
+const FALLBACK_ENEMY_ID := &"lost_shade"
+const FALLBACK_ENEMY_HP := 24
+const FALLBACK_ENEMY_DAMAGE := 6
+
+
 ## A known loadable enemy for the pack builder's last resort, or a minimal hand-built one when none loads.
 static func _fallback_enemy() -> EnemyData:
-	for path in [LOST_SHADE_PATH, WARDEN_PATH, WISP_PATH]:
+	for path in FALLBACK_ENEMY_PATHS:
 		var enemy := _budget_enemy(path)
 		if enemy != null and not enemy.intents.is_empty():
 			return enemy
-	var intents: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.DAMAGE, 6)]
-	return EnemyData.make("Lost Shade", 24, intents, &"lost_shade")
+	var intents: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.DAMAGE, FALLBACK_ENEMY_DAMAGE)]
+	return EnemyData.make(FALLBACK_ENEMY_NAME, FALLBACK_ENEMY_HP, intents, FALLBACK_ENEMY_ID)
 
 
 ## The enemy paths of a pack of `count`, drawn from the pools in the order varied_encounter draws them.
 static func _pack_paths(count: int, rng: RandomNumberGenerator, big_pair_chance: float, chapter: int = 1) -> Array[String]:
 	var pools := Chapters.chapter(chapter)
-	var paths: Array[String] = []
-	match count:
-		1:
-			paths.append(Encounters.pick_path(pools.enemy_paths, rng))
-		2:
-			if rng.randf() < big_pair_chance:
-				paths.append(Encounters.pick_path(pools.big_paths, rng))
-				paths.append(Encounters.pick_path(pools.small_paths, rng))
-			else:
-				paths.append(Encounters.pick_path(pools.small_paths, rng))
-				paths.append(Encounters.pick_path(pools.small_paths, rng))
-		_:
-			var trio := pools.trio_paths()
-			for i in count:
-				paths.append(Encounters.pick_path(trio, rng))
-	return paths
+	return Encounters.pack_paths(count, rng, big_pair_chance, pools.enemy_paths, pools.big_paths, pools.small_paths, pools.trio_paths())
 
 
 ## The HP share of the total multiplier for a pack of `count` (see PACK_HP_SHARE).

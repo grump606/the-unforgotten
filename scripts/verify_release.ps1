@@ -97,13 +97,13 @@ try {
     $manifestText = (New-Object System.Text.UTF8Encoding($false)).GetString($manifestBytes)
     $fields = @{}
     foreach ($line in ($manifestText -split "`n")) {
-        if ($line -match '^(name|version|sha256)=(.*)$') { $fields[$Matches[1]] = $Matches[2] }
+        if ($line -match '^(name|version|sha256|min_version)=(.*)$') { $fields[$Matches[1]] = $Matches[2] }
     }
     Report ($fields['sha256'] -eq $actual) 'installer SHA-256 equals the signed manifest' $fields['sha256']
 
     # 3. The manifest names this release and is byte-for-byte what the signer writes (LF, no BOM, trailing LF).
     Report ($fields['name'] -eq $name -and $fields['version'] -eq $Version) "manifest names $name and version $Version"
-    $expected = (New-Object System.Text.UTF8Encoding($false)).GetBytes((New-UpdateManifestText -Name $name -Version $Version -Sha256 $actual))
+    $expected = (New-Object System.Text.UTF8Encoding($false)).GetBytes((New-UpdateManifestText -Name $name -Version $Version -Sha256 $actual -MinVersion ([string]$fields['min_version'])))
     $same = $expected.Length -eq $manifestBytes.Length
     if ($same) { for ($i = 0; $i -lt $expected.Length; $i++) { if ($expected[$i] -ne $manifestBytes[$i]) { $same = $false; break } } }
     Report $same 'manifest bytes are exactly the canonical text (LF, no BOM)'

@@ -17,7 +17,7 @@ To let a card be Remembered at a rest stop, give it a `remembered` block (a `Rem
 
 ## An event
 1. Add `data/events/<id>.tres`: an `EventData` (title, scene text, optional `class_body` per character, the painted `scene` behind it) with two to four `EventChoice` buttons, each with its `effects` (`EventEffect`, `combat/event_effect.gd`). Fields and effect kinds are described in `docs/EVENTS_DESIGN.md`; the cost and reward line under a button is generated from the effects, so write the numbers only in the effects. Give every event a button that costs nothing, and do not use dashes in the text.
-2. Append its path to `EVENT_PATHS` in `starter_content.gd` (`tests/event_tests.gd` fails for a file that is not listed). A new effect kind is appended to `EventEffect.Kind`, given a `describe()` line, and applied in `RunState._apply_event_effect`.
+2. Append its path to `EVENT_PATHS` in `starter_content.gd` (`tests/event_tests.gd` fails for a file that is not listed). A new effect kind is appended to `EventEffect.Kind`, given a `describe()` line, and applied in `RunEvents._apply_event_effect` (`run/run_events.gd`).
 
 ## An enemy
 1. Add `data/enemies/<name>.tres`.

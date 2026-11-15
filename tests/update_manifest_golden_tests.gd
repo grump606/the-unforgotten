@@ -22,4 +22,14 @@ func run() -> int:
 	_check(golden.size() < 3 or not (golden[0] == 0xEF and golden[1] == 0xBB and golden[2] == 0xBF), "the golden file has no byte order mark")
 	var parsed := UpdateCheck.parse_manifest(golden)
 	_check(parsed.get("name", "") == NAME and parsed.get("version", "") == VERSION and parsed.get("sha256", "") == SHA256, "the golden bytes parse back to the fixed input")
+	# The optional signed floor: absent by default (old games accept exactly four lines), appended as a fifth line when asked.
+	_check(UpdateCheck.make_manifest(NAME, VERSION, SHA256, "").to_utf8_buffer() == golden, "an empty min_version writes the four-line golden bytes")
+	var floored := UpdateCheck.make_manifest(NAME, VERSION, SHA256, "1.2.0")
+	_check(floored == golden.get_string_from_utf8() + "min_version=1.2.0\n", "min_version adds exactly one trailing line")
+	_check(UpdateCheck.parse_manifest(floored.to_utf8_buffer()).get("min_version", "") == "1.2.0", "the five-line manifest parses with its floor")
+	_check(not parsed.has("min_version"), "the golden manifest has no floor")
+	var four := golden.get_string_from_utf8()
+	_check(UpdateCheck.parse_manifest((four + "min_version=v1\n").to_utf8_buffer()).is_empty(), "a floor with a leading v is malformed")
+	_check(UpdateCheck.parse_manifest((four + "extra=1\n").to_utf8_buffer()).is_empty(), "any other fifth line is malformed")
+	_check(UpdateCheck.parse_manifest((four + "min_version=1.2.0\nmin_version=1.2.0\n").to_utf8_buffer()).is_empty(), "six lines are malformed")
 	return _failures

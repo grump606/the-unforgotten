@@ -185,34 +185,21 @@ var reward_remove_used := false
 var reward_heal_used := false
 ## Map mode: HP the last won fight restored (0 otherwise). Display only, not saved.
 var map_win_heal := 0
-## The spoils of a won elite fight (see `complete_combat`): `_elite_spoils` while they wait to be taken, with the relic in
-## `_elite_relic` (null when the character owned every relic and gold is given instead). Rolled from the run RNG when the
-## fight is won, so a save made on arrival (before the fight) always yields the same relic.
-var _elite_spoils := false
-var _elite_relic: RelicData = null
-## A chapter's end boss: `_boss_spoils` while the relic waits to be taken, `_boss_relic` null when none is left (gold instead).
-var _boss_spoils := false
-var _boss_relic: RelicData = null
+## The relic spoils waiting to be taken: an elite's, a chapter end boss's and an open chest's (see RunSpoils). Never saved:
+## they only exist inside a stop, and the save is made on arrival.
+var _spoils := RunSpoils.new()
 ## Map mode: the bonus gold the last won elite fight paid. Display only, not saved.
 var elite_bonus_gold := 0
 ## Relics bought from vendors this run, in purchase order. Saved with the run (as ids).
 var relics: Array[RelicData] = []
 
 var _vendor: Vendor = null
-## The open chest of a TREASURE stop (see open_treasure): `_treasure_opened` once rolled, `_treasure_relic` its
-## relic (null when the character owned every relic and the chest holds gold instead).
-var _treasure_opened := false
-var _treasure_relic: RelicData = null
 ## Ids of the events this run has shown at "?" stops (a draw without replacement: the pool is reshuffled once all
 ## twelve were seen). Saved with a map run; an older save lacks it and starts empty.
 var events_seen: Array[StringName] = []
-## The event of the current EVENT stop, rolled by `current_event()` the first time it is asked for (null before that,
-## off an event stop and when event content failed to load). Once rolled the stop is open: not a stop boundary.
-var _event: EventData = null
-## Set once a choice of the open event was pressed: the outcome text, and the picks still owed to the player.
-var _event_resolved := false
-var _event_outcome := ""
-var _event_pending: Array[Dictionary] = []
+## The open event of the current EVENT stop and what was chosen there (see RunEvents). Once an event is rolled the stop
+## is open: not a stop boundary.
+var _events := RunEvents.new()
 var _active_combat: Combat = null
 var _rng := RandomNumberGenerator.new()
 var _reward_choices: Array[CardData] = []
@@ -272,8 +259,7 @@ func restore_map(map: RouteMap, current: int, path: Array[int], inside_stop: boo
 	visited.assign(path)
 	stop_index = map.node(current).row if current >= 0 else 0
 	_map_stop = _stop_for_node(map.node(current)) if inside_stop and current >= 0 else null
-	_treasure_opened = false
-	_treasure_relic = null
+	_spoils.reset_treasure()
 	_reset_event()
 
 
@@ -304,7 +290,8 @@ func choose_node(id: int) -> bool:
 
 ## Map mode: the player stands at the end of chapter `chapter` and a further chapter exists.
 func can_enter_chapter_break() -> bool:
-	return route != null and not finished and not chapter_break and chapter < Chapters.count() 		and current_node >= 0 and route.node(current_node).type == RouteMap.NodeType.BOSS and _map_stop == null
+	return route != null and not finished and not chapter_break and chapter < Chapters.count() \
+			and current_node >= 0 and route.node(current_node).type == RouteMap.NodeType.BOSS and _map_stop == null
 
 
 ## Starts the break after the chapter's end boss. False, changing nothing, unless `can_enter_chapter_break()`.
@@ -317,39 +304,23 @@ func enter_chapter_break() -> bool:
 
 ## True from winning a chapter's end boss until its relic is taken.
 func boss_spoils_pending() -> bool:
-	return _boss_spoils and _reward_pending
+	return _spoils.boss_pending and _reward_pending
 
 
 ## The relic waiting after a chapter's end boss, or null when none is pending or the character owned every relic.
 func boss_relic() -> RelicData:
-	return _boss_relic if boss_spoils_pending() else null
+	return _spoils.boss_relic if boss_spoils_pending() else null
 
 
 ## The gold the spoils hold instead of a relic (END_BOSS_FALLBACK_GOLD when every relic is owned, else 0).
 func boss_spoils_fallback_gold() -> int:
-	return END_BOSS_FALLBACK_GOLD if boss_spoils_pending() and _boss_relic == null else 0
+	return END_BOSS_FALLBACK_GOLD if boss_spoils_pending() and _spoils.boss_relic == null else 0
 
 
-## Takes the boss relic (or the fallback gold) and opens the chapter break. False, changing nothing, when none waits.
+## Takes the boss relic (or the fallback gold) and opens the chapter break (or, after the last chapter that exists, ends
+## the run with "To be continued"). False, changing nothing, when none waits.
 func take_boss_spoils() -> bool:
-	if not boss_spoils_pending():
-		return false
-	if _boss_relic != null:
-		_grant_relic(_boss_relic)
-	else:
-		gold += END_BOSS_FALLBACK_GOLD
-	_boss_spoils = false
-	_boss_relic = null
-	_reward_pending = false
-	_map_stop = null
-	if chapter < Chapters.count() or Chapters.has_finale():
-		chapter_break = true # (after the last chapter of a complete game the break leads to the finale)
-	else:
-		# The last chapter that exists: the journey stops here for now.
-		finished = true
-		escaped = false
-		to_be_continued = true
-	return true
+	return RunChapters.take_boss_spoils(self)
 
 
 ## True at the break after the last chapter of a complete game (Chapters.has_finale): the next step is the finale, not a chapter.
@@ -360,30 +331,14 @@ func can_start_finale() -> bool:
 ## From that break: heals CHAPTER_BREAK_HEAL_FRACTION of max HP and opens the finale, a boss fight with no map. Deck, relics and gold are as they
 ## were. False, changing nothing, anywhere else.
 func start_finale() -> bool:
-	if not can_start_finale():
-		return false
-	player.hp = mini(player.max_hp, player.hp + roundi(player.max_hp * CHAPTER_BREAK_HEAL_FRACTION))
-	chapter_break = false
-	finale = true
-	_map_stop = _finale_stop()
-	return true
-
-
-## The finale's stop: a boss combat on the chapter's finale backdrop, on the same row as the end boss it follows.
-func _finale_stop() -> Stop:
-	var stop := Stop.new(StopType.COMBAT, 1, 0, true)
-	stop.finale = true
-	stop.row = RouteMap.ROWS - 1
-	stop.node_id = current_node
-	stop.backdrop = Chapters.chapter(chapter).finale_backdrop
-	return stop
+	return RunChapters.start_finale(self)
 
 
 ## RunSave: puts a run restored at the end boss into the finale (the save was made on its arrival).
 func restore_finale() -> void:
 	finale = true
 	chapter_break = false
-	_map_stop = _finale_stop()
+	_map_stop = RunChapters.finale_stop(self)
 
 
 ## The seed of chapter `n`'s map, derived from the previous chapter's map seed (Chapter 1 uses the run's own), so it does
@@ -395,24 +350,7 @@ static func chapter_map_seed(previous_seed: int, n: int) -> int:
 ## From the break: heals CHAPTER_BREAK_HEAL_FRACTION of max HP, generates the next chapter's map and stands at its start.
 ## Deck, relics, gold and max HP carry over; per-stop state is cleared. False, changing nothing, outside a break.
 func start_next_chapter() -> bool:
-	if not chapter_break or route == null or chapter >= Chapters.count():
-		return false
-	player.hp = mini(player.max_hp, player.hp + roundi(player.max_hp * CHAPTER_BREAK_HEAL_FRACTION))
-	chapter += 1
-	chapter_break = false
-	route = RouteMap.generate(chapter_map_seed(route.seed_value, chapter), character.id, {}, chapter)
-	current_node = -1
-	visited.clear()
-	stop_index = 0
-	_map_stop = null
-	reward_remove_used = false
-	reward_heal_used = false
-	map_win_heal = 0
-	elite_bonus_gold = 0
-	_treasure_opened = false
-	_treasure_relic = null
-	_reset_event()
-	return true
+	return RunChapters.start_next_chapter(self)
 
 
 ## The stop type a map node plays as (bosses and elites are combats).
@@ -482,7 +420,7 @@ func reward_pending() -> bool:
 ## True between stops: nothing is in flight (no fight, reward, vendor visit or opened chest), so
 ## the run can be saved and restored exactly (see run/run_save.gd). An opened event counts as in flight too.
 func at_stop_boundary() -> bool:
-	return not finished and not _reward_pending and _vendor == null and _active_combat == null and not _treasure_opened and _event == null
+	return not finished and not _reward_pending and _vendor == null and _active_combat == null and not _spoils.treasure_opened and _events.open_event == null
 
 
 ## The run RNG's position, for saving. Restoring it makes the future identical.
@@ -543,12 +481,16 @@ func elite_modifier() -> int:
 
 
 ## "Boss" for the final boss fight, "Mid-boss" for the mid-boss, "" for a regular fight. A debug
-## encounter is judged by its enemies, so launching the Eraser gets the boss look anywhere.
+## encounter is judged by its enemies (any built chapter's end boss or mid-boss), so launching a boss gets the boss look anywhere.
 func boss_label() -> String:
 	if not debug_encounter.is_empty():
-		if debug_encounter.has(&"the_conductor"):
-			return "Boss"
-		return "Mid-boss" if debug_encounter.has(&"the_brakeman") else ""
+		var mid := false
+		for n in range(1, Chapters.MAX_BUILT + 1):
+			var data := Chapters.chapter(n)
+			if debug_encounter.has(data.end_boss):
+				return "Boss"
+			mid = mid or debug_encounter.has(data.mid_boss)
+		return "Mid-boss" if mid else ""
 	var stop := current_stop()
 	if stop == null:
 		return ""
@@ -592,8 +534,8 @@ func complete_combat(victory: bool) -> bool:
 			# A chapter's end boss, with more chapters to come (or still to be written): gold and a boss relic, then the break
 			# (or, after the last chapter that exists, "To be continued").
 			gold += END_BOSS_GOLD
-			_boss_relic = _roll_relic(BOSS_MIN_RELIC_PRICE)
-			_boss_spoils = true
+			_spoils.boss_relic = RunSpoils.roll_relic(self, BOSS_MIN_RELIC_PRICE)
+			_spoils.boss_pending = true
 			_reward_pending = true
 			_reward_choices.clear()
 			return true
@@ -610,13 +552,12 @@ func complete_combat(victory: bool) -> bool:
 				player.heal(relic.amount)
 	map_win_heal = player.heal(_map_win_heal_amount(stop)) if route != null else 0
 	elite_bonus_gold = 0
-	_elite_spoils = false
-	_elite_relic = null
+	_spoils.reset_elite()
 	if stop.elite and route != null:
 		elite_bonus_gold = ELITE_GOLD_BONUS
 		gold += elite_bonus_gold
-		_elite_relic = _roll_relic(TREASURE_MIN_RELIC_PRICE)
-		_elite_spoils = true
+		_spoils.elite_relic = RunSpoils.roll_relic(self, TREASURE_MIN_RELIC_PRICE)
+		_spoils.elite_pending = true
 	_roll_rewards()
 	_reward_pending = true
 	return true
@@ -724,11 +665,11 @@ func rememberable_indices() -> Array[int]:
 	if stop == null or stop.type != StopType.REST:
 		var none: Array[int] = []
 		return none
-	return _rememberable_deck_indices()
+	return rememberable_deck_indices()
 
 
-## Deck positions of the cards that can be Remembered, at any stop.
-func _rememberable_deck_indices() -> Array[int]:
+## Deck positions of the cards that can be Remembered, at any stop (the events use it too).
+func rememberable_deck_indices() -> Array[int]:
 	var indices: Array[int] = []
 	for i in deck.size():
 		if deck[i].can_remember():
@@ -798,7 +739,7 @@ func vendor() -> Vendor:
 	if stop == null or stop.type != StopType.VENDOR:
 		return null
 	if _vendor == null:
-		_vendor = Vendor.new(deck, _rng, 0, StarterContent.vendor_pool(character.id, chapter), _unowned_relics(), _wallet, StarterContent.rarity_weights(rarity_tier()))
+		_vendor = Vendor.new(deck, _rng, 0, StarterContent.vendor_pool(character.id, chapter), unowned_relics(), _wallet, StarterContent.rarity_weights(rarity_tier()))
 	return _vendor
 
 
@@ -848,7 +789,7 @@ func leave_vendor() -> bool:
 
 ## Whether the chest of the current TREASURE stop has been opened (false off a treasure stop).
 func treasure_opened() -> bool:
-	return _treasure_opened and in_treasure_stop()
+	return _spoils.treasure_opened and in_treasure_stop()
 
 
 ## True while the current stop is a TREASURE stop.
@@ -864,13 +805,7 @@ func in_treasure_stop() -> bool:
 ## TREASURE_FALLBACK_GOLD instead (`treasure_relic()` stays null, `treasure_gold()` says so). A chest that is open
 ## is not a stop boundary (the arrival save is the resume point, as for a vendor visit), so it is never saved open.
 func open_treasure() -> bool:
-	if not in_treasure_stop():
-		return false
-	if _treasure_opened:
-		return true
-	_treasure_relic = _roll_relic(TREASURE_MIN_RELIC_PRICE)
-	_treasure_opened = true
-	return true
+	return _spoils.open_treasure(self)
 
 
 # --- Elite spoils (docs/MAP_DESIGN.md, "Phase 5a") -----------------------------------------------------------
@@ -884,81 +819,52 @@ func in_elite_stop() -> bool:
 ## True from winning an elite fight until its spoils are taken (`take_elite_spoils`, or by settling the card reward,
 ## which takes them first).
 func elite_spoils_pending() -> bool:
-	return _elite_spoils and _reward_pending
+	return _spoils.elite_pending and _reward_pending
 
 
 ## The relic waiting in an elite's spoils, or null when none is pending or the character owned every relic.
 func elite_relic() -> RelicData:
-	return _elite_relic if elite_spoils_pending() else null
+	return _spoils.elite_relic if elite_spoils_pending() else null
 
 
 ## The gold the spoils hold instead of a relic (ELITE_RELIC_FALLBACK_GOLD when every relic is owned, else 0).
 func elite_spoils_gold() -> int:
-	return ELITE_RELIC_FALLBACK_GOLD if elite_spoils_pending() and _elite_relic == null else 0
+	return ELITE_RELIC_FALLBACK_GOLD if elite_spoils_pending() and _spoils.elite_relic == null else 0
 
 
 ## Takes the spoils: the relic (a MAX_HP relic raises max HP and HP once, here), or the fallback gold. The card reward
 ## stays pending. False, changing nothing, when no spoils wait.
 func take_elite_spoils() -> bool:
-	if not elite_spoils_pending():
-		return false
-	if _elite_relic != null:
-		_grant_relic(_elite_relic)
-	else:
-		gold += ELITE_RELIC_FALLBACK_GOLD
-	_elite_spoils = false
-	_elite_relic = null
-	return true
-
-
-## A relic from the character's pool minus the relics owned, drawn with the run RNG: among those priced at least
-## `min_price` when there are any, else among all of them; null when none is left.
-func _roll_relic(min_price: int) -> RelicData:
-	var unowned := _unowned_relics()
-	var choices: Array[RelicData] = []
-	for relic in unowned:
-		if relic.price >= min_price:
-			choices.append(relic)
-	if choices.is_empty():
-		choices = unowned
-	if choices.is_empty():
-		return null
-	return choices[_rng.randi_range(0, choices.size() - 1)] if choices.size() > 1 else choices[0]
+	return _spoils.take_elite(self)
 
 
 ## The relic in the open chest, or null while it is closed, off a treasure stop and when the chest holds gold.
 func treasure_relic() -> RelicData:
-	return _treasure_relic if treasure_opened() else null
+	return _spoils.treasure_relic if treasure_opened() else null
 
 
 ## The gold the open chest holds instead of a relic (0 while closed or when it holds a relic).
 func treasure_gold() -> int:
-	return TREASURE_FALLBACK_GOLD if treasure_opened() and _treasure_relic == null else 0
+	return TREASURE_FALLBACK_GOLD if treasure_opened() and _spoils.treasure_relic == null else 0
 
 
 ## Takes what the open chest holds (its relic, a MAX_HP relic raising max HP and HP once, here, like a purchase;
 ## or the fallback gold) and moves on. False, changing nothing, unless the chest is open.
 func take_treasure() -> bool:
-	if not treasure_opened():
-		return false
-	if _treasure_relic != null:
-		_grant_relic(_treasure_relic)
-	else:
-		gold += TREASURE_FALLBACK_GOLD
-	_advance()
-	return true
+	return _spoils.take_treasure(self)
 
 
 ## Adds `relic` to the run; a MAX_HP relic raises max HP and HP once, here (a restored save already holds the raised max HP).
-func _grant_relic(relic: RelicData) -> void:
+## Used by the spoils and the events; a vendor purchase goes through vendor_buy_relic.
+func grant_relic(relic: RelicData) -> void:
 	relics.append(relic)
 	if relic.kind == RelicData.Kind.MAX_HP:
 		player.max_hp += relic.amount
 		player.hp += relic.amount
 
 
-## The character's relic pool minus the relics already owned.
-func _unowned_relics() -> Array[RelicData]:
+## The character's relic pool for this chapter minus the relics already owned.
+func unowned_relics() -> Array[RelicData]:
 	var left: Array[RelicData] = []
 	for relic in StarterContent.relic_pool(character.id, chapter):
 		if not relics.has(relic):
@@ -966,7 +872,7 @@ func _unowned_relics() -> Array[RelicData]:
 	return left
 
 
-# --- Event stops ("?" nodes, docs/EVENTS_DESIGN.md) ---------------------------------------------------------
+# --- Event stops ("?" nodes, docs/EVENTS_DESIGN.md; the rules are in RunEvents) -----------------------------
 
 ## What pressing an event button did: the outcome text to show (the scene's reply plus a line per thing that
 ## happened) and the pick the player now owes, if any (see `event_followup`).
@@ -992,38 +898,17 @@ func in_event_stop() -> bool:
 ## yet in `events_seen` (all of them again once every event was seen), so a run resumed from the save made on
 ## arrival rolls the same event. Asking again returns the same one. Rolling opens the stop: it is no longer a boundary.
 func current_event() -> EventData:
-	if not in_event_stop():
-		return null
-	if _event != null:
-		return _event
-	var all := StarterContent.events_for(chapter)
-	if all.is_empty():
-		return null
-	var unseen: Array[EventData] = []
-	for event in all:
-		if not events_seen.has(event.id):
-			unseen.append(event)
-	if unseen.is_empty():
-		events_seen.clear()
-		unseen = all
-	_event = unseen[_rng.randi_range(0, unseen.size() - 1)]
-	events_seen.append(_event.id)
-	return _event
+	return _events.current_event(self)
 
 
 ## The scene text of the open event for this character.
 func event_body() -> String:
-	var event := current_event()
-	return event.body_for(character.id) if event != null else ""
+	return _events.event_body(self)
 
 
 ## The buttons of the open event this character sees, in order (empty off an event stop).
 func event_choices() -> Array[EventChoice]:
-	var event := current_event()
-	if event == null:
-		var none: Array[EventChoice] = []
-		return none
-	return event.choices_for(character.id)
+	return _events.event_choices(self)
 
 
 ## How button `index` (a position in `event_choices()`) looks now: {"label", "summary" (the printed cost and reward line
@@ -1031,343 +916,71 @@ func event_choices() -> Array[EventChoice]:
 ## card pick the deck cannot supply and a relic nothing is left to give each disable it; an HP cost never does (HP
 ## stops at 1). Everything is disabled once a choice was made.
 func event_choice_state(index: int) -> Dictionary:
-	var choices := event_choices()
-	if index < 0 or index >= choices.size():
-		return {"label": "", "summary": "", "enabled": false, "reason": "no such choice"}
-	var choice := choices[index]
-	var state := {"label": choice.label_for(character.id), "summary": _event_summary_with_fallback(choice.summary()), "enabled": true, "reason": ""}
-	if _event_resolved:
-		state["enabled"] = false
-		state["reason"] = "Already chosen."
-		return state
-	if choice.gold_cost() > gold:
-		state["enabled"] = false
-		state["reason"] = "Needs %d gold (you have %d)." % [choice.gold_cost(), gold]
-		return state
-	for effect in choice.effects:
-		var why := _event_blocked(effect)
-		if why != "":
-			state["enabled"] = false
-			state["reason"] = why
-			break
-	return state
-
-
-## A button's printed summary, with every relic gain whose pool has nothing left to give reworded to the gold it pays instead
-## (EVENT_RELIC_FALLBACK_GOLD), so the text keeps promising exactly what the button does.
-func _event_summary_with_fallback(summary: String) -> String:
-	for pool in [EventEffect.Pool.NEUTRAL, EventEffect.Pool.CLASS, EventEffect.Pool.ANY]:
-		if _event_relic_candidates(pool).is_empty():
-			summary = summary.replace(EventEffect.relic_text(pool), "Gain %d gold (no relics left to find)" % EVENT_RELIC_FALLBACK_GOLD)
-	return summary
-
-
-## Why a top-level effect cannot be done now ("" when it can).
-func _event_blocked(effect: EventEffect) -> String:
-	match effect.kind:
-		EventEffect.Kind.REMOVE_CARD:
-			if deck.size() <= 1:
-				return "Your deck has only one card."
-		EventEffect.Kind.REMEMBER_CARD:
-			if _rememberable_deck_indices().is_empty():
-				return "No card in your deck can be remembered yet."
-	return ""
+	return _events.event_choice_state(self, index)
 
 
 ## Presses button `index`: applies its effects (a gamble is rolled here with the run RNG) and returns what happened.
 ## Fails, changing nothing, off an event stop, for a bad index, a disabled button, or once a choice was made. Picks
 ## the effects owe (remove, Remember, choose a card) are queued: see `event_followup`.
 func resolve_event_choice(index: int) -> EventResult:
-	if current_event() == null:
-		return EventResult.fail("no event")
-	var state := event_choice_state(index)
-	if not bool(state["enabled"]):
-		return EventResult.fail(String(state["reason"]))
-	var choice := event_choices()[index]
-	var lines: Array[String] = []
-	var gambles: Array[bool] = []
-	_event_pending.clear()
-	_apply_event_effects(choice.effects, lines, gambles)
-	var text := choice.outcome_for(character.id)
-	if not gambles.is_empty():
-		var flavour := choice.win_outcome if gambles[0] else choice.lose_outcome
-		if flavour != "":
-			text += " " + flavour
-	for line in lines:
-		text += " " + line
-	_event_resolved = true
-	_event_outcome = text
-	var result := EventResult.new()
-	result.ok = true
-	result.text = text
-	result.followup = event_followup()
-	return result
+	return _events.resolve_event_choice(self, index)
 
 
 ## Whether a button was pressed at the open event.
 func event_resolved() -> bool:
-	return _event_resolved
+	return _events.event_resolved()
 
 
 ## The outcome text of the choice made ("" before one is).
 func event_outcome() -> String:
-	return _event_outcome
+	return _events.event_outcome()
 
 
 ## The pick the player owes now: &"remove", &"remember" or &"pick" (choose 1 of the offered cards), or &"" when none.
 func event_followup() -> StringName:
-	_prune_event_pending()
-	if _event_pending.is_empty():
-		return &""
-	match int(_event_pending[0]["kind"]):
-		EventEffect.Kind.REMOVE_CARD:
-			return &"remove"
-		EventEffect.Kind.REMEMBER_CARD:
-			return &"remember"
-	return &"pick"
-
-
-## Drops every owed pick that can no longer be completed. The pick screens have no Cancel, so a pick nothing can
-## satisfy (a removal when only one card is left, a Remember when no card can be remembered, as a second removal
-## after the deck shrank or a nested removal can leave) would trap the player in a stop that is not a save boundary.
-## A removal needs a card to spare, so only deck.size() - 1 removals stay owed.
-func _prune_event_pending() -> void:
-	var removals_left := deck.size() - 1
-	var kept: Array[Dictionary] = []
-	for entry in _event_pending:
-		match int(entry["kind"]):
-			EventEffect.Kind.REMOVE_CARD:
-				if removals_left <= 0:
-					continue
-				removals_left -= 1
-			EventEffect.Kind.REMEMBER_CARD:
-				if _rememberable_deck_indices().is_empty():
-					continue
-		kept.append(entry)
-	_event_pending = kept
+	return _events.event_followup(self)
 
 
 ## The cards on offer for a pending &"pick" (stable until one is taken; empty otherwise).
 func event_pick_choices() -> Array[CardData]:
-	var offered: Array[CardData] = []
-	if event_followup() == &"pick":
-		offered.assign(_event_pending[0]["cards"])
-	return offered
+	return _events.event_pick_choices(self)
 
 
 ## Deck positions the pending &"remember" may pick (empty otherwise).
 func event_remember_indices() -> Array[int]:
-	if event_followup() != &"remember":
-		var none: Array[int] = []
-		return none
-	return _rememberable_deck_indices()
+	return _events.event_remember_indices(self)
 
 
 ## Completes the pending &"remove": the card at `deck_index` leaves the deck. False, changing nothing, if none is
 ## pending, the index is bad or the deck would be emptied.
 func event_remove_card(deck_index: int) -> bool:
-	if event_followup() != &"remove" or deck_index < 0 or deck_index >= deck.size() or deck.size() <= 1:
-		return false
-	deck.remove_at(deck_index)
-	_event_pending.remove_at(0)
-	return true
+	return _events.event_remove_card(self, deck_index)
 
 
 ## Completes the pending &"remember": the card at `deck_index` becomes its Remembered form.
 func event_remember_card(deck_index: int) -> bool:
-	if not event_remember_indices().has(deck_index):
-		return false
-	deck[deck_index] = deck[deck_index].remembered_card()
-	_event_pending.remove_at(0)
-	return true
+	return _events.event_remember_card(self, deck_index)
 
 
 ## Completes the pending &"pick": `card` (one of `event_pick_choices()`) joins the deck.
 func event_pick_card(card: CardData) -> bool:
-	if not event_pick_choices().has(card):
-		return false
-	deck.append(card)
-	_event_pending.remove_at(0)
-	return true
+	return _events.event_pick_card(self, card)
 
 
 ## Leaves the event and moves on. Needs a choice made and no pick owed (an event whose content failed to load can be
 ## left at once). False, changing nothing, otherwise.
 func finish_event() -> bool:
-	if not in_event_stop():
-		return false
-	if _event == null:
-		# Nothing was shown yet: only a stop whose content failed to load may be passed.
-		if not StarterContent.events_for(chapter).is_empty():
-			return false
-	elif not _event_resolved or not _event_pending.is_empty():
-		return false
-	_advance()
-	return true
+	return _events.finish_event(self)
 
 
 func _reset_event() -> void:
-	_event = null
-	_event_resolved = false
-	_event_outcome = ""
-	_event_pending.clear()
-
-
-## The relics an event may hand out from `pool`: the unowned ones of exactly that pool (the button's printed text names
-## it, so a NEUTRAL pool never widens to class relics). Empty means the button is greyed or a gamble pays gold.
-func _event_relic_candidates(pool: EventEffect.Pool) -> Array[RelicData]:
-	var found: Array[RelicData] = []
-	var unowned := _unowned_relics()
-	for relic in unowned:
-		var neutral: bool = relic.character == &""
-		if pool == EventEffect.Pool.ANY or (pool == EventEffect.Pool.NEUTRAL and neutral) or (pool == EventEffect.Pool.CLASS and not neutral):
-			found.append(relic)
-	return found
-
-
-## Applies a list of effects. `lines` collects what happened, `gambles` the result of each gamble rolled (true = won).
-func _apply_event_effects(effects: Array[EventEffect], lines: Array[String], gambles: Array[bool]) -> void:
-	for effect in effects:
-		_apply_event_effect(effect, lines, gambles)
-
-
-func _apply_event_effect(effect: EventEffect, lines: Array[String], gambles: Array[bool]) -> void:
-	match effect.kind:
-		EventEffect.Kind.HEAL_PERCENT, EventEffect.Kind.HEAL_FLAT:
-			var wanted: int = roundi(player.max_hp * effect.amount / 100.0) if effect.kind == EventEffect.Kind.HEAL_PERCENT else effect.amount
-			var healed := player.heal(wanted)
-			if healed > 0:
-				lines.append("You recover %d HP." % healed)
-		EventEffect.Kind.LOSE_HP, EventEffect.Kind.LOSE_HP_PERCENT:
-			var cost: int = roundi(player.max_hp * effect.amount / 100.0) if effect.kind == EventEffect.Kind.LOSE_HP_PERCENT else effect.amount
-			var lost := clampi(cost, 0, player.hp - 1)
-			player.hp -= lost
-			player.changed.emit()
-			if lost > 0:
-				lines.append("You lose %d HP." % lost)
-		EventEffect.Kind.GOLD:
-			if effect.amount >= 0:
-				gold += effect.amount
-				if effect.amount > 0:
-					lines.append("You gain %d gold." % effect.amount)
-			else:
-				var paid := mini(-effect.amount, gold)
-				gold -= paid
-				if paid > 0:
-					lines.append("You pay %d gold." % paid)
-		EventEffect.Kind.MAX_HP:
-			if effect.amount >= 0:
-				player.max_hp += effect.amount
-				player.hp += effect.amount
-			else:
-				player.max_hp = maxi(player.max_hp + effect.amount, 1)
-				player.hp = clampi(player.hp, 1, player.max_hp)
-			player.changed.emit()
-			lines.append("Your max HP %s by %d." % ["rises" if effect.amount >= 0 else "falls", absi(effect.amount)])
-		EventEffect.Kind.ADD_CARD:
-			var card := StarterContent.card_by_id(effect.card_id)
-			if card != null:
-				for _i in maxi(effect.count, 1):
-					deck.append(card)
-				lines.append("%s joins your deck." % card.display_name)
-		EventEffect.Kind.ADD_CURSE:
-			var curse := StarterContent.status_card(effect.card_id)
-			if curse != null:
-				for _i in maxi(effect.count, 1):
-					deck.append(curse)
-				lines.append("%s joins your deck." % ("A " + curse.display_name if effect.count <= 1 else "%d x %s" % [effect.count, curse.display_name]))
-		EventEffect.Kind.ADD_RANDOM_CARD:
-			var candidates := _event_card_candidates(effect)
-			for _i in maxi(effect.count, 1):
-				if candidates.is_empty():
-					break
-				var picked: CardData = candidates[_rng.randi_range(0, candidates.size() - 1)]
-				deck.append(picked)
-				lines.append("%s joins your deck." % picked.display_name)
-		EventEffect.Kind.PICK_CARD:
-			var offered := _event_draw_distinct(_event_card_candidates(effect), effect.count)
-			if not offered.is_empty():
-				_event_pending.append({"kind": effect.kind, "cards": offered})
-		EventEffect.Kind.REMOVE_CARD:
-			_event_pending.append({"kind": effect.kind})
-		EventEffect.Kind.REMEMBER_CARD:
-			if not _rememberable_deck_indices().is_empty():
-				_event_pending.append({"kind": effect.kind})
-		EventEffect.Kind.REMOVE_RANDOM_CARD:
-			for _i in maxi(effect.count, 1):
-				var owed := 0
-				for entry in _event_pending:
-					if int(entry["kind"]) == EventEffect.Kind.REMOVE_CARD:
-						owed += 1
-				if deck.size() - owed <= 1:
-					break
-				var gone := deck[_rng.randi_range(0, deck.size() - 1)]
-				deck.erase(gone) # drops the first copy, which is as good as any: copies are the same card
-				lines.append("%s is erased from your deck." % gone.display_name)
-		EventEffect.Kind.GAIN_RELIC:
-			var relics_left := _event_relic_candidates(effect.pool)
-			if relics_left.is_empty():
-				gold += EVENT_RELIC_FALLBACK_GOLD
-				lines.append("There is nothing left to give you but %d gold." % EVENT_RELIC_FALLBACK_GOLD)
-			else:
-				var relic: RelicData = relics_left[_rng.randi_range(0, relics_left.size() - 1)] if relics_left.size() > 1 else relics_left[0]
-				_grant_relic(relic)
-				lines.append("You gain the %s." % relic.display_name)
-		EventEffect.Kind.GAMBLE:
-			var won := _rng.randi_range(1, 100) <= effect.amount
-			gambles.append(won)
-			_apply_event_effects(effect.win if won else effect.lose, lines, gambles)
-
-
-## The cards an ADD_RANDOM_CARD or PICK_CARD draws from: the non-basic reward pool of this character, restricted by
-## pool (neutral, own class or both), rarity and an optional effect kind. PICK_CARD only ever offers the class's own.
-func _event_card_candidates(effect: EventEffect) -> Array[CardData]:
-	var found: Array[CardData] = []
-	var wanted_pool: EventEffect.Pool = EventEffect.Pool.CLASS if effect.kind == EventEffect.Kind.PICK_CARD else effect.pool
-	for card in _distinct_cards(StarterContent.reward_pool(character.id, chapter)):
-		var neutral: bool = card.character == &""
-		if wanted_pool == EventEffect.Pool.NEUTRAL and not neutral:
-			continue
-		if wanted_pool == EventEffect.Pool.CLASS and neutral:
-			continue
-		if effect.rarity >= 0 and int(card.rarity) != effect.rarity:
-			continue
-		if effect.has_effect >= 0:
-			var has := false
-			for card_effect in card.effects:
-				if int(card_effect.kind) == effect.has_effect:
-					has = true
-			if not has:
-				continue
-		found.append(card)
-	return found
-
-
-## Up to `count` distinct cards out of `pool` drawn with the run RNG, preferring cards the deck holds fewer than
-## COPY_CAP times when enough of those remain.
-func _event_draw_distinct(pool: Array[CardData], count: int) -> Array[CardData]:
-	var copies := {}
-	for card in deck:
-		copies[card.id] = int(copies.get(card.id, 0)) + 1
-	var fresh: Array[CardData] = []
-	for card in pool:
-		if int(copies.get(card.id, 0)) < COPY_CAP:
-			fresh.append(card)
-	var source: Array[CardData] = fresh if fresh.size() >= count else pool.duplicate()
-	var picks: Array[CardData] = []
-	while picks.size() < count and not source.is_empty():
-		var at := _rng.randi_range(0, source.size() - 1)
-		picks.append(source[at])
-		source.remove_at(at)
-	return picks
+	_events.reset()
 
 
 func _advance() -> void:
 	_vendor = null
-	_treasure_opened = false
-	_treasure_relic = null
-	_elite_spoils = false
-	_elite_relic = null
+	_spoils.reset_treasure()
+	_spoils.reset_elite()
 	_reset_event()
 	if route != null:
 		_map_stop = null
@@ -1435,60 +1048,6 @@ func rarity_tier() -> int:
 	return clampi(stop_index * StarterContent.RARITY_WEIGHTS.size() / stops.size(), 0, StarterContent.RARITY_WEIGHTS.size() - 1)
 
 
+## Rolls the card reward of a won fight (see RunRewards.roll).
 func _roll_rewards() -> void:
-	# Mostly the character's own cards, with a neutral one mixed in: up to REWARD_CLASS_CHOICES
-	# class cards, then neutral cards to fill, then any class cards left over.
-	var class_cards: Array[CardData] = []
-	var neutral_cards: Array[CardData] = []
-	for card in _reward_candidates(_distinct_cards(StarterContent.reward_pool(character.id, chapter))):
-		if card.character == &"":
-			neutral_cards.append(card)
-		else:
-			class_cards.append(card)
-	# Each slot rolls a rarity first (rarer cards come up more often deeper into the run), then a card of it.
-	var weights := StarterContent.rarity_weights(rarity_tier())
-	var picks: Array[CardData] = []
-	var class_picks := StarterContent.pick_by_rarity(class_cards, REWARD_CLASS_CHOICES, weights, _rng)
-	picks.append_array(class_picks)
-	picks.append_array(StarterContent.pick_by_rarity(neutral_cards, REWARD_CHOICES - picks.size(), weights, _rng))
-	if picks.size() < REWARD_CHOICES:
-		var rest: Array[CardData] = []
-		for card in class_cards:
-			if not class_picks.has(card):
-				rest.append(card)
-		picks.append_array(StarterContent.pick_by_rarity(rest, REWARD_CHOICES - picks.size(), weights, _rng))
-	_reward_choices.assign(picks)
-	for card in picks:
-		if not offered_ids.has(card.id):
-			offered_ids.append(card.id)
-
-
-## The cards a reward may draw from. Prefers cards not offered before and not at the
-## copy cap; if that leaves fewer than REWARD_CHOICES, lets back in the already-offered
-## ones, and only then the capped ones, so an offer is as full as the pool allows.
-func _reward_candidates(pool: Array[CardData]) -> Array[CardData]:
-	var copies := {}
-	for card in deck:
-		copies[card.id] = int(copies.get(card.id, 0)) + 1
-	var fresh: Array[CardData] = []
-	var uncapped: Array[CardData] = []
-	for card in pool:
-		if int(copies.get(card.id, 0)) < COPY_CAP:
-			uncapped.append(card)
-			if not offered_ids.has(card.id):
-				fresh.append(card)
-	if fresh.size() >= REWARD_CHOICES:
-		return fresh
-	if uncapped.size() >= REWARD_CHOICES:
-		return uncapped
-	return pool
-
-
-func _distinct_cards(cards: Array[CardData]) -> Array[CardData]:
-	var seen := {}
-	var distinct: Array[CardData] = []
-	for card in cards:
-		if not seen.has(card.id):
-			seen[card.id] = true
-			distinct.append(card)
-	return distinct
+	_reward_choices.assign(RunRewards.roll(self))

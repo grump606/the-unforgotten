@@ -125,6 +125,9 @@ func _test_installer_size_cap() -> void:
 	var latest := int(text)
 	_check(UpdateCheck.MAX_INSTALLER_BYTES * 2 >= latest * 3, "MAX_INSTALLER_BYTES (%d) is at least 1.5x the latest installer (%d): raise the cap before the art outgrows it" % [UpdateCheck.MAX_INSTALLER_BYTES, latest])
 	_check(UpdateCheck.MAX_INSTALLER_BYTES > latest, "the cap is above the real installer")
+	# installer/limits.json is what scripts/build_installer.ps1 reads; it must say the same as the constant.
+	var limits: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://installer/limits.json"))
+	_check(limits is Dictionary and int((limits as Dictionary).get("max_installer_mib", 0)) * 1024 * 1024 == UpdateCheck.MAX_INSTALLER_BYTES, "installer/limits.json max_installer_mib equals MAX_INSTALLER_BYTES (the build script reads the file)")
 	# A download past the cap: the HTTP node reports BODY_SIZE_LIMIT_EXCEEDED, which fails the update and removes the partial file.
 	var dir := "user://update_size_cap_test_%d" % OS.get_process_id()
 	var installer := UpdateInstaller.new()

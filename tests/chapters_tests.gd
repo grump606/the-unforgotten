@@ -152,9 +152,9 @@ func _test_pools_by_chapter() -> void:
 	_check(StarterContent.reward_pool(&"deserter", 2).size() == all_cards - 6 and StarterContent.relic_pool(&"deserter", 2).size() == all_relics - 4, "chapter 2 offers old and new")
 	_check(StarterContent.reward_pool(&"deserter").has(card) and StarterContent.vendor_pool(&"deserter").has(card), "the unrestricted pool (a save's deck check) has every card")
 	var run_state := RunState.new(1, &"deserter", true)
-	_check(not run_state._unowned_relics().has(relic), "a chapter 1 run does not roll a chapter 2 relic")
+	_check(not run_state.unowned_relics().has(relic), "a chapter 1 run does not roll a chapter 2 relic")
 	run_state.chapter = 2
-	_check(run_state._unowned_relics().has(relic), "a chapter 2 run does")
+	_check(run_state.unowned_relics().has(relic), "a chapter 2 run does")
 	card.from_chapter = 1
 	relic.from_chapter = 1
 	ContentRegistry.clear_cache()

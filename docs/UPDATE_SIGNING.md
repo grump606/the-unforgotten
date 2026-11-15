@@ -133,6 +133,20 @@ closed laptop) you can be left with a **draft that has some or none of the files
 A release without the `.manifest` and `.manifest.sig` is simply not installable in-game: the update fails with a message and
 the bar falls back to the Download button.
 
+### Optional: a minimum version for in-game updates
+
+Set `UPDATE_MIN_VERSION` (for example `$env:UPDATE_MIN_VERSION = '0.10.0'`, digits and dots, no leading v) before
+`release.ps1` / `build_installer.ps1` to sign a fifth manifest line, `min_version=<version>`. A running game older than
+that version refuses the in-game update ("too old to update in game") and offers the Download button instead; games at or
+above it update as usual. Use it for a release that cannot be reached by a silent update from far behind (for example a
+data migration that needs an intermediate version). It is a compatibility floor, not a downgrade or revocation
+mechanism: the manifest is already bound to its own version, and a newer-than-running check stops replays.
+
+Leave it unset by default. Games released before the field existed (v0.10.0 and earlier) accept exactly four lines, so they
+refuse any five-line manifest and fall back to the Download button too. `UpdateVerifier.verify_manifest` also refuses a
+floor above the release's own version (that would lock out every game). `verify_release.ps1` accepts the line and checks
+the manifest bytes with it.
+
 ## If the key is lost or exposed
 
 The backup key exists for this. Keep its private `.pfx` **offline** (a USB stick, not the same place as

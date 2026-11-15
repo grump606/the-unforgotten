@@ -2,11 +2,17 @@ class_name EnemyUnit
 extends Combatant
 ## An enemy in a fight: its health plus its position in its own intent cycle.
 
+## The phase numbers `phase` takes. Phase three needs phase two: an enemy defines phase_three_intents only together with
+## phase_two_intents (tests/phase_tests.gd checks every shipped enemy), and check_phase never skips a phase.
+const PHASE_ONE := 1
+const PHASE_TWO := 2
+const PHASE_THREE := 3
+
 var data: EnemyData
 
-## 1 normally; 2 once the enemy has crossed its `phase_two_hp_percent` threshold, 3 once it has crossed `phase_three_hp_percent`
-## after that (see EnemyData).
-var phase: int = 1
+## PHASE_ONE normally; PHASE_TWO once the enemy has crossed its `phase_two_hp_percent` threshold, PHASE_THREE once it has
+## crossed `phase_three_hp_percent` after that (see EnemyData).
+var phase: int = PHASE_ONE
 
 var _intent_index: int = 0
 
@@ -20,9 +26,9 @@ func _init(enemy_data: EnemyData) -> void:
 ## The intent cycle for the current phase.
 func active_intents() -> Array[CardEffect]:
 	match phase:
-		2:
+		PHASE_TWO:
 			return data.phase_two_intents
-		3:
+		PHASE_THREE:
 			return data.phase_three_intents
 	return data.intents
 
@@ -41,12 +47,12 @@ func current_intent() -> CardEffect:
 func check_phase() -> bool:
 	if is_dead():
 		return false
-	if phase == 1 and not data.phase_two_intents.is_empty() and hp * 100 <= max_hp * data.phase_two_hp_percent:
-		phase = 2
+	if phase == PHASE_ONE and not data.phase_two_intents.is_empty() and hp * 100 <= max_hp * data.phase_two_hp_percent:
+		phase = PHASE_TWO
 		_intent_index = 0
 		return true
-	if phase == 2 and not data.phase_three_intents.is_empty() and hp * 100 <= max_hp * data.phase_three_hp_percent:
-		phase = 3
+	if phase == PHASE_TWO and not data.phase_three_intents.is_empty() and hp * 100 <= max_hp * data.phase_three_hp_percent:
+		phase = PHASE_THREE
 		_intent_index = 0
 		return true
 	return false

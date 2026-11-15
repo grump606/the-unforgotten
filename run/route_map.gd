@@ -421,7 +421,8 @@ static func generate(map_seed: int, char_id: StringName, overrides: Dictionary =
 		problems = map.validate()
 		if problems.is_empty():
 			return map
-	push_error("RouteMap.generate: seed %d (%s) still breaks %d rule(s) after %d attempts, first: %s" % [map_seed, char_id, problems.size(), MAX_ATTEMPTS, problems[0]])
+	# engine_error, not push_error: the sim tools count these and exit non-zero (a broken map must not pass silently).
+	Combat.engine_error("RouteMap.generate: seed %d (%s) still breaks %d rule(s) after %d attempts, first: %s" % [map_seed, char_id, problems.size(), MAX_ATTEMPTS, problems[0]])
 	return map
 
 

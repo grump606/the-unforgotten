@@ -86,7 +86,7 @@ Effect kinds (append-only, saved as numbers):
 A relic from an event follows the shop's rules: a MAX_HP relic raises max HP and HP once. A pool never widens: the button says "neutral relic", so only a neutral relic is
 ever given. When the pool has nothing unowned left (there are only four neutral relics) a won relic gamble pays
 `RunState.EVENT_RELIC_FALLBACK_GOLD` (40) instead, and a plain relic button does the same: it stays enabled, pays the 40 gold and prints that
-on the button (`RunState._event_summary_with_fallback`).
+on the button (`RunEvents._event_summary_with_fallback`).
 
 ## Curses: Dread and Murmur in the deck
 
@@ -149,7 +149,7 @@ Changes from the approved draft:
 
 Tuning is a data edit: change an amount in the `.tres` and the printed line follows. The event frequency is a map setting
 (`RouteMap.CONFIG["type_weights"]["event"]`, docs/MAP_DESIGN.md). To add an event see "An event" in `docs/ADDING_CONTENT.md`; a new
-effect kind is appended to `EventEffect.Kind`, given a line in `describe()` and applied in `RunState._apply_event_effect`.
+effect kind is appended to `EventEffect.Kind`, given a line in `describe()` and applied in `RunEvents._apply_event_effect` (`run/run_events.gd`).
 
 ## Bots and debug
 

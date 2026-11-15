@@ -168,6 +168,9 @@ func set_keyword(keyword: String, value: bool) -> void:
 			dormant = value
 		"surge":
 			surge = value
+		_:
+			# A typo in a RememberedData keyword would otherwise change nothing without a word.
+			Combat.engine_error("CardData.set_keyword: unknown keyword '%s'" % keyword)
 
 
 ## True if the Oath rules allow this card: only an Oath that is neither Dormant nor Fading, with something to do.

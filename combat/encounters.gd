@@ -40,21 +40,8 @@ static func enemy_pool() -> Array[EnemyData]:
 ## the unramped tier 0 encounter; tier and fight draw nothing extra from `rng`.
 static func varied_encounter(enemy_count: int, rng: RandomNumberGenerator, tier: int = 0, fight: int = 0) -> Array[EnemyData]:
 	var count := clampi(enemy_count, 1, Combat.MAX_ENEMIES)
-	var paths: Array[String] = []
 	var big_pair_chance := StarterContent.TIER1_BIG_PAIR_CHANCE if tier >= 1 else StarterContent.BIG_PAIR_CHANCE
-	match count:
-		1:
-			paths.append(pick_path(StarterContent.ALL_ENEMY_PATHS, rng))
-		2:
-			if rng.randf() < big_pair_chance:
-				paths.append(pick_path(StarterContent.PAIR_BIG_ENEMY_PATHS, rng))
-				paths.append(pick_path(StarterContent.SMALL_ENEMY_PATHS, rng))
-			else:
-				paths.append(pick_path(StarterContent.SMALL_ENEMY_PATHS, rng))
-				paths.append(pick_path(StarterContent.SMALL_ENEMY_PATHS, rng))
-		_:
-			for i in count:
-				paths.append(pick_path(trio_paths(), rng))
+	var paths := pack_paths(count, rng, big_pair_chance, StarterContent.ALL_ENEMY_PATHS, StarterContent.PAIR_BIG_ENEMY_PATHS, StarterContent.SMALL_ENEMY_PATHS, trio_paths())
 	var factor := ramp_factor(fight)
 	var enemies: Array[EnemyData] = []
 	for path in paths:
@@ -76,15 +63,13 @@ static func scaled(enemy: EnemyData, factor: float, damage_factor: float = -1.0)
 	var damage_scale := factor if damage_factor < 0.0 else damage_factor
 	if is_equal_approx(factor, 1.0) and is_equal_approx(damage_scale, 1.0):
 		return enemy
-	var scaled_enemy := EnemyData.make(enemy.display_name, maxi(roundi(enemy.max_hp * factor), 1), _scaled_intents(enemy.intents, damage_scale), enemy.id, enemy.max_haunt)
-	# The second phase (its intents, threshold and banner) comes along; its attacks ramp like the first phase's.
+	# A copy keeps every field (a new @export comes along by itself); only HP and the intents of each phase change,
+	# and later phases' attacks ramp like the first phase's.
+	var scaled_enemy := enemy.duplicate() as EnemyData
+	scaled_enemy.max_hp = maxi(roundi(enemy.max_hp * factor), 1)
+	scaled_enemy.intents = _scaled_intents(enemy.intents, damage_scale)
 	scaled_enemy.phase_two_intents = _scaled_intents(enemy.phase_two_intents, damage_scale)
-	scaled_enemy.phase_two_hp_percent = enemy.phase_two_hp_percent
-	scaled_enemy.phase_two_title = enemy.phase_two_title
 	scaled_enemy.phase_three_intents = _scaled_intents(enemy.phase_three_intents, damage_scale)
-	scaled_enemy.phase_three_hp_percent = enemy.phase_three_hp_percent
-	scaled_enemy.phase_three_title = enemy.phase_three_title
-	scaled_enemy.unseen = enemy.unseen
 	return scaled_enemy
 
 
@@ -150,6 +135,28 @@ static func _for_class(boss: EnemyData, chapter: int, character_id: StringName) 
 		return boss
 	var factor := float(Chapters.chapter(chapter).boss_class_factor.get(character_id, 1.0))
 	return scaled(boss, sqrt(factor), sqrt(factor)) if not is_equal_approx(factor, 1.0) else boss
+
+
+## The enemy paths of a pack of `count`, drawn from the given pools: a single from `any_paths`; a pair that is
+## a `big_paths` plus a `small_paths` enemy with chance `big_pair_chance` (one randf) or else two small ones;
+## a trio (or any larger count) from `trio`. This is the one place the draw order lives: varied_encounter and
+## StarterContent's budget pack builder both call it, so a seed gives the same paths in either.
+static func pack_paths(count: int, rng: RandomNumberGenerator, big_pair_chance: float, any_paths: Array[String], big_paths: Array[String], small_paths: Array[String], trio: Array[String]) -> Array[String]:
+	var paths: Array[String] = []
+	match count:
+		1:
+			paths.append(pick_path(any_paths, rng))
+		2:
+			if rng.randf() < big_pair_chance:
+				paths.append(pick_path(big_paths, rng))
+				paths.append(pick_path(small_paths, rng))
+			else:
+				paths.append(pick_path(small_paths, rng))
+				paths.append(pick_path(small_paths, rng))
+		_:
+			for i in count:
+				paths.append(pick_path(trio, rng))
+	return paths
 
 
 static func pick_path(paths: Array[String], rng: RandomNumberGenerator) -> String:

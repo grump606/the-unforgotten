@@ -36,7 +36,8 @@ func _init(battle: Battle, box: HFlowContainer) -> void:
 
 ## Brings the hand row up to date after a state change. The views are kept (so hover, drag, the tooltip and the
 ## preview survive) and only their state, note, preview and marks are updated; the row is rebuilt from scratch
-## only when the hand size or a card at some index changed.
+## only when the hand size or a card at some index changed, and then the views of cards still in hand are reused
+## (only a played card's view goes and only a new card gets a new view; see _reconcile).
 func sync() -> void:
 	var combat := _battle.combat()
 	var hand := combat.piles.hand
@@ -48,7 +49,7 @@ func sync() -> void:
 				same = false
 				break
 	if not same:
-		rebuild()
+		_reconcile()
 		return
 	var discarding := combat.phase == Combat.Phase.DISCARDING
 	var hand_scale := fit()
@@ -68,6 +69,7 @@ func views_in_order() -> Array[CardView]:
 	return out
 
 
+## Throws every view away and builds the row afresh (all un-hovered); sync() reuses views instead.
 func rebuild() -> void:
 	_battle.drag().end()
 	hide_preview()
@@ -77,22 +79,60 @@ func rebuild() -> void:
 	var discarding := combat.phase == Combat.Phase.DISCARDING
 	var hand_scale := fit()
 	for i in combat.piles.hand.size():
-		var view := CardView.new()
-		view.auto_hover = true
-		view.clickable = true
-		view.live = combat.player
-		# The handlers look the index up when they fire (the view's place in the row), so they stay right
-		# however the row changes around the view.
-		view.pressed.connect(func() -> void: play_card(view.get_index()))
-		view.drag_started.connect(_battle.drag().started.bind(view))
-		view.drag_moved.connect(_battle.drag().moved)
-		view.drag_ended.connect(func(pos: Vector2) -> void: _battle.drag().ended(pos, view.get_index()))
-		view.drag_cancelled.connect(_battle.drag().end)
-		view.hover_changed.connect(_on_card_hover.bind(view))
+		var view := _new_view(combat)
 		_apply_view(view, i, discarding, hand_scale)
 		_box.add_child(view)
 	# The new views start un-hovered; once laid out, light the one under the pointer.
 	restore_hover.call_deferred()
+
+
+## Brings the row in line with the hand while keeping the view of every card still in it (matched by card, so
+## duplicates pair up in order): a played card's view is removed, a drawn card gets a new one, and the rest move
+## into place. Saves rebuilding every node and closure on each play.
+func _reconcile() -> void:
+	_battle.drag().end()
+	hide_preview()
+	var combat := _battle.combat()
+	var hand := combat.piles.hand
+	var spare := {}
+	for view in views_in_order():
+		if not spare.has(view.card):
+			spare[view.card] = []
+		(spare[view.card] as Array).append(view)
+	var kept: Array[CardView] = []
+	for card in hand:
+		var matches: Array = spare.get(card, [])
+		kept.append(matches.pop_front() if not matches.is_empty() else null)
+	for child in _box.get_children():
+		if not kept.has(child):
+			_battle.discard_node(child)
+	var discarding := combat.phase == Combat.Phase.DISCARDING
+	var hand_scale := fit()
+	for i in hand.size():
+		var view := kept[i]
+		if view == null:
+			view = _new_view(combat)
+			_box.add_child(view)
+		_box.move_child(view, i)
+		_apply_view(view, i, discarding, hand_scale)
+	# Moved views may no longer be under the pointer; once laid out, light the one that is.
+	restore_hover.call_deferred()
+
+
+func _new_view(combat: Combat) -> CardView:
+	var view := CardView.new()
+	view.auto_hover = true
+	view.clickable = true
+	view.live = combat.player
+	# The handlers look the index up when they fire (the view's place in the row), so they stay right
+	# however the row changes around the view.
+	view.pressed.connect(func() -> void: play_card(view.get_index()))
+	view.drag_started.connect(_battle.drag().started.bind(view))
+	view.drag_moved.connect(_battle.drag().moved)
+	view.drag_ended.connect(func(pos: Vector2) -> void: _battle.drag().ended(pos, view.get_index()))
+	view.drag_cancelled.connect(_battle.drag().end)
+	view.hover_changed.connect(_on_card_hover.bind(view))
+	return view
 
 
 ## Sets everything about hand view `i` that follows from the fight: its card, size, state and note, damage

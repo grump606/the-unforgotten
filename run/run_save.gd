@@ -640,6 +640,14 @@ static func save(run: RunState, path: String = DEFAULT_PATH) -> String:
 static func load_file(path: String = DEFAULT_PATH) -> Result:
 	var main := _read(path)
 	if main.run != null:
+		# A valid .tmp NEWER than a valid main means the last save's final rename failed (save() keeps the .tmp and
+		# reports it): resume from that newer checkpoint instead of silently going one stop back.
+		var tmp := path + ".tmp"
+		if FileAccess.file_exists(tmp) and FileAccess.get_modified_time(tmp) > FileAccess.get_modified_time(path):
+			var newer := _read(tmp)
+			if newer.run != null:
+				newer.recovered_from = tmp
+				return newer
 		return main
 	var report := main
 	for suffix in [".tmp", ".bak"]:

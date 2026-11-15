@@ -90,6 +90,18 @@ func _test_manifest(key: CryptoKey, pem: String, other: CryptoKey) -> void:
 	_check(UpdateVerifier.verify_manifest(manifest, sig, tag, "0.4.0", [pem]) != "", "the same version is not an update")
 	_check(UpdateVerifier.verify_manifest(manifest, sig, tag, "", [pem]) != "", "an unknown running version never updates")
 
+	# The optional signed floor is the oldest RUNNING game allowed to update in game (running 0.3.0, release 0.4.0).
+	var floored := UpdateCheck.make_manifest(name, "0.4.0", sha, "0.3.0").to_utf8_buffer()
+	_check(UpdateVerifier.verify_manifest(floored, Support.sign_bytes(floored, key), tag, current, [pem]) == "", "a running game exactly at the signed floor may update")
+	_check(UpdateVerifier.verify_manifest(floored, Support.sign_bytes(floored, key), tag, "0.3.5", [pem]) == "", "a running game above the signed floor may update")
+	var too_old := UpdateCheck.make_manifest(name, "0.4.0", sha, "0.3.1").to_utf8_buffer()
+	_check(UpdateVerifier.verify_manifest(too_old, Support.sign_bytes(too_old, key), tag, current, [pem]) != "", "a running game below the signed floor is refused")
+	var at_release := UpdateCheck.make_manifest(name, "0.4.0", sha, "0.4.0").to_utf8_buffer()
+	_check(UpdateVerifier.verify_manifest(at_release, Support.sign_bytes(at_release, key), tag, current, [pem]) != "", "a floor equal to the release refuses every older game")
+	var above := UpdateCheck.make_manifest(name, "0.4.0", sha, "0.5.0").to_utf8_buffer()
+	_check(UpdateVerifier.verify_manifest(above, Support.sign_bytes(above, key), tag, current, [pem]) != "", "a floor above the release itself is refused")
+	_check(UpdateVerifier.verify_manifest(floored, Support.sign_bytes(floored, other), tag, current, [pem]) != "", "the floor does not bypass the signature")
+
 	# Format: anything but the exact four lines is malformed, even when signed.
 	for bad in [
 		"",

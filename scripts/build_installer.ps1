@@ -73,9 +73,10 @@ if ($setupVersion -ne $version -and $setupVersion -ne "$version.0") { throw "The
 # In-game updates refuse a download past UpdateCheck.MAX_INSTALLER_BYTES. This only warns when the installer passes
 # 2/3 of that cap, while there is still room to raise it (docs/UPDATE_CHECK.md). Raise the cap one release before the
 # installer needs it, because already-installed games keep the cap they shipped with.
-$capMatch = Select-String -Path 'run/update_check.gd' -Pattern '^const MAX_INSTALLER_BYTES := (\d+) \* 1024 \* 1024'
-if (-not $capMatch) { throw 'MAX_INSTALLER_BYTES not found in run/update_check.gd (the size guard in build_installer.ps1 reads it).' }
-$capBytes = [int64]$capMatch.Matches.Groups[1].Value * 1024 * 1024
+# The cap comes from installer/limits.json; tests/update_check_tests.gd pins it to MAX_INSTALLER_BYTES.
+$limits = Get-Content -Raw -LiteralPath (Join-Path $root 'installer\limits.json') | ConvertFrom-Json
+if (-not ($limits.max_installer_mib -is [int] -or $limits.max_installer_mib -is [long]) -or $limits.max_installer_mib -le 0) { throw 'installer/limits.json has no positive integer max_installer_mib.' }
+$capBytes = [int64]$limits.max_installer_mib * 1024 * 1024
 $setupBytes = (Get-Item -LiteralPath $setup).Length
 Write-Host "Installer size $setupBytes bytes (in-game download cap $capBytes)"
 if ($setupBytes * 3 -gt $capBytes * 2) { Write-Warning "The installer ($setupBytes bytes) is over 2/3 of the current in-game download cap ($capBytes bytes): raise MAX_INSTALLER_BYTES in run/update_check.gd soon, or in-game updates will fail." }
@@ -95,7 +96,9 @@ $manifestSigFile = "$setup.manifest.sig"
 if ($signing) {
     # New-UpdateManifestText (scripts/update_signing.ps1) must match UpdateCheck.make_manifest in run/update_check.gd
     # byte for byte: LF endings, UTF-8 without BOM. tests/golden/update_manifest.txt pins both; check.ps1 runs the test.
-    $manifest = New-UpdateManifestText -Name (Split-Path -Leaf $setup) -Version $version -Sha256 $hash
+    # UPDATE_MIN_VERSION (optional, docs/UPDATE_SIGNING.md): games older than this refuse the in-game update.
+    if ($env:UPDATE_MIN_VERSION) { Write-Host "Signed minimum version for in-game updates: $env:UPDATE_MIN_VERSION" }
+    $manifest = New-UpdateManifestText -Name (Split-Path -Leaf $setup) -Version $version -Sha256 $hash -MinVersion $env:UPDATE_MIN_VERSION
     [System.IO.File]::WriteAllText($manifestFile, $manifest, (New-Object System.Text.UTF8Encoding($false)))
 
     # The passphrase comes from UPDATE_SIGNING_PASS when set (the interactive prompt does not work in every

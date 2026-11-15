@@ -13,7 +13,22 @@ func run() -> int:
 	_test_switch_by_thorns()
 	_test_bosses_define_phase_two()
 	_test_phase_three()
+	_test_phase_three_implies_phase_two()
 	return _failures
+
+
+## check_phase never skips phase two, so an enemy with a phase three and no phase two would never reach it:
+## the data must not define one.
+func _test_phase_three_implies_phase_two() -> void:
+	_check(EnemyUnit.PHASE_ONE == 1 and EnemyUnit.PHASE_TWO == 2 and EnemyUnit.PHASE_THREE == 3, "the phase constants keep their numbers")
+	var checked := 0
+	for enemy_id in ContentRegistry.enemy_ids():
+		var data := ContentRegistry.enemy_by_id(enemy_id)
+		if data == null:
+			continue
+		checked += 1
+		_check(data.phase_three_intents.is_empty() or not data.phase_two_intents.is_empty(), "%s: phase three intents need phase two intents" % enemy_id)
+	_check(checked > 0, "the shipped enemies were checked")
 
 
 func _fx(kind: CardEffect.Kind, amount: int) -> CardEffect:

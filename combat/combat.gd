@@ -55,19 +55,15 @@ var relics: Array[RelicData]:
 		return _relics.duplicate()
 	set(value):
 		_relics = value.duplicate()
-		_rebuild_totals()
+		_relic_effects.set_relics(_relics)
 var _relics: Array[RelicData] = []
-# Relic amounts summed per kind (see _relic_total); rebuilt whenever the list is assigned.
-var _totals: Dictionary = {}
-# Once-per-fight relic triggers already spent (FIRST_FORGOTTEN_RETURN, FIRST_ATTACK_SHAKEN).
-var _forgotten_return_used := false
+# What the relics do, hook by hook (RelicEffects): the per-kind totals and the once-per-fight triggers already spent.
+var _relic_effects := RelicEffects.new()
 ## While a played card resolves: how many Oaths were Sworn before it, so the Oaths it swears do not
 ## react to what it does (a quarry its own play kills). -1 outside a play: every Sworn Oath may react.
 var _play_oath_limit := -1
-## Quarries a Scent-spending hit killed this play: they died holding Scent that was spent, so they count as a
-## quarry's death (kill heal, QUARRY_DIES Oaths) but pass no Scent on. Drained by _pass_on_scent.
-var _spent_quarries: Array[EnemyUnit] = []
-var _first_attack_used := false
+# The Scent and quarry rules (ScentRules); the instance remembers the quarries a Scent spender killed this play.
+var _scent := ScentRules.new()
 ## The fight's seeded RNG (the same one the piles shuffle with); Scent uses it to pick an heir.
 var _rng: RandomNumberGenerator
 
@@ -170,7 +166,7 @@ func abandon() -> void:
 	if phase == Phase.ENDED:
 		return
 	phase = Phase.ENDED
-	_spent_quarries.clear()
+	_scent.clear()
 	_clear_choices()
 	_disconnect_player()
 	player.clear_block()
@@ -251,8 +247,8 @@ func play_card(hand_index: int, target_index: int = -1) -> bool:
 	# Measured here, before any relic or Oath effect of this play, so only Block the card's OWN effects
 	# gave counts for "When you gain Block from a card".
 	var card_gave_block := player.block > block_before
-	if not _relics.is_empty():
-		_apply_play_relics(card, targets)
+	if _relic_effects.has_relics():
+		_relic_effects.after_play(self, card, targets)
 	_fire_play_oaths(card, scale, sworn_before, card_gave_block)
 	card_played.emit(card, targets)
 	_check_phases()
@@ -275,7 +271,7 @@ func _resolve_effects(card: CardData, targets: Array[EnemyUnit], mode: CardData.
 			_apply(effect, player, player, scale)
 		if effect.kind == CardEffect.Kind.SCENT:
 			# One quarry: a card aimed at several enemies marks only one of them.
-			var quarry := _scent_target(targets)
+			var quarry := ScentRules.target(targets)
 			if quarry != null:
 				_apply(effect, player, quarry, scale)
 		elif reach != CardEffect.Reach.SELF:
@@ -515,14 +511,7 @@ func _end_of_turn_effects() -> void:
 	for _faded in faded:
 		_fire_oaths(CardData.OathTrigger.ON_FORGOTTEN)
 	# Kept Anchor cards shield the player through the enemy phase.
-	var anchor_block := _relic_total(RelicData.Kind.ANCHOR_END_BLOCK)
-	if anchor_block > 0:
-		var anchored := 0
-		for held in piles.hand:
-			if held.anchor:
-				anchored += 1
-		if anchored > 0:
-			player.gain_block(anchor_block * anchored)
+	_relic_effects.end_of_turn(self)
 	for held in piles.hand:
 		if held.anchor:
 			_fire_oaths(CardData.OathTrigger.ANCHOR_KEPT)
@@ -572,12 +561,12 @@ func haunted_count() -> int:
 
 func _resolve_target(target_index: int) -> EnemyUnit:
 	if target_index == -1:
-		return _first_living()
+		return first_living()
 	if target_index < 0 or target_index >= enemies.size() or enemies[target_index].is_dead():
 		return null
 	# A card aimed at an Unseen enemy lands on the first enemy that can be targeted instead.
 	if is_shielded(enemies[target_index]):
-		return _first_living()
+		return first_living()
 	return enemies[target_index]
 
 
@@ -593,7 +582,7 @@ func is_shielded(enemy: EnemyUnit) -> bool:
 
 
 ## The first enemy still alive that can be targeted, or null.
-func _first_living() -> EnemyUnit:
+func first_living() -> EnemyUnit:
 	for enemy in enemies:
 		if not enemy.is_dead() and not is_shielded(enemy):
 			return enemy
@@ -607,7 +596,7 @@ func _begin_player_turn() -> void:
 	plays_this_turn = 0
 	player.start_turn_block()
 	player.clear_temp_stacks()
-	_apply_turn_start_relics()
+	_relic_effects.turn_start(self)
 	# Ready cards join the opening hand first.
 	if turn == 1:
 		piles.draw_ready(HAND_MAX)
@@ -643,7 +632,7 @@ func _fire_oaths(trigger: CardData.OathTrigger, limit: int = -1) -> void:
 ## living enemy), a SELF-reach effect to the player, any other to every enemy still alive.
 func _apply_lasting(effect: CardEffect) -> void:
 	if effect.kind == CardEffect.Kind.SCENT:
-		var quarry := _scent_target(enemies)
+		var quarry := ScentRules.target(enemies)
 		if quarry != null:
 			_apply(effect, player, quarry)
 	elif effect.reach() == CardEffect.Reach.SELF:
@@ -657,70 +646,7 @@ func _apply_lasting(effect: CardEffect) -> void:
 
 ## Sum of `amount` over the owned relics of `kind` (0 with none).
 func _relic_total(kind: RelicData.Kind) -> int:
-	return _totals.get(kind, 0)
-
-
-func _rebuild_totals() -> void:
-	_totals.clear()
-	for relic in _relics:
-		_totals[relic.kind] = _totals.get(relic.kind, 0) + relic.amount
-
-
-## Relic effects that fire after a card's own effects: the first play of a turn draws, every
-## PLAYS_BLOCK_EVERY-th play gains Block. plays_this_turn already counts the card just played.
-func _apply_play_relics(card: CardData, targets: Array[EnemyUnit]) -> void:
-	if plays_this_turn == 1 and _relic_total(RelicData.Kind.FIRST_PLAY_DRAW) > 0:
-		piles.draw(_relic_total(RelicData.Kind.FIRST_PLAY_DRAW), HAND_MAX)
-	if plays_this_turn % RelicData.PLAYS_BLOCK_EVERY == 0 and _relic_total(RelicData.Kind.PLAYS_BLOCK) > 0:
-		player.gain_block(_relic_total(RelicData.Kind.PLAYS_BLOCK))
-	# The first Forgotten card played this fight comes straight back from the Forgotten pile.
-	# Only a card that really landed in the pile counts: an Oath goes to the Sworn list instead.
-	if piles.last_play_destination == CardPiles.Destination.FORGOTTEN and not piles.forgotten.is_empty() \
-			and not _forgotten_return_used and _relic_total(RelicData.Kind.FIRST_FORGOTTEN_RETURN) > 0:
-		_forgotten_return_used = true
-		var last: Array[int] = [piles.forgotten.size() - 1]
-		piles.recall_from_forgotten(last, HAND_MAX)
-	# The first attack (a card that deals damage) this fight Shakes the enemies it was played on.
-	if not _first_attack_used and _relic_total(RelicData.Kind.FIRST_ATTACK_SHAKEN) > 0:
-		for effect in card.effects:
-			if effect.is_damage():
-				_first_attack_used = true
-				for target in targets:
-					target.apply_status(Combatant.Status.SHAKEN, _relic_total(RelicData.Kind.FIRST_ATTACK_SHAKEN))
-				break
-
-
-## Relic effects that fire as a turn begins. Runs after start_turn_block(), which resets Block
-## to Hold and Thorns to 0, so these grants are not wiped. Fight-start effects come first on turn 1
-## so that a starting Haunt already counts for the turn-start heal.
-func _apply_turn_start_relics() -> void:
-	if _relics.is_empty():
-		return
-	var block := _relic_total(RelicData.Kind.TURN_START_BLOCK)
-	if turn == 1:
-		for enemy in enemies:
-			enemy.apply_status(Combatant.Status.HAUNTED, _relic_total(RelicData.Kind.FIGHT_START_HAUNT))
-		block += _relic_total(RelicData.Kind.FIGHT_START_BLOCK)
-		energy += _relic_total(RelicData.Kind.FIRST_TURN_ENERGY)
-		# Malice and Ward from relics last the whole fight (cleared with the statuses at fight end).
-		var malice := _relic_total(RelicData.Kind.FIGHT_START_MALICE)
-		if malice > 0:
-			player.apply_status(Combatant.Status.MALICE, malice)
-		# The first living enemy becomes the quarry from the first turn.
-		var scent := _relic_total(RelicData.Kind.FIGHT_START_SCENT)
-		if scent > 0 and _first_living() != null:
-			_give_scent(_first_living(), scent)
-		var ward := _relic_total(RelicData.Kind.FIGHT_START_WARD)
-		if ward > 0:
-			player.apply_status(Combatant.Status.WARD, ward)
-	if block > 0:
-		player.gain_block(block)
-	var thorns := _relic_total(RelicData.Kind.TURN_START_THORNS)
-	if thorns > 0:
-		player.add_thorns(thorns)
-	var heal := _relic_total(RelicData.Kind.TURN_START_HEAL_PER_HAUNTED) * haunted_count()
-	if heal > 0:
-		player.heal(heal)
+	return _relic_effects.total(kind)
 
 
 ## `target` receives damage and statuses; `source` receives block and draws.
@@ -771,9 +697,7 @@ func _apply_damage(effect: CardEffect, source: Combatant, target: Combatant, ene
 	# A spender uses up the Scent it hit with, after every hit of the effect. If it killed a quarry that held
 	# Scent, the death is remembered (the Scent itself is gone: there is nothing to pass on).
 	if effect.kind == CardEffect.Kind.DAMAGE_PER_SCENT:
-		var quarry := target as EnemyUnit
-		if quarry != null and quarry.is_dead() and quarry.stacks(Combatant.Status.SCENT) > 0:
-			_spent_quarries.append(quarry)
+		_scent.note_spent_kill(target as EnemyUnit)
 		target.remove_status(Combatant.Status.SCENT)
 
 
@@ -785,7 +709,7 @@ func _apply_status_effect(effect: CardEffect, source: Combatant, target: Combata
 		CardEffect.Kind.SCENT:
 			# Only the player's cards mark a quarry; an enemy intent with SCENT does nothing.
 			if source == player and target != player:
-				_give_scent(target, amount)
+				ScentRules.give(enemies, target, amount)
 		CardEffect.Kind.HAUNT:
 			if source == player:
 				# The Haunt bonus only boosts a Haunt that was going to be applied at all.
@@ -891,7 +815,7 @@ func _check_end() -> bool:
 		return true
 	# Thorns can kill the last enemy on the same enemy action that kills the player; a dead
 	# player has lost, so that is a defeat, never a victory.
-	var victory := _first_living() == null and not player.is_dead()
+	var victory := first_living() == null and not player.is_dead()
 	if not (victory or player.is_dead()):
 		return false
 	phase = Phase.ENDED
@@ -907,65 +831,20 @@ func _check_end() -> bool:
 	return true
 
 
-## The enemy among `candidates` (living ones only) that a Scent effect marks: the one already holding Scent
-## if it is there, else the first. Null when none is alive.
-func _scent_target(candidates: Array[EnemyUnit]) -> EnemyUnit:
-	var first: EnemyUnit = null
-	for enemy in candidates:
-		if enemy.is_dead():
-			continue
-		if holds_scent(enemy):
-			return enemy
-		if first == null:
-			first = enemy
-	return first
-
-
-## True for a living enemy holding Scent: the one rule for "this is the quarry".
+## True for a living enemy holding Scent: the one rule for "this is the quarry" (see ScentRules).
 static func holds_scent(enemy: EnemyUnit) -> bool:
-	return not enemy.is_dead() and enemy.stacks(Combatant.Status.SCENT) > 0
+	return ScentRules.holds_scent(enemy)
 
 
 ## Index into `enemies` of the living enemy holding Scent, or -1 if none does.
 func scent_holder_index() -> int:
-	for i in enemies.size():
-		if holds_scent(enemies[i]):
-			return i
-	return -1
+	return ScentRules.holder_index(enemies)
 
 
-## Makes `quarry` the one enemy holding Scent: any Scent held by a LIVING enemy elsewhere moves to it,
-## `amount` is added, and the total is capped (Combatant.SCENT_CAP). A non-positive amount with nothing to
-## move changes nothing. A DEAD holder's stack is deliberately left alone: it belongs to _pass_on_scent
-## (half the stack, the quarry-kill heal and the QUARRY_DIES Oaths), which runs after the card, so a card
-## that kills the quarry and then marks another enemy cannot absorb the whole dead stack.
-func _give_scent(quarry: EnemyUnit, amount: int) -> void:
-	var total := quarry.stacks(Combatant.Status.SCENT) + maxi(amount, 0)
-	for enemy in enemies:
-		if enemy != quarry and not enemy.is_dead() and enemy.stacks(Combatant.Status.SCENT) > 0:
-			total += enemy.stacks(Combatant.Status.SCENT)
-			enemy.remove_status(Combatant.Status.SCENT)
-	quarry.remove_status(Combatant.Status.SCENT)
-	quarry.apply_status(Combatant.Status.SCENT, total)
-
-
-## When the quarry has died, half its Scent (rounded down) passes to a random living enemy (the fight's
-## seeded RNG; no draw is made when only one is left). With nobody left, or a stack of 1, it is lost.
+## Every quarry that has died passes on its Scent (half, plus the SCENT_HEIR bonus) and runs the death effects
+## (see ScentRules.pass_on and _quarry_died).
 func _pass_on_scent() -> void:
-	for enemy in enemies:
-		if not enemy.is_dead() or enemy.stacks(Combatant.Status.SCENT) <= 0:
-			continue
-		var held := enemy.stacks(Combatant.Status.SCENT)
-		var carried := held / 2
-		if carried > 0 or _relic_total(RelicData.Kind.SCENT_HEIR) > 0:
-			carried = mini(held, carried + _relic_total(RelicData.Kind.SCENT_HEIR))
-		enemy.remove_status(Combatant.Status.SCENT)
-		_quarry_died(carried)
-	# A quarry killed by a Scent spender: the same death effects, with nothing to pass on.
-	var spent := _spent_quarries.size()
-	_spent_quarries.clear()
-	for _i in spent:
-		_quarry_died(0)
+	_scent.pass_on(enemies, _relic_total(RelicData.Kind.SCENT_HEIR), _quarry_died)
 
 
 ## The quarry has died: the kill heal, then `carried` Scent to a random living enemy (the fight's seeded RNG;
@@ -975,7 +854,7 @@ func _quarry_died(carried: int) -> void:
 	var living := living_enemies()
 	if carried > 0 and not living.is_empty():
 		var heir := living[0] if living.size() == 1 else living[_rng.randi_range(0, living.size() - 1)]
-		_give_scent(heir, carried)
+		ScentRules.give(enemies, heir, carried)
 	if not living.is_empty():
 		_fire_oaths(CardData.OathTrigger.QUARRY_DIES, _play_oath_limit)
 

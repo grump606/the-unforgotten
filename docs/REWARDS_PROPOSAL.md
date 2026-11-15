@@ -4,7 +4,7 @@ Status: proposal only, nothing implemented. The owner said rewards "could use wo
 
 ## Current behavior
 
-- A won non-boss fight pays `enemy_count * 8 + 5` gold (`Vendor.gold_for_win`) and rolls a reward in `RunState._roll_rewards` (`run/run_state.gd`). The boss pays nothing and offers nothing.
+- A won non-boss fight pays `enemy_count * 8 + 5` gold (`Vendor.gold_for_win`) and rolls a reward in `RunRewards.roll` (`run/run_rewards.gd`). The boss pays nothing and offers nothing.
 - The offer is `REWARD_CHOICES = 3` distinct cards: up to `REWARD_CLASS_CHOICES = 2` class cards, then neutrals to fill, then leftover class cards. Cards are shuffled uniformly with the run RNG from `StarterContent.reward_pool(character.id)` (class plus neutral, deduped by id).
 - The player takes one card or skips (`resolve_reward(null)`). Skipping gives nothing. The offer is rolled at win time and kept in `_reward_choices`, so seeds are reproducible.
 - UI (`run.gd` `_show_reward`): three buttons plus "Skip". No deck view, no card preview beyond name, cost and text.

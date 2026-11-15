@@ -96,6 +96,8 @@ const DOWNLOAD_BASE := "https://github.com/grump606/the-unforgotten/releases/dow
 ## while downloading. Keep it at least 1.5x the latest release (tests/update_check_tests.gd checks), or in-game
 ## updates fail silently when the art grows. Raised from 300 to 400 MiB for v0.10.1, one release before Chapter 3's larger
 ## installer (about 175 to 185 MiB); games released up to v0.10.0 keep the 300 MiB cap.
+## installer/limits.json holds the same number for scripts/build_installer.ps1; a test pins the two together (it is
+## not read at run time: installer/ is not exported, and a missing file must never change the cap).
 const MAX_INSTALLER_BYTES := 400 * 1024 * 1024
 ## An RSA-3072 signature is 384 bytes; the limit leaves headroom.
 const MAX_SIGNATURE_BYTES := 1024
@@ -132,6 +134,10 @@ static func manifest_signature_url(tag: String) -> String:
 ## What the maintainer signs, instead of the bare installer: four LF-terminated lines naming the
 ## file, its version and its SHA-256. Signing the version and name (not just the bytes) means an old
 ## but genuinely signed installer cannot be passed off as a newer release.
+## An OPTIONAL fifth line `min_version=<version>` (docs/UPDATE_SIGNING.md) is the oldest RUNNING game that may install
+## this release in game; an older game refuses and offers the Download page instead (for a release that cannot be
+## reached by a silent update from far behind). It is written only when the maintainer sets UPDATE_MIN_VERSION.
+## Games released before the field existed accept exactly four lines, so they also refuse a five-line manifest.
 const MANIFEST_HEADER := "the-unforgotten-update 1"
 const MAX_MANIFEST_BYTES := 512
 const SHA256_PATTERN := "^[0-9a-f]{64}\\z"
@@ -140,13 +146,15 @@ static var _sha256_regex: RegEx
 
 
 ## The exact text the release script writes and signs (scripts/build_installer.ps1 builds the same).
-## `version` has no leading v.
-static func make_manifest(file_name: String, version: String, sha256_hex: String) -> String:
-	return "%s\nname=%s\nversion=%s\nsha256=%s\n" % [MANIFEST_HEADER, file_name, version, sha256_hex]
+## `version` has no leading v. A non-empty `min_version` adds the optional fifth line (see above).
+static func make_manifest(file_name: String, version: String, sha256_hex: String, min_version: String = "") -> String:
+	var text := "%s\nname=%s\nversion=%s\nsha256=%s\n" % [MANIFEST_HEADER, file_name, version, sha256_hex]
+	return text if min_version.is_empty() else text + "min_version=%s\n" % min_version
 
 
-## {name, version, sha256} from manifest bytes, or {} unless they are exactly the format above:
-## right header, four lines, a valid version without a leading v, a lowercase 64-hex SHA-256.
+## {name, version, sha256[, min_version]} from manifest bytes, or {} unless they are exactly the format above:
+## right header, four lines (or five, the last being min_version), valid versions without a leading v, a lowercase
+## 64-hex SHA-256.
 static func parse_manifest(bytes: PackedByteArray) -> Dictionary:
 	if bytes.is_empty() or bytes.size() > MAX_MANIFEST_BYTES:
 		return {}
@@ -154,17 +162,21 @@ static func parse_manifest(bytes: PackedByteArray) -> Dictionary:
 	if not text.ends_with("\n") or text.contains("\r"):
 		return {}
 	var lines := text.trim_suffix("\n").split("\n")
-	if lines.size() != 4 or lines[0] != MANIFEST_HEADER:
+	if (lines.size() != 4 and lines.size() != 5) or lines[0] != MANIFEST_HEADER:
 		return {}
 	var fields := {}
-	for i in range(1, 4):
-		var key: String = ["name", "version", "sha256"][i - 1]
+	for i in range(1, lines.size()):
+		var key: String = ["name", "version", "sha256", "min_version"][i - 1]
 		if not lines[i].begins_with(key + "="):
 			return {}
 		fields[key] = lines[i].trim_prefix(key + "=")
 	var version: String = fields["version"]
 	if not is_valid_tag(version) or version.begins_with("v") or version.begins_with("V"):
 		return {}
+	if fields.has("min_version"):
+		var floor_version: String = fields["min_version"]
+		if not is_valid_tag(floor_version) or floor_version.begins_with("v") or floor_version.begins_with("V"):
+			return {}
 	if _sha256_regex == null:
 		_sha256_regex = RegEx.create_from_string(SHA256_PATTERN)
 	if _sha256_regex.search(fields["sha256"]) == null:

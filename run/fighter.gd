@@ -142,6 +142,8 @@ var _floats: Array[Dictionary] = []
 var react_delay := 0.0
 ## Reactions waiting for their moment: {t, amount} (amount 0 is a fully blocked hit, below 0 a heal).
 var _reactions: Array[Dictionary] = []
+## Scratch list of the reactions due this frame, reused so _process allocates nothing.
+var _due: Array[Dictionary] = []
 ## HP the battle already scheduled hits for, so refresh() does not react to the same loss twice.
 var _scheduled_loss := 0
 var _scheduled_block := false
@@ -435,17 +437,17 @@ func advance(delta: float) -> void:
 	_pop = maxf(_pop - delta / POP_TIME, 0.0)
 	# Age the reactions and play the ones that are due, compacting the array in place (no per-frame allocation).
 	var kept := 0
-	var due: Array[Dictionary] = []
+	_due.clear()
 	for r in _reactions:
 		r.t -= delta
 		if r.t <= 0.0:
-			due.append(r)
+			_due.append(r)
 		else:
 			_reactions[kept] = r
 			kept += 1
-	if not due.is_empty():
+	if not _due.is_empty():
 		_reactions.resize(kept)
-		for r in due:
+		for r in _due:
 			_play_reaction(r.amount, r.get("blocked", 0))
 	fade = move_toward(fade, 1.0 if is_defeated() else 0.0, 1.0 if Motion.reduced else delta / FADE_TIME)
 	var live := 0

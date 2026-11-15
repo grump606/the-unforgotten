@@ -23,5 +23,12 @@ if (-not $same) {
     Write-Host ("Golden:     " + (($golden | ForEach-Object { '{0:x2}' -f $_ }) -join ''))
     exit 1
 }
-Write-Host "Manifest golden OK ($($made.Length) bytes)."
+# The optional floor appends exactly one line (tests/update_manifest_golden_tests.gd checks the same on the GDScript side).
+$goldenText = (New-Object System.Text.UTF8Encoding($false)).GetString($golden)
+$floored = New-UpdateManifestText -Name 'TheUnforgotten-Setup-1.2.3.exe' -Version '1.2.3' -Sha256 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad' -MinVersion '1.2.0'
+if ($floored -cne ($goldenText + "min_version=1.2.0`n")) { Write-Host 'MANIFEST GOLDEN MISMATCH: -MinVersion does not append exactly "min_version=1.2.0\n".'; exit 1 }
+$threw = $false
+try { $null = New-UpdateManifestText -Name 'x' -Version '1.2.3' -Sha256 'ab' -MinVersion 'v1' } catch { $threw = $true }
+if (-not $threw) { Write-Host 'MANIFEST GOLDEN MISMATCH: a leading-v minimum version was accepted.'; exit 1 }
+Write-Host "Manifest golden OK ($($made.Length) bytes, floor line OK)."
 exit 0

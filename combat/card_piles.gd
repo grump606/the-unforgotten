@@ -135,12 +135,7 @@ func add_card(card: CardData, pile: CardEffect.Pile, hand_limit: int = -1) -> Ca
 func file_from_hand(count: int) -> int:
 	var filed := 0
 	for _n in maxi(count, 0):
-		var pick := -1
-		for i in hand.size():
-			if hand[i].anchor:
-				continue
-			if pick == -1 or hand[i].cost > hand[pick].cost:
-				pick = i
+		var pick := _dearest_unanchored_in_hand()
 		if pick == -1:
 			break
 		draw_pile.insert(0, hand[pick])
@@ -154,18 +149,25 @@ func file_from_hand(count: int) -> int:
 func cross_out_from_hand(count: int) -> int:
 	var crossed := 0
 	for _n in maxi(count, 0):
-		var pick := -1
-		for i in hand.size():
-			if hand[i].anchor:
-				continue
-			if pick == -1 or hand[i].cost > hand[pick].cost:
-				pick = i
+		var pick := _dearest_unanchored_in_hand()
 		if pick == -1:
 			break
 		forgotten.append(hand[pick])
 		hand.remove_at(pick)
 		crossed += 1
 	return crossed
+
+
+## Hand index of the card File and Cross out take next: the highest cost, the leftmost of equals, never an
+## Anchored card. -1 when the hand holds nothing that can be taken.
+func _dearest_unanchored_in_hand() -> int:
+	var pick := -1
+	for i in hand.size():
+		if hand[i].anchor:
+			continue
+		if pick == -1 or hand[i].cost > hand[pick].cost:
+			pick = i
+	return pick
 
 
 ## The top `n` cards of the draw pile in the order they would be drawn (index 0 is drawn first; the

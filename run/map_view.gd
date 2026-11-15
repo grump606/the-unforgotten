@@ -82,7 +82,12 @@ func _process(delta: float) -> void:
 	if Motion.reduced:
 		return # the pulse on the reachable nodes holds still; set_data and hover still redraw
 	time += delta
-	queue_redraw()
+	if _pulse_throttle.due(delta):
+		queue_redraw() # the ambient pulse: 30 Hz is plenty (RedrawThrottle); hover and set_data redraw at once
+
+
+## Paces the pulse redraws: the whole map repaints for it, so not every frame.
+var _pulse_throttle := RedrawThrottle.new()
 
 
 # --- Data ------------------------------------------------------------------------------------------------
@@ -404,10 +409,12 @@ func _draw() -> void:
 		for to in _route.node(id).next:
 			if _pos.has(to):
 				_draw_edge(id, to)
-	var order := _ids.duplicate()
-	order.sort_custom(func(a: int, b: int) -> bool: return int(a == _hover) < int(b == _hover))
-	for id in order:
-		_draw_node(id)
+	# The hovered node is drawn last so it sits on top (no per-frame copy and sort).
+	for id in _ids:
+		if id != _hover:
+			_draw_node(id)
+	if _ids.has(_hover):
+		_draw_node(_hover)
 	_draw_legend()
 	if _hover >= 0 and _pos.has(_hover):
 		_draw_bubble(_hover)

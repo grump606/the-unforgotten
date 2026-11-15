@@ -89,7 +89,21 @@ func _test_happy_path(key: CryptoKey, pem: String) -> void:
 	_check(probe.launched.is_empty() and probe.quits == 0, "nothing runs before the player restarts")
 	_check(installer.install_and_restart(), "install_and_restart succeeds")
 	_check(probe.launched.size() == 1 and (probe.launched[0][0] as String).ends_with("TheUnforgotten-Setup-0.3.9.exe"), "the verified installer is what runs")
-	_check(probe.launched[0][1] == UpdateInstaller.INSTALLER_ARGS and "/RELAUNCH=1" in UpdateInstaller.INSTALLER_ARGS and "/SILENT" in UpdateInstaller.INSTALLER_ARGS, "it runs silently and asks to relaunch the game")
+	_check(probe.launched[0][1] == UpdateInstaller.installer_args(OS.get_executable_path().get_base_dir()) and "/RELAUNCH=1" in UpdateInstaller.INSTALLER_ARGS and "/SILENT" in UpdateInstaller.INSTALLER_ARGS, "it runs silently and asks to relaunch the game")
+	# The update goes into the folder the game runs from (a hand-moved copy must not get a second install).
+	var into := UpdateInstaller.installer_args("C:/Games/My Copy")
+	_check(into.size() == UpdateInstaller.INSTALLER_ARGS.size() + 1 and into[-1] == "/DIR=C:\\Games\\My Copy", "the installer is told the running game's folder, with Windows separators")
+	_check(UpdateInstaller.installer_args("C:/Games/Card Battle Prototype") == UpdateInstaller.INSTALLER_ARGS, "an old-name folder is left to setup, which moves it")
+	_check(UpdateInstaller.installer_args("") == UpdateInstaller.INSTALLER_ARGS, "an unknown folder adds no /DIR")
+	# Stall watchdog: progress resets it; no byte for DOWNLOAD_STALL_TIMEOUT seconds trips it.
+	var watch := UpdateInstaller.new()
+	_check(not watch.advance_stall(0.0, 0), "the first sample starts the watchdog")
+	_check(not watch.advance_stall(UpdateInstaller.DOWNLOAD_STALL_TIMEOUT - 1.0, 0), "a pause shorter than the stall limit is fine")
+	_check(not watch.advance_stall(UpdateInstaller.DOWNLOAD_STALL_TIMEOUT - 1.0, 10), "a byte arriving resets the watchdog")
+	_check(not watch.advance_stall(UpdateInstaller.DOWNLOAD_STALL_TIMEOUT - 1.0, 10), "the reset gives a full stall window again")
+	_check(watch.advance_stall(1.0, 10), "no byte for the full stall limit trips it")
+	_check(UpdateInstaller.DOWNLOAD_TIMEOUT >= 3600.0, "the total ceiling no longer fails slow connections (185 MiB at 1 Mbit/s is ~26 min)")
+	watch.free()
 	_check(probe.quits == 1, "the game quits once the installer is running")
 	var launched_path: String = probe.launched[0][0]
 	_check(launched_path.replace("\\", "/").contains("/run_") and not launched_path.replace("\\", "/").begins_with(ProjectSettings.globalize_path(_installer_path()).replace("\\", "/")), "it runs from a private per-launch copy, not the download itself")

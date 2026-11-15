@@ -319,7 +319,7 @@ func _test_keyword_relics() -> void:
 	_check(attack.enemies[0].status_turns(Combatant.Status.SHAKEN) == 0, "later attacks do not")
 	var skill := _fight([_relic(RelicData.Kind.FIRST_ATTACK_SHAKEN, 1)], _card(0, [CardEffect.make(CardEffect.Kind.BLOCK, 3)]))
 	skill.play_card(0)
-	_check(skill.enemies[0].status_turns(Combatant.Status.SHAKEN) == 0 and not skill._first_attack_used, "a non-attack does not spend the trigger")
+	_check(skill.enemies[0].status_turns(Combatant.Status.SHAKEN) == 0 and not skill._relic_effects.first_attack_used, "a non-attack does not spend the trigger")
 
 
 ## The Stray's relics: a Scent head start and a bigger inheritance.

@@ -409,6 +409,20 @@ func _test_backup_recovery() -> void:
 	_check(RunSave.save(second, test_path) == "", "saving over a corrupt main works")
 	bak = RunSave.load_file(test_path + ".bak")
 	_check(bak.run != null and RunSave.to_dict(bak.run) == RunSave.to_dict(first), "a corrupt main does not replace the good .bak")
+	# A good main and a complete NEWER .tmp (the final rename failed): the .tmp's newer checkpoint wins. File times
+	# have one-second resolution, hence the pause.
+	_write(_json(first))
+	OS.delay_msec(1100)
+	_write(_json(second), test_path + ".tmp")
+	loaded = RunSave.load_file(test_path)
+	_check(loaded.run != null and RunSave.to_dict(loaded.run) == RunSave.to_dict(second) and loaded.recovered_from == test_path + ".tmp", "a newer complete .tmp beats an older good main")
+	_write("{ broken", test_path + ".tmp")
+	loaded = RunSave.load_file(test_path)
+	_check(loaded.run != null and RunSave.to_dict(loaded.run) == RunSave.to_dict(first) and loaded.recovered_from == "", "a damaged newer .tmp leaves the good main in charge")
+	_write(_json(second))
+	loaded = RunSave.load_file(test_path)
+	_check(loaded.run != null and RunSave.to_dict(loaded.run) == RunSave.to_dict(second) and loaded.recovered_from == "", "an older .tmp never beats the main file")
+	DirAccess.remove_absolute(test_path + ".tmp")
 	# Missing main and a complete .tmp (crash after the destination was removed): the newer .tmp wins.
 	DirAccess.remove_absolute(test_path)
 	_write(_json(second), test_path + ".tmp")

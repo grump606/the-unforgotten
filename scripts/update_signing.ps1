@@ -7,9 +7,17 @@ function New-UpdateManifestText {
     param(
         [Parameter(Mandatory)][string]$Name,
         [Parameter(Mandatory)][string]$Version,
-        [Parameter(Mandatory)][string]$Sha256
+        [Parameter(Mandatory)][string]$Sha256,
+        # Optional fifth line: the oldest running game allowed to install this release in game (docs/UPDATE_SIGNING.md).
+        [string]$MinVersion = ''
     )
-    return "the-unforgotten-update 1`nname=$Name`nversion=$Version`nsha256=$Sha256`n"
+    $text = "the-unforgotten-update 1`nname=$Name`nversion=$Version`nsha256=$Sha256`n"
+    if ($MinVersion) {
+        # Same rule as UpdateCheck.parse_manifest: a valid version without a leading v.
+        if ($MinVersion -notmatch '^[0-9]{1,4}(\.[0-9]{1,4}){0,3}$') { throw "Invalid minimum version '$MinVersion' (use digits and dots, no leading v)." }
+        $text += "min_version=$MinVersion`n"
+    }
+    return $text
 }
 
 # Signs $FilePath with the private key in a .pfx/.p12, entirely in memory: RSA PKCS#1 v1.5 over SHA-256, the same

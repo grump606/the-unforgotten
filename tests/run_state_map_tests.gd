@@ -37,6 +37,7 @@ func run() -> int:
 	_test_route_choice_policies()
 	_test_treasure()
 	_test_events_in_runs()
+	_test_debug_boss_labels()
 	print("run_state_map_tests: %d checks" % _checks)
 	return _failures
 
@@ -737,3 +738,21 @@ func _test_events_in_runs() -> void:
 		_check(distinct.size() == mini(ids.size(), 12) or ids.size() > 12, "seed %d: no event repeats within a run (%d events, %d distinct)" % [seed_value, ids.size(), distinct.size()])
 		most_in_a_run = maxi(most_in_a_run, ids.size())
 	_check(played >= 10 and most_in_a_run >= 3, "the runs played many events (%d, at most %d in one run)" % [played, most_in_a_run])
+
+
+## A debug-launched fight is labelled by its enemies: every built chapter's end boss is a "Boss" and its mid-boss a
+## "Mid-boss", whatever chapter the run is in.
+func _test_debug_boss_labels() -> void:
+	var run_state := RunState.new(7, &"deserter", true)
+	for n in range(1, Chapters.MAX_BUILT + 1):
+		var data := Chapters.chapter(n)
+		run_state.debug_encounter.assign([data.end_boss])
+		_check(run_state.boss_label() == "Boss", "chapter %d: a debug %s fight is labelled Boss" % [n, data.end_boss])
+		run_state.debug_encounter.assign([data.mid_boss])
+		_check(run_state.boss_label() == "Mid-boss", "chapter %d: a debug %s fight is labelled Mid-boss" % [n, data.mid_boss])
+		run_state.debug_encounter.assign([data.mid_boss, data.end_boss])
+		_check(run_state.boss_label() == "Boss", "chapter %d: an end boss with its mid-boss is still labelled Boss" % n)
+	_check(Chapters.chapter(2).end_boss != Chapters.chapter(1).end_boss and Chapters.chapter(3).mid_boss != Chapters.chapter(1).mid_boss, "the later chapters have their own bosses")
+	run_state.debug_encounter.assign([&"skittering_wisp"])
+	_check(run_state.boss_label() == "", "a debug pack has no boss label")
+	run_state.debug_encounter.clear()

@@ -78,7 +78,8 @@ static func verify_bytes(data: PackedByteArray, signature: PackedByteArray, publ
 	return "the signature does not match"
 
 ## "" when `manifest` is genuinely signed AND describes exactly this release: the file name for `tag`,
-## the same version as `tag`, and a version newer than `current_version`. Checking the signed
+## the same version as `tag`, a version newer than `current_version` and, when the signed manifest carries the
+## optional `min_version` floor, a `current_version` at or above it. Checking the signed
 ## version and name is what stops a validly signed older installer being replayed as an update.
 static func verify_manifest(manifest: PackedByteArray, signature: PackedByteArray, tag: String, current_version: String, public_key_pems: Array = PUBLIC_KEY_PEMS) -> String:
 	var why := verify_bytes(manifest, signature, public_key_pems)
@@ -93,6 +94,14 @@ static func verify_manifest(manifest: PackedByteArray, signature: PackedByteArra
 		return "the manifest is for a different version"
 	if not UpdateCheck.is_newer(fields["version"], current_version):
 		return "the manifest is not for a newer version"
+	# The optional signed floor (docs/UPDATE_SIGNING.md): the oldest running game allowed to install this release in
+	# game. An older one is refused (the notice falls back to the Download page). A floor above the release itself is a
+	# maintainer mistake that would lock every game out, so it is refused too. No field (every release so far): no floor.
+	if fields.has("min_version"):
+		if UpdateCheck.is_newer(fields["min_version"], fields["version"]):
+			return "the manifest's minimum version is above its own version"
+		if UpdateCheck.is_newer(fields["min_version"], current_version):
+			return "this version is too old to update in game; download the new version instead"
 	return ""
 
 

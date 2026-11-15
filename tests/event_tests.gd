@@ -100,7 +100,7 @@ func _custom(effect_lists: Array, character: StringName = &"deserter", map_seed 
 		choice.effects = typed
 		event.choices.append(choice)
 	var run_state := _event_run(map_seed, character)
-	run_state._event = event
+	run_state._events.open_event = event
 	return run_state
 
 
@@ -189,8 +189,11 @@ func _check_effect_bounds(event_id: StringName, effects: Array[EventEffect], nes
 
 
 func _test_loaders() -> void:
+	var errors_before := Combat.engine_errors
 	_check(StarterContent._load_event("res://data/events/nope.tres") == null, "a missing event resource returns null")
 	_check(StarterContent._load_event(StarterContent.SHOVE_PATH) == null, "a card resource is not accepted as an event")
+	_check(Combat.engine_errors == errors_before + 2, "each failed event load counts as an engine error")
+	Combat.engine_errors = errors_before
 	_check(StarterContent._load_event("res://data/events/rain_barrel.tres") != null, "a valid event resource loads")
 	_check(_event_by_id(&"cracked_bell") != null and _event_by_id(&"cracked_bell").title == "The Cracked Bell", "an event is found by id")
 	# The events are cached like the other content: the same resources come back until clear_cache().
@@ -284,7 +287,7 @@ func _test_free_exit() -> void:
 			var run_state := _event_run(2, character)
 			run_state.gold = 0
 			run_state.player.hp = 1
-			run_state._event = event
+			run_state._events.open_event = event
 			var free := 0
 			for i in run_state.event_choices().size():
 				var state := run_state.event_choice_state(i)
@@ -316,7 +319,7 @@ func _test_stop_basics() -> void:
 	_check(other.current_event() == null and other.event_choices().is_empty() and not other.resolve_event_choice(0).ok and not other.finish_event(), "off an event stop nothing works")
 	# Leaving: swap in an event with a plain leave button, then finish.
 	var barrel := _event_by_id(&"rain_barrel")
-	run_state._event = barrel
+	run_state._events.open_event = barrel
 	run_state.events_seen.assign([barrel.id])
 	event = barrel
 	var leave := -1
@@ -498,7 +501,7 @@ func _test_picks() -> void:
 	# Several picks owed in order (the Medium's answer: Remember, and a Murmur stays).
 	var letters := _event_by_id(&"unsent_letters")
 	run_state = _event_run(4, &"medium")
-	run_state._event = letters
+	run_state._events.open_event = letters
 	var answer := -1
 	for i in run_state.event_choices().size():
 		if run_state.event_choices()[i].label == "Answer the writers":
@@ -525,7 +528,7 @@ func _test_relics() -> void:
 		if relic.character == &"":
 			run_state.relics.append(relic)
 	var neutral_state := run_state.event_choice_state(0)
-	_check(bool(neutral_state["enabled"]) and run_state._event_relic_candidates(EventEffect.Pool.NEUTRAL).is_empty(), "with every neutral relic owned, a neutral relic button stays enabled")
+	_check(bool(neutral_state["enabled"]) and RunEvents.relic_candidates(run_state, EventEffect.Pool.NEUTRAL).is_empty(), "with every neutral relic owned, a neutral relic button stays enabled")
 	_check(String(neutral_state["summary"]).contains("%d gold" % RunState.EVENT_RELIC_FALLBACK_GOLD) and not String(neutral_state["summary"]).contains("relic."), "and its printed text says it pays gold now: %s" % neutral_state["summary"])
 	var owned_count := run_state.relics.size()
 	var plain_gold := run_state.gold
@@ -592,12 +595,12 @@ func _test_gambles() -> void:
 	var ring: EventChoice = well.choices[2]
 	for chance_result in [true, false]:
 		var flavoured := _event_run(6, &"stray")
-		flavoured._event = well
+		flavoured._events.open_event = well
 		var index := 1
 		var found := false
 		for trial in 200:
-			flavoured._event_resolved = false
-			flavoured._event_pending.clear()
+			flavoured._events.resolved = false
+			flavoured._events.pending.clear()
 			flavoured.player.hp = flavoured.player.max_hp
 			var before := flavoured.gold
 			var outcome := flavoured.resolve_event_choice(index)
@@ -615,8 +618,8 @@ func _test_gambles() -> void:
 		for seed_value in trials:
 			source.restore_rng_state(seed_value * 7919 + 13)
 			source.gold = 0
-			source._event_resolved = false
-			source._event_pending.clear()
+			source._events.resolved = false
+			source._events.pending.clear()
 			source.resolve_event_choice(0)
 			wins += source.gold
 		var share := float(wins) / trials
@@ -636,7 +639,7 @@ func _test_gambles() -> void:
 	var deck_cards: Array[CardData] = [StarterContent.card_by_id(&"shove"), StarterContent.card_by_id(&"slip_past")]
 	for trial in 30:
 		run_state = _event_run(7, &"deserter")
-		run_state._event = chalk
+		run_state._events.open_event = chalk
 		run_state.deck.assign(deck_cards)
 		run_state.restore_rng_state(trial * 31 + 5)
 		run_state.resolve_event_choice(0)
@@ -695,8 +698,8 @@ func _test_resume() -> void:
 		for pick in [0, 1]:
 			var a := _event_run(11, character)
 			var b := _clone(a)
-			a._event = well
-			b._event = well
+			a._events.open_event = well
+			b._events.open_event = well
 			a.gold = 90
 			b.gold = 90
 			var index: int = pick
@@ -739,7 +742,7 @@ func _test_save_after_max_hp_events() -> void:
 		for character in CHARACTERS:
 			for i in event.choices_for(character).size():
 				var sim := _event_run(3, character)
-				sim._event = event
+				sim._events.open_event = event
 				if not bool(sim.event_choice_state(i)["enabled"]):
 					continue
 				sim.resolve_event_choice(i)
@@ -756,7 +759,7 @@ func _test_save_after_max_hp_events() -> void:
 			best = i
 	var run_state := _event_run(5, &"deserter")
 	_check(run_state.stop_index >= 1, "the test event sits past row 0")
-	run_state._event = hound
+	run_state._events.open_event = hound
 	var base := run_state.player.max_hp
 	_check(best >= 0 and run_state.resolve_event_choice(best).ok, "the hound's max HP button resolves")
 	var saved := RunSave.to_dict(run_state)
@@ -955,7 +958,7 @@ func _test_every_event_every_class() -> void:
 			var buttons := event.choices_for(character).size()
 			for pick in buttons:
 				var run_state := _event_run(20 + pick, character)
-				run_state._event = event
+				run_state._events.open_event = event
 				run_state.gold = 100
 				run_state.player.hp = maxi(run_state.player.max_hp / 2, 2)
 				var state := run_state.event_choice_state(pick)

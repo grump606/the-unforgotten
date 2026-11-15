@@ -15,6 +15,7 @@ static var _events_cache: Array[EventData] = []
 static var _pool_cache: Dictionary = {}
 static var _enemy_paths_by_id: Dictionary = {}
 static var _enemy_ids_cache: Array[StringName] = []
+static var _all_enemy_paths_cache: Array[String] = []
 
 
 ## Drops every cached list so the next call rebuilds it from the resources.
@@ -26,6 +27,7 @@ static func clear_cache() -> void:
 	_pool_cache = {}
 	_enemy_paths_by_id = {}
 	_enemy_ids_cache = []
+	_all_enemy_paths_cache = []
 
 
 ## Every card that loads, in StarterContent.ALL_CARD_PATHS order. Empty (cause logged) if any fails to load.
@@ -162,7 +164,7 @@ static func load_event(path: String) -> EventData:
 	if ResourceLoader.exists(path):
 		event = load(path) as EventData
 	if event == null:
-		push_error("StarterContent: missing or non-EventData resource: %s" % path)
+		Combat.engine_error("StarterContent: missing or non-EventData resource: %s" % path)
 	return event
 
 
@@ -229,12 +231,28 @@ static func load_enemy(path: String) -> EnemyData:
 	return template.duplicate(true) as EnemyData
 
 
+## Every enemy path, regular then boss, chapter by chapter. Built once from the constant tables; an empty
+## result is never kept, so it would be rebuilt on the next call.
+static func all_enemy_paths() -> Array[String]:
+	if _all_enemy_paths_cache.is_empty():
+		var paths: Array[String] = []
+		for table: Array[String] in [
+			StarterContent.ALL_ENEMY_PATHS, StarterContent.BOSS_ENEMY_PATHS,
+			StarterContent.CHAPTER2_ENEMY_PATHS, StarterContent.CHAPTER2_BOSS_PATHS,
+			StarterContent.CHAPTER3_ENEMY_PATHS, StarterContent.CHAPTER3_BOSS_PATHS,
+		]:
+			paths.append_array(table)
+		_all_enemy_paths_cache = paths
+	return _all_enemy_paths_cache.duplicate()
+
+
 ## Every enemy, regular and boss, by EnemyData id (debug launch and tools; encounters use the path lists).
+## Also fills the id -> path index that enemy_by_id reads. An empty result (nothing loaded) is not cached.
 static func enemy_ids() -> Array[StringName]:
 	if not _enemy_ids_cache.is_empty():
 		return _enemy_ids_cache.duplicate()
 	var ids: Array[StringName] = []
-	for path in StarterContent.ALL_ENEMY_PATHS + StarterContent.BOSS_ENEMY_PATHS + StarterContent.CHAPTER2_ENEMY_PATHS + StarterContent.CHAPTER2_BOSS_PATHS + StarterContent.CHAPTER3_ENEMY_PATHS + StarterContent.CHAPTER3_BOSS_PATHS:
+	for path in all_enemy_paths():
 		var template := load(path) as EnemyData
 		if template != null:
 			ids.append(template.id)
@@ -243,15 +261,14 @@ static func enemy_ids() -> Array[StringName]:
 	return ids
 
 
-## A fresh copy of the enemy with this id (regular or boss), or null if there is none.
+## A fresh copy of the enemy with this id (regular or boss), or null if there is none. The id -> path index is
+## built once (by enemy_ids) and reused, so a lookup loads one resource, not all of them.
 static func enemy_by_id(enemy_id: StringName) -> EnemyData:
-	if _enemy_paths_by_id.has(enemy_id):
-		var known := load(_enemy_paths_by_id[enemy_id]) as EnemyData
-		if known != null and known.id == enemy_id:
-			return known.duplicate(true) as EnemyData
-	for path in StarterContent.ALL_ENEMY_PATHS + StarterContent.BOSS_ENEMY_PATHS + StarterContent.CHAPTER2_ENEMY_PATHS + StarterContent.CHAPTER2_BOSS_PATHS + StarterContent.CHAPTER3_ENEMY_PATHS + StarterContent.CHAPTER3_BOSS_PATHS:
-		var template := load(path) as EnemyData
-		if template != null and template.id == enemy_id:
-			_enemy_paths_by_id[enemy_id] = path
-			return template.duplicate(true) as EnemyData
+	if _enemy_paths_by_id.is_empty():
+		enemy_ids()
+	if not _enemy_paths_by_id.has(enemy_id):
+		return null
+	var known := load(_enemy_paths_by_id[enemy_id]) as EnemyData
+	if known != null and known.id == enemy_id:
+		return known.duplicate(true) as EnemyData
 	return null

@@ -40,8 +40,26 @@ enum State { IDLE, DOWNLOADING, READY, FAILED }
 ## Arguments for the silent installer. /RELAUNCH=1 makes installer/setup.iss start the game again
 ## when the files are in place; /SUPPRESSMSGBOXES keeps it from asking anything mid-update.
 const INSTALLER_ARGS: PackedStringArray = ["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/RELAUNCH=1"]
+## The installer's folder name before the rename; setup moves such an install itself, so no /DIR is forced for it.
+const OLD_INSTALL_FOLDER := "Card Battle Prototype"
+
+
+## INSTALLER_ARGS plus /DIR=<the running game's folder>, so the update replaces the copy that is actually running
+## (a copy moved by hand would otherwise get a second install in the registered folder and stay old itself). An
+## unknown folder, or one still named after the old name (installer/setup.iss moves it), keeps setup's own choice.
+static func installer_args(game_dir: String) -> PackedStringArray:
+	var args := INSTALLER_ARGS.duplicate()
+	if game_dir != "" and game_dir.get_file().to_lower() != OLD_INSTALL_FOLDER.to_lower():
+		args.append("/DIR=" + game_dir.replace("/", "\\"))
+	return args
+
+
 const SIGNATURE_TIMEOUT := 20.0
-const DOWNLOAD_TIMEOUT := 600.0
+## The installer download has no short total timeout (HTTPRequest.timeout bounds the WHOLE request, so a fixed
+## 600 s failed every slow connection). Instead it fails when no byte arrives for DOWNLOAD_STALL_TIMEOUT seconds
+## (see advance_stall), with a generous total ceiling as a last resort.
+const DOWNLOAD_TIMEOUT := 4.0 * 3600.0
+const DOWNLOAD_STALL_TIMEOUT := 60.0
 
 var state := State.IDLE
 ## Why the last attempt failed (when state is FAILED).
@@ -74,6 +92,9 @@ var _manifest_signature := PackedByteArray()
 var _expected_sha256 := ""
 var _installer_path := ""
 var _request: HTTPRequest
+## Stall watchdog for the installer download: the byte count last seen and how long it has not moved.
+var _stall_bytes := -1
+var _stall_time := 0.0
 var _thread: Thread
 ## The absolute run_* folder the current job is writing to ("" for a hash job).
 var _thread_dir := ""
@@ -267,7 +288,7 @@ func _launch_copy(outcome: Dictionary, copy_path: String) -> bool:
 	if outcome["why"] != "":
 		cleanup(work_dir)
 		return _fail("the update failed verification (%s)" % outcome["why"])
-	var pid: int = launch.call(ProjectSettings.globalize_path(copy_path), INSTALLER_ARGS)
+	var pid: int = launch.call(ProjectSettings.globalize_path(copy_path), installer_args(OS.get_executable_path().get_base_dir()))
 	if pid <= 0:
 		cleanup(work_dir)
 		return _fail("the installer could not be started")
@@ -407,10 +428,14 @@ func _notification(what: int) -> void:
 		_retired.clear()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_reap(false)
 	_reap_retired()
 	if state != State.DOWNLOADING or _request == null:
+		return
+	if _request.download_file != "" and advance_stall(delta, _request.get_downloaded_bytes()):
+		_request.cancel_request()
+		handle_installer(HTTPRequest.RESULT_TIMEOUT, 0)
 		return
 	var total := _request.get_body_size()
 	if total > 0 and _request.download_file != "":
@@ -420,8 +445,21 @@ func _process(_delta: float) -> void:
 			changed.emit()
 
 
+## Feeds the stall watchdog `delta` seconds and the current byte count; true once no byte has arrived for
+## DOWNLOAD_STALL_TIMEOUT seconds (the download should then be failed). Any progress resets it.
+func advance_stall(delta: float, downloaded_bytes: int) -> bool:
+	if downloaded_bytes != _stall_bytes:
+		_stall_bytes = downloaded_bytes
+		_stall_time = 0.0
+		return false
+	_stall_time += delta
+	return _stall_time >= DOWNLOAD_STALL_TIMEOUT
+
+
 func _begin_request(url: String, file: String, size_limit: int, timeout: float, done: Callable) -> bool:
 	_drop_request()
+	_stall_bytes = -1
+	_stall_time = 0.0
 	if dry_run:
 		requested.append(url)
 		return true
