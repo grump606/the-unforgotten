@@ -37,6 +37,6 @@ effects = Array[ExtResource("2_effect")]([SubResource("Resource_p1")])
 target_mode = 2
 character = &"thief"
 oath = true
-oath_effects = Array[ExtResource("2_effect")]([SubResource("Resource_o1"), SubResource("Resource_o2")])
+oath_effects = Array[ExtResource("2_effect")]([SubResource("Resource_o2"), SubResource("Resource_o1")])
 rarity = 1
 remembered = SubResource("Rem_block")

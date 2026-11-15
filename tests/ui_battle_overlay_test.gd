@@ -224,9 +224,9 @@ func _check_add_cue(node: Control) -> void:
 	await process_frame
 
 
-## The real Glimpse the Exit (Glimpse 3, then Draw 1; Draw 2 when Remembered) on screen: the draw happens when the card
-## is played, before the pick, and the drawn card is in the hand and on screen behind the overlay. The played card leaves
-## the hand, so the base card keeps the hand the same size and the Remembered one grows it by one.
+## The real Glimpse the Exit (Glimpse 3, then Draw 1; Draw 2 when Remembered) on screen: nothing is drawn until the pick
+## is made, then the draw takes the leftmost kept cards. The base card discards the leftmost card shown, so it draws the
+## second; the Remembered one keeps all three and draws the first two. The played card leaves the hand.
 func _check_glimpse_exit(node: Control) -> void:
 	var base := _card("glimpse_exit")
 	for variant in [base, base.remembered_card()]:
@@ -240,17 +240,20 @@ func _check_glimpse_exit(node: Control) -> void:
 		check(CardView.find_all(node._hand_box).size() == 2, "%s: two cards in the hand before playing" % label)
 		node._hand.play_card(0)
 		check(c.phase == Combat.Phase.CHOOSING and node.choice_overlay_visible(), "%s: playing it opens the Glimpse pick" % label)
-		check(c.piles.hand.size() == 1 + draws, "%s: it drew %d card(s) before the pick (hand %d)" % [label, draws, c.piles.hand.size()])
-		check(_ids(c.piles.hand).slice(1) == _ids([_card("shove"), _card("brace")]).slice(0, draws), "%s: the drawn cards are the top of the draw pile" % label)
-		check(CardView.find_all(node._hand_box).size() == 1 + draws, "%s: the hand on screen shows the drawn card(s) behind the overlay" % label)
+		check(c.piles.hand.size() == 1 and CardView.find_all(node._hand_box).size() == 1, "%s: nothing is drawn before the pick (hand %d)" % [label, c.piles.hand.size()])
 		var overlay: ChoiceOverlay = node._overlays.choice
-		var left := _ids(draw_order.slice(0, 5 - draws)) # what the draw pile holds after the draw, top last
-		var expected_top: Array = left.slice(-3)
-		expected_top.reverse() # the pick lists the top card first
-		check(_ids(overlay.cards) == expected_top, "%s: the pick shows the next 3 cards, after the draw" % label)
+		check(_ids(overlay.cards) == _ids([_card("shove"), _card("brace"), _card("bash")]), "%s: the pick shows the top 3 cards, next card first" % label)
+		var expected_drawn: Array
+		if variant == base:
+			overlay.toggle(0) # discard shove: brace is now the leftmost kept card
+			expected_drawn = _ids([_card("brace")])
+		else:
+			expected_drawn = _ids([_card("shove"), _card("brace")])
 		overlay.confirm_button.pressed.emit()
-		check(c.phase == Combat.Phase.PLAYER_TURN and CardView.find_all(node._hand_box).size() == 1 + draws, "%s: after Keep all the drawn card(s) are still in the hand on screen" % label)
-		check(c.piles.discard_pile.size() == 1 and c.piles.discard_pile[0].id == &"glimpse_exit", "%s: the played card is in the discard pile" % label)
+		check(c.phase == Combat.Phase.PLAYER_TURN, "%s: the pick closes" % label)
+		check(_ids(c.piles.hand).slice(1) == expected_drawn, "%s: the draw takes the leftmost kept card(s) (got %s)" % [label, str(_ids(c.piles.hand).slice(1))])
+		check(CardView.find_all(node._hand_box).size() == 1 + draws, "%s: the drawn card(s) show in the hand on screen" % label)
+		check(c.piles.discard_pile.any(func(card: CardData) -> bool: return card.id == &"glimpse_exit"), "%s: the played card is in the discard pile" % label)
 	await process_frame
 
 

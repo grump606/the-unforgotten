@@ -151,14 +151,14 @@ func _test_flurry_is_two_hits() -> void:
 	_check(blocked.enemies[0].block == 0 and blocked.enemies[0].hp == 100 - 1, "two hits of 2 against 3 Block: the first leaves 1 Block, the second loses 1 Block and deals 1")
 
 
-## The choice opens only after the whole card has resolved, so Draw 1 happens first and Glimpse then
-## looks at what is now on top of the draw pile.
+## Glimpse first, then the draw: Draw 1 waits for the Glimpse pick and takes the leftmost card kept (the
+## overlay shows the top of the draw pile left to right, next card first).
 func _test_glimpse_exit_order() -> void:
 	var glimpse_exit := load("res://data/cards/glimpse_exit.tres") as CardData
 	_check(glimpse_exit.cost == 0 and glimpse_exit.effects.size() == 2, "Glimpse the Exit costs 0 and has two effects")
 	_check(glimpse_exit.effects[0].kind == CardEffect.Kind.GLIMPSE and glimpse_exit.effects[0].amount == 3, "its first effect is Glimpse 3")
 	_check(glimpse_exit.effects[1].kind == CardEffect.Kind.DRAW and glimpse_exit.effects[1].amount == 1, "its second effect is Draw 1")
-	# The top of the draw pile is the END of the array, so Draw 1 takes d and the Glimpse sees c, b, a.
+	# The top of the draw pile is the END of the array: the Glimpse sees d, c, b (a stays under them).
 	var a := _blank("a")
 	var b := _blank("b")
 	var c := _blank("c")
@@ -166,11 +166,32 @@ func _test_glimpse_exit_order() -> void:
 	var combat := _fight([glimpse_exit] as Array[CardData])
 	combat.piles.draw_pile.append_array([a, b, c, d])
 	_check(combat.play_card(combat.piles.hand.find(glimpse_exit)), "Glimpse the Exit plays")
-	_check(combat.piles.hand.has(d) and combat.piles.hand.size() == 1, "Draw 1 resolved first: the top card is in hand")
-	_check(combat.phase == Combat.Phase.CHOOSING and combat.choice_kind() == CardEffect.Kind.GLIMPSE, "then a Glimpse choice opens")
+	_check(combat.piles.hand.is_empty(), "nothing is drawn before the Glimpse pick")
+	_check(combat.phase == Combat.Phase.CHOOSING and combat.choice_kind() == CardEffect.Kind.GLIMPSE, "a Glimpse choice opens")
 	var seen: Array = []
 	for card in combat.choice_cards():
 		seen.append(String(card.id))
-	_check(seen == ["c", "b", "a"], "the Glimpse looks at the three cards left under the drawn one (got %s)" % str(seen))
+	_check(seen == ["d", "c", "b"], "the Glimpse shows the top three, next card first (got %s)" % str(seen))
+	# Discard the leftmost (d): c is now the leftmost kept card, so Draw 1 takes c and b stays on top.
 	_check(combat.resolve_choice([0] as Array[int]), "pick one to discard")
-	_check(combat.piles.discard_pile.has(c) and combat.piles.draw_pile.size() == 2 and combat.phase == Combat.Phase.PLAYER_TURN, "the pick is discarded and play resumes")
+	_check(combat.piles.discard_pile.has(d), "the pick is discarded")
+	_check(_ids(combat.piles.hand) == ["c"], "then Draw 1 takes the leftmost kept card (got %s)" % str(_ids(combat.piles.hand)))
+	_check(_ids(combat.piles.draw_pile) == ["a", "b"] and combat.phase == Combat.Phase.PLAYER_TURN, "the other kept card stays on top and play resumes")
+	# Keeping all three: the draw takes the leftmost (the old top card).
+	var keep := _fight([glimpse_exit] as Array[CardData])
+	keep.piles.draw_pile.append_array([a, b, c, d])
+	keep.play_card(keep.piles.hand.find(glimpse_exit))
+	_check(keep.resolve_choice([] as Array[int]) and _ids(keep.piles.hand) == ["d"], "keep all: Draw 1 takes the leftmost card")
+	_check(_ids(keep.piles.draw_pile) == ["a", "b", "c"], "the kept cards stay on top in the order shown")
+	# A Draw BEFORE a Glimpse on the same card still draws at once (only a Draw after a pick waits).
+	var draw := CardEffect.new()
+	draw.kind = CardEffect.Kind.DRAW
+	draw.amount = 1
+	var look := CardEffect.new()
+	look.kind = CardEffect.Kind.GLIMPSE
+	look.amount = 2
+	var draw_first := CardData.make(&"draw_first", "Draw First", 0, [draw, look] as Array[CardEffect], CardData.TargetMode.SELF)
+	var early := _fight([draw_first] as Array[CardData])
+	early.piles.draw_pile.append_array([a, b, c, d])
+	early.play_card(early.piles.hand.find(draw_first))
+	_check(_ids(early.piles.hand) == ["d"] and early.has_choice(), "Draw then Glimpse: the draw happens first, then the pick opens")

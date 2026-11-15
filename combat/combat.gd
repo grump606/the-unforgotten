@@ -79,11 +79,12 @@ class Choice extends RefCounted:
 	var required := 0
 	var max_picks := 0
 
-## A pick step queued by the card being played, not yet opened (it becomes a Choice when it opens).
+## A pick step queued by the card being played, not yet opened (it becomes a Choice when it opens), or a
+## Draw that came after one and waits for it (DRAW: it draws when its turn in the queue comes).
 class PendingChoice extends RefCounted:
-	## CardEffect.Kind.GLIMPSE or CardEffect.Kind.RECALL.
+	## CardEffect.Kind.GLIMPSE, CardEffect.Kind.RECALL or CardEffect.Kind.DRAW.
 	var kind: CardEffect.Kind = CardEffect.Kind.GLIMPSE
-	## The effect's amount: cards to look at (GLIMPSE) or to pick (RECALL).
+	## The effect's amount: cards to look at (GLIMPSE), to pick (RECALL) or to draw (DRAW).
 	var amount := 0
 
 	func _init(p_kind: CardEffect.Kind, p_amount: int) -> void:
@@ -316,6 +317,10 @@ func _clear_choices() -> void:
 func _open_next_choice() -> void:
 	while not _choice_queue.is_empty():
 		var entry: PendingChoice = _choice_queue.pop_front()
+		if entry.kind == CardEffect.Kind.DRAW:
+			# A Draw queued behind a Glimpse / Recall of the same card: it draws now, from the pile the pick left.
+			piles.draw(entry.amount, HAND_MAX)
+			continue
 		var choice := Choice.new()
 		choice.kind = entry.kind
 		var n := entry.amount
@@ -744,9 +749,13 @@ func _apply_status_effect(effect: CardEffect, source: Combatant, target: Combata
 func _apply_pile_effect(effect: CardEffect, source: Combatant, amount: int) -> void:
 	match effect.kind:
 		CardEffect.Kind.DRAW:
-			# Only the player has a hand.
+			# Only the player has a hand. After a Glimpse / Recall of the same card it waits for that pick, so it
+			# draws the cards the player kept on top (Glimpse 3, Draw 1 draws the leftmost kept card).
 			if source == player:
-				piles.draw(amount, HAND_MAX)
+				if _choice_queue.is_empty():
+					piles.draw(amount, HAND_MAX)
+				else:
+					_choice_queue.append(PendingChoice.new(effect.kind, amount))
 		CardEffect.Kind.GLIMPSE, CardEffect.Kind.RECALL:
 			# Only the player has piles to pick from; the pick opens after the card resolves.
 			if source == player and amount > 0:

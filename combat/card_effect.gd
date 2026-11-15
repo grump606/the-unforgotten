@@ -23,7 +23,8 @@ extends Resource
 ## lasting the fight (or this turn only with `temporary`). A positive amount buffs the user; a negative
 ## amount debuffs the targets (an enemy intent: positive buffs the enemy, negative debuffs the player).
 ## GLIMPSE: look at the top `amount` cards of the draw pile and discard any of them (a choice that opens
-## after the whole card has resolved; it never reshuffles the discard pile).
+## after the whole card has resolved; it never reshuffles the discard pile). The cards kept stay on top in the
+## order shown, leftmost first. A DRAW after a GLIMPSE or RECALL on the same card waits for the pick.
 ## ADD_CARD: add `amount` copies of `card` to the player's `pile`. On a card that is the player's own
 ## piles; as an enemy intent it still lands in the player's piles (intents conventionally use Pile.DRAW).
 ## Created cards last for the fight only.

@@ -42,7 +42,7 @@ const EFFECT_TEXT := {
 	CardEffect.Kind.FRAYED: ["Frayed", "Gains " + REDUCED_PERCENT + " less Block for N turns."],
 	CardEffect.Kind.MALICE: ["Malice", "Flat bonus to each hit you deal. Stacks; lasts the fight."],
 	CardEffect.Kind.WARD: ["Ward", "Flat bonus to Block from cards. Stacks; lasts the fight."],
-	CardEffect.Kind.GLIMPSE: ["Glimpse", "Look at the top N cards of your draw pile; discard any."],
+	CardEffect.Kind.GLIMPSE: ["Glimpse", "Look at the top N cards of your draw pile; discard any. The rest stay on top, leftmost first, and a later Draw on the card takes them."],
 	CardEffect.Kind.ADD_CARD: ["Add", "Puts copies of a card into the pile named."],
 	CardEffect.Kind.CROSS_OUT: ["Cross out", "Sends N cards from your hand to the Forgotten pile (the dearest first; Anchored cards stay). Recall can bring them back."],
 	CardEffect.Kind.FILE: ["File", "Sends N cards from your hand to the bottom of your draw pile (the dearest first; Anchored cards stay)."],

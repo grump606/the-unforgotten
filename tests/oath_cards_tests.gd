@@ -45,7 +45,7 @@ func _test_text() -> void:
 			var card := _load(id)
 			_check(card.keyword_lines() == PackedStringArray(["Oath"]), "%s shows the Oath keyword" % id)
 			_check(card.describe().contains(card.oath_trigger_text() + ":"), "%s text names its trigger: %s" % [id, card.describe()])
-	_check(_load(&"light_step").describe() == "Lose 2 HP. At turn start: Draw 1, Glimpse 2", "Light Step text: %s" % _load(&"light_step").describe())
+	_check(_load(&"light_step").describe() == "Lose 2 HP. At turn start: Glimpse 2, Draw 1", "Light Step text: %s" % _load(&"light_step").describe())
 	_check(_load(&"open_grave").describe() == "Lose 2 HP. When a card is Forgotten: Deal 4", "Open Grave text: %s" % _load(&"open_grave").describe())
 
 
