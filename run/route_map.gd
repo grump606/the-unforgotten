@@ -419,7 +419,7 @@ var chapter: int = 1
 ## The EliteModifiers.Kind of elite node `id`, or -1 for any other node.
 func elite_modifier(id: int) -> int:
 	var n := node(id)
-	if n == null or n.type != NodeType.ELITE or EliteModifiers.forced == EliteModifiers.FORCE_NONE:
+	if n == null or n.type != NodeType.ELITE or TestHooks.elite_modifier == EliteModifiers.FORCE_NONE:
 		return -1
 	return EliteModifiers.for_node(seed_value, id)
 

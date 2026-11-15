@@ -29,20 +29,19 @@ const STUB_CURVES := {
 
 ## The chapters the finished game will have (docs/CHAPTERS_PLAN.md). COUNT is how many exist now.
 const PLANNED := 3
-## 0 means COUNT. Tests and the debug stub set it to reach a chapter that has no content yet.
-static var count_override := 0
 static var _cache: Dictionary = {}
 
 
-## How many chapters a run has.
+## How many chapters a run has: COUNT, unless TestHooks.chapter_count is set (tests and the debug stub use it to reach a
+## chapter that has no content yet).
 static func count() -> int:
-	return count_override if count_override > 0 else COUNT
+	return TestHooks.chapter_count if TestHooks.chapter_count > 0 else COUNT
 
 
 ## True in the shipped game while chapters are still to come: beating the last built chapter's end boss then ends the run with
-## "To be continued" and not with an escape. Tests and the sims set `count_override`, which turns this off (a run then ends as it did).
+## "To be continued" and not with an escape. Tests and the sims set `TestHooks.chapter_count`, which turns this off (a run then ends as it did).
 static func open_ended() -> bool:
-	return count_override == 0 and COUNT < PLANNED
+	return TestHooks.chapter_count == 0 and COUNT < PLANNED
 
 
 ## True when the run has every planned chapter: the last one's end boss is then followed by the finale (a single boss fight, no map).
@@ -60,7 +59,7 @@ static func chapter(number: int = 1) -> ChapterData:
 
 ## Chapter 1 is the shipped content. Chapter 2 has its own enemies and bosses (data only, no art yet) and Chapter 3 is still a STUB
 ## (docs/CHAPTER2_PLAN.md): it reuses Chapter 1's enemies, bosses and names, with its own difficulty curve, so the whole path can be built and sim-tested
-## before any new enemy or art exists. They are reachable only through count_override (a development build or a test).
+## before any new enemy or art exists. They are reachable only through TestHooks.chapter_count (a development build or a test).
 static func _build(n: int) -> ChapterData:
 	var c := ChapterData.new()
 	c.number = n

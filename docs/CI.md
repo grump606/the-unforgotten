@@ -21,7 +21,11 @@ The workflow's steps, in order:
 `scripts/check.ps1` runs these steps, in order, and stops at the first failure:
 
 1. `import`, `tests` (`tests/run_tests.gd`: every `tests/*_tests.gd`), `smoke`, `battle seed`, `audio runtime`.
-2. One step per `tests/ui_*_test.gd` file (a floor on how many there must be), then `reskin restoration`.
+2. One step per `tests/ui_*_test.gd` file (a floor on how many there must be), then `reskin restoration`, then
+   `card snapshot` (`tests/card_snapshot_test.gd`: card pixels against `tests/golden/cards/*.png`, with a small
+   tolerance for GPU differences). It needs a renderer, so it runs windowed on a desktop and is skipped in CI (the
+   runners have no OpenGL) with a NOTE; run `check.ps1` locally before a release. After an intended change to how
+   cards look, rewrite the goldens with `godot --path . -s res://tests/card_snapshot_test.gd -- --update` and review them.
 3. `check log patterns` (`scripts/check_log_patterns_test.ps1`: the log rules against sample logs).
 4. `inno setup choice` (`scripts/inno_setup_test.ps1`).
 5. `engine version` (`scripts/engine_version_test.ps1`: the version file).

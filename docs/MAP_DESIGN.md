@@ -1071,7 +1071,7 @@ An elite node (`NodeType.ELITE`) plays as its own kind of fight. Phase 5a built 
 them on. The presentation (names, larger figures, the log line, the spoils screen, the debug launch) came from a parallel version of this
 work that had been left uncommitted in the old `map-5-elites` checkout, and was brought over on 2026-11-10.
 
-- **Stop:** `Stop.elite` is set by `RunState._stop_for_node` (an elite is a COMBAT stop of at least `ELITE_MIN_ENEMIES` = 2 enemies; its
+- **Stop:** `Stop.elite` is set by `RunRoute.stop_for_node` (an elite is a COMBAT stop of at least `ELITE_MIN_ENEMIES` = 2 enemies; its
   description reads "Elite (N enemies)"). `RunState.in_elite_stop()` says whether the run is at one. Nothing is stored in a save: a resumed run
   rebuilds the stop from its node, as for every other map stop.
 - **Pack:** `start_combat` builds it with `budget_encounter(count, rng, row, class difficulty * ELITE_BUDGET_MULTIPLIER, true)`,

@@ -121,13 +121,12 @@ static func all_events() -> Array[EventData]:
 	return _events_cache.duplicate()
 
 
-## Test hook: when non-empty, replaces StarterContent.CHAPTER_EVENT_PATHS (chapter -> Array[String]).
-static var chapter_event_paths_override := {}
 static var _chapter_events_cache := {}
 
 
+## StarterContent.CHAPTER_EVENT_PATHS, or the test hook TestHooks.chapter_event_paths when that is set.
 static func _chapter_event_paths() -> Dictionary:
-	return chapter_event_paths_override if not chapter_event_paths_override.is_empty() else StarterContent.CHAPTER_EVENT_PATHS
+	return TestHooks.chapter_event_paths if not TestHooks.chapter_event_paths.is_empty() else StarterContent.CHAPTER_EVENT_PATHS
 
 
 ## The events of chapter `chapter`'s "?" stops: its own list when StarterContent.CHAPTER_EVENT_PATHS has one for it, else all_events().

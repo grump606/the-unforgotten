@@ -32,7 +32,7 @@ Neutral is the only light card, so class cards read as "darker, coloured, framed
 | BLOCK | shield | LOSE_HP | blood drop |
 
 
-### Damage variants (`CardView.icon_variant(card)`)
+### Damage variants (`CardIcons.icon_variant(card)`)
 
 Plain DAMAGE (as primary icon) picks a weapon from the card's own data, first match wins. All stay red/orange except the bone. The secondary glyph for DAMAGE is always the sword.
 

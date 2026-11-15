@@ -394,13 +394,11 @@ static func _pack_info(count: int, fit: Fit, target: float, threat: float, attem
 	return info
 
 
-## Test hook: when valid, loads the pack builder's enemies instead of ContentRegistry.load_enemy (so a load failure can be provoked).
-static var _budget_enemy_loader := Callable()
-
-
+## The pack builder's enemy at `path`: ContentRegistry.load_enemy, or the test hook TestHooks.budget_enemy_loader when that
+## is set (so a load failure can be provoked).
 static func _budget_enemy(path: String) -> EnemyData:
-	if _budget_enemy_loader.is_valid():
-		return _budget_enemy_loader.call(path) as EnemyData
+	if TestHooks.budget_enemy_loader.is_valid():
+		return TestHooks.budget_enemy_loader.call(path) as EnemyData
 	return ContentRegistry.load_enemy(path)
 
 

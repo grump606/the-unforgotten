@@ -60,7 +60,7 @@ func _ready() -> void:
 	get_window().title = "The Unforgotten"
 	# Development builds only: THE_UNFORGOTTEN_CHAPTERS=2 plays a second chapter (the same content as the first for now).
 	if OS.is_debug_build() and OS.get_environment("THE_UNFORGOTTEN_CHAPTERS").is_valid_int():
-		Chapters.count_override = clampi(OS.get_environment("THE_UNFORGOTTEN_CHAPTERS").to_int(), 1, 3)
+		TestHooks.chapter_count = clampi(OS.get_environment("THE_UNFORGOTTEN_CHAPTERS").to_int(), 1, 3)
 	set_process(false) # only while queued art is waiting to decode (see _warm_next_stop)
 	MenuStyle.apply(self)
 	Motion.load_from(settings_path)

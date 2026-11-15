@@ -26,15 +26,15 @@ const ENRAGE_TITLE := "Enraged"
 const MARKED_SHAKEN_TURNS := 1
 
 
-## Measuring hook (tools/run_sim.gd --elite-modifier): FORCE_NONE turns modifiers off, a Kind value makes every elite use it, -1 is normal.
+## The measuring hook TestHooks.elite_modifier (tools/run_sim.gd --elite-modifier): FORCE_NONE turns modifiers off, a Kind
+## value makes every elite use it, -1 is normal.
 const FORCE_NONE := -2
-static var forced := -1
 
 
 ## The modifier of elite node `node_id` on a map with `map_seed`.
 static func for_node(map_seed: int, node_id: int) -> Kind:
-	if forced >= 0:
-		return forced as Kind
+	if TestHooks.elite_modifier >= 0:
+		return TestHooks.elite_modifier as Kind
 	return (absi(hash([map_seed, node_id, "elite"])) % 3) as Kind
 
 

@@ -48,12 +48,12 @@ func _check_keywords(node: Control) -> void:
 	_mouse_button(views[0], false, origin)
 	node._hand.play_card(0)
 	check(c.piles.hand.size() == hand_n and c.energy == 3, "clicking a Dormant card plays nothing")
-	check(node._damage.for_target(_proto("dormant_burden"), c.enemies[0]).is_empty(), "a Dormant card has no target preview")
+	check(node._damage.for_target(_proto("dormant_burden"), c.enemies[0]) == null, "a Dormant card has no target preview")
 
 	# Multi-hit preview: 3 x2 against 4 Block, then also Exposed (3 -> 4 per hit, rounded down).
 	var dbl := _proto("double_strike")
 	c.enemies[0].gain_block(4)
-	var info: Dictionary = node._damage.for_target(dbl, c.enemies[0])
+	var info: BattleDamagePreview.TargetPreview = node._damage.for_target(dbl, c.enemies[0])
 	check(info.dealt == 6 and info.lost == 2, "3 x2 against 4 Block deals 6 and loses 2 HP (%s)" % str(info))
 	check(info.text.contains("Deals 6 (3 x2)") and info.text.contains("2 after Block"), "multi-hit text: " + info.text.replace("
 ", " | "))
@@ -281,7 +281,7 @@ func _check_statuses(node: Control) -> void:
 			enemy.gain_block(setup[3])
 			c.piles.hand.assign([card])
 			node._refresh()
-			var info: Dictionary = node._damage.for_target(card, enemy)
+			var info: BattleDamagePreview.TargetPreview = node._damage.for_target(card, enemy)
 			var views := CardView.find_all(node._hand_box)
 			var face: String = views[0].preview
 			# Drag it over the enemy: the figure's drop label is the same preview.
@@ -292,7 +292,7 @@ func _check_statuses(node: Control) -> void:
 			var before := enemy.hp
 			check(c.play_card(0, 0), "%s: played" % label)
 			var lost := before - enemy.hp
-			check(info.get("lost", -1) == lost, "%s: the preview says %s, the hit lost %d" % [label, str(info), lost])
+			check(info != null and info.lost == lost,"%s: the preview says %s, the hit lost %d" % [label, str(info), lost])
 			check(face.strip_edges() == info.text.strip_edges() and drop_text == info.text.strip_edges(), "%s: the card face and the drag label show the same preview (%s | %s)" % [label, face.replace("\n", " "), drop_text])
 	# The all-enemies line also uses the player's Malice.
 	c.player.clear_statuses()
@@ -398,10 +398,10 @@ func _check_forgotten_damage(node: Control) -> void:
 	c.piles.forgotten.assign(many)
 	var all_effects: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.DAMAGE_PER_FORGOTTEN, 2)]
 	var sweep_all := CardData.make(&"sweep_forgotten", "Sweep", 1, all_effects, CardData.TargetMode.ALL_ENEMIES)
-	check(node._damage.for_target(strike, c.enemies[0]).get("dealt", -1) == 8, "the drag preview of Pile Strike with 4 Forgotten is 8")
+	check(node._damage.for_target(strike, c.enemies[0]).dealt == 8, "the drag preview of Pile Strike with 4 Forgotten is 8")
 	check(node._damage.line_for(sweep_all, node._target_index).contains("Deals 8 (x%d enemies)" % c.living_enemies().size()), "the all-enemies preview uses the Forgotten count: " + node._damage.line_for(sweep_all, node._target_index))
 	c.piles.forgotten.append(_card("brace"))
-	check(node._damage.for_target(strike, c.enemies[0]).get("dealt", -1) == 10, "the preview grows when the Forgotten pile does")
+	check(node._damage.for_target(strike, c.enemies[0]).dealt == 10, "the preview grows when the Forgotten pile does")
 
 
 func _initialize() -> void:

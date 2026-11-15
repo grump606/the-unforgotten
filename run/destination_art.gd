@@ -1,7 +1,7 @@
 class_name DestinationArt
 extends RefCounted
 ## Presentation lookups by stop index. The data (destination name, battle backdrop) lives on each Stop of the
-## line (RunState._default_line), so reordering the route moves the art with it; these are thin lookups for
+## line (RunRoute.default_line), so reordering the route moves the art with it; these are thin lookups for
 ## callers that only have an index. Stop objects, save signatures and RNG are unchanged.
 
 ## The place of a map fight whose backdrop has no name of its own (the character's and the neutral one).
@@ -12,7 +12,7 @@ static var _line: Array[RunState.Stop] = []
 
 static func _stop(index: int) -> RunState.Stop:
 	if _line.is_empty():
-		_line = RunState._default_line()
+		_line = RunRoute.default_line()
 	return _line[index] if index >= 0 and index < _line.size() else null
 
 
@@ -37,7 +37,7 @@ static func label_for_stop(stop: RunState.Stop) -> String:
 		RunState.StopType.STORY:
 			# Named like the same story beat on the line, wherever that beat sits in it.
 			if _line.is_empty():
-				_line = RunState._default_line()
+				_line = RunRoute.default_line()
 			for line_stop in _line:
 				if line_stop.type == RunState.StopType.STORY and line_stop.beat_index == stop.beat_index:
 					return line_stop.label

@@ -251,11 +251,34 @@ static func block_split(block_now: int, hp_now: int, amount: int) -> Vector2i:
 	return Vector2i(absorbed, mini(amount - absorbed, hp_now))
 
 
-## What `hits` hits of raw damage `raw` from `attacker` would do to `defender`, without changing anything:
-## {damage (after Malice/Shaken/Scent/Expose, summed), absorbed (by Block, across the hits), through (damage
-## minus absorbed, not capped by HP), lost (HP really lost, capped), block_left}. `block_now` overrides the
-## defender's Block when >= 0.
-static func hits_outcome(attacker: Combatant, defender: Combatant, raw: int, hits: int, block_now: int = -1) -> Dictionary:
+## What some hits would do to a defender (hits_outcome, Combat.preview_hit): nothing is changed.
+class HitsOutcome:
+	extends RefCounted
+	## Damage after Malice/Shaken/Scent/Expose, summed over the hits.
+	var damage := 0
+	## What Block absorbed, across the hits.
+	var absorbed := 0
+	## damage minus absorbed, not capped by HP.
+	var through := 0
+	## HP really lost (capped at the HP left).
+	var lost := 0
+	## The defender's Block afterwards.
+	var block_left := 0
+
+	func _init(damage_: int, absorbed_: int, through_: int, lost_: int, block_left_: int) -> void:
+		damage = damage_
+		absorbed = absorbed_
+		through = through_
+		lost = lost_
+		block_left = block_left_
+
+	func _to_string() -> String:
+		return str({"damage": damage, "absorbed": absorbed, "through": through, "lost": lost, "block_left": block_left})
+
+
+## What `hits` hits of raw damage `raw` from `attacker` would do to `defender`, without changing anything
+## (see HitsOutcome). `block_now` overrides the defender's Block when >= 0.
+static func hits_outcome(attacker: Combatant, defender: Combatant, raw: int, hits: int, block_now: int = -1) -> HitsOutcome:
 	var block_left := defender.block if block_now < 0 else block_now
 	var hp_left := defender.hp
 	var damage := 0
@@ -271,7 +294,7 @@ static func hits_outcome(attacker: Combatant, defender: Combatant, raw: int, hit
 		absorbed += split.x
 		through += dealt - split.x
 		lost += split.y
-	return {"damage": damage, "absorbed": absorbed, "through": through, "lost": lost, "block_left": block_left}
+	return HitsOutcome.new(damage, absorbed, through, lost, block_left)
 
 
 ## Loses HP directly: Block and Expose do not apply. Returns the HP actually lost.

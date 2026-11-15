@@ -50,6 +50,8 @@ per-class card suites are balance pins too and change only when a card is rebala
 `tests/golden/` holds `update_manifest.txt`, its signature `update_manifest.txt.sig` and `signing_test_key.pub.txt`,
 made with a throwaway key through the real PowerShell signer. How is in the header of
 `tests/signing_compat_tests.gd`. Never commit a private key; only the public key and signature belong here.
+`tests/golden/cards/` holds the card pictures `tests/card_snapshot_test.gd` compares against (see `docs/CI.md`, the
+`card snapshot` step); rewrite them with `-- --update` only after an intended change to how cards look.
 `tests/update_support.gd` has the shared signing helpers for the update tests.
 
 ## Scratch files

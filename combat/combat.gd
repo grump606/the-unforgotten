@@ -777,12 +777,12 @@ func hit_amount(effect: CardEffect, source: Combatant, target: Combatant, plays_
 
 
 ## What `hits` hits (default: the effect's own `hits`; a Surge card's per_energy scaling is the caller's to
-## pass) of damage `effect` would do to `target`, without changing anything: {damage, absorbed, through,
-## lost, block_left}. `damage` is the total after Malice/Shaken/Expose, `absorbed` what Block took,
-## `through` the rest (not capped by HP), `lost` the HP the target would really lose (capped), and
-## `block_left` its Block afterwards. `block` overrides the target's current Block (pass the previous
-## effect's block_left to chain several effects of one card); -1 uses the target's own.
-func preview_hit(effect: CardEffect, source: Combatant, target: Combatant, plays_including_this: int, hits: int = -1, block: int = -1) -> Dictionary:
+## pass) of damage `effect` would do to `target`, without changing anything (a Combatant.HitsOutcome).
+## `damage` is the total after Malice/Shaken/Expose, `absorbed` what Block took, `through` the rest (not
+## capped by HP), `lost` the HP the target would really lose (capped), and `block_left` its Block
+## afterwards. `block` overrides the target's current Block (pass the previous effect's block_left to chain
+## several effects of one card); -1 uses the target's own.
+func preview_hit(effect: CardEffect, source: Combatant, target: Combatant, plays_including_this: int, hits: int = -1, block: int = -1) -> Combatant.HitsOutcome:
 	var raw := effect.raw_damage(damage_context(source, target, plays_including_this))
 	return Combatant.hits_outcome(source, target, raw, maxi(effect.hits, 1) if hits < 0 else hits, block)
 

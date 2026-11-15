@@ -16,13 +16,13 @@ func _run_at_end_boss(seed_value: int = 7) -> RunState:
 
 func run() -> int:
 	_failures = 0
-	Chapters.count_override = 2
+	TestHooks.chapter_count =2
 	_test_break_and_next_chapter()
 	_test_break_refused()
 	_test_boss_reward()
 	_test_save_versions()
 	_test_save_validation()
-	Chapters.count_override = 1
+	TestHooks.chapter_count =1
 	_test_single_chapter_game()
 	_test_open_ended_game()
 	_test_finale()
@@ -70,11 +70,11 @@ func _test_boss_reward() -> void:
 	_check(not run.take_boss_spoils(), "the spoils are taken once")
 	_check(run.start_next_chapter() and run.chapter == 2, "and the next chapter starts")
 	# The last chapter's boss still ends the run as before.
-	Chapters.count_override = 1
+	TestHooks.chapter_count =1
 	var last := _run_at_end_boss()
 	last.restore_map(last.route, last.current_node, last.visited, true)
 	_check(last.complete_combat(true) and last.finished and last.escaped and not last.boss_spoils_pending(), "the last chapter's boss ends the run as before")
-	Chapters.count_override = 2
+	TestHooks.chapter_count =2
 	# With every relic owned the spoils pay gold instead.
 	var rich := _run_at_end_boss()
 	rich.restore_map(rich.route, rich.current_node, rich.visited, true)
@@ -93,10 +93,10 @@ func _test_break_refused() -> void:
 	_check(not run.can_enter_chapter_break() and not run.enter_chapter_break(), "no break at the start of a run")
 	var line := RunState.new(7, &"deserter")
 	_check(not line.enter_chapter_break() and not line.start_next_chapter(), "line runs have no chapters")
-	Chapters.count_override = 1
+	TestHooks.chapter_count =1
 	var last := _run_at_end_boss()
 	_check(not last.can_enter_chapter_break(), "the last chapter's boss ends the run instead of opening a break")
-	Chapters.count_override = 2
+	TestHooks.chapter_count =2
 
 
 func _test_save_versions() -> void:
@@ -154,7 +154,7 @@ func _test_single_chapter_game() -> void:
 
 ## The shipped game (no count override) while chapter 3 is still to be written: chapter 1 ends in a break, chapter 2 ends in "To be continued".
 func _test_open_ended_game() -> void:
-	Chapters.count_override = 0
+	TestHooks.chapter_count =0
 	_check(Chapters.count() == Chapters.COUNT and Chapters.open_ended(), "the shipped game is open ended")
 	var first := _run_at_end_boss()
 	first.restore_map(first.route, first.current_node, first.visited, true)
@@ -169,9 +169,9 @@ func _test_open_ended_game() -> void:
 	_check(second.gold == gold + RunState.END_BOSS_GOLD, "the gold is paid")
 	_check(second.take_boss_spoils() and second.finished and not second.escaped and second.to_be_continued and not second.chapter_break, "then the journey ends with To be continued, not an escape")
 	_check(second.relics.size() == relics + 1, "after the relic is taken")
-	Chapters.count_override = 3
+	TestHooks.chapter_count =3
 	_check(not Chapters.open_ended(), "with the count overridden the game is not open ended")
-	Chapters.count_override = 1
+	TestHooks.chapter_count =1
 
 
 ## A complete game (three chapters): the last chapter's end boss leads to the break, then the finale, a boss fight with no map.
@@ -184,7 +184,7 @@ func _finale_run() -> RunState:
 
 
 func _test_finale() -> void:
-	Chapters.count_override = 3
+	TestHooks.chapter_count =3
 	_check(Chapters.has_finale() and not Chapters.open_ended(), "three chapters is a complete game with a finale")
 	var run := _finale_run()
 	_check(run.complete_combat(true) and run.boss_spoils_pending() and not run.finished, "the last chapter's end boss pays its spoils first")
@@ -227,7 +227,7 @@ func _test_finale() -> void:
 	var both := bad.duplicate(true)
 	both["chapter_break"] = true
 	_check(RunSave.from_dict(JSON.parse_string(JSON.stringify(both)))["error"] != "", "a save cannot be at the break and in the finale")
-	Chapters.count_override = 2
+	TestHooks.chapter_count =2
 	_check(RunSave.from_dict(JSON.parse_string(JSON.stringify(bad)))["error"] != "", "a finale save is rejected when the game has no finale")
 	_check(not _finale_run().can_start_finale(), "no finale with two chapters")
-	Chapters.count_override = 1
+	TestHooks.chapter_count =1

@@ -61,79 +61,8 @@ const ELITE_RELIC_FALLBACK_GOLD := 60
 ## Gold an event gives instead of a relic it cannot give because the character owns every relic it could draw.
 const EVENT_RELIC_FALLBACK_GOLD := 40
 
-## One stop on the line. `enemy_count` only matters for COMBAT stops and
-## `beat_index` (into StoryContent) only for STORY stops. A COMBAT stop with
-## `boss` set fights Encounters.boss_encounter() instead of a random pack,
-## and winning it ends the run with no gold and no card reward. A COMBAT stop with `mid_boss` set
-## fights Encounters.mid_boss_encounter(); winning it pays gold and offers a card reward like a
-## regular fight, and the run goes on.
-## `tier` is the 0-based act (0 up to the mid-boss, 1 after it) and `fight` the 0-based number of a
-## regular COMBAT stop among the regular fights; both are set by RunState._default_line and
-## drive the encounter pools and stat ramp (see Encounters.varied_encounter).
-## In map mode `choose_node` builds the stop: `node_id` is the map node (-1 on the line), `backdrop` the
-## node's battle screen key (&"" on the line and for non-fights) and `row` its run row (-1 on the line). A map
-## fight is built by Encounters.budget_encounter from `enemy_count` and `row` (`tier` and `fight` are line-only).
-class Stop:
-	var type: StopType
-	var enemy_count: int
-	var beat_index: int
-	var boss: bool
-	var mid_boss: bool
-	## Map mode: an elite fight (tougher pack, relic drop). Set by `_stop_for_node`, never on the line.
-	var elite: bool = false
-	## The finale after the last chapter (RunState.start_finale): a boss stop that is not on the map. Winning it ends the run as an escape.
-	var finale: bool = false
-	var tier: int
-	var fight: int
-	## Map mode only: the stop's row and node id in the route (-1 on a line stop).
-	var row: int = -1
-	var node_id: int = -1
-	## Presentation, set with place(): the destination's name, the painted battle backdrop used there ("" for the
-	## default art) and the ambience that plays there ("" for none). Carried on the stop so reordering the line
-	## cannot misassign art; the save stores only the stop index.
-	var label: String = ""
-	var backdrop: StringName = &""
-	var ambience: StringName = &""
-
-	func _init(stop_type: StopType, count: int = 0, beat: int = 0, is_boss: bool = false, is_mid_boss: bool = false) -> void:
-		type = stop_type
-		enemy_count = count
-		beat_index = beat
-		boss = is_boss
-		mid_boss = is_mid_boss
-		tier = 0
-		fight = 0
-
-	## Sets the presentation fields and returns this stop (for chaining in the line definition).
-	func place(destination: String, backdrop_key: StringName = &"", ambience_key: StringName = &"") -> Stop:
-		label = destination
-		backdrop = backdrop_key
-		ambience = ambience_key
-		return self
-
-	func describe() -> String:
-		match type:
-			StopType.COMBAT:
-				if finale:
-					return "Finale"
-				if boss:
-					return "Boss"
-				if mid_boss:
-					return "Mid-boss"
-				if elite:
-					return "Elite (%d enemies)" % enemy_count
-				return "Combat (%d enem%s)" % [enemy_count, "y" if enemy_count == 1 else "ies"]
-			StopType.REST:
-				return "Rest"
-			StopType.STORY:
-				return "Story"
-			StopType.VENDOR:
-				return "Vendor"
-			StopType.TREASURE:
-				return "Treasure"
-			StopType.EVENT:
-				return "Event"
-		return "?"
+## One stop on the line or one map node's stop (the class and its fields are documented in RunRoute).
+const Stop = RunRoute.Stop
 
 ## Who is playing: sets the starting HP and deck and which cards the run can offer.
 var character: Character
@@ -222,12 +151,9 @@ func _init(rng_seed: int = 0, character_id: StringName = StarterContent.DEFAULT_
 		deck.assign(StarterContent.starter_deck(character.id))
 	if use_map:
 		route = RouteMap.generate(rng_seed, character.id)
-		# No line in map mode: `stops` holds RouteMap.ROWS placeholder entries so `stops.size()` is the
-		# journey length. Nothing should read their contents; the live stop is `current_stop()`.
-		for _row in RouteMap.ROWS:
-			stops.append(Stop.new(StopType.COMBAT))
+		stops.assign(RunRoute.placeholder_stops()) # no line in map mode (see RunRoute.placeholder_stops)
 	else:
-		stops = _default_line()
+		stops = RunRoute.default_line()
 
 
 ## The stop the player is at, or null once the run is finished (and, in map mode, between stops).
@@ -247,60 +173,40 @@ func in_map_stop() -> bool:
 	return route != null and _map_stop != null
 
 
+## Map mode: the stop of the current node, kept once the run is finished (null between stops and in line mode).
+func map_stop() -> Stop:
+	return _map_stop
+
+
 ## Map mode: puts a run built in line mode at a saved place on `map` (RunSave has validated all of it).
 ## `current` is the node id (-1 before the first choice), `path` the visited ids, `inside_stop` whether
 ## the player is in that node's stop rather than at the map. Replaces the line with the map's
 ## placeholder stops, like `_init` does with use_map.
 func restore_map(map: RouteMap, current: int, path: Array[int], inside_stop: bool) -> void:
-	route = map
-	stops.clear()
-	for _row in RouteMap.ROWS:
-		stops.append(Stop.new(StopType.COMBAT))
-	current_node = current
-	visited.assign(path)
-	stop_index = map.node(current).row if current >= 0 else 0
-	_map_stop = _stop_for_node(map.node(current)) if inside_stop and current >= 0 else null
-	_spoils.reset_treasure()
-	reset_event()
+	RunRoute.restore_map(self, map, current, path, inside_stop)
 
 
 ## Map mode: the node ids the player may pick next. The start nodes before any choice, else the successors
 ## of the current node. Empty while a stop is in progress (fight, reward, vendor, rest or story), when the
 ## run is finished, and in line mode.
 func reachable_nodes() -> Array[int]:
-	var ids: Array[int] = []
-	if route == null or finished or _map_stop != null:
-		return ids
-	if current_node == -1:
-		return route.starts()
-	return route.next_ids(current_node)
+	return RunRoute.reachable_nodes(self)
 
 
 ## Map mode: moves to node `id` and opens its stop (see `current_stop()`). False, changing nothing, unless
 ## the node is currently reachable.
 func choose_node(id: int) -> bool:
-	if not reachable_nodes().has(id):
-		return false
-	var n := route.node(id)
-	current_node = id
-	visited.append(id)
-	stop_index = n.row
-	_map_stop = _stop_for_node(n)
-	return true
+	return RunRoute.choose_node(self, id)
 
 
 ## Map mode: the player stands at the end of chapter `chapter` and a further chapter exists.
 func can_enter_chapter_break() -> bool:
-	return route != null and not finished and not chapter_break and chapter < Chapters.count() \
-			and current_node >= 0 and route.node(current_node).type == RouteMap.NodeType.BOSS and _map_stop == null
+	return RunRoute.can_enter_chapter_break(self)
 
 
 ## Starts the break after the chapter's end boss. False, changing nothing, unless `can_enter_chapter_break()`.
 func enter_chapter_break() -> bool:
-	if not can_enter_chapter_break():
-		return false
-	chapter_break = true
-	return true
+	return RunRoute.enter_chapter_break(self)
 
 
 ## True from winning a chapter's end boss until its relic is taken.
@@ -356,62 +262,18 @@ func start_next_chapter() -> bool:
 
 ## The stop type a map node plays as (bosses and elites are combats).
 static func stop_type_for_node(type: RouteMap.NodeType) -> StopType:
-	match type:
-		RouteMap.NodeType.REST:
-			return StopType.REST
-		RouteMap.NodeType.SHOP:
-			return StopType.VENDOR
-		RouteMap.NodeType.STORY:
-			return StopType.STORY
-		RouteMap.NodeType.TREASURE:
-			return StopType.TREASURE
-		RouteMap.NodeType.EVENT:
-			return StopType.EVENT
-	return StopType.COMBAT
+	return RunRoute.stop_type_for_node(type)
 
 
 ## The battle backdrop screen key for the current fight: the node's in map mode, the stop's place on the
 ## line otherwise (&"" when it has none and the character's own is used).
 func battle_backdrop() -> StringName:
-	if route != null:
-		return _map_stop.backdrop if _map_stop != null else &""
-	return DestinationArt.battle_key(stop_index)
+	return RunRoute.battle_backdrop(self)
 
 
 ## The place name for the current stop ("" when it has none).
 func destination_label() -> String:
-	if route != null:
-		return DestinationArt.label_for_stop(_map_stop) if _map_stop != null else ""
-	return DestinationArt.label_at(stop_index)
-
-
-func _stop_for_node(n: RouteMap.MapNode) -> Stop:
-	var stop: Stop
-	match n.type:
-		RouteMap.NodeType.REST:
-			stop = Stop.new(StopType.REST)
-		RouteMap.NodeType.SHOP:
-			stop = Stop.new(StopType.VENDOR)
-		RouteMap.NodeType.STORY:
-			stop = Stop.new(StopType.STORY, 0, n.beat_index)
-		RouteMap.NodeType.TREASURE:
-			stop = Stop.new(StopType.TREASURE)
-		RouteMap.NodeType.EVENT:
-			stop = Stop.new(StopType.EVENT)
-		RouteMap.NodeType.MID_BOSS:
-			stop = Stop.new(StopType.COMBAT, 1, 0, false, true)
-		RouteMap.NodeType.BOSS:
-			stop = Stop.new(StopType.COMBAT, 1, 0, true)
-		RouteMap.NodeType.ELITE:
-			stop = Stop.new(StopType.COMBAT, maxi(n.enemy_count, Encounters.ELITE_MIN_ENEMIES))
-			stop.elite = true
-		_:
-			stop = Stop.new(StopType.COMBAT, n.enemy_count)
-	stop.tier = n.act
-	stop.row = n.row
-	stop.node_id = n.id
-	stop.backdrop = n.backdrop
-	return stop
+	return RunRoute.destination_label(self)
 
 
 func reward_pending() -> bool:
@@ -445,29 +307,7 @@ func start_combat() -> Combat:
 	if _active_combat != null:
 		_active_combat.abandon()
 		_active_combat = null
-	var enemies: Array[EnemyData]
-	if not debug_encounter.is_empty():
-		for enemy_id in debug_encounter:
-			var enemy := StarterContent.enemy_by_id(enemy_id)
-			if enemy == null and debug_enemy_resolver.is_valid():
-				enemy = debug_enemy_resolver.call(enemy_id)
-			if enemy != null:
-				enemies.append(enemy)
-	elif stop.finale:
-		enemies = Encounters.finale_encounter(chapter, character.id)
-	elif stop.boss:
-		enemies = Encounters.boss_encounter(chapter, character.id)
-	elif stop.mid_boss:
-		enemies = Encounters.mid_boss_encounter(chapter, character.id)
-	elif route != null and stop.row >= 0:
-		var difficulty := Encounters.map_class_difficulty(character.id, chapter)
-		if stop.elite:
-			difficulty *= ELITE_BUDGET_MULTIPLIER
-		enemies = Encounters.budget_encounter(stop.enemy_count, _rng, stop.row, difficulty, stop.elite, chapter)
-		if elite_modifier() == EliteModifiers.Kind.ENRAGED:
-			EliteModifiers.enrage(enemies)
-	else:
-		enemies = Encounters.varied_encounter(stop.enemy_count, _rng, stop.tier, stop.fight)
+	var enemies := RunRoute.stop_enemies(self, stop, _rng)
 	_active_combat = Combat.create(player, deck, enemies, _rng.randi(), relics)
 	if _active_combat != null and debug_encounter.is_empty() and elite_modifier() >= 0:
 		EliteModifiers.apply_to_combat(_active_combat, elite_modifier(), stop.row / RouteMap.ACT_ROWS)
@@ -484,22 +324,7 @@ func elite_modifier() -> int:
 ## "Boss" for the final boss fight, "Mid-boss" for the mid-boss, "" for a regular fight. A debug
 ## encounter is judged by its enemies (any built chapter's end boss or mid-boss), so launching a boss gets the boss look anywhere.
 func boss_label() -> String:
-	if not debug_encounter.is_empty():
-		var mid := false
-		for n in range(1, Chapters.MAX_BUILT + 1):
-			var data := Chapters.chapter(n)
-			if debug_encounter.has(data.end_boss):
-				return "Boss"
-			mid = mid or debug_encounter.has(data.mid_boss)
-		return "Mid-boss" if mid else ""
-	var stop := current_stop()
-	if stop == null:
-		return ""
-	if stop.finale:
-		return "Final boss"
-	if stop.boss:
-		return "Boss"
-	return "Mid-boss" if stop.mid_boss else ""
+	return RunRoute.boss_label(self)
 
 
 ## Records how the current fight ended. A defeat ends the run; a victory pays
@@ -651,22 +476,13 @@ func _finish_reward() -> void:
 
 ## Heals to full at a REST stop and moves on. Returns HP restored, or -1 if not at a rest stop.
 func rest() -> int:
-	var stop := current_stop()
-	if stop == null or stop.type != StopType.REST:
-		return -1
-	var restored := player.heal(rest_heal_amount())
-	advance_stop()
-	return restored
+	return RunRoute.rest(self)
 
 
 ## Deck positions of the cards the Remember choice can bring back stronger: those with a remembered
 ## block that are not yet Remembered. Empty off a rest stop.
 func rememberable_indices() -> Array[int]:
-	var stop := current_stop()
-	if stop == null or stop.type != StopType.REST:
-		var none: Array[int] = []
-		return none
-	return rememberable_deck_indices()
+	return RunRoute.rememberable_indices(self)
 
 
 ## Deck positions of the cards that can be Remembered, at any stop (the events use it too).
@@ -681,63 +497,34 @@ func rememberable_deck_indices() -> Array[int]:
 ## The rest stop's second choice: the card at `deck_index` becomes its Remembered form, no heal, and the
 ## line moves on. False (changing nothing) off a rest stop or for a card that cannot be Remembered.
 func remember(deck_index: int) -> bool:
-	if not rememberable_indices().has(deck_index):
-		return false
-	deck[deck_index] = deck[deck_index].remembered_card()
-	advance_stop()
-	return true
+	return RunRoute.remember(self, deck_index)
 
 
 ## HP the rest at this stop will restore (0 off a rest stop).
 func rest_heal_amount() -> int:
-	var stop := current_stop()
-	if stop == null or stop.type != StopType.REST:
-		return 0
-	if route != null:
-		return mini(player.max_hp - player.hp, roundi(player.max_hp * MAP_REST_HEAL_FRACTION))
-	return player.max_hp - player.hp
+	return RunRoute.rest_heal_amount(self)
 
 
 ## Which rest of the line this is, counting from 1 (0 off a rest stop).
 func rest_number() -> int:
-	var stop := current_stop()
-	if stop == null or stop.type != StopType.REST:
-		return 0
-	var count := 0
-	if route != null:
-		for id in visited:
-			if route.node(id).type == RouteMap.NodeType.REST:
-				count += 1
-		return count
-	for i in stop_index + 1:
-		if stops[i].type == StopType.REST:
-			count += 1
-	return count
+	return RunRoute.rest_number(self)
 
 
 ## The beat to show at a STORY stop, or null if not at one or it failed to load
 ## (logged); the stop can still be passed with read_story().
 func current_beat() -> StoryBeat:
-	var stop := current_stop()
-	if stop == null or stop.type != StopType.STORY:
-		return null
-	return StoryContent.beat(stop.beat_index, character.id, chapter)
+	return RunRoute.current_beat(self)
 
 
 ## Moves past a STORY stop. Returns false if not at one.
 func read_story() -> bool:
-	var stop := current_stop()
-	if stop == null or stop.type != StopType.STORY:
-		return false
-	advance_stop()
-	return true
+	return RunRoute.read_story(self)
 
 
 ## The vendor for the current VENDOR stop (created on first call, so asking again
 ## does not re-roll the stock), or null if not at a vendor stop.
 func vendor() -> Vendor:
-	var stop := current_stop()
-	if stop == null or stop.type != StopType.VENDOR:
+	if not RunRoute.at_stop(self, StopType.VENDOR):
 		return null
 	if _vendor == null:
 		_vendor = Vendor.new(deck, _rng, 0, StarterContent.vendor_pool(character.id, chapter), unowned_relics(), _wallet, StarterContent.rarity_weights(rarity_tier()))
@@ -747,45 +534,26 @@ func vendor() -> Vendor:
 ## Vendor purchases: the Vendor spends from the run's wallet, so `gold` is always current. A
 ## failed purchase changes nothing; when not at a vendor stop they fail.
 func vendor_buy_card(offer_index: int) -> Vendor.Result:
-	var v := vendor()
-	if v == null:
-		return Vendor.Result.fail("not at a vendor")
-	return v.buy_card(offer_index)
+	return RunRoute.vendor_buy_card(self, offer_index)
 
 
 func vendor_remove_card(deck_index: int) -> Vendor.Result:
-	var v := vendor()
-	if v == null:
-		return Vendor.Result.fail("not at a vendor")
-	return v.remove_card(deck_index)
+	return RunRoute.vendor_remove_card(self, deck_index)
 
 
 func vendor_buy_heal() -> Vendor.Result:
-	var v := vendor()
-	if v == null:
-		return Vendor.Result.fail("not at a vendor")
-	return v.buy_heal(player)
+	return RunRoute.vendor_buy_heal(self)
 
 
 ## Buys the visit's relic: it joins `relics` and a MAX_HP relic raises the player's max HP
 ## (once, here; a restored save already holds the raised max HP).
 func vendor_buy_relic() -> Vendor.Result:
-	var v := vendor()
-	if v == null:
-		return Vendor.Result.fail("not at a vendor")
-	var result := v.buy_relic(player)
-	if result.ok:
-		relics.append(result.relic)
-	return result
+	return RunRoute.vendor_buy_relic(self)
 
 
-## Leaves the vendor and moves on. False if not at a vendor stop.
+## Leaves the vendor and moves on (advance_stop closes the visit). False if not at a vendor stop.
 func leave_vendor() -> bool:
-	if vendor() == null:
-		return false
-	_vendor = null
-	advance_stop()
-	return true
+	return RunRoute.leave_vendor(self)
 
 
 ## Whether the chest of the current TREASURE stop has been opened (false off a treasure stop).
@@ -795,8 +563,7 @@ func treasure_opened() -> bool:
 
 ## True while the current stop is a TREASURE stop.
 func in_treasure_stop() -> bool:
-	var stop := current_stop()
-	return stop != null and stop.type == StopType.TREASURE
+	return RunRoute.at_stop(self, StopType.TREASURE)
 
 
 ## Opens the chest of the current TREASURE stop and returns true (again, harmlessly, if it is already open); false
@@ -813,8 +580,7 @@ func open_treasure() -> bool:
 
 ## True while the current stop is an elite fight (before, during and after the fight).
 func in_elite_stop() -> bool:
-	var stop := current_stop()
-	return stop != null and stop.type == StopType.COMBAT and stop.elite
+	return RunRoute.at_stop(self, StopType.COMBAT) and current_stop().elite
 
 
 ## True from winning an elite fight until its spoils are taken (`take_elite_spoils`, or by settling the card reward,
@@ -876,22 +642,13 @@ func unowned_relics() -> Array[RelicData]:
 # --- Event stops ("?" nodes, docs/EVENTS_DESIGN.md; the rules are in RunEvents) -----------------------------
 
 ## What pressing an event button did: the outcome text to show (the scene's reply plus a line per thing that
-## happened) and the pick the player now owes, if any (see `event_followup`).
-class EventResult:
-	var ok := false
-	var text := ""
-	var followup: StringName = &""
-
-	static func fail(why: String) -> EventResult:
-		var result := EventResult.new()
-		result.text = why
-		return result
+## happened) and the pick the player now owes, if any (see `event_followup`). The class is RunEvents.EventResult.
+const EventResult = RunEvents.EventResult
 
 
 ## True while the current stop is an EVENT stop.
 func in_event_stop() -> bool:
-	var stop := current_stop()
-	return stop != null and stop.type == StopType.EVENT
+	return RunRoute.at_stop(self, StopType.EVENT)
 
 
 ## The event of the current EVENT stop (null elsewhere, or if event content failed to load: the stop can then be
@@ -1001,70 +758,18 @@ func advance_stop() -> void:
 	_spoils.reset_treasure()
 	_spoils.reset_elite()
 	reset_event()
-	if route != null:
-		_map_stop = null
-		if route.node(current_node).type == RouteMap.NodeType.BOSS:
-			stop_index = stops.size()
-			finished = true
-			escaped = true
-		return
-	stop_index += 1
-	if stop_index >= stops.size():
-		finished = true
-		escaped = true
+	RunRoute.advance(self)
 
 
-## How many stops a journey has (the length of the default line), for text that names it.
+## How many stops a journey has (the length of the default line, RunRoute.default_line), for text that names it.
 static func default_line_size() -> int:
-	return _default_line().size()
-
-
-## The line, 22 stops in two acts (a train line in the original theme, a memorial city since v0.5.0): four regular fights, the Brakeman (now Bellkeeper) halfway (stop 9), four
-## harder fights, then the Conductor (now Eraser). Three vendors, five rests (the last just before the finale) and the four story beats in order.
-## Tier (act) and fight number are filled in here; see docs/LEVELS_DESIGN.md.
-static func _default_line() -> Array[Stop]:
-	var line: Array[Stop] = [
-		Stop.new(StopType.STORY, 0, 0).place("Shore of Names", &"", &"coastal"),
-		Stop.new(StopType.COMBAT, 1).place("Drowned Street", &"battle_street"),
-		Stop.new(StopType.COMBAT, 2).place("Laundry Court", &"battle_street"),
-		Stop.new(StopType.REST).place("Lampkeeper's Kitchen"),
-		Stop.new(StopType.COMBAT, 2).place("Empty Tenements", &"battle_street"),
-		Stop.new(StopType.VENDOR).place("The Lost-Property Stall"),
-		Stop.new(StopType.COMBAT, 2).place("Petition Steps", &"battle_street"),
-		Stop.new(StopType.STORY, 0, 1).place("The Unanswered Hall"),
-		Stop.new(StopType.REST).place("Caretaker's Alcove"),
-		Stop.new(StopType.COMBAT, 1, 0, false, true).place("The Bell Court", &"battle_bell_court"),
-		Stop.new(StopType.STORY, 0, 2).place("Garden of Unmarked Stones"),
-		Stop.new(StopType.REST).place("Glasshouse Shelter"),
-		Stop.new(StopType.COMBAT, 2).place("Processional Garden", &"battle_garden"),
-		Stop.new(StopType.COMBAT, 3).place("The Listening Marsh", &"battle_garden"),
-		Stop.new(StopType.VENDOR).place("The Bone Orchard Market"),
-		Stop.new(StopType.REST).place("Candlehouse"),
-		Stop.new(StopType.COMBAT, 2).place("The Name Vault", &"battle_archive"),
-		Stop.new(StopType.COMBAT, 3).place("The Unwritten Causeway", &"battle_archive"),
-		Stop.new(StopType.VENDOR).place("Last Keepsake Stall"),
-		Stop.new(StopType.REST).place("The Last Hearth"),
-		Stop.new(StopType.STORY, 0, 3).place("The Breathing Door"),
-		Stop.new(StopType.COMBAT, 1, 0, true).place("The Threshold", &"battle_threshold"),
-	]
-	var tier := 0
-	var fight := 0
-	for stop in line:
-		stop.tier = tier
-		if stop.type == StopType.COMBAT and not stop.boss and not stop.mid_boss:
-			stop.fight = fight
-			fight += 1
-		if stop.mid_boss:
-			tier = 1
-	return line
+	return RunRoute.default_line().size()
 
 
 ## How far into the run the player is, 0 to 3 (a quarter of the stop line each): picks the rarity odds
 ## (StarterContent.rarity_weights) for rewards and vendor stock.
 func rarity_tier() -> int:
-	if stops.is_empty():
-		return 0
-	return clampi(stop_index * StarterContent.RARITY_WEIGHTS.size() / stops.size(), 0, StarterContent.RARITY_WEIGHTS.size() - 1)
+	return RunRoute.rarity_tier(self)
 
 
 ## Rolls the card reward of a won fight (see RunRewards.roll).

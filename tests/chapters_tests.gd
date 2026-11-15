@@ -103,7 +103,7 @@ func _test_events_and_story_by_chapter() -> void:
 	var second := StarterContent.EVENT_PATHS[1]
 	_check(StarterContent.events_for(1).size() == StarterContent.EVENT_PATHS.size() and StarterContent.events_for(4).size() == StarterContent.EVENT_PATHS.size(), "a chapter with no events of its own draws Chapter 1's")
 	_check(StarterContent.events_for(2).size() == StarterContent.CHAPTER_EVENT_PATHS[2].size() and StarterContent.every_event().size() == StarterContent.EVENT_PATHS.size() + StarterContent.CHAPTER_EVENT_PATHS[2].size() + StarterContent.CHAPTER_EVENT_PATHS[3].size(), "chapter 2 draws its own events, and every_event is the union")
-	ContentRegistry.chapter_event_paths_override = {2: [first, second]}
+	TestHooks.chapter_event_paths ={2: [first, second]}
 	ContentRegistry.clear_cache()
 	var own := StarterContent.events_for(2)
 	_check(own.size() == 2 and own[0].id == load(first).id, "chapter 2 draws only its own events when it has a list")
@@ -121,7 +121,7 @@ func _test_events_and_story_by_chapter() -> void:
 		run_state.chapter = 2
 		var picked := run_state.current_event()
 		_check(picked != null and (picked.id == load(first).id or picked.id == load(second).id), "a chapter 2 event stop draws from chapter 2's list")
-	ContentRegistry.chapter_event_paths_override = {}
+	TestHooks.chapter_event_paths ={}
 	ContentRegistry.clear_cache()
 	_check(StoryContent.paths_for(1) == StoryContent.BEAT_PATHS and StoryContent.paths_for(4) == StoryContent.BEAT_PATHS and StoryContent.beat_count(4) == StoryContent.beat_count(1), "a chapter without its own beats plays Chapter 1's")
 	_check(StoryContent.beat(0, &"deserter", 4) != null and StoryContent.beat(0, &"", 4).title == StoryContent.beat(0, &"", 1).title, "and reads the same beat")

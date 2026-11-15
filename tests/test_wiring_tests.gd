@@ -10,6 +10,7 @@ const STANDALONE_STEPS: Array[String] = [
 	"battle_seed_test.gd",
 	"audio_runtime_test.gd",
 	"reskin_presentation_test.gd",
+	"card_snapshot_test.gd",
 ]
 ## Infrastructure that is neither a suite nor a step. Files named *_support.gd are shared helpers for
 ## a split suite and are skipped too.

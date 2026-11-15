@@ -205,7 +205,7 @@ func _test_pack_builder_fallback() -> void:
 	_check(_last_info.attempts >= 1 and _last_info.threat > 0.0 and _last_info.target > 0.0, "a normal pack's info is filled in")
 	_check(normal.size() == 2 and not _last_info.fallback, "a normal pack is not a fallback")
 	# Only the warden loads: the fallback finds it (the loader hides the shade and the wisp).
-	Encounters._budget_enemy_loader = func(path: String) -> EnemyData:
+	TestHooks.budget_enemy_loader =func(path: String) -> EnemyData:
 		return StarterContent._load_enemy(path) if path == StarterContent.WARDEN_PATH else null
 	var warden_pack := _pack(3, 5, 10)
 	_check(warden_pack.size() == 3, "with only the warden loadable a trio still has 3 enemies")
@@ -214,9 +214,9 @@ func _test_pack_builder_fallback() -> void:
 	_check(_last_info.attempts == Encounters.PACK_MAX_ATTEMPTS, "a fallback pack's info counts every attempt")
 	_check(_last_info.fallback and _last_info.threat > 0.0, "the info marks the fallback")
 	# Nothing loads: a minimal stand-in pack, never empty.
-	Encounters._budget_enemy_loader = func(_path: String) -> EnemyData: return null
+	TestHooks.budget_enemy_loader =func(_path: String) -> EnemyData: return null
 	var minimal := _pack(1, 5, 0)
-	Encounters._budget_enemy_loader = Callable()
+	TestHooks.budget_enemy_loader =Callable()
 	_check(minimal.size() == 1 and minimal[0].max_hp > 0 and not minimal[0].intents.is_empty(), "with nothing loadable a single is still a real enemy")
 	_check(_last_info.fallback and _last_info.scale > 0.0, "the minimal fallback has a filled-in info")
 	_check(_pack(2, 5, 10).size() == 2 and not _last_info.fallback, "the builder is back to normal")

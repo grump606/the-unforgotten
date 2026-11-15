@@ -35,6 +35,18 @@ class ChoiceState extends RefCounted:
 		enabled = false
 		reason = why
 
+## What pressing an event button did: the outcome text to show (the scene's reply plus a line per thing that
+## happened) and the pick the player now owes, if any (see `event_followup`). RunState.EventResult names this class.
+class EventResult:
+	var ok := false
+	var text := ""
+	var followup: StringName = &""
+
+	static func fail(why: String) -> EventResult:
+		var result := EventResult.new()
+		result.text = why
+		return result
+
 ## The event of the current EVENT stop, rolled by `current_event` the first time it is asked for (null before that, off an
 ## event stop and when event content failed to load). Once rolled the stop is open: not a stop boundary.
 var open_event: EventData = null
@@ -136,12 +148,12 @@ func _event_blocked(run: RunState, effect: EventEffect) -> String:
 ## Presses button `index`: applies its effects (a gamble is rolled here with the run RNG) and returns what happened.
 ## Fails, changing nothing, off an event stop, for a bad index, a disabled button, or once a choice was made. Picks
 ## the effects owe (remove, Remember, choose a card) are queued: see `event_followup`.
-func resolve_event_choice(run: RunState, index: int) -> RunState.EventResult:
+func resolve_event_choice(run: RunState, index: int) -> EventResult:
 	if current_event(run) == null:
-		return RunState.EventResult.fail("no event")
+		return EventResult.fail("no event")
 	var state := event_choice_state(run, index)
 	if not state.enabled:
-		return RunState.EventResult.fail(state.reason)
+		return EventResult.fail(state.reason)
 	var choice := event_choices(run)[index]
 	var lines: Array[String] = []
 	var gambles: Array[bool] = []
@@ -156,7 +168,7 @@ func resolve_event_choice(run: RunState, index: int) -> RunState.EventResult:
 		text += " " + line
 	resolved = true
 	outcome = text
-	var result := RunState.EventResult.new()
+	var result := EventResult.new()
 	result.ok = true
 	result.text = text
 	result.followup = event_followup(run)

@@ -10,8 +10,6 @@ var _total_checks := 0
 
 func _initialize() -> void:
 	TestBase.sweep_stale_scratch()
-	# The older suites play the one-chapter game; the chapter suites set the count they need and put this back.
-	Chapters.count_override = 1
 	var failures := _run_discovered_files()
 	# The floor comes from the committed record (tests/golden/min_checks.txt) minus a tolerance, not from a constant
 	# edited by hand: a suite that silently runs less (a method no longer called, a loop gone empty) fails the run.
@@ -33,6 +31,10 @@ func _run_discovered_files() -> int:
 	var checks := 0
 	for file_name in TestBase.discover_unit_test_files():
 		print("TEST FILE: ", file_name)
+		# Every suite starts with the test hooks off, apart from the one-chapter game the older suites play (the chapter
+		# suites set the count they need).
+		TestHooks.reset()
+		TestHooks.chapter_count = 1
 		var suite: Object = load("res://tests/" + file_name).new()
 		total += int(suite.run())
 		checks += int(suite.get("_checks")) if suite.get("_checks") != null else 0

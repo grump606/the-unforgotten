@@ -287,8 +287,8 @@ static func _kills(combat: Combat, card: CardData, target: int) -> bool:
 	for effect in card.effects:
 		if effect.is_damage():
 			var outcome := _damage_outcome(combat, card, effect, enemy, block)
-			block = outcome["block_left"]
-			lost += outcome["lost"]
+			block = outcome.block_left
+			lost += outcome.lost
 	return lost >= enemy.hp
 
 
@@ -388,8 +388,8 @@ static func _effect_value(combat: Combat, card: CardData, hand_index: int, effec
 	if effect.is_damage():
 		for enemy in hit:
 			var outcome := _damage_outcome(combat, card, effect, enemy, blocks.get(enemy, enemy.block))
-			blocks[enemy] = outcome["block_left"]
-			var lost: int = outcome["lost"]
+			blocks[enemy] = outcome.block_left
+			var lost: int = outcome.lost
 			var threat := combat.intent_hit(enemy)
 			value += lost * (1.0 + float(threat) / maxi(enemy.hp, 1))
 			if lost >= enemy.hp:
@@ -676,8 +676,8 @@ static func _net_cost(card: CardData) -> int:
 ## What damage `effect` of `card` would do to `enemy` if the card were played now (the engine's own preview:
 ## Malice, Shaken, Expose, every hit, Block wearing down across the hits), with the enemy's Block taken as
 ## `block` so the card's several damage effects can chain it. The card is not played yet, so it would be play
-## number plays_this_turn + 1. {damage, absorbed, through, lost, block_left}.
-static func _damage_outcome(combat: Combat, card: CardData, effect: CardEffect, enemy: EnemyUnit, block: int) -> Dictionary:
+## number plays_this_turn + 1.
+static func _damage_outcome(combat: Combat, card: CardData, effect: CardEffect, enemy: EnemyUnit, block: int) -> Combatant.HitsOutcome:
 	return combat.preview_hit(effect, combat.player, enemy, combat.plays_this_turn + 1, combat.hit_count(card, effect), block)
 
 

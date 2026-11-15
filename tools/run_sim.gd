@@ -56,8 +56,8 @@ func _initialize() -> void:
 	_smart = opts["policy"] == "smart"
 	_map = opts["map"]
 	_chapters = opts["chapters"]
-	EliteModifiers.forced = opts["elite_modifier"]
-	Chapters.count_override = _chapters # the sims play exactly the chapters asked for (1 by default), never the open-ended shipped game
+	TestHooks.elite_modifier = opts["elite_modifier"]
+	TestHooks.chapter_count = _chapters # the sims play exactly the chapters asked for (1 by default), never the open-ended shipped game
 	_route = opts["route"] if opts["route"] != "" else (RoutePolicy.SMART if _smart else RoutePolicy.FIRST)
 	_card_stats = opts["card_stats"]
 	var characters: Array[StringName] = []
@@ -456,8 +456,8 @@ func _run_parallel(opts: Dictionary, characters: Array[StringName]) -> Dictionar
 			if opts["map"]:
 				child_args.append("--map")
 				child_args.append_array(["--route", _route, "--chapters", str(_chapters)])
-				if EliteModifiers.forced != -1:
-					child_args.append_array(["--elite-modifier", ["plated", "enraged", "marked"][EliteModifiers.forced] if EliteModifiers.forced >= 0 else "none"])
+				if TestHooks.elite_modifier != -1:
+					child_args.append_array(["--elite-modifier", ["plated", "enraged", "marked"][TestHooks.elite_modifier] if TestHooks.elite_modifier >= 0 else "none"])
 			if opts["card_stats"]:
 				child_args.append("--card-stats")
 			job["pid"] = OS.create_process(OS.get_executable_path(), child_args)

@@ -45,7 +45,7 @@ func _press(scene: Control, button_name: String) -> void:
 
 func _initialize() -> void:
 	RunSave.delete(save_path)
-	Chapters.count_override = 2
+	TestHooks.chapter_count = 2
 	await process_frame
 	var scene: Control = load("res://run.tscn").instantiate()
 	scene.save_path = save_path
@@ -93,7 +93,7 @@ func _initialize() -> void:
 	check(not run_state.reachable_nodes().is_empty(), "the map offers first choices")
 
 	print("ui chapter break test: %d failure(s)" % fails)
-	Chapters.count_override = 1
+	TestHooks.reset()
 	RunSave.delete(save_path)
 	DirAccess.remove_absolute(settings_path)
 	quit(1 if fails > 0 else 0)

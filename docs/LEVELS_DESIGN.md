@@ -8,7 +8,7 @@ The run used to be 12 stops with four regular fights and the Conductor. It is no
 
 ## The line
 
-Defined in `RunState._default_line()`. Tier is the act (0 up to and including the mid-boss, 1 after it); fight is the 0-based number of a regular fight.
+Defined in `RunRoute.default_line()`. Tier is the act (0 up to and including the mid-boss, 1 after it); fight is the 0-based number of a regular fight.
 
 | Stop | Kind | Notes |
 |---|---|---|

@@ -57,11 +57,12 @@ func moved(pos: Vector2) -> void:
 		hover = index
 	if index >= 0:
 		var info := _battle.damage_preview().for_target(view.card, _battle.combat().enemies[index])
-		_battle.enemy_views()[index].set_drop_hover(true, info.get("text", ""), info.get("lost", -1))
+		var lost := -1 if info == null else info.lost
+		_battle.enemy_views()[index].set_drop_hover(true, "" if info == null else info.text, lost)
 		# A boss has no HP bar of its own, so its ghost goes on the wide bar at the top.
 		var bar := _battle.boss_bar()
 		if bar != null and bar.unit == _battle.combat().enemies[index]:
-			bar.set_drop_lost(info.get("lost", -1))
+			bar.set_drop_lost(lost)
 
 
 func ended(pos: Vector2, hand_index: int) -> void:

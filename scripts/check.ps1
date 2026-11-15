@@ -81,6 +81,15 @@ try {
     }
     if ($uiRan -lt $uiFloor) { Write-Host "CHECK FAILED: only $uiRan ui test steps ran, fewer than the recorded UI_STEPS ($uiFloor)"; exit 1 }
     Invoke-Step 'reskin restoration' @('--headless', '--path', '.', '-s', 'res://tests/reskin_presentation_test.gd')
+    # Card pixels against tests/golden/cards (tests/card_snapshot_test.gd). It needs a renderer, so it runs windowed
+    # (a small window opens briefly) and is skipped in CI, whose runners have no OpenGL.
+    if ($env:CI) {
+        Write-Host '== card snapshot =='
+        Write-Host 'NOTE: card snapshot skipped in CI (no renderer); run scripts/check.ps1 on a desktop before a release'
+        $script:notes += 'NOTE: card snapshot skipped in CI (no renderer)'
+    } else {
+        Invoke-Step 'card snapshot' @('--path', '.', '--resolution', '200x240', '-s', 'res://tests/card_snapshot_test.gd')
+    }
     # The rules that decide what a clean log is: bad logs must fail, the suite's known noise must pass.
     Write-Host '== check log patterns =='
     powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check_log_patterns_test.ps1')
