@@ -9,8 +9,9 @@ extends Resource
 ## The new energy cost, or -1 to keep the card's own cost.
 @export var cost: int = -1
 ## Keywords the Remembered card gains / loses, by lower-case name (see KEYWORDS).
-@export var gain_keywords: PackedStringArray = []
-@export var lose_keywords: PackedStringArray = []
+## Keep the PackedStringArray() defaults: with `= []` the export dropped the values (tests/export_safety_tests.gd).
+@export var gain_keywords: PackedStringArray = PackedStringArray()
+@export var lose_keywords: PackedStringArray = PackedStringArray()
 ## On an Oath: replaces its oath_effects when not empty (otherwise the base card's carry over).
 @export var oath_effects: Array[CardEffect] = []
 

@@ -141,7 +141,9 @@ fails the pull request instead of release day:
    and carries a valid Authenticode signature, installed silently, and then checked to be that exact version.
    (Chocolatey was dropped: it lagged behind and installed a different version.) `build_installer.ps1` finds `ISCC.exe` in the newest `Inno Setup*` folder under `Program Files (x86)`, `Program Files` or the per-user `Programs` folder.
 3. **`scripts/build_installer.ps1 -NoSign`**: imports (a failed import fails the build), exports the Windows
-   build, checks the exe's file and product version against `config/version`, compiles the installer and checks
+   build, checks the exe's file and product version against `config/version`, checks that every scripted `.tres`
+   loads from the exported exe with the same data as in the project (`tools/export_integrity.gd`: the export's
+   text-to-binary conversion once dropped a card's upgrade keyword), compiles the installer and checks
    its version. It only warns when the installer is over 2/3 of the current 300 MiB cap. `-NoSign` skips the manifest and signature (no private key is ever on the runner); the output
    is discarded with the runner and must never be released. `release.ps1` never passes `-NoSign`.
 

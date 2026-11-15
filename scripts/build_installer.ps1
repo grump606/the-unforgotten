@@ -62,6 +62,10 @@ foreach ($pair in @(@('FileVersion', $exeInfo.FileVersion), @('ProductVersion', 
     if ($pair[1] -ne "$version.0") { throw "The exported exe has $($pair[0]) '$($pair[1])' but project.godot has config/version $version (expected '$version.0'): update export_presets.cfg." }
 }
 Write-Host "Exported exe version $($exeInfo.FileVersion)"
+# Every scripted .tres must load from the export with its project data (tools/export_integrity.gd): the text-to-binary
+# conversion once dropped a card's upgrade keyword, which no test run from the project could see.
+& $godot --headless --path . -s res://tools/export_integrity.gd -- $exe
+if ($LASTEXITCODE -ne 0) { throw 'Export integrity failed: a resource lost data in the export (see the DIFF lines above).' }
 
 & $iscc "/DAppVersion=$version" 'installer\setup.iss'
 if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compile failed' }
