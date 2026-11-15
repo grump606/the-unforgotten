@@ -1,7 +1,8 @@
 # Next steps
 
-Last updated 2026-11-15, after v0.10.0. **Released:** v0.10.0 (2026-11-13), Chapter 2, the Registry. **On `main`, not
-released:** Chapter 3 and the finale, built and bot-tuned but switched off (`Chapters.COUNT` is still 2, so a run
+Last updated 2026-11-15, after v0.10.0. **Released:** v0.10.0 (2026-11-13), Chapter 2, the Registry. **Version on
+`main`: 0.10.1** (the patch: Find the Seam+ keeps Ready in the export, a Draw after a Glimpse waits for the pick, the
+400 MiB installer cap and the review fixes). **On `main`, not released:** Chapter 3 and the finale, built and bot-tuned but switched off (`Chapters.COUNT` is still 2, so a run
 still ends with "To be continued"), plus a code review pass (below). The next work is the Chapter 3 playtest and the
 release that turns it on (`docs/CHAPTER3_PLAN.md`, "Order of work", step 6).
 Numbers such as the stop count and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`SIM.md`](SIM.md).
