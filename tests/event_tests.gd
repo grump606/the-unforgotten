@@ -658,7 +658,7 @@ func _test_no_repeats() -> void:
 			_check(event != null and not seen.has(event.id), "%s: event %d of 12 is new (%s)" % [character, i + 1, event.id if event != null else "?"])
 			seen[event.id] = true
 			# Back to the stop's start (the next "?" stop would be a different node but the same rules).
-			run_state._reset_event()
+			run_state.reset_event()
 		_check(seen.size() == 12 and run_state.events_seen.size() == 12, "%s: twelve stops show twelve different events" % character)
 		var again := run_state.current_event()
 		_check(again != null and run_state.events_seen == [again.id], "%s: after all twelve the pool is reshuffled" % character)

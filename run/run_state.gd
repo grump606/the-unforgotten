@@ -197,11 +197,12 @@ var _vendor: Vendor = null
 ## Ids of the events this run has shown at "?" stops (a draw without replacement: the pool is reshuffled once all
 ## twelve were seen). Saved with a map run; an older save lacks it and starts empty.
 var events_seen: Array[StringName] = []
-## The open event of the current EVENT stop and what was chosen there (see RunEvents). Once an event is rolled the stop
-## is open: not a stop boundary.
-var _events := RunEvents.new()
-var _active_combat: Combat = null
+## The run RNG (seeded in `_init`; declared before `_events`, which holds it).
 var _rng := RandomNumberGenerator.new()
+## The open event of the current EVENT stop and what was chosen there (see RunEvents). Once an event is rolled the stop
+## is open: not a stop boundary. It rolls with the run RNG, handed over here.
+var _events := RunEvents.new(_rng)
+var _active_combat: Combat = null
 var _reward_choices: Array[CardData] = []
 var _reward_pending: bool = false
 ## Map mode: the stop of the current node, null between stops.
@@ -260,7 +261,7 @@ func restore_map(map: RouteMap, current: int, path: Array[int], inside_stop: boo
 	stop_index = map.node(current).row if current >= 0 else 0
 	_map_stop = _stop_for_node(map.node(current)) if inside_stop and current >= 0 else null
 	_spoils.reset_treasure()
-	_reset_event()
+	reset_event()
 
 
 ## Map mode: the node ids the player may pick next. The start nodes before any choice, else the successors
@@ -534,13 +535,13 @@ func complete_combat(victory: bool) -> bool:
 			# A chapter's end boss, with more chapters to come (or still to be written): gold and a boss relic, then the break
 			# (or, after the last chapter that exists, "To be continued").
 			gold += END_BOSS_GOLD
-			_spoils.boss_relic = RunSpoils.roll_relic(self, BOSS_MIN_RELIC_PRICE)
+			_spoils.boss_relic = RunSpoils.roll_relic(self, _rng, BOSS_MIN_RELIC_PRICE)
 			_spoils.boss_pending = true
 			_reward_pending = true
 			_reward_choices.clear()
 			return true
 		# The last boss ends the run: no gold (nothing left to spend it on), no card to pick.
-		_advance()
+		advance_stop()
 		return true
 	var win_gold := map_win_gold(stop.enemy_count) if route != null else Vendor.gold_for_win(stop.enemy_count)
 	gold += win_gold + (MID_BOSS_GOLD_BONUS if stop.mid_boss else 0)
@@ -556,7 +557,7 @@ func complete_combat(victory: bool) -> bool:
 	if stop.elite and route != null:
 		elite_bonus_gold = ELITE_GOLD_BONUS
 		gold += elite_bonus_gold
-		_spoils.elite_relic = RunSpoils.roll_relic(self, TREASURE_MIN_RELIC_PRICE)
+		_spoils.elite_relic = RunSpoils.roll_relic(self, _rng, TREASURE_MIN_RELIC_PRICE)
 		_spoils.elite_pending = true
 	_roll_rewards()
 	_reward_pending = true
@@ -645,7 +646,7 @@ func _finish_reward() -> void:
 	take_elite_spoils() # an elite's relic is never lost by skipping straight to the card
 	_reward_pending = false
 	_reward_choices = []
-	_advance()
+	advance_stop()
 
 
 ## Heals to full at a REST stop and moves on. Returns HP restored, or -1 if not at a rest stop.
@@ -654,7 +655,7 @@ func rest() -> int:
 	if stop == null or stop.type != StopType.REST:
 		return -1
 	var restored := player.heal(rest_heal_amount())
-	_advance()
+	advance_stop()
 	return restored
 
 
@@ -683,7 +684,7 @@ func remember(deck_index: int) -> bool:
 	if not rememberable_indices().has(deck_index):
 		return false
 	deck[deck_index] = deck[deck_index].remembered_card()
-	_advance()
+	advance_stop()
 	return true
 
 
@@ -728,7 +729,7 @@ func read_story() -> bool:
 	var stop := current_stop()
 	if stop == null or stop.type != StopType.STORY:
 		return false
-	_advance()
+	advance_stop()
 	return true
 
 
@@ -783,7 +784,7 @@ func leave_vendor() -> bool:
 	if vendor() == null:
 		return false
 	_vendor = null
-	_advance()
+	advance_stop()
 	return true
 
 
@@ -805,7 +806,7 @@ func in_treasure_stop() -> bool:
 ## TREASURE_FALLBACK_GOLD instead (`treasure_relic()` stays null, `treasure_gold()` says so). A chest that is open
 ## is not a stop boundary (the arrival save is the resume point, as for a vendor visit), so it is never saved open.
 func open_treasure() -> bool:
-	return _spoils.open_treasure(self)
+	return _spoils.open_treasure(self, _rng)
 
 
 # --- Elite spoils (docs/MAP_DESIGN.md, "Phase 5a") -----------------------------------------------------------
@@ -973,15 +974,33 @@ func finish_event() -> bool:
 	return _events.finish_event(self)
 
 
-func _reset_event() -> void:
+## Closes the open event (if any) and forgets what was chosen there.
+func reset_event() -> void:
 	_events.reset()
 
 
-func _advance() -> void:
+## The relic spoils of the run (see RunSpoils), for the helpers that take or clear them.
+func spoils() -> RunSpoils:
+	return _spoils
+
+
+## Map mode: sets the stop the player is in (null: at the map, between stops). For the chapter transitions (RunChapters).
+func set_map_stop(stop: Stop) -> void:
+	_map_stop = stop
+
+
+## Drops the pending reward once what it held was taken (a chapter end boss's spoils, which carry no card).
+func clear_reward_pending() -> void:
+	_reward_pending = false
+
+
+## Leaves the current stop and moves on (the next line stop, or back to the map; past the final boss the run is won).
+## Clears the per-stop state (vendor, chest, elite spoils, event). Used by the helpers that close a stop.
+func advance_stop() -> void:
 	_vendor = null
 	_spoils.reset_treasure()
 	_spoils.reset_elite()
-	_reset_event()
+	reset_event()
 	if route != null:
 		_map_stop = null
 		if route.node(current_node).type == RouteMap.NodeType.BOSS:
@@ -1050,4 +1069,4 @@ func rarity_tier() -> int:
 
 ## Rolls the card reward of a won fight (see RunRewards.roll).
 func _roll_rewards() -> void:
-	_reward_choices.assign(RunRewards.roll(self))
+	_reward_choices.assign(RunRewards.roll(self, _rng))

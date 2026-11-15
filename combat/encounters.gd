@@ -274,12 +274,37 @@ static func map_class_difficulty(character_id: StringName, chapter: int = 1) -> 
 	return float(MAP_CLASS_DIFFICULTY.get(character_id, 1.0)) * float(Chapters.chapter(chapter).class_difficulty.get(character_id, 1.0))
 
 
-## What the last `budget_encounter` call did, for the measuring tool and tests: `scale` (the total multiplier m),
-## `hp_scale` and `damage_scale` (its two parts), `target` (the budget aimed at), `threat` (the pack's threat),
-## `bound_hit` (even the closest legal pack missed the budget because of the bounds), `attempts` (packs drawn) and
-## `fallback` (every pool enemy failed to load and the pack was built from a known enemy). Every key is always set.
-## Not game state; overwritten by every call.
-static var last_pack_info := {}
+## How a budgeted pack was built (budget_pack), for the measuring tool and tests.
+class PackInfo extends RefCounted:
+	## The total multiplier m, and its HP and damage parts (m^share and m^(1 - share)).
+	var scale := 1.0
+	var hp_scale := 1.0
+	var damage_scale := 1.0
+	## The budget aimed at, and the built pack's threat.
+	var target := 0.0
+	var threat := 0.0
+	## Even the closest legal pack missed the budget because of the scale bounds.
+	var bound_hit := false
+	## Packs drawn.
+	var attempts := 0
+	## Every pool enemy failed to load and the pack was built from a known enemy.
+	var fallback := false
+
+
+## A budgeted pack's enemies and how they were built.
+class BudgetPack extends RefCounted:
+	var enemies: Array[EnemyData] = []
+	var info := PackInfo.new()
+
+
+## A multiplier fitted by _fit_scale: the total multiplier and whether the bounds stopped it reaching the target.
+class Fit extends RefCounted:
+	var scale := 1.0
+	var bound_hit := false
+
+	func _init(p_scale: float, p_bound_hit: bool) -> void:
+		scale = p_scale
+		bound_hit = p_bound_hit
 
 
 ## A pack of `count` enemies (1 to MAX_ENEMIES; an `elite` fight has at least ELITE_MIN_ENEMIES) for a map fight
@@ -293,12 +318,17 @@ static var last_pack_info := {}
 ## Shared resources are never changed (enemies are copies and scaled() makes new ones). Enemies that fail to load
 ## are left out (cause logged); if none of a pack loads it falls back to a known enemy, so the pack is never empty.
 static func budget_encounter(count: int, rng: RandomNumberGenerator, row: int, budget_multiplier: float = 1.0, elite: bool = false, chapter: int = 1) -> Array[EnemyData]:
+	return budget_pack(count, rng, row, budget_multiplier, elite, chapter).enemies
+
+
+## budget_encounter with how the pack was built (PackInfo): the same enemies from the same `rng` draws.
+static func budget_pack(count: int, rng: RandomNumberGenerator, row: int, budget_multiplier: float = 1.0, elite: bool = false, chapter: int = 1) -> BudgetPack:
 	var n := clampi(count, ELITE_MIN_ENEMIES if elite else 1, Combat.MAX_ENEMIES)
 	var target := fight_budget(row, chapter) * budget_multiplier
 	var big_pair_chance := TIER1_BIG_PAIR_CHANCE if row >= RouteMap.ACT_ROWS else BIG_PAIR_CHANCE
 	var best: Array[EnemyData] = []
 	var best_miss := INF
-	var best_info := {}
+	var best_info := PackInfo.new()
 	for attempt in PACK_MAX_ATTEMPTS:
 		var base: Array[EnemyData] = []
 		for path in _pack_paths(n, rng, big_pair_chance, chapter):
@@ -308,14 +338,14 @@ static func budget_encounter(count: int, rng: RandomNumberGenerator, row: int, b
 		if base.is_empty():
 			continue
 		var fit := _fit_scale(base, target, chapter)
-		var pack := _scaled_pack(base, fit["scale"])
+		var pack := _scaled_pack(base, fit.scale)
 		var threat := pack_threat(pack)
 		var miss := absf(threat - target) / maxf(target, 0.001)
 		if miss < best_miss:
 			best = pack
 			best_miss = miss
 			best_info = _pack_info(base.size(), fit, target, threat, attempt + 1, false)
-		if not fit["bound_hit"]:
+		if not fit.bound_hit:
 			break
 	if best.is_empty():
 		# Every attempt lost all its enemies to load failures. A map fight is never zero enemies: log it and build
@@ -326,13 +356,15 @@ static func budget_encounter(count: int, rng: RandomNumberGenerator, row: int, b
 		for i in n:
 			base.append(stand_in.duplicate(true) as EnemyData)
 		var fit := _fit_scale(base, target, chapter)
-		best = _scaled_pack(base, fit["scale"])
+		best = _scaled_pack(base, fit.scale)
 		best_info = _pack_info(n, fit, target, pack_threat(best), PACK_MAX_ATTEMPTS, true)
-	last_pack_info = best_info
 	if elite:
 		for i in best.size():
 			best[i] = elite_named(best[i])
-	return best
+	var result := BudgetPack.new()
+	result.enemies = best
+	result.info = best_info
+	return result
 
 
 ## A copy of `enemy` whose display name has ELITE_NAME_PREFIX in front (same id, stats, intents and second phase). A new
@@ -340,23 +372,26 @@ static func budget_encounter(count: int, rng: RandomNumberGenerator, row: int, b
 static func elite_named(enemy: EnemyData) -> EnemyData:
 	if enemy.display_name.begins_with(ELITE_NAME_PREFIX):
 		return enemy
-	var intents: Array[CardEffect] = []
-	intents.assign(enemy.intents)
-	var named := EnemyData.make(ELITE_NAME_PREFIX + enemy.display_name, enemy.max_hp, intents, enemy.id, enemy.max_haunt)
-	named.phase_two_intents = enemy.phase_two_intents
-	named.phase_two_hp_percent = enemy.phase_two_hp_percent
-	named.phase_two_title = enemy.phase_two_title
-	named.phase_three_intents = enemy.phase_three_intents
-	named.phase_three_hp_percent = enemy.phase_three_hp_percent
-	named.phase_three_title = enemy.phase_three_title
-	named.unseen = enemy.unseen
+	# A whole copy, so every field (a new @export too) comes along; only the name changes.
+	var named := enemy.duplicate() as EnemyData
+	named.intents = enemy.intents.duplicate()
+	named.display_name = ELITE_NAME_PREFIX + enemy.display_name
 	return named
 
 
-## The complete last_pack_info dictionary (every key, in every case).
-static func _pack_info(count: int, fit: Dictionary, target: float, threat: float, attempts: int, fallback: bool) -> Dictionary:
+## The PackInfo of a pack of `count` built with `fit`.
+static func _pack_info(count: int, fit: Fit, target: float, threat: float, attempts: int, fallback: bool) -> PackInfo:
 	var share := _hp_share(count)
-	return {"scale": fit["scale"], "hp_scale": pow(fit["scale"], share), "damage_scale": pow(fit["scale"], 1.0 - share), "target": target, "threat": threat, "bound_hit": fit["bound_hit"], "attempts": attempts, "fallback": fallback}
+	var info := PackInfo.new()
+	info.scale = fit.scale
+	info.hp_scale = pow(fit.scale, share)
+	info.damage_scale = pow(fit.scale, 1.0 - share)
+	info.target = target
+	info.threat = threat
+	info.bound_hit = fit.bound_hit
+	info.attempts = attempts
+	info.fallback = fallback
+	return info
 
 
 ## Test hook: when valid, loads the pack builder's enemies instead of ContentRegistry.load_enemy (so a load failure can be provoked).
@@ -411,14 +446,14 @@ static func pack_multiplier_bounds(count: int, chapter: int = 1) -> Array[float]
 
 ## The total multiplier m, inside pack_multiplier_bounds, that brings the scaled `base` pack's threat closest to
 ## `target` (threat rises with m, so bisect), and whether the bounds stopped it reaching the target.
-static func _fit_scale(base: Array[EnemyData], target: float, chapter: int = 1) -> Dictionary:
+static func _fit_scale(base: Array[EnemyData], target: float, chapter: int = 1) -> Fit:
 	var bounds := pack_multiplier_bounds(base.size(), chapter)
 	var low_threat := pack_threat(_scaled_pack(base, bounds[0]))
 	if low_threat >= target:
-		return {"scale": bounds[0], "bound_hit": low_threat > target * 1.02}
+		return Fit.new(bounds[0], low_threat > target * 1.02)
 	var high_threat := pack_threat(_scaled_pack(base, bounds[1]))
 	if high_threat <= target:
-		return {"scale": bounds[1], "bound_hit": high_threat < target * 0.98}
+		return Fit.new(bounds[1], high_threat < target * 0.98)
 	var lo: float = bounds[0]
 	var hi: float = bounds[1]
 	for i in 30:
@@ -429,7 +464,7 @@ static func _fit_scale(base: Array[EnemyData], target: float, chapter: int = 1) 
 			hi = mid
 	var lo_miss := target - pack_threat(_scaled_pack(base, lo))
 	var hi_miss := pack_threat(_scaled_pack(base, hi)) - target
-	return {"scale": lo if lo_miss <= hi_miss else hi, "bound_hit": false}
+	return Fit.new(lo if lo_miss <= hi_miss else hi, false)
 
 
 ## `base` with every enemy scaled for the total multiplier `m`: HP by m^share, damage by m^(1 - share).

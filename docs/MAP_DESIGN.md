@@ -998,7 +998,7 @@ arguments in the line as before. The harness gained one line in map mode only ("
 ## Phase 4g: fewer rests, no rest beside a shop or chest, half the events
 
 A tuning pass after the first look at generated maps (rests clustered and could stack, shops and rests sat side by side,
-events were the most common special node). The rules below are in `RouteMap` (`_type_allowed`, `_check_rest_rules`) and
+events were the most common special node). The rules below are in `RouteMapGenerator._type_allowed` and `RouteMapRules._check_rest_rules` and
 tested in `tests/route_map_tests.gd`.
 
 - **Rest cap.** No path meets more than `MAX_PATH_RESTS` (2) ordinary rests in an act. The forced rest before the boss is

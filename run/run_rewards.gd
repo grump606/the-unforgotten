@@ -2,11 +2,12 @@ class_name RunRewards
 extends RefCounted
 ## Card-reward rolling for RunState: which cards a won fight offers. Static helpers that take the run, so
 ## RunState keeps only the reward flags and the public reward API. Every draw uses the run RNG in the same order as before.
-## Of RunState's internals it uses only the run RNG (`run._rng`).
+## It uses only RunState's public surface; the run RNG is passed in by the caller.
 
 
-## Rolls a won fight's reward choices (up to REWARD_CHOICES distinct cards) and records them in `run.offered_ids`.
-static func roll(run: RunState) -> Array[CardData]:
+## Rolls a won fight's reward choices (up to REWARD_CHOICES distinct cards) with `rng` (the run RNG) and records them in
+## `run.offered_ids`.
+static func roll(run: RunState, rng: RandomNumberGenerator) -> Array[CardData]:
 	# Mostly the character's own cards, with a neutral one mixed in: up to REWARD_CLASS_CHOICES
 	# class cards, then neutral cards to fill, then any class cards left over.
 	var class_cards: Array[CardData] = []
@@ -19,15 +20,15 @@ static func roll(run: RunState) -> Array[CardData]:
 	# Each slot rolls a rarity first (rarer cards come up more often deeper into the run), then a card of it.
 	var weights := StarterContent.rarity_weights(run.rarity_tier())
 	var picks: Array[CardData] = []
-	var class_picks := StarterContent.pick_by_rarity(class_cards, RunState.REWARD_CLASS_CHOICES, weights, run._rng)
+	var class_picks := StarterContent.pick_by_rarity(class_cards, RunState.REWARD_CLASS_CHOICES, weights, rng)
 	picks.append_array(class_picks)
-	picks.append_array(StarterContent.pick_by_rarity(neutral_cards, RunState.REWARD_CHOICES - picks.size(), weights, run._rng))
+	picks.append_array(StarterContent.pick_by_rarity(neutral_cards, RunState.REWARD_CHOICES - picks.size(), weights, rng))
 	if picks.size() < RunState.REWARD_CHOICES:
 		var rest: Array[CardData] = []
 		for card in class_cards:
 			if not class_picks.has(card):
 				rest.append(card)
-		picks.append_array(StarterContent.pick_by_rarity(rest, RunState.REWARD_CHOICES - picks.size(), weights, run._rng))
+		picks.append_array(StarterContent.pick_by_rarity(rest, RunState.REWARD_CHOICES - picks.size(), weights, rng))
 	for card in picks:
 		if not run.offered_ids.has(card.id):
 			run.offered_ids.append(card.id)

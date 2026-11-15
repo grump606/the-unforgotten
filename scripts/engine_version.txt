@@ -17,3 +17,8 @@ GODOT_TEMPLATES_SHA512=ca4d71c4d7b81dfc15d1a98baa07534aa95b03fdda78a0075b06672e1
 # Inno Setup used to build the installer (winget package JRSoftware.InnoSetup). Only the installer build
 # needs it. Install exactly this version: winget install JRSoftware.InnoSetup --version <this>.
 INNO_SETUP_VERSION=6.7.3
+
+# SHA-256 of innosetup-<INNO_SETUP_VERSION>.exe from https://github.com/jrsoftware/issrc/releases (tag
+# is-<version with dots as underscores>); the release page's asset digest shows the same value. CI downloads that file,
+# refuses one that does not match or is not Authenticode-signed, and installs exactly this version.
+INNO_SETUP_SHA256=9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732

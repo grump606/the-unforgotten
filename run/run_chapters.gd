@@ -2,23 +2,23 @@ class_name RunChapters
 extends RefCounted
 ## The chapter transitions of a map RunState: the break after an end boss, the finale and the start of the next chapter.
 ## Static helpers that take the run, so RunState keeps the public API and the chapter flags.
-## Of RunState's internals it uses the per-stop state a transition clears: `_map_stop`, `_reward_pending`, `_spoils` and
-## `_reset_event()`.
+## It uses only RunState's public surface, including the per-stop state a transition clears: `set_map_stop()`,
+## `clear_reward_pending()`, `spoils()` and `reset_event()`.
 
 
 ## Takes the boss relic (or the fallback gold) and opens the chapter break (see RunState.take_boss_spoils).
 static func take_boss_spoils(run: RunState) -> bool:
 	if not run.boss_spoils_pending():
 		return false
-	var spoils := run._spoils
+	var spoils := run.spoils()
 	if spoils.boss_relic != null:
 		run.grant_relic(spoils.boss_relic)
 	else:
 		run.gold += RunState.END_BOSS_FALLBACK_GOLD
 	spoils.boss_pending = false
 	spoils.boss_relic = null
-	run._reward_pending = false
-	run._map_stop = null
+	run.clear_reward_pending()
+	run.set_map_stop(null)
 	if run.chapter < Chapters.count() or Chapters.has_finale():
 		run.chapter_break = true # (after the last chapter of a complete game the break leads to the finale)
 	else:
@@ -41,7 +41,7 @@ static func start_finale(run: RunState) -> bool:
 	_break_heal(run)
 	run.chapter_break = false
 	run.finale = true
-	run._map_stop = finale_stop(run)
+	run.set_map_stop(finale_stop(run))
 	return true
 
 
@@ -66,11 +66,11 @@ static func start_next_chapter(run: RunState) -> bool:
 	run.current_node = -1
 	run.visited.clear()
 	run.stop_index = 0
-	run._map_stop = null
+	run.set_map_stop(null)
 	run.reward_remove_used = false
 	run.reward_heal_used = false
 	run.map_win_heal = 0
 	run.elite_bonus_gold = 0
-	run._spoils.reset_treasure()
-	run._reset_event()
+	run.spoils().reset_treasure()
+	run.reset_event()
 	return true

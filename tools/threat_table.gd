@@ -99,20 +99,21 @@ func _print_packs(seeds: int) -> void:
 			for s in seeds:
 				var rng := RandomNumberGenerator.new()
 				rng.seed = 7000 + s * 31 + row
-				var pack := Encounters.budget_encounter(count, rng, row)
-				var info := Encounters.last_pack_info
+				var built := Encounters.budget_pack(count, rng, row)
+				var pack := built.enemies
+				var info := built.info
 				var threat := Encounters.pack_threat(pack)
 				lowest = minf(lowest, threat)
 				highest = maxf(highest, threat)
 				total += threat
 				max_err = maxf(max_err, absf(threat - target) / target)
-				if info.get("bound_hit", false):
+				if info.bound_hit:
 					bounds += 1
-				hp_sc += info.get("hp_scale", 1.0)
-				dmg_sc += info.get("damage_scale", 1.0)
-				hp_scales.append(info.get("hp_scale", 1.0))
-				dmg_scales.append(info.get("damage_scale", 1.0))
-				attempts_total += info.get("attempts", 0)
+				hp_sc += info.hp_scale
+				dmg_sc += info.damage_scale
+				hp_scales.append(info.hp_scale)
+				dmg_scales.append(info.damage_scale)
+				attempts_total += info.attempts
 				for enemy in pack:
 					seen[enemy.id] = seen.get(enemy.id, 0) + 1
 					hp_min = mini(hp_min, enemy.max_hp)

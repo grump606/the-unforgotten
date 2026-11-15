@@ -78,7 +78,9 @@ func _initialize() -> void:
 			printerr("run_sim: cannot write the shard file %s" % opts["shard_out"])
 			quit(1)
 			return
-		file.store_string(var_to_str(shard_stats))
+		# Binary Variant encoding: keeps ints, floats and key types exactly (JSON would not), and the reader refuses
+		# objects, so a shard file can never instantiate anything (str_to_var could).
+		file.store_var(shard_stats, false)
 		file.close()
 		quit(0)
 		return
@@ -441,7 +443,7 @@ func _run_parallel(opts: Dictionary, characters: Array[StringName]) -> Dictionar
 	var queue: Array[Dictionary] = []
 	for character in characters:
 		for shard in shards:
-			queue.append({"character": character, "shard": shard, "file": dir.path_join("%s_%s_%d.txt" % [token, character, shard]), "pid": -1})
+			queue.append({"character": character, "shard": shard, "file": dir.path_join("%s_%s_%d.bin" % [token, character, shard]), "pid": -1})
 	var running: Array[Dictionary] = []
 	var next := 0
 	while next < queue.size() or not running.is_empty():
@@ -472,7 +474,11 @@ func _run_parallel(opts: Dictionary, characters: Array[StringName]) -> Dictionar
 		if not FileAccess.file_exists(job["file"]):
 			printerr("run_sim: shard %d of %s produced no result (rerun without --jobs to see the error)" % [job["shard"], job["character"]])
 			return {}
-		var part: Variant = str_to_var(FileAccess.get_file_as_string(job["file"]))
+		var part: Variant = null
+		var shard_file := FileAccess.open(job["file"], FileAccess.READ)
+		if shard_file != null:
+			part = shard_file.get_var(false) # allow_objects = false: data only
+			shard_file.close()
 		DirAccess.remove_absolute(job["file"])
 		if not part is Dictionary:
 			printerr("run_sim: shard %d of %s wrote an unreadable result" % [job["shard"], job["character"]])

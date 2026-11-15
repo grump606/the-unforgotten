@@ -2,7 +2,8 @@ class_name RunEvents
 extends RefCounted
 ## The state and rules of the "?" event stops (docs/EVENTS_DESIGN.md), owned by one RunState. The run is passed
 ## into each call rather than held, so there is no reference cycle. RunState keeps the public event API and delegates here.
-## Of RunState's internals it uses only the run RNG (`run._rng`) and `run._advance()` (leaving the stop).
+## It uses only RunState's public surface (`advance_stop()` when leaving the stop). It rolls with the run RNG, which
+## RunState hands over at construction (`_rng`, held here; the RNG holds nothing back, so still no cycle).
 
 ## A pick the player still owes after a choice: a REMOVE_CARD, REMEMBER_CARD or PICK_CARD effect.
 class PendingPick extends RefCounted:
@@ -41,6 +42,12 @@ var open_event: EventData = null
 var resolved := false
 var outcome := ""
 var pending: Array[PendingPick] = []
+## The run RNG (RunState's own, not a copy): every event roll draws from it, in the same order as the run's other draws.
+var _rng: RandomNumberGenerator
+
+
+func _init(rng: RandomNumberGenerator) -> void:
+	_rng = rng
 
 
 ## The event of the current EVENT stop (null elsewhere, or if event content failed to load: the stop can then be
@@ -62,7 +69,7 @@ func current_event(run: RunState) -> EventData:
 	if unseen.is_empty():
 		run.events_seen.clear()
 		unseen = all
-	open_event = unseen[run._rng.randi_range(0, unseen.size() - 1)]
+	open_event = unseen[_rng.randi_range(0, unseen.size() - 1)]
 	run.events_seen.append(open_event.id)
 	return open_event
 
@@ -254,7 +261,7 @@ func finish_event(run: RunState) -> bool:
 			return false
 	elif not resolved or not pending.is_empty():
 		return false
-	run._advance()
+	run.advance_stop()
 	return true
 
 
@@ -333,7 +340,7 @@ func _apply_event_effect(run: RunState, effect: EventEffect, lines: Array[String
 			for _i in maxi(effect.count, 1):
 				if candidates.is_empty():
 					break
-				var picked: CardData = candidates[run._rng.randi_range(0, candidates.size() - 1)]
+				var picked: CardData = candidates[_rng.randi_range(0, candidates.size() - 1)]
 				run.deck.append(picked)
 				lines.append("%s joins your deck." % picked.display_name)
 		EventEffect.Kind.PICK_CARD:
@@ -353,7 +360,7 @@ func _apply_event_effect(run: RunState, effect: EventEffect, lines: Array[String
 						owed += 1
 				if run.deck.size() - owed <= 1:
 					break
-				var gone := run.deck[run._rng.randi_range(0, run.deck.size() - 1)]
+				var gone := run.deck[_rng.randi_range(0, run.deck.size() - 1)]
 				run.deck.erase(gone) # drops the first copy, which is as good as any: copies are the same card
 				lines.append("%s is erased from your deck." % gone.display_name)
 		EventEffect.Kind.GAIN_RELIC:
@@ -362,11 +369,11 @@ func _apply_event_effect(run: RunState, effect: EventEffect, lines: Array[String
 				run.gold += RunState.EVENT_RELIC_FALLBACK_GOLD
 				lines.append("There is nothing left to give you but %d gold." % RunState.EVENT_RELIC_FALLBACK_GOLD)
 			else:
-				var relic: RelicData = relics_left[run._rng.randi_range(0, relics_left.size() - 1)] if relics_left.size() > 1 else relics_left[0]
+				var relic: RelicData = relics_left[_rng.randi_range(0, relics_left.size() - 1)] if relics_left.size() > 1 else relics_left[0]
 				run.grant_relic(relic)
 				lines.append("You gain the %s." % relic.display_name)
 		EventEffect.Kind.GAMBLE:
-			var won := run._rng.randi_range(1, 100) <= effect.amount
+			var won := _rng.randi_range(1, 100) <= effect.amount
 			gambles.append(won)
 			_apply_event_effects(run, effect.win if won else effect.lose, lines, gambles)
 
@@ -408,7 +415,7 @@ func _event_draw_distinct(run: RunState, pool: Array[CardData], count: int) -> A
 	var source: Array[CardData] = fresh if fresh.size() >= count else pool.duplicate()
 	var picks: Array[CardData] = []
 	while picks.size() < count and not source.is_empty():
-		var at := run._rng.randi_range(0, source.size() - 1)
+		var at := _rng.randi_range(0, source.size() - 1)
 		picks.append(source[at])
 		source.remove_at(at)
 	return picks

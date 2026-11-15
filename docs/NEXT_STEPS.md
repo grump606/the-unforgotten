@@ -1,36 +1,40 @@
 # Next steps
 
-Last updated for v0.10.0 (2026-11-12): **Chapter 2, the Registry**, the chapter structure (a break and a boss reward after Chapter 1; "To be continued" after Chapter 2), seven new enemies and two bosses, ten events, 24 cards, 7 relics, the File and Unseen effects, elite modifiers (Plated, Enraged, Marked; elite budget 1.1) and about 42 MB of new art. v0.9.1 before it added the elite art, the 1.2 elite multiplier, the tutorial and district names, and the Remember preview. The next work is Chapter 3 and the final boss (`docs/CHAPTERS_PLAN.md`) and playtesting Chapter 2 (`docs/CHAPTER2_PLAN.md`).
+Last updated 2026-11-15, after v0.10.0. **Released:** v0.10.0 (2026-11-13), Chapter 2, the Registry. **On `main`, not
+released:** Chapter 3 and the finale, built and bot-tuned but switched off (`Chapters.COUNT` is still 2, so a run
+still ends with "To be continued"), plus a code review pass (below). The next work is the Chapter 3 playtest and the
+release that turns it on (`docs/CHAPTER3_PLAN.md`, "Order of work", step 6).
 Numbers such as the stop count and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`SIM.md`](SIM.md).
+Older states of this page are in [`HISTORY.md`](HISTORY.md).
 
 ## State
 
-- **Released:** v0.9.0 (tag `v0.9.0`, 2026-11-10, Windows installer only, about 123 MiB): the branching route map is the default New Journey and elite fights exist (see below). Before it, v0.8.3 (tag `v0.8.3`, 2026-11-09, Windows installer only: combat-log key L, keyboard focus fixes, the Scent-finisher and Block rules, the updater guard), on top of v0.8.2 (tag `v0.8.2`, 2026-11-08), on top of v0.8.1 (card tooltips) and v0.8.0. Earlier milestones: v0.8.0 and before brought the Stray (fourth class, Scent engine), v0.6.0 the rename to The Unforgotten, v0.5.0 the reskin, v0.4.0 painted art and the battle stage, v0.3.2 the in-game update check. `git tag` and the GitHub releases have the full list.
-- **What v0.9.0 contains:**
-  - **The route map** (`run/route_map.gd`, `run/map_view.gd`, `run/screens/map_screen.gd`; design in `docs/MAP_DESIGN.md`, events in `docs/EVENTS_DESIGN.md`): two acts of 15 rows with branching paths, fight, elite, rest, shop, chest, event and story nodes, threat-budget enemy packs, a mid-boss and a boss, saves (format 5; line saves still load) and route-choosing bots. It was built on a long-lived branch and merged into `main` on 2026-11-10, and New Journey now starts a map run. `new_runs_use_map` in `run.gd` switches back to the fixed 22-stop line, which is intact, and `--map` / `THE_UNFORGOTTEN_MAP=1` still start a debug map run.
-  - **Tuning:** at most 2 ordinary rests per path per act plus a forced rest before each boss, no rest next to a shop or chest, events cut in half. The node mix is about 66% fights, 12% rests, 5% shops, 9% events and 8% elites of the variable nodes (chests and story beats are fixed rows).
-  - **Elites** (`RunState.ELITE_*`; `docs/MAP_DESIGN.md`, "Phase 5a" and "Phase 5b"): 2 or 3 enemies at 1.2 times the row budget, a relic drop (gold when the character owns them all) and 20 bonus gold. The map icon is amber blades in a ring of animated flames.
-  - A latent event-screen error (`_fit` on a scene freed before the next frame) fixed.
-- **What v0.8.2 contains (all of it is released):**
-  - The Stray on the title screen.
-  - A fifth rest before the Conductor (22 stops instead of 21; `docs/LEVELS_DESIGN.md`, "Pre-finale rest"). It lifts escape rates and has not been playtested.
-  - Reckoning (3x the target's Haunt) and Spirit Tithe (heal 4 per Haunted enemy) retuned.
-  - Condensed card tooltips (narrow wrapped block, smaller text).
-  - A first-launch tutorial and a How to Play button (`run/tutorial_overlay.gd`, words in `run/tutorial_content.gd`, picture `art/tutorial/battle_layout.png`; retake the picture and move the markers if the battle layout changes).
-  - P1 review fixes: dead attackers no longer hit, bad `Combat` input is rejected, the release script is hardened, and the macOS build is no longer part of releases (`docs/MACOS.md`).
-  - Test and docs review pass (this one): tests are auto-discovered (`tests/README.md`), a shared `TestBase`, scratch-file cleanup, the big test files split by topic, one engine-version file for CI and scripts, an update-manifest golden test, a README split into `docs/`, `docs/GAME_FACTS.md`, `docs/README.md` (index of every doc with its status) and `docs/REPO_SIZE.md`.
-  - Engine and UI review pass: the Forgotten-return relic and scaled-enemy fixes, bot rules shared with the engine, cached card pools (a 100-run sim went from 107 s to 6 s), route labels and backdrops stored on each stop, an idle-fighter redraw fix for defeated fighters only, and updater hardening (private launch copy of the installer, settings size cap, Skip cleans up, redirect limit, debug launch off in release builds). The `battle.gd` and `card_view.gd` splits from that review are done (PR #127, `docs/ARCHITECTURE.md`). Still open from it: rebuilding the hand without recreating every card view, Authenticode signing (see "Decisions for the owner"), and the repo size options in `docs/REPO_SIZE.md`.
-- Four characters (Deserter, Thief, Medium, Stray), a neutral pool, relics sold at vendors, a pause menu and crash-safe save/resume. Design notes are in `docs/CLASSES_PLAN.md` and `docs/RELICS_DESIGN.md`.
-- Windows installer (`scripts/build_installer.ps1`, `docs/INSTALLER.md`), in-game update check and self-install (`docs/UPDATE_CHECK.md`, `docs/UPDATE_SIGNING.md`), CI on every push (`docs/CI.md`). To ship: bump `config/version` (and `export_presets.cfg`), then `scripts/release.ps1`.
-
-- Earlier fix passes: [`HISTORY.md`](HISTORY.md).
-- **Sixth fix pass (tooling, updater, docs; the last one, from an independent review).**
-  - Updater: a verified installer kept by `cancel()` (for example after update checks were switched off and on) is no longer run when the bar names a newer tag; the button discards it and downloads the new tag (`UpdateNotice._on_download`, test in `tests/ui_update_notice_test.gd`). `cancel()` and `discard()` no longer clear the launched flag once the installer has started. The three teardown paths are one `_abandon()` helper, and the header of `run/update_installer.gd` has a state table.
-  - `scripts/build_installer.ps1`: the 2/3-of-cap rule only warns. (The 150 MiB guard for v0.8.2 clients that this pass kept was removed on 2026-11-10, with `LEGACY_CLIENT_CAP_MIB`.)
-  - `scripts/check_log_patterns.ps1`: a `push_error` is allowed only with one of the known messages the tests provoke on purpose; an unknown `push_error` fails the check. Proven on a real full log, the CI log of the latest `main` push and `check_log_samples/passing_noise.txt` (0 false flags), with new bad and good samples.
-  - Check floor record: `release.ps1` refuses a record that is more than 5% below the live total (`scripts/check_floor_record.ps1`); `check.ps1` repeats `NOTE:` lines (the 5% above-the-record note comes from `run_tests.gd`) before its verdict.
-  - Docs: `CI.md` lists every workflow and `check.ps1` step; `RULES.md` was checked against `combat/combat.gd` (Surge at 0 and the Block trigger were right, wording tightened) and gained the owner decisions below.
-  - Other teammates' changes in this pass (rules, UI, keyboard, sim exit codes) are documented by the supervisor.
+- **Released:** v0.10.0 (GitHub release `v0.10.0`, 2026-11-13, Windows installer only): Chapter 2, the Registry, and the chapter
+  structure (a break and a boss reward after each chapter), with the elite art, elite modifiers, the tutorial and the
+  district names. Before it: v0.9.0 (the branching route map, elites).
+- **On `main`, unreleased:**
+  - **Chapter 3 and the finale** (`docs/CHAPTER3_PLAN.md`): seven enemies, the Blotter (mid-boss), the Warden of the
+    Inkwell (end boss) and the Scrivener (final boss, three phases) in `data/enemies/chapter3/`; the Cross Out effect;
+    35 story texts, 10 events, 24 cards, 7 relics and the finale texts; the art (enemies, elite auras, backdrops,
+    story paintings, card art). Tuned with a per-chapter pack scale bound and class and boss factors; the 400-run bot
+    confirmation is in `docs/SIM.md` ("Chapter 3 confirmation"): every class within about 5 points of target, the
+    finale a little hard (18 to 23% of smart runs that reach it lost; target 15%). Switched on by `Chapters.COUNT = 3`.
+  - **In-game download cap 400 MiB** (from 300) for the larger Chapter 3 installer; it ships one release before it is
+    needed, so v0.10.1 should go out before the Chapter 3 release (`docs/UPDATE_CHECK.md`, "Installer size cap").
+  - **Code review pass (2026-11-14/15):**
+    - The run and combat layers were split into helpers: `RunEvents`, `RunRewards`, `RunSpoils`, `RunChapters`,
+      `RelicEffects`, `ScentRules`.
+    - `Encounters` now builds every fight, and `StarterContent` is the content catalog only.
+    - `CharacterIds` holds the character ids, and typed classes replace ad-hoc dictionaries.
+    - `tests/script_wiring_tests.gd` fails on an unused game script or a missing `.uid`.
+    - Updater: the signed `min_version` floor, a 60 s download stall watchdog instead of a 600 s total timeout, and
+      `/DIR=` so a moved copy updates itself.
+    - Saves: a newer `.tmp` wins after a failed rename.
+    - CI installs exactly the pinned Inno Setup, checked by SHA-256 and Authenticode.
+- **Standing features:** four characters (Deserter, Thief, Medium, Stray), the route map with elites, relics,
+  events, shops and rests, a pause menu and crash-safe save/resume, the tutorial, the Windows installer
+  (`docs/INSTALLER.md`), the in-game update check and self-install (`docs/UPDATE_CHECK.md`, `docs/UPDATE_SIGNING.md`)
+  and CI on every push (`docs/CI.md`).
 
 ## Decisions for the owner
 
@@ -52,15 +56,18 @@ These were deliberately not done in the review round.
 
 ## To do, in the order I would take it
 
-The current run is **Chapter 1** of 3 (two districts, a mid-boss and an end boss each chapter). The plan for finishing it and building on it is in [`CHAPTERS_PLAN.md`](CHAPTERS_PLAN.md); the list below is the near-term part of that plan.
-
-1. **Playtest v0.9.0 with testers**, mostly the route map: do the choices feel like choices, is the rest and shop pacing right, are elites worth taking, are the events fun. The numbers are tuned against bots, not people (`docs/PLAYTEST_CHECKLIST.md`). Current bot figures are in `docs/SIM.md` ("Current figures").
-2. **Elite polish**: the map tooltip now names the relic drop, as do the battle log line and the spoils screen. Only elite modifiers or elite-specific enemies remain (an elite is a regular pack scaled up, renamed and drawn larger): a design decision for the owner, with proposals in `docs/MAP_DESIGN.md`, "Elite modifier ideas (not built)". `RunState.ELITE_BUDGET_MULTIPLIER` is the difficulty knob (1.2 now, from 1.35: see `docs/MAP_DESIGN.md`, "Phase 5c"); the greedy bot escapes 63 to 79% at 1.2, so try about 1.25 if testers find the map too easy.
-3. **Look into the Stray gap**: before elites the greedy bot escaped 76.7% and the smart bot 56.7% as the Stray on the map (`docs/SIM.md`), the largest bot gap of any class.
-4. **Cut the next release** once playtest feedback is in. The installer is about 123 MiB and the in-game download cap is 300 MiB (`docs/UPDATE_CHECK.md`, "Installer size cap"); the old 150 MiB guard for v0.8.2 clients was removed on 2026-11-10, so those players must download a larger installer by hand: bump `config/version` and `export_presets.cfg`, merge, then `scripts/release.ps1 -Publish`, check the draft with `scripts/verify_release.ps1 -Draft`, and publish it on GitHub. Check `docs/PLAYTEST_CHECKLIST.md` first.
-5. **Retune from playtest feedback**: `REWARD_HEAL`, `HEAL_BELOW`, class HP, card costs, the map's node weights. Check any change with the sims.
-6. **Keep-5 hand rule review**: it shifted bot numbers unevenly (the Thief lost ground, the Medium gained in the smart bot). Knobs: `Combat.HAND_SIZE`, `Combat.HAND_MAX`.
-7. **Art**: the Warden halberd and the Conductor watch chain are done. Still open are the 960x320 `figure.png` portrait layers to match (edit prompts in `art/PROMPTS.md`, "Touch-ups still open") and the rest paintings (1672x941, below the 2304x1296 screen target, polish).
+1. **Hand-test an in-game update** before the next release: install v0.10.0, build v0.10.1 locally and update in
+   game. It is the only check of the new `/DIR=` installer argument and the download stall watchdog against a real
+   install and a real network (the tests cover their logic, not the installer).
+2. **Release v0.10.1** (the 400 MiB cap and the review fixes, Chapter 3 still off): bump `config/version` and
+   `export_presets.cfg`, then `scripts/release.ps1` (`docs/UPDATE_SIGNING.md`, "Every release").
+3. **Playtest Chapter 3 and the finale** with Chapter 3 switched on locally (`Chapters.COUNT = 3`): the Scrivener's
+   three phases, the finale's difficulty (bots say a little hard), the new events and cards.
+4. **Release Chapter 3** (v0.11.0): `Chapters.COUNT = 3`, retune from the playtest, check with the sims.
+5. **The Stray and Thief bots**: the greedy Thief bot reaches 0% in Chapter 3 (deck bloat) and the Stray has the
+   widest gap between the two bots (`docs/SIM.md`); see whether the bots or the classes are at fault.
+6. **Art polish**: the 960x320 `figure.png` portrait layers and the rest paintings (`art/PROMPTS.md`, "Touch-ups still
+   open").
 
 ## Smaller open items
 

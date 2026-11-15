@@ -86,9 +86,10 @@ func _test_chapter_2_content() -> void:
 		for count in [1, 2, 3]:
 			var rng := RandomNumberGenerator.new()
 			rng.seed = row * 100 + count
-			var pack := Encounters.budget_encounter(count, rng, row, 1.0, false, 2)
+			var built := Encounters.budget_pack(count, rng, row, 1.0, false, 2)
+			var pack := built.enemies
 			packs += 1
-			var ok: bool = not pack.is_empty() and not Encounters.last_pack_info["fallback"]
+			var ok: bool = not pack.is_empty() and not built.info.fallback
 			for enemy in pack:
 				ok = ok and not Chapters.chapter(1).enemy_paths.any(func(p: String) -> bool: return (load(p) as EnemyData).id == enemy.id)
 			if not ok:

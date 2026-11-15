@@ -567,10 +567,10 @@ func _test_validate_catches_corruption() -> void:
 		if n.type == REST and n.act == 0:
 			n.type = FIGHT
 	var path_problems: Array[String] = []
-	routed_around._check_rest_before_bosses(path_problems, routed_around._rows)
+	RouteMapRules._check_rest_before_bosses(routed_around, path_problems, routed_around._rows)
 	_check(not path_problems.is_empty(), "a path that reaches a boss without a rest is reported")
 	var path_ok: Array[String] = []
-	map._check_rest_before_bosses(path_ok, map._rows)
+	RouteMapRules._check_rest_before_bosses(map, path_ok, map._rows)
 	_check(path_ok.is_empty(), "every path of a generated map rests before each boss")
 
 	var all_rest := _copy(map)

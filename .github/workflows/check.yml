@@ -22,7 +22,7 @@ env:
 jobs:
   check:
     # Pinned, not windows-latest: the installer step below depends on what is preinstalled (Git's OpenSSL for
-    # the signing checks, Chocolatey for Inno Setup, PowerShell 5.1 for the scripts), and "latest" moves to a new
+    # the signing checks, PowerShell 5.1 for the scripts), and "latest" moves to a new
     # image on GitHub's schedule, which would break the build on a day nobody touched the repo. Move this on
     # purpose, in a pull request that shows the full run passing on the new image.
     runs-on: windows-2022
@@ -39,7 +39,7 @@ jobs:
           foreach ($line in Get-Content -LiteralPath scripts/engine_version.txt) {
             if ($line -match '^\s*([A-Z][A-Z0-9_]*)=(\S+)\s*$') { $found[$Matches[1]] = $Matches[2] }
           }
-          foreach ($key in 'GODOT_VERSION', 'GODOT_ZIP_SHA512', 'GODOT_TEMPLATES_SHA512', 'INNO_SETUP_VERSION') {
+          foreach ($key in 'GODOT_VERSION', 'GODOT_ZIP_SHA512', 'GODOT_TEMPLATES_SHA512', 'INNO_SETUP_VERSION', 'INNO_SETUP_SHA256') {
             if (-not $found.ContainsKey($key)) { throw "$key is missing from scripts/engine_version.txt" }
             "$key=$($found[$key])" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           }
@@ -145,25 +145,28 @@ jobs:
           $dest = Join-Path $env:APPDATA ('Godot\export_templates\' + ($env:GODOT_VERSION -replace '-', '.'))
           New-Item -ItemType Directory -Force $dest | Out-Null
           Copy-Item (Join-Path $env:RUNNER_TEMP 'godot_templates\*') $dest
-          # Prefer the exact version from scripts/engine_version.txt (the one releases are built with). The
-          # Chocolatey package lags the winget one (it had no 6.7.3), so fall back to the newest it offers: this
-          # step only checks that the installer still compiles, and the real release is built locally.
-          choco install innosetup --version=$env:INNO_SETUP_VERSION --yes --no-progress
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "::warning::Chocolatey has no Inno Setup $env:INNO_SETUP_VERSION; installing the newest version it offers."
-            choco install innosetup --yes --no-progress
-            if ($LASTEXITCODE -ne 0) { throw "choco could not install Inno Setup" }
-          }
-          # The newest package may be a different major version (an Inno Setup 7 could break installer/setup.iss
-          # in ways that say nothing about this repo): refuse anything but 6.x, and print what was installed.
-          # (Read from the uninstaller in the install folder: ISCC.exe itself has no version resource, and the
-          # flags of `choco list` differ between Chocolatey 1.x and 2.x.)
+          # Exactly the Inno Setup that releases are built with (scripts/engine_version.txt), from its official GitHub
+          # release, checked by SHA-256 and Authenticode before it runs. (Chocolatey lagged behind and silently gave
+          # a different version, so it is no longer used.)
+          $innoTag = 'is-' + ($env:INNO_SETUP_VERSION -replace '\.', '_')
+          $innoExe = Join-Path $env:RUNNER_TEMP "innosetup-$env:INNO_SETUP_VERSION.exe"
+          Invoke-WebRequest -Uri "https://github.com/jrsoftware/issrc/releases/download/$innoTag/innosetup-$env:INNO_SETUP_VERSION.exe" -OutFile $innoExe
+          $innoHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $innoExe).Hash.ToLowerInvariant()
+          if ($innoHash -ne $env:INNO_SETUP_SHA256) { throw "Inno Setup SHA-256 mismatch: expected $env:INNO_SETUP_SHA256, got $innoHash" }
+          $innoSig = Get-AuthenticodeSignature -LiteralPath $innoExe
+          if ($innoSig.Status -ne 'Valid') { throw "The Inno Setup installer's Authenticode signature is $($innoSig.Status)" }
+          Write-Host "Inno Setup installer verified (SHA-256 $innoHash, signed by $($innoSig.SignerCertificate.Subject))"
+          $innoProc = Start-Process -FilePath $innoExe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/ALLUSERS' -Wait -PassThru
+          if ($innoProc.ExitCode -ne 0) { throw "The Inno Setup installer exited with code $($innoProc.ExitCode)" }
+          Remove-Item -LiteralPath $innoExe
+          # Confirm the pinned version is what is installed now. (Read from the uninstaller in the install folder:
+          # ISCC.exe itself has no version resource.)
           $unins = @(Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup*", "$env:ProgramFiles\Inno Setup*" -Directory -ErrorAction SilentlyContinue |
             ForEach-Object { Join-Path $_.FullName 'unins000.exe' } | Where-Object { Test-Path -LiteralPath $_ })
-          if ($unins.Count -eq 0) { throw "No Inno Setup install folder with an uninstaller found after choco install" }
+          if ($unins.Count -eq 0) { throw "No Inno Setup install folder with an uninstaller found after the install" }
           $innoVersion = ($unins | ForEach-Object { [string](Get-Item -LiteralPath $_).VersionInfo.ProductVersion } | Sort-Object { [version]$_ } -Descending | Select-Object -First 1)
           Write-Host "Inno Setup $innoVersion installed (pinned: $env:INNO_SETUP_VERSION)"
-          if ($innoVersion -notmatch '^6\.') { throw "Inno Setup $innoVersion installed, but the installer script targets 6.x: pin a 6.x version in scripts/engine_version.txt or update installer/setup.iss and scripts/build_installer.ps1." }
+          if ([version]$innoVersion -ne [version]$env:INNO_SETUP_VERSION) { throw "Inno Setup $innoVersion is installed, not the pinned $env:INNO_SETUP_VERSION" }
 
       - name: Build the installer (unsigned)
         shell: pwsh

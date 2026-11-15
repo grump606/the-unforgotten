@@ -126,10 +126,23 @@ func _test_calibration_against_the_line() -> void:
 		_check(absf(budget_mean / Encounters.MAP_DIFFICULTY - act_mean[act]) < act_mean[act] * tolerance, "act %d mean budget (%.1f) is within %d%% of the line's mean pack threat (%.1f)" % [act + 1, budget_mean / Encounters.MAP_DIFFICULTY, tolerance * 100.0, act_mean[act]])
 
 
+## How the last _pack was built.
+var _last_info: Encounters.PackInfo
+
+
 func _pack(count: int, seed_value: int, row: int, multiplier: float = 1.0, elite: bool = false) -> Array[EnemyData]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
-	return Encounters.budget_encounter(count, rng, row, multiplier, elite)
+	var built := Encounters.budget_pack(count, rng, row, multiplier, elite)
+	_last_info = built.info
+	_check(Encounters.budget_encounter(count, _seeded(seed_value), row, multiplier, elite).size() == built.enemies.size(), "budget_encounter builds the same pack as budget_pack")
+	return built.enemies
+
+
+func _seeded(seed_value: int) -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	return rng
 
 
 func _test_pack_builder_meets_budget() -> void:
@@ -139,11 +152,11 @@ func _test_pack_builder_meets_budget() -> void:
 		for count in range(1, 4):
 			for s in 25:
 				var pack := _pack(count, 900 + s * 7 + row, row)
-				var info := Encounters.last_pack_info
+				var info := _last_info
 				packs += 1
 				_check(pack.size() == count, "row %d: a pack of %d has %d enemies" % [row, count, pack.size()])
 				var target := Encounters.fight_budget(row)
-				if info["bound_hit"]:
+				if info.bound_hit:
 					bound_hits += 1
 					continue
 				_check(absf(Encounters.pack_threat(pack) - target) <= target * 0.08, "row %d count %d seed %d: threat %.1f within 8%% of the budget %.1f" % [row, count, s, Encounters.pack_threat(pack), target])
@@ -170,29 +183,27 @@ func _test_pack_builder_bounds() -> void:
 		for count in range(1, 4):
 			for s in 30:
 				_pack(count, 33 + s, row)
-				var info := Encounters.last_pack_info
-				_check(info["hp_scale"] >= Encounters.PACK_SCALE_MIN - 0.0001 and info["hp_scale"] <= Encounters.PACK_SCALE_MAX + 0.0001, "row %d count %d: HP factor %.3f in bounds" % [row, count, info["hp_scale"]])
-				_check(info["damage_scale"] >= Encounters.PACK_SCALE_MIN - 0.0001 and info["damage_scale"] <= Encounters.PACK_SCALE_MAX + 0.0001, "row %d count %d: damage factor %.3f in bounds" % [row, count, info["damage_scale"]])
+				var info := _last_info
+				_check(info.hp_scale >= Encounters.PACK_SCALE_MIN - 0.0001 and info.hp_scale <= Encounters.PACK_SCALE_MAX + 0.0001, "row %d count %d: HP factor %.3f in bounds" % [row, count, info.hp_scale])
+				_check(info.damage_scale >= Encounters.PACK_SCALE_MIN - 0.0001 and info.damage_scale <= Encounters.PACK_SCALE_MAX + 0.0001, "row %d count %d: damage factor %.3f in bounds" % [row, count, info.damage_scale])
 	# An impossible budget is never met by leaving the bounds: the pack stays at the nearest legal factor.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
-	var huge := Encounters.budget_encounter(3, rng, 10, 50.0)
-	var info := Encounters.last_pack_info
-	_check(info["bound_hit"] and info["hp_scale"] <= Encounters.PACK_SCALE_MAX + 0.0001 and info["damage_scale"] <= Encounters.PACK_SCALE_MAX + 0.0001, "an impossible budget settles for the legal maximum")
+	var huge_pack := Encounters.budget_pack(3, rng, 10, 50.0)
+	var huge := huge_pack.enemies
+	var info := huge_pack.info
+	_check(info.bound_hit and info.hp_scale <= Encounters.PACK_SCALE_MAX + 0.0001 and info.damage_scale <= Encounters.PACK_SCALE_MAX + 0.0001, "an impossible budget settles for the legal maximum")
 	_check(huge.size() == 3, "an impossible budget still gives a full pack")
 	var rng_small := RandomNumberGenerator.new()
 	rng_small.seed = 3
-	Encounters.budget_encounter(3, rng_small, 10, 0.01)
-	_check(Encounters.last_pack_info["hp_scale"] >= Encounters.PACK_SCALE_MIN - 0.0001, "a trivial budget settles for the legal minimum")
+	_check(Encounters.budget_pack(3, rng_small, 10, 0.01).info.hp_scale >= Encounters.PACK_SCALE_MIN - 0.0001, "a trivial budget settles for the legal minimum")
 
 
-## When every enemy of the pool fails to load, a map fight still gets enemies and last_pack_info is complete.
+## When every enemy of the pool fails to load, a map fight still gets enemies and its PackInfo is filled in.
 func _test_pack_builder_fallback() -> void:
-	var keys := ["scale", "hp_scale", "damage_scale", "target", "threat", "bound_hit", "attempts", "fallback"]
 	var normal := _pack(2, 5, 10)
-	for key in keys:
-		_check(Encounters.last_pack_info.has(key), "a normal pack's info has %s" % key)
-	_check(normal.size() == 2 and not Encounters.last_pack_info["fallback"], "a normal pack is not a fallback")
+	_check(_last_info.attempts >= 1 and _last_info.threat > 0.0 and _last_info.target > 0.0, "a normal pack's info is filled in")
+	_check(normal.size() == 2 and not _last_info.fallback, "a normal pack is not a fallback")
 	# Only the warden loads: the fallback finds it (the loader hides the shade and the wisp).
 	Encounters._budget_enemy_loader = func(path: String) -> EnemyData:
 		return StarterContent._load_enemy(path) if path == StarterContent.WARDEN_PATH else null
@@ -200,16 +211,15 @@ func _test_pack_builder_fallback() -> void:
 	_check(warden_pack.size() == 3, "with only the warden loadable a trio still has 3 enemies")
 	for enemy in warden_pack:
 		_check(enemy.id == &"gate_warden" or enemy.id == StarterContent.warden().id, "the fallback pack is made of the loadable enemy")
-	for key in keys:
-		_check(Encounters.last_pack_info.has(key), "a fallback pack's info has %s" % key)
-	_check(Encounters.last_pack_info["fallback"] and Encounters.last_pack_info["threat"] > 0.0, "the info marks the fallback")
+	_check(_last_info.attempts == Encounters.PACK_MAX_ATTEMPTS, "a fallback pack's info counts every attempt")
+	_check(_last_info.fallback and _last_info.threat > 0.0, "the info marks the fallback")
 	# Nothing loads: a minimal stand-in pack, never empty.
 	Encounters._budget_enemy_loader = func(_path: String) -> EnemyData: return null
 	var minimal := _pack(1, 5, 0)
 	Encounters._budget_enemy_loader = Callable()
 	_check(minimal.size() == 1 and minimal[0].max_hp > 0 and not minimal[0].intents.is_empty(), "with nothing loadable a single is still a real enemy")
-	_check(Encounters.last_pack_info["fallback"] and Encounters.last_pack_info.has("bound_hit"), "the minimal fallback has a full info dictionary")
-	_check(_pack(2, 5, 10).size() == 2 and not Encounters.last_pack_info["fallback"], "the builder is back to normal")
+	_check(_last_info.fallback and _last_info.scale > 0.0, "the minimal fallback has a filled-in info")
+	_check(_pack(2, 5, 10).size() == 2 and not _last_info.fallback, "the builder is back to normal")
 
 
 func _fingerprint(pack: Array[EnemyData]) -> String:

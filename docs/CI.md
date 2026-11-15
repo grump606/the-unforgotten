@@ -76,7 +76,8 @@ powershell -ExecutionPolicy Bypass -File scripts/check.ps1 -Godot 'C:\path\to\..
    `GODOT_TEMPLATES_SHA512` (the installer-build job refuses templates that do not match it).
 4. Install the matching export templates on the build machine (`docs/INSTALLER.md`).
 
-Nothing else needs editing. The Inno Setup pin (`INNO_SETUP_VERSION`) is changed the same way; see
+Nothing else needs editing. The Inno Setup pin (`INNO_SETUP_VERSION`, and `INNO_SETUP_SHA256` beside it: the SHA-256
+of the new `innosetup-<version>.exe`, which the GitHub release page lists as the asset's digest) is changed the same way; see
 `docs/INSTALLER.md`.
 
 ## The import cache
@@ -131,8 +132,10 @@ fails the pull request instead of release day:
 
 1. **Windows export templates**: the Godot `.tpz` is downloaded once, checked against `GODOT_TEMPLATES_SHA512`
    and only the three Windows files are kept and cached (key: version plus hash).
-2. **Inno Setup**: `choco install innosetup --version=<INNO_SETUP_VERSION>` (Chocolatey is on the runner image;
-   winget is not reliably there). `build_installer.ps1` finds `ISCC.exe` in the newest `Inno Setup*` folder under `Program Files (x86)`, `Program Files` or the per-user `Programs` folder.
+2. **Inno Setup**: exactly `INNO_SETUP_VERSION`, downloaded from the official release
+   (`github.com/jrsoftware/issrc/releases`, tag `is-6_7_3` for 6.7.3), refused unless it matches `INNO_SETUP_SHA256`
+   and carries a valid Authenticode signature, installed silently, and then checked to be that exact version.
+   (Chocolatey was dropped: it lagged behind and installed a different version.) `build_installer.ps1` finds `ISCC.exe` in the newest `Inno Setup*` folder under `Program Files (x86)`, `Program Files` or the per-user `Programs` folder.
 3. **`scripts/build_installer.ps1 -NoSign`**: imports (a failed import fails the build), exports the Windows
    build, checks the exe's file and product version against `config/version`, compiles the installer and checks
    its version. It only warns when the installer is over 2/3 of the current 300 MiB cap. `-NoSign` skips the manifest and signature (no private key is ever on the runner); the output
