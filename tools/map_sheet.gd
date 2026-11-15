@@ -17,16 +17,16 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	for i in 8: # let the window settle at its final size before the first capture
 		await process_frame
-	for id in [&"deserter", &"medium"]:
+	for id in [CharacterIds.DESERTER, CharacterIds.MEDIUM]:
 		var route := RouteMap.generate(7, id)
 		await _shot(route, id, 0, "act1_start_%s" % id)
 		await _shot(route, id, 6, "act1_mid_%s" % id, true)
 		await _shot(route, id, 12, "act1_forced_rest_%s" % id)
 		await _shot(route, id, 15 + 12, "act2_forced_rest_%s" % id)
 		await _shot(route, id, 15 + 7, "act2_%s" % id, true)
-	var elites := RouteMap.generate(11, &"thief", {"type_weights": {"elite": 14.0}})
-	await _shot(elites, &"thief", 5, "act1_elites_thief", true)
-	await _shot(elites, &"thief", 15 + 10, "act2_elites_thief")
+	var elites := RouteMap.generate(11, CharacterIds.THIEF, {"type_weights": {"elite": 14.0}})
+	await _shot(elites, CharacterIds.THIEF, 5, "act1_elites_thief", true)
+	await _shot(elites, CharacterIds.THIEF, 15 + 10, "act2_elites_thief")
 	quit()
 
 

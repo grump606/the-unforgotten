@@ -42,7 +42,7 @@ Deviation from the first sketch (rests at 8 and 13/17): the sim showed the Brake
 ## Mid-boss and boss rules
 
 - `Stop.mid_boss` (bool), `Stop.tier` (int), `Stop.fight` (int). `Stop.describe()` returns "Mid-boss".
-- `StarterContent.mid_boss_encounter()` is the Brakeman alone (`data/enemies/the_brakeman.tres`, not in `ALL_ENEMY_PATHS`).
+- `Encounters.mid_boss_encounter()` is the Brakeman alone (`data/enemies/the_brakeman.tres`, not in `ALL_ENEMY_PATHS`).
 - Beating the mid-boss pays `Vendor.gold_for_win(1)` plus `RunState.MID_BOSS_GOLD_BONUS` (15), offers a card reward, triggers relic win hooks, and the run continues. Losing ends the run.
 - Beating the Conductor still pays nothing, offers nothing and ends the run. Relics stay vendor-only.
 - Neither boss is stat-ramped; their numbers are hand-tuned.
@@ -58,12 +58,12 @@ Retuned from 108 HP to 96 HP (attacks unchanged at 19 and 13, Block 10, Expose 2
 
 ## Progressive difficulty
 
-1. **Tier-aware pools** (`StarterContent.varied_encounter(count, rng, tier = 0, fight = 0)`): tier 1 raises the chance that a pair is Gate Warden plus a small enemy from 15% to 20% (`TIER1_BIG_PAIR_CHANCE`). Singles use the same pool at every tier (the line has no single-enemy fight in act 2, and the old reserved tier-1 single list was removed). The random draws are identical in number and order to tier 0, so seeds stay in step.
-2. **Stat ramp**: `StarterContent.ramp_factor(fight) = 1 + 0.012 * fight`, applied by `StarterContent.scaled()` to a regular encounter's max HP and DAMAGE intents, rounded, minimum 1. Block and statuses are not scaled. It builds new `EnemyData` and `CardEffect` objects, so shared resources and the global RNG are untouched. Fight 0 is x1.00, fight 7 is x1.084.
+1. **Tier-aware pools** (`Encounters.varied_encounter(count, rng, tier = 0, fight = 0)`): tier 1 raises the chance that a pair is Gate Warden plus a small enemy from 15% to 20% (`TIER1_BIG_PAIR_CHANCE`). Singles use the same pool at every tier (the line has no single-enemy fight in act 2, and the old reserved tier-1 single list was removed). The random draws are identical in number and order to tier 0, so seeds stay in step.
+2. **Stat ramp**: `Encounters.ramp_factor(fight) = 1 + 0.012 * fight`, applied by `Encounters.scaled()` to a regular encounter's max HP and DAMAGE intents, rounded, minimum 1. Block and statuses are not scaled. It builds new `EnemyData` and `CardEffect` objects, so shared resources and the global RNG are untouched. Fight 0 is x1.00, fight 7 is x1.084.
 
 Why such a small ramp: the combat numbers are on breakpoints (a Shove does 6, a Wisp has 16 HP, the small enemies hit for 3 to 9). The sim showed 7 percent per fight (fight 7 at x1.49) took the Deserter's escape rate to 0.2 percent, 3.5 percent to about 45 percent trio loss rates, and even 2 percent per fight (x1.14) pushed the fight-5 trio from 10 to 26 percent loss. Most of the felt difficulty comes from attrition (HP carried across eight fights) and the act-2 pools; the ramp is a gentle nudge on top.
 
-Map mode does not use this ramp: its fights are built to a threat budget by row (`StarterContent.budget_encounter`), calibrated to this line's average pack threat per fight. See `docs/MAP_DESIGN.md`, "Phase 4d".
+Map mode does not use this ramp: its fights are built to a threat budget by row (`Encounters.budget_encounter`), calibrated to this line's average pack threat per fight. See `docs/MAP_DESIGN.md`, "Phase 4d".
 
 ## Balance changes (with reasons)
 

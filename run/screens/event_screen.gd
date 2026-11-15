@@ -119,14 +119,14 @@ func _add_choice(box: VBoxContainer, index: int) -> void:
 	group.name = "Choice%d" % index
 	group.add_theme_constant_override("separation", 1)
 	box.add_child(group)
-	var button := add_button(group, String(state["label"]), _choose.bind(index))
+	var button := add_button(group, state.label, _choose.bind(index))
 	button.name = "ChoiceButton%d" % index
 	style_service(button)
 	compact_plaque(button, 30.0, 14)
-	button.disabled = not bool(state["enabled"])
-	var summary := String(state["summary"])
-	if not bool(state["enabled"]):
-		var reason := String(state["reason"])
+	button.disabled = not state.enabled
+	var summary := state.summary
+	if not state.enabled:
+		var reason := state.reason
 		button.tooltip_text = reason
 		if reason != "":
 			var why := _add_text(group, reason, 12, REASON_COLOUR)

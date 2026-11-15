@@ -9,13 +9,13 @@ var title: String = ""
 ## What the player calls each district, one per act (RouteMap.ACTS entries).
 var district_names: Array[String] = []
 ## Regular-fight budget at the first and the last row of each district, before MAP_DIFFICULTY
-## (see StarterContent.fight_budget). One entry per act each.
+## (see Encounters.fight_budget). One entry per act each.
 var budget_start: Array[float] = []
 var budget_end: Array[float] = []
-## A multiplier on the fight budget per character id, on top of StarterContent.MAP_CLASS_DIFFICULTY (a class that is not
+## A multiplier on the fight budget per character id, on top of Encounters.MAP_CLASS_DIFFICULTY (a class that is not
 ## listed uses 1.0): the four classes do not carry their decks into a later chapter equally well (docs/CHAPTER2_PLAN.md).
 var class_difficulty: Dictionary = {}
-## The largest HP or damage factor a pack of this chapter may be scaled by (StarterContent.PACK_SCALE_MAX is the floor of it). A chapter whose budget
+## The largest HP or damage factor a pack of this chapter may be scaled by (Encounters.PACK_SCALE_MAX is the floor of it). A chapter whose budget
 ## outgrows the shared bound raises it, so the class factors keep working.
 var pack_scale_max: float = 0.0
 ## Like class_difficulty but for the chapter's two bosses (fixed fights, not budgeted): their HP and attacks are each scaled by the

@@ -18,7 +18,7 @@ const RING_COUNT := 7
 
 ## Seconds of animation so far; only advance() moves it.
 var time := 0.0
-## One of &"deserter", &"thief", &"medium"; anything else draws the neutral scene.
+## One of CharacterIds.DESERTER, CharacterIds.THIEF, CharacterIds.MEDIUM; anything else draws the neutral scene.
 var variant: StringName = &""
 
 var _noise: Array[float] = []
@@ -106,11 +106,11 @@ func _draw() -> void:
 	# The painting already supplies the shelter and its props.
 	if painted == null:
 		match variant:
-			&"deserter":
+			CharacterIds.DESERTER:
 				_draw_coat(w, h, c, lamp)
-			&"thief":
+			CharacterIds.THIEF:
 				_draw_watch(w, h, c, lamp)
-			&"medium":
+			CharacterIds.MEDIUM:
 				_draw_figures(w, h, c)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	# Scrim: a light dim everywhere and a darker soft band behind the menu so the buttons read.

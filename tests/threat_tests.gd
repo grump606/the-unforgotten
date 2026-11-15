@@ -44,66 +44,66 @@ func _enemy(hp: int, damage: int, hits: int = 1) -> EnemyData:
 
 func _test_enemy_threat() -> void:
 	var base := _enemy(20, 5)
-	_check(is_equal_approx(StarterContent.enemy_threat(base), 5.0 * 20.0 / StarterContent.THREAT_REF_DPS), "threat is turn damage times HP over the reference output")
-	_check(StarterContent.enemy_threat(_enemy(30, 5)) > StarterContent.enemy_threat(base), "more HP is more threat")
-	_check(StarterContent.enemy_threat(_enemy(20, 8)) > StarterContent.enemy_threat(base), "more damage is more threat")
-	_check(StarterContent.enemy_threat(_enemy(20, 5, 3)) > StarterContent.enemy_threat(base), "a multi-hit counts every hit")
-	_check(is_equal_approx(StarterContent.enemy_threat(_enemy(20, 5, 3)), StarterContent.enemy_threat(_enemy(20, 15))), "three hits of 5 equal one hit of 15")
+	_check(is_equal_approx(Encounters.enemy_threat(base), 5.0 * 20.0 / Encounters.THREAT_REF_DPS), "threat is turn damage times HP over the reference output")
+	_check(Encounters.enemy_threat(_enemy(30, 5)) > Encounters.enemy_threat(base), "more HP is more threat")
+	_check(Encounters.enemy_threat(_enemy(20, 8)) > Encounters.enemy_threat(base), "more damage is more threat")
+	_check(Encounters.enemy_threat(_enemy(20, 5, 3)) > Encounters.enemy_threat(base), "a multi-hit counts every hit")
+	_check(is_equal_approx(Encounters.enemy_threat(_enemy(20, 5, 3)), Encounters.enemy_threat(_enemy(20, 15))), "three hits of 5 equal one hit of 15")
 	var previous := 0.0
 	for hp in range(1, 60):
-		var t := StarterContent.enemy_threat(_enemy(hp, 7))
+		var t := Encounters.enemy_threat(_enemy(hp, 7))
 		_check(t > previous, "threat rises with HP (%d)" % hp)
 		previous = t
 	# Status intents add their points to the cycle.
 	var with_status: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.DAMAGE, 6), CardEffect.make(CardEffect.Kind.EXPOSE, 2)]
 	var plain: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.DAMAGE, 6), CardEffect.make(CardEffect.Kind.BLOCK, 9)]
-	_check(StarterContent.enemy_threat(EnemyData.make("S", 20, with_status)) > StarterContent.enemy_threat(EnemyData.make("P", 20, plain)), "a debuff adds threat and a Block adds none")
-	_check(is_equal_approx(StarterContent._turn_damage(EnemyData.make("S", 20, with_status)), (6.0 + 2.0 * StarterContent.THREAT_STATUS_POINTS[CardEffect.Kind.EXPOSE]) / 2.0), "the status weight is read from the table")
-	_check(StarterContent.enemy_threat(EnemyData.make("N", 20, [] as Array[CardEffect])) == 0.0, "an enemy with no intents has no threat")
+	_check(Encounters.enemy_threat(EnemyData.make("S", 20, with_status)) > Encounters.enemy_threat(EnemyData.make("P", 20, plain)), "a debuff adds threat and a Block adds none")
+	_check(is_equal_approx(Encounters._turn_damage(EnemyData.make("S", 20, with_status)), (6.0 + 2.0 * Encounters.THREAT_STATUS_POINTS[CardEffect.Kind.EXPOSE]) / 2.0), "the status weight is read from the table")
+	_check(Encounters.enemy_threat(EnemyData.make("N", 20, [] as Array[CardEffect])) == 0.0, "an enemy with no intents has no threat")
 	# Every regular enemy has a positive threat, and the table matches the documented order of magnitude.
 	var colossus := StarterContent.enemy_by_id(&"hollow_colossus")
 	var crow := StarterContent.enemy_by_id(&"mourning_crow")
-	_check(StarterContent.enemy_threat(colossus) > StarterContent.enemy_threat(crow) * 5.0, "the colossus is far more dangerous than the crow")
-	for enemy in StarterContent.enemy_pool():
-		_check(StarterContent.enemy_threat(enemy) > 0.0, "%s has a positive threat" % enemy.id)
+	_check(Encounters.enemy_threat(colossus) > Encounters.enemy_threat(crow) * 5.0, "the colossus is far more dangerous than the crow")
+	for enemy in Encounters.enemy_pool():
+		_check(Encounters.enemy_threat(enemy) > 0.0, "%s has a positive threat" % enemy.id)
 
 
 func _test_pack_threat() -> void:
 	var a := _enemy(20, 6)
 	var b := _enemy(30, 4)
 	var solo: Array[EnemyData] = [a]
-	_check(is_equal_approx(StarterContent.pack_threat(solo), StarterContent.enemy_threat(a)), "a pack of one is that enemy's threat")
+	_check(is_equal_approx(Encounters.pack_threat(solo), Encounters.enemy_threat(a)), "a pack of one is that enemy's threat")
 	var pair: Array[EnemyData] = [a, b]
 	var swapped: Array[EnemyData] = [b, a]
-	_check(is_equal_approx(StarterContent.pack_threat(pair), StarterContent.pack_threat(swapped)), "pack threat ignores the listed order")
-	_check(StarterContent.pack_threat(pair) > StarterContent.enemy_threat(a) + StarterContent.enemy_threat(b), "a pair is worth more than the sum: the survivor keeps hitting")
+	_check(is_equal_approx(Encounters.pack_threat(pair), Encounters.pack_threat(swapped)), "pack threat ignores the listed order")
+	_check(Encounters.pack_threat(pair) > Encounters.enemy_threat(a) + Encounters.enemy_threat(b), "a pair is worth more than the sum: the survivor keeps hitting")
 	var bigger: Array[EnemyData] = [a, _enemy(30, 6)]
-	_check(StarterContent.pack_threat(bigger) > StarterContent.pack_threat(pair), "a stronger member makes a stronger pack")
+	_check(Encounters.pack_threat(bigger) > Encounters.pack_threat(pair), "a stronger member makes a stronger pack")
 	var trio: Array[EnemyData] = [a, b, _enemy(10, 3)]
-	_check(StarterContent.pack_threat(trio) > StarterContent.pack_threat(pair), "adding an enemy adds threat")
+	_check(Encounters.pack_threat(trio) > Encounters.pack_threat(pair), "adding an enemy adds threat")
 	var none: Array[EnemyData] = []
-	_check(StarterContent.pack_threat(none) == 0.0, "an empty pack has no threat")
+	_check(Encounters.pack_threat(none) == 0.0, "an empty pack has no threat")
 
 
 func _test_budget_curve() -> void:
 	for row in range(0, RouteMap.ACT_ROWS - 1):
-		_check(StarterContent.fight_budget(row + 1) >= StarterContent.fight_budget(row), "act 1 budget never drops (row %d)" % row)
+		_check(Encounters.fight_budget(row + 1) >= Encounters.fight_budget(row), "act 1 budget never drops (row %d)" % row)
 	for row in range(RouteMap.ACT_ROWS, RouteMap.ACT_ROWS * 2 - 1):
-		_check(StarterContent.fight_budget(row + 1) >= StarterContent.fight_budget(row), "act 2 budget never drops (row %d)" % row)
-	var act_step := StarterContent.fight_budget(15) / StarterContent.fight_budget(14)
+		_check(Encounters.fight_budget(row + 1) >= Encounters.fight_budget(row), "act 2 budget never drops (row %d)" % row)
+	var act_step := Encounters.fight_budget(15) / Encounters.fight_budget(14)
 	_check(act_step > 0.9 and act_step < 1.1, "the act change is not a wall: act 2 starts within 10%% of where act 1 ends (%.2f)" % act_step)
-	_check(StarterContent.fight_budget(15) > StarterContent.fight_budget(0) * 1.3, "act 2 starts clearly above the first fight")
-	_check(StarterContent.fight_budget(29) > StarterContent.fight_budget(15) * 1.2, "act 2 keeps rising to the final boss")
-	_check(StarterContent.fight_budget(-5) == StarterContent.fight_budget(0) and StarterContent.fight_budget(400) == StarterContent.fight_budget(29), "the curve clamps its row")
-	_check(StarterContent.fight_budget(0) > 0.0, "every budget is positive")
+	_check(Encounters.fight_budget(15) > Encounters.fight_budget(0) * 1.3, "act 2 starts clearly above the first fight")
+	_check(Encounters.fight_budget(29) > Encounters.fight_budget(15) * 1.2, "act 2 keeps rising to the final boss")
+	_check(Encounters.fight_budget(-5) == Encounters.fight_budget(0) and Encounters.fight_budget(400) == Encounters.fight_budget(29), "the curve clamps its row")
+	_check(Encounters.fight_budget(0) > 0.0, "every budget is positive")
 	# The tuned numbers are pinned for every row of the current map: lerp(start, end, local) times the difficulty.
-	_check(RouteMap.ACTS == 2 and RouteMap.ACT_ROWS == 15 and StarterContent.BUDGET_ACT_START.size() == RouteMap.ACTS, "the curve covers the two 15-row acts")
+	_check(RouteMap.ACTS == 2 and RouteMap.ACT_ROWS == 15 and Encounters.BUDGET_ACT_START.size() == RouteMap.ACTS, "the curve covers the two 15-row acts")
 	for row in RouteMap.ROWS:
 		var act := row / 15
-		var expected := StarterContent.MAP_DIFFICULTY * lerpf(StarterContent.BUDGET_ACT_START[act], StarterContent.BUDGET_ACT_END[act], float(row % 15) / 14.0)
-		_check(is_equal_approx(StarterContent.fight_budget(row), expected), "row %d keeps its tuned budget" % row)
-	_check(is_equal_approx(StarterContent.fight_budget(0), StarterContent.MAP_DIFFICULTY * StarterContent.BUDGET_ACT_START[0]), "row 0 is the act 1 start times the difficulty")
-	_check(is_equal_approx(StarterContent.fight_budget(29), StarterContent.MAP_DIFFICULTY * StarterContent.BUDGET_ACT_END[1]), "row 29 is the act 2 end times the difficulty")
+		var expected := Encounters.MAP_DIFFICULTY * lerpf(Encounters.BUDGET_ACT_START[act], Encounters.BUDGET_ACT_END[act], float(row % 15) / 14.0)
+		_check(is_equal_approx(Encounters.fight_budget(row), expected), "row %d keeps its tuned budget" % row)
+	_check(is_equal_approx(Encounters.fight_budget(0), Encounters.MAP_DIFFICULTY * Encounters.BUDGET_ACT_START[0]), "row 0 is the act 1 start times the difficulty")
+	_check(is_equal_approx(Encounters.fight_budget(29), Encounters.MAP_DIFFICULTY * Encounters.BUDGET_ACT_END[1]), "row 29 is the act 2 end times the difficulty")
 
 
 ## The budget shape started as a fit of the line's average pack threat per fight number, and phase 4f flattened act 2 (a
@@ -117,19 +117,19 @@ func _test_calibration_against_the_line() -> void:
 		for s in samples:
 			var rng := RandomNumberGenerator.new()
 			rng.seed = 5000 + s
-			act_mean[tier] += StarterContent.pack_threat(StarterContent.varied_encounter(counts[fight], rng, tier, fight)) / float(samples * 4)
+			act_mean[tier] += Encounters.pack_threat(Encounters.varied_encounter(counts[fight], rng, tier, fight)) / float(samples * 4)
 	for act in 2:
 		var budget_mean := 0.0
 		for local in RouteMap.ACT_ROWS - 1:
-			budget_mean += StarterContent.fight_budget(act * RouteMap.ACT_ROWS + local) / float(RouteMap.ACT_ROWS - 1)
+			budget_mean += Encounters.fight_budget(act * RouteMap.ACT_ROWS + local) / float(RouteMap.ACT_ROWS - 1)
 		var tolerance := 0.1 if act == 0 else 0.2
-		_check(absf(budget_mean / StarterContent.MAP_DIFFICULTY - act_mean[act]) < act_mean[act] * tolerance, "act %d mean budget (%.1f) is within %d%% of the line's mean pack threat (%.1f)" % [act + 1, budget_mean / StarterContent.MAP_DIFFICULTY, tolerance * 100.0, act_mean[act]])
+		_check(absf(budget_mean / Encounters.MAP_DIFFICULTY - act_mean[act]) < act_mean[act] * tolerance, "act %d mean budget (%.1f) is within %d%% of the line's mean pack threat (%.1f)" % [act + 1, budget_mean / Encounters.MAP_DIFFICULTY, tolerance * 100.0, act_mean[act]])
 
 
 func _pack(count: int, seed_value: int, row: int, multiplier: float = 1.0, elite: bool = false) -> Array[EnemyData]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
-	return StarterContent.budget_encounter(count, rng, row, multiplier, elite)
+	return Encounters.budget_encounter(count, rng, row, multiplier, elite)
 
 
 func _test_pack_builder_meets_budget() -> void:
@@ -139,51 +139,51 @@ func _test_pack_builder_meets_budget() -> void:
 		for count in range(1, 4):
 			for s in 25:
 				var pack := _pack(count, 900 + s * 7 + row, row)
-				var info := StarterContent.last_pack_info
+				var info := Encounters.last_pack_info
 				packs += 1
 				_check(pack.size() == count, "row %d: a pack of %d has %d enemies" % [row, count, pack.size()])
-				var target := StarterContent.fight_budget(row)
+				var target := Encounters.fight_budget(row)
 				if info["bound_hit"]:
 					bound_hits += 1
 					continue
-				_check(absf(StarterContent.pack_threat(pack) - target) <= target * 0.08, "row %d count %d seed %d: threat %.1f within 8%% of the budget %.1f" % [row, count, s, StarterContent.pack_threat(pack), target])
+				_check(absf(Encounters.pack_threat(pack) - target) <= target * 0.08, "row %d count %d seed %d: threat %.1f within 8%% of the budget %.1f" % [row, count, s, Encounters.pack_threat(pack), target])
 	_check(bound_hits * 100 <= packs, "the scale bounds bite in at most 1%% of packs (%d of %d)" % [bound_hits, packs])
 
 
 ## Phase 4f: every character has a map-mode budget multiplier (a character that is not listed uses 1).
 func _test_class_difficulty() -> void:
 	for id in [&"deserter", &"thief", &"medium", &"stray"]:
-		var factor := StarterContent.map_class_difficulty(id)
+		var factor := Encounters.map_class_difficulty(id)
 		_check(factor >= 0.7 and factor <= 1.3, "%s: the class multiplier %.2f is a modest correction" % [id, factor])
-	_check(StarterContent.map_class_difficulty(&"nobody") == 1.0 and StarterContent.map_class_difficulty(&"") == 1.0, "an unlisted character uses 1.0")
+	_check(Encounters.map_class_difficulty(&"nobody") == 1.0 and Encounters.map_class_difficulty(&"") == 1.0, "an unlisted character uses 1.0")
 	# The multiplier scales the pack the run builds: the same seed, row and count at a bigger multiplier is a harder pack.
-	var easy := StarterContent.pack_threat(_pack(2, 41, 10, 0.8))
-	var hard := StarterContent.pack_threat(_pack(2, 41, 10, 1.2))
+	var easy := Encounters.pack_threat(_pack(2, 41, 10, 0.8))
+	var hard := Encounters.pack_threat(_pack(2, 41, 10, 1.2))
 	_check(hard > easy * 1.3, "a bigger class multiplier builds a tougher pack (%.1f against %.1f)" % [hard, easy])
 
 
 func _test_pack_builder_bounds() -> void:
 	for count in range(1, 4):
-		var m_bounds := StarterContent.pack_multiplier_bounds(count)
+		var m_bounds := Encounters.pack_multiplier_bounds(count)
 		_check(m_bounds[0] < 1.0 and m_bounds[1] > 1.0, "count %d: the multiplier bounds straddle 1" % count)
 	for row in [0, 7, 14, 15, 22, 28]:
 		for count in range(1, 4):
 			for s in 30:
 				_pack(count, 33 + s, row)
-				var info := StarterContent.last_pack_info
-				_check(info["hp_scale"] >= StarterContent.PACK_SCALE_MIN - 0.0001 and info["hp_scale"] <= StarterContent.PACK_SCALE_MAX + 0.0001, "row %d count %d: HP factor %.3f in bounds" % [row, count, info["hp_scale"]])
-				_check(info["damage_scale"] >= StarterContent.PACK_SCALE_MIN - 0.0001 and info["damage_scale"] <= StarterContent.PACK_SCALE_MAX + 0.0001, "row %d count %d: damage factor %.3f in bounds" % [row, count, info["damage_scale"]])
+				var info := Encounters.last_pack_info
+				_check(info["hp_scale"] >= Encounters.PACK_SCALE_MIN - 0.0001 and info["hp_scale"] <= Encounters.PACK_SCALE_MAX + 0.0001, "row %d count %d: HP factor %.3f in bounds" % [row, count, info["hp_scale"]])
+				_check(info["damage_scale"] >= Encounters.PACK_SCALE_MIN - 0.0001 and info["damage_scale"] <= Encounters.PACK_SCALE_MAX + 0.0001, "row %d count %d: damage factor %.3f in bounds" % [row, count, info["damage_scale"]])
 	# An impossible budget is never met by leaving the bounds: the pack stays at the nearest legal factor.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
-	var huge := StarterContent.budget_encounter(3, rng, 10, 50.0)
-	var info := StarterContent.last_pack_info
-	_check(info["bound_hit"] and info["hp_scale"] <= StarterContent.PACK_SCALE_MAX + 0.0001 and info["damage_scale"] <= StarterContent.PACK_SCALE_MAX + 0.0001, "an impossible budget settles for the legal maximum")
+	var huge := Encounters.budget_encounter(3, rng, 10, 50.0)
+	var info := Encounters.last_pack_info
+	_check(info["bound_hit"] and info["hp_scale"] <= Encounters.PACK_SCALE_MAX + 0.0001 and info["damage_scale"] <= Encounters.PACK_SCALE_MAX + 0.0001, "an impossible budget settles for the legal maximum")
 	_check(huge.size() == 3, "an impossible budget still gives a full pack")
 	var rng_small := RandomNumberGenerator.new()
 	rng_small.seed = 3
-	StarterContent.budget_encounter(3, rng_small, 10, 0.01)
-	_check(StarterContent.last_pack_info["hp_scale"] >= StarterContent.PACK_SCALE_MIN - 0.0001, "a trivial budget settles for the legal minimum")
+	Encounters.budget_encounter(3, rng_small, 10, 0.01)
+	_check(Encounters.last_pack_info["hp_scale"] >= Encounters.PACK_SCALE_MIN - 0.0001, "a trivial budget settles for the legal minimum")
 
 
 ## When every enemy of the pool fails to load, a map fight still gets enemies and last_pack_info is complete.
@@ -191,25 +191,25 @@ func _test_pack_builder_fallback() -> void:
 	var keys := ["scale", "hp_scale", "damage_scale", "target", "threat", "bound_hit", "attempts", "fallback"]
 	var normal := _pack(2, 5, 10)
 	for key in keys:
-		_check(StarterContent.last_pack_info.has(key), "a normal pack's info has %s" % key)
-	_check(normal.size() == 2 and not StarterContent.last_pack_info["fallback"], "a normal pack is not a fallback")
+		_check(Encounters.last_pack_info.has(key), "a normal pack's info has %s" % key)
+	_check(normal.size() == 2 and not Encounters.last_pack_info["fallback"], "a normal pack is not a fallback")
 	# Only the warden loads: the fallback finds it (the loader hides the shade and the wisp).
-	StarterContent._budget_enemy_loader = func(path: String) -> EnemyData:
+	Encounters._budget_enemy_loader = func(path: String) -> EnemyData:
 		return StarterContent._load_enemy(path) if path == StarterContent.WARDEN_PATH else null
 	var warden_pack := _pack(3, 5, 10)
 	_check(warden_pack.size() == 3, "with only the warden loadable a trio still has 3 enemies")
 	for enemy in warden_pack:
 		_check(enemy.id == &"gate_warden" or enemy.id == StarterContent.warden().id, "the fallback pack is made of the loadable enemy")
 	for key in keys:
-		_check(StarterContent.last_pack_info.has(key), "a fallback pack's info has %s" % key)
-	_check(StarterContent.last_pack_info["fallback"] and StarterContent.last_pack_info["threat"] > 0.0, "the info marks the fallback")
+		_check(Encounters.last_pack_info.has(key), "a fallback pack's info has %s" % key)
+	_check(Encounters.last_pack_info["fallback"] and Encounters.last_pack_info["threat"] > 0.0, "the info marks the fallback")
 	# Nothing loads: a minimal stand-in pack, never empty.
-	StarterContent._budget_enemy_loader = func(_path: String) -> EnemyData: return null
+	Encounters._budget_enemy_loader = func(_path: String) -> EnemyData: return null
 	var minimal := _pack(1, 5, 0)
-	StarterContent._budget_enemy_loader = Callable()
+	Encounters._budget_enemy_loader = Callable()
 	_check(minimal.size() == 1 and minimal[0].max_hp > 0 and not minimal[0].intents.is_empty(), "with nothing loadable a single is still a real enemy")
-	_check(StarterContent.last_pack_info["fallback"] and StarterContent.last_pack_info.has("bound_hit"), "the minimal fallback has a full info dictionary")
-	_check(_pack(2, 5, 10).size() == 2 and not StarterContent.last_pack_info["fallback"], "the builder is back to normal")
+	_check(Encounters.last_pack_info["fallback"] and Encounters.last_pack_info.has("bound_hit"), "the minimal fallback has a full info dictionary")
+	_check(_pack(2, 5, 10).size() == 2 and not Encounters.last_pack_info["fallback"], "the builder is back to normal")
 
 
 func _fingerprint(pack: Array[EnemyData]) -> String:
@@ -233,10 +233,10 @@ func _test_pack_builder_deterministic() -> void:
 	# The builder draws only from the rng it is given: the next number after a pack is the same each time.
 	var a := RandomNumberGenerator.new()
 	a.seed = 12
-	StarterContent.budget_encounter(2, a, 4)
+	Encounters.budget_encounter(2, a, 4)
 	var b := RandomNumberGenerator.new()
 	b.seed = 12
-	StarterContent.budget_encounter(2, b, 4)
+	Encounters.budget_encounter(2, b, 4)
 	_check(a.randi() == b.randi(), "the rng ends in the same state")
 
 
@@ -258,7 +258,7 @@ func _test_pack_builder_does_not_mutate() -> void:
 func _mean_threat(count: int, row: int) -> float:
 	var total := 0.0
 	for s in 40:
-		total += StarterContent.pack_threat(_pack(count, 2000 + s, row))
+		total += Encounters.pack_threat(_pack(count, 2000 + s, row))
 	return total / 40.0
 
 
@@ -267,7 +267,7 @@ func _test_counts_are_comparable() -> void:
 		var one := _mean_threat(1, row)
 		var two := _mean_threat(2, row)
 		var three := _mean_threat(3, row)
-		var target := StarterContent.fight_budget(row)
+		var target := Encounters.fight_budget(row)
 		_check(absf(one - three) < target * 0.1, "row %d: singles (%.1f) and trios (%.1f) have a comparable threat" % [row, one, three])
 		_check(absf(two - three) < target * 0.1 and absf(two - target) < target * 0.1, "row %d: pairs sit on the budget too" % row)
 
@@ -300,31 +300,31 @@ func _test_every_enemy_appears() -> void:
 			for s in 120:
 				for enemy in _pack(count, 600 + s, row):
 					seen[enemy.id] = true
-	for enemy in StarterContent.enemy_pool():
+	for enemy in Encounters.enemy_pool():
 		_check(seen.has(enemy.id), "%s shows up in budget packs" % enemy.id)
 
 
 func _test_elite_and_multiplier() -> void:
 	for s in 20:
-		_check(_pack(1, s, 8, 1.0, true).size() == StarterContent.ELITE_MIN_ENEMIES, "an elite has at least two enemies")
+		_check(_pack(1, s, 8, 1.0, true).size() == Encounters.ELITE_MIN_ENEMIES, "an elite has at least two enemies")
 		_check(_pack(3, s, 8, 1.0, true).size() == 3, "an elite can have three")
 	_check(_pack(0, 1, 8).size() == 1 and _pack(9, 1, 8).size() == Combat.MAX_ENEMIES, "the count is clamped to 1..MAX_ENEMIES")
 	var base := 0.0
 	var tougher := 0.0
 	for s in 30:
-		base += StarterContent.pack_threat(_pack(2, 300 + s, 10, 1.0, true))
-		tougher += StarterContent.pack_threat(_pack(2, 300 + s, 10, 1.4, true))
+		base += Encounters.pack_threat(_pack(2, 300 + s, 10, 1.0, true))
+		tougher += Encounters.pack_threat(_pack(2, 300 + s, 10, 1.4, true))
 	_check(absf(tougher / base - 1.4) < 0.08, "the budget multiplier scales the pack's threat (x%.2f for 1.4)" % (tougher / base))
 
 
 func _test_split_scaling() -> void:
 	var shade := StarterContent.lost_shade()
-	var same := StarterContent.scaled(shade, 1.5)
-	var split := StarterContent.scaled(shade, 1.5, 1.0)
+	var same := Encounters.scaled(shade, 1.5)
+	var split := Encounters.scaled(shade, 1.5, 1.0)
 	_check(split.max_hp == same.max_hp, "the split scaling keeps the HP factor")
 	_check(split.intents[0].amount == shade.intents[0].amount and same.intents[0].amount > shade.intents[0].amount, "a damage factor of its own replaces the HP factor for damage")
-	_check(StarterContent.scaled(shade, 1.0, 1.0) == shade and StarterContent.scaled(shade, 1.0) == shade, "factor 1.0 still returns the enemy itself")
-	_check(StarterContent.scaled(shade, 1.0, 1.5) != shade, "a damage-only factor builds a new enemy")
+	_check(Encounters.scaled(shade, 1.0, 1.0) == shade and Encounters.scaled(shade, 1.0) == shade, "factor 1.0 still returns the enemy itself")
+	_check(Encounters.scaled(shade, 1.0, 1.5) != shade, "a damage-only factor builds a new enemy")
 
 
 ## The line's encounters are the values they have always been (captured from main before this phase).
@@ -344,7 +344,7 @@ func _test_line_encounters_unchanged() -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = int(p[1])
 		var parts: Array[String] = []
-		for enemy in StarterContent.varied_encounter(int(p[0]), rng, int(p[2]), int(p[3])):
+		for enemy in Encounters.varied_encounter(int(p[0]), rng, int(p[2]), int(p[3])):
 			var damage: Array[String] = []
 			for intent in enemy.intents:
 				if intent.kind == CardEffect.Kind.DAMAGE:
@@ -371,7 +371,7 @@ func _test_run_state_uses_it() -> void:
 			var combat := run_state.start_combat()
 			var replay := RandomNumberGenerator.new()
 			replay.state = state
-			var expected := StarterContent.budget_encounter(stop.enemy_count, replay, stop.row, StarterContent.map_class_difficulty(run_state.character.id))
+			var expected := Encounters.budget_encounter(stop.enemy_count, replay, stop.row, Encounters.map_class_difficulty(run_state.character.id))
 			var hp_now: Array[int] = []
 			for unit in combat.enemies:
 				hp_now.append(unit.max_hp)

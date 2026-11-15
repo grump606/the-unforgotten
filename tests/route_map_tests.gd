@@ -669,7 +669,7 @@ func _test_validate_catches_corruption() -> void:
 	_check(_any_violation(alien, "unknown map kind"), "an unknown kind is reported")
 
 	var no_widths := _copy(map)
-	no_widths.config["free_widths"] = []
+	no_widths.config.free_widths = []
 	_check(_any_violation(no_widths, "free_widths"), "a config without free_widths is reported, not a crash")
 
 	var tall := _copy(map)
@@ -972,7 +972,7 @@ func _test_events() -> void:
 
 func _test_config_merge() -> void:
 	var cfg := RouteMap.make_config({"type_weights": {"elite": 5.0}, "rest_window": 5})
-	_check(float(cfg["type_weights"]["elite"]) == 5.0 and float(cfg["type_weights"]["fight"]) == float(RouteMap.CONFIG["type_weights"]["fight"]) and int(cfg["rest_window"]) == 5, "make_config merges over the defaults")
+	_check(cfg.type_weights["elite"] == 5.0 and cfg.type_weights["fight"] == float(RouteMap.CONFIG["type_weights"]["fight"]) and cfg.rest_window == 5, "make_config merges over the defaults")
 	_check(float(RouteMap.CONFIG["type_weights"]["elite"]) != 5.0, "the CONFIG constant is not changed by a merge")
 	var loose := RouteMap.generate(11, &"thief", {"rest_window": 5, "shop_window": 8})
 	_check(loose.validate().is_empty(), "a looser availability window still validates")

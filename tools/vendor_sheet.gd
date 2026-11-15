@@ -35,7 +35,7 @@ func _vendor_run(gold: int) -> Control:
 	scene.save_path = out_dir.path_join("scratch_save.json") # never the real save
 	root.add_child(scene)
 	await process_frame
-	scene._start_run(&"deserter")
+	scene._start_run(CharacterIds.DESERTER)
 	scene._run.stop_index = VENDOR_STOP
 	scene._run.gold = gold
 	scene._run.player.hp = scene._run.player.max_hp - 10

@@ -115,8 +115,8 @@ func _test_existing_content_unchanged() -> void:
 	_check(deck.size() > 0, "the neutral starter deck is not empty (its size is pinned in pinned_balance_tests.gd)")
 	_check(StarterContent.warden().id == &"gate_warden", "warden unchanged")
 	_check(StarterContent.lost_shade().id == &"lost_shade", "lost shade unchanged")
-	_check(StarterContent.early_encounter(1)[0].id == &"gate_warden", "early_encounter(1) unchanged")
-	_check(StarterContent.early_encounter(3).size() == 3, "early_encounter(3) unchanged")
+	_check(Encounters.early_encounter(1)[0].id == &"gate_warden", "early_encounter(1) unchanged")
+	_check(Encounters.early_encounter(3).size() == 3, "early_encounter(3) unchanged")
 
 
 func _names(enemies: Array[EnemyData]) -> Array:
@@ -127,7 +127,7 @@ func _names(enemies: Array[EnemyData]) -> Array:
 
 
 func _test_varied_encounter() -> void:
-	_check(StarterContent.enemy_pool().size() == StarterContent.ALL_ENEMY_PATHS.size() and StarterContent.enemy_pool().size() >= 2, "the enemy pool is the whole registry (its size is pinned in pinned_balance_tests.gd)")
+	_check(Encounters.enemy_pool().size() == StarterContent.ALL_ENEMY_PATHS.size() and Encounters.enemy_pool().size() >= 2, "the enemy pool is the whole registry (its size is pinned in pinned_balance_tests.gd)")
 	var seen := {}
 	for seed_value in 60:
 		for requested in [-2, 0, 1, 2, 3, 9]:
@@ -135,8 +135,8 @@ func _test_varied_encounter() -> void:
 			a.seed = seed_value
 			var b := RandomNumberGenerator.new()
 			b.seed = seed_value
-			var first := StarterContent.varied_encounter(requested, a)
-			var second := StarterContent.varied_encounter(requested, b)
+			var first := Encounters.varied_encounter(requested, a)
+			var second := Encounters.varied_encounter(requested, b)
 			var expected_count := clampi(requested, 1, Combat.MAX_ENEMIES)
 			_check(first.size() == expected_count, "varied_encounter(%d) size %d" % [requested, first.size()])
 			_check(_names(first) == _names(second), "varied_encounter deterministic for seed %d" % seed_value)
@@ -146,7 +146,7 @@ func _test_varied_encounter() -> void:
 		_check(seen.has(expected_name), "varied_encounter uses enemy: %s" % expected_name)
 	var one_rng := RandomNumberGenerator.new()
 	one_rng.seed = 1
-	var duplicate_check := StarterContent.varied_encounter(3, one_rng)
+	var duplicate_check := Encounters.varied_encounter(3, one_rng)
 	for i in duplicate_check.size():
 		for j in range(i + 1, duplicate_check.size()):
 			_check(duplicate_check[i] != duplicate_check[j], "encounter slots own separate EnemyData")
@@ -160,11 +160,11 @@ func _test_encounter_composition() -> void:
 	for seed_value in 100:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = seed_value
-		var trio := StarterContent.varied_encounter(3, rng)
+		var trio := Encounters.varied_encounter(3, rng)
 		for enemy in trio:
 			_check(not big_names.has(enemy.id), "trio has no big enemy (seed %d)" % seed_value)
 			_check(enemy.id != StarterContent.lost_shade().id, "trio has no Lost Shade (seed %d)" % seed_value)
-		var pair := StarterContent.varied_encounter(2, rng)
+		var pair := Encounters.varied_encounter(2, rng)
 		var big_count := 0
 		for enemy in pair:
 			if big_names.has(enemy.id):
@@ -183,36 +183,36 @@ func _test_colossus_never_in_pairs_or_trios() -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = seed_value
 		for count in [2, 3]:
-			for enemy in StarterContent.varied_encounter(count, rng):
+			for enemy in Encounters.varied_encounter(count, rng):
 				_check(enemy.id != colossus_name, "the colossus never shares a fight (seed %d, %d enemies)" % [seed_value, count])
-		for enemy in StarterContent.varied_encounter(1, rng):
+		for enemy in Encounters.varied_encounter(1, rng):
 			solo_seen = solo_seen or enemy.id == colossus_name
 	_check(solo_seen, "the colossus does appear as a solo fight")
 
 
 func _test_boss_encounter() -> void:
-	var boss := StarterContent.boss_encounter()
+	var boss := Encounters.boss_encounter()
 	_check(boss.size() == 1 and boss[0].id == &"the_conductor", "boss_encounter is the Conductor alone")
-	_check(boss[0] != StarterContent.boss_encounter()[0], "each boss encounter owns its own copy of the data")
+	_check(boss[0] != Encounters.boss_encounter()[0], "each boss encounter owns its own copy of the data")
 	var pool_names := []
-	for enemy in StarterContent.enemy_pool():
+	for enemy in Encounters.enemy_pool():
 		pool_names.append(enemy.id)
 	_check(not pool_names.has(&"the_conductor"), "the boss is not in the random enemy pool")
 	for seed_value in 100:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = seed_value
 		for count in [1, 2, 3]:
-			for enemy in StarterContent.varied_encounter(count, rng):
+			for enemy in Encounters.varied_encounter(count, rng):
 				_check(enemy.id != &"the_conductor", "the boss never appears in a random encounter (seed %d)" % seed_value)
 
 
 func _test_mid_boss_encounter() -> void:
-	var mid := StarterContent.mid_boss_encounter()
+	var mid := Encounters.mid_boss_encounter()
 	_check(mid.size() == 1 and mid[0].id == &"the_brakeman", "mid_boss_encounter is the Brakeman alone")
-	_check(mid[0] != StarterContent.mid_boss_encounter()[0], "each mid-boss encounter owns its own copy of the data")
-	var boss := StarterContent.boss_encounter()[0]
+	_check(mid[0] != Encounters.mid_boss_encounter()[0], "each mid-boss encounter owns its own copy of the data")
+	var boss := Encounters.boss_encounter()[0]
 	var tougher_than_all := true
-	for enemy in StarterContent.enemy_pool():
+	for enemy in Encounters.enemy_pool():
 		tougher_than_all = tougher_than_all and mid[0].max_hp > enemy.max_hp
 	_check(tougher_than_all and mid[0].max_hp < boss.max_hp + 1, "the Brakeman has more HP than any regular enemy and no more than the Conductor")
 	var kinds := {}
@@ -220,7 +220,7 @@ func _test_mid_boss_encounter() -> void:
 		kinds[intent.kind] = true
 	_check(kinds.has(CardEffect.Kind.DAMAGE) and kinds.has(CardEffect.Kind.BLOCK) and kinds.has(CardEffect.Kind.ADD_CARD), "the Brakeman mixes attacks, block and a status")
 	var pool_names := []
-	for enemy in StarterContent.enemy_pool():
+	for enemy in Encounters.enemy_pool():
 		pool_names.append(enemy.id)
 	_check(not pool_names.has(&"the_brakeman"), "the mid-boss is not in the random enemy pool")
 	for seed_value in 60:
@@ -228,7 +228,7 @@ func _test_mid_boss_encounter() -> void:
 		rng.seed = seed_value
 		for tier in [0, 1]:
 			for count in [1, 2, 3]:
-				for enemy in StarterContent.varied_encounter(count, rng, tier, seed_value % 8):
+				for enemy in Encounters.varied_encounter(count, rng, tier, seed_value % 8):
 					_check(enemy.id != &"the_brakeman" and enemy.id != &"the_conductor", "no boss appears in a random encounter")
 	# Tier 1 draws the same number of random values as tier 0, so the run RNG stays in step.
 	for count in [1, 2, 3]:
@@ -236,8 +236,8 @@ func _test_mid_boss_encounter() -> void:
 		a.seed = 9
 		var b := RandomNumberGenerator.new()
 		b.seed = 9
-		StarterContent.varied_encounter(count, a, 0, 0)
-		StarterContent.varied_encounter(count, b, 1, 5)
+		Encounters.varied_encounter(count, a, 0, 0)
+		Encounters.varied_encounter(count, b, 1, 5)
 		_check(a.randi() == b.randi(), "tier and fight draw nothing extra from the rng (count %d)" % count)
 	# Tier 1 pairs include a big enemy more often than tier 0.
 	var big_t0 := 0
@@ -247,9 +247,9 @@ func _test_mid_boss_encounter() -> void:
 		r0.seed = seed_value
 		var r1 := RandomNumberGenerator.new()
 		r1.seed = seed_value
-		for enemy in StarterContent.varied_encounter(2, r0, 0, 0):
+		for enemy in Encounters.varied_encounter(2, r0, 0, 0):
 			big_t0 += 1 if enemy.id == &"gate_warden" else 0
-		for enemy in StarterContent.varied_encounter(2, r1, 1, 0):
+		for enemy in Encounters.varied_encounter(2, r1, 1, 0):
 			big_t1 += 1 if enemy.id == &"gate_warden" else 0
 	_check(big_t1 > big_t0, "tier 1 pairs field the Gate Warden more often (%d vs %d of 400)" % [big_t1, big_t0])
 

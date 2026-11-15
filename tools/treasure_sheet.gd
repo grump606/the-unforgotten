@@ -20,7 +20,7 @@ func _initialize() -> void:
 		await process_frame
 	for size in [Vector2i(1152, 648), Vector2i(800, 450)]:
 		root.size = size
-		for character in [&"deserter", &"stray"]:
+		for character in [CharacterIds.DESERTER, CharacterIds.STRAY]:
 			scene.start_debug_screen(DebugLaunch.parse(PackedStringArray(["--screen=treasure", "--character=%s" % character]), {}))
 			await _settle()
 			await _shot("closed_%s_%d" % [character, size.x])

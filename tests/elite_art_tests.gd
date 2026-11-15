@@ -49,7 +49,7 @@ func _fighter_uses_it_for_elites_only() -> void:
 	regular.set_enemy(EnemyUnit.new(data), false, false)
 	_check(regular._elite_tex == null, "a regular enemy draws the plain sprite")
 	var elite := Fighter.new()
-	elite.set_enemy(EnemyUnit.new(StarterContent.elite_named(data)), false, true)
+	elite.set_enemy(EnemyUnit.new(Encounters.elite_named(data)), false, true)
 	_check(elite._elite_tex != null, "an elite draws its elite sprite")
 	_check(is_equal_approx(elite.figure_height, elite.base_height * Fighter.ELITE_SCALE) and is_equal_approx(elite.figure_width(), elite.figure_height * elite._region.size.x / elite._region.size.y), "its layout size is still the plain sprite's, scaled")
 	var boss := Fighter.new()

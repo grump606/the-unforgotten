@@ -272,9 +272,9 @@ func _test_survivors_from_mutation_audit() -> void:
 
 func _test_progressive_difficulty() -> void:
 	# The ramp is exact and deterministic.
-	_check(is_equal_approx(StarterContent.ramp_factor(0), 1.0), "fight 0 is unramped")
-	_check(StarterContent.ramp_factor(7) > StarterContent.ramp_factor(3) and StarterContent.ramp_factor(3) > 1.0, "the ramp grows with the fight number")
-	_check(is_equal_approx(StarterContent.ramp_factor(-4), 1.0), "a negative fight number counts as 0")
+	_check(is_equal_approx(Encounters.ramp_factor(0), 1.0), "fight 0 is unramped")
+	_check(Encounters.ramp_factor(7) > Encounters.ramp_factor(3) and Encounters.ramp_factor(3) > 1.0, "the ramp grows with the fight number")
+	_check(is_equal_approx(Encounters.ramp_factor(-4), 1.0), "a negative fight number counts as 0")
 	# A later stop's pack has at least the HP and attack of an earlier one for the same seed.
 	var early_hp := 0
 	var late_hp := 0
@@ -285,11 +285,11 @@ func _test_progressive_difficulty() -> void:
 		a.seed = rng_seed
 		var b := RandomNumberGenerator.new()
 		b.seed = rng_seed
-		for enemy in StarterContent.varied_encounter(3, a, 0, 0):
+		for enemy in Encounters.varied_encounter(3, a, 0, 0):
 			early_hp += enemy.max_hp
 			for intent in enemy.intents:
 				early_hit += intent.amount if intent.kind == CardEffect.Kind.DAMAGE else 0
-		for enemy in StarterContent.varied_encounter(3, b, 0, 7):
+		for enemy in Encounters.varied_encounter(3, b, 0, 7):
 			late_hp += enemy.max_hp
 			for intent in enemy.intents:
 				late_hit += intent.amount if intent.kind == CardEffect.Kind.DAMAGE else 0
@@ -299,7 +299,7 @@ func _test_progressive_difficulty() -> void:
 	var hp_before := template.max_hp
 	var damage_before: int = template.intents[1].amount
 	var frayed_before: int = template.intents[0].amount
-	var scaled := StarterContent.scaled(template.duplicate(true) as EnemyData, 1.5)
+	var scaled := Encounters.scaled(template.duplicate(true) as EnemyData, 1.5)
 	_check(scaled.max_hp == roundi(hp_before * 1.5) and scaled.intents[1].amount == roundi(damage_before * 1.5), "scaled multiplies HP and damage, rounded")
 	_check(scaled.intents[0].kind == CardEffect.Kind.FRAYED and scaled.intents[0].amount == frayed_before, "scaled leaves a status alone")
 	_check(template.max_hp == hp_before and template.intents[1].amount == damage_before, "scaling leaves the shared resource unchanged")
@@ -308,7 +308,7 @@ func _test_progressive_difficulty() -> void:
 	for i in conductor.intents.size():
 		if conductor.intents[i].hits == 3:
 			triple_index = i
-	_check(triple_index >= 0 and StarterContent.scaled(conductor.duplicate(true) as EnemyData, 1.5).intents[triple_index].hits == 3, "scaling keeps a multi-hit attack's hit count")
+	_check(triple_index >= 0 and Encounters.scaled(conductor.duplicate(true) as EnemyData, 1.5).intents[triple_index].hits == 3, "scaling keeps a multi-hit attack's hit count")
 	# The stop numbers feed the encounter: the same seed at the same stop gives the same ramped pack.
 	var run_a := RunState.new(5)
 	var run_b := RunState.new(5)

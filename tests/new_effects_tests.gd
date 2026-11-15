@@ -103,7 +103,7 @@ func _test_cross_out() -> void:
 func _test_file_text() -> void:
 	var effect := CardEffect.make(CardEffect.Kind.FILE, 2)
 	_check(effect.describe() == "File 2" and CardGlossary.EFFECT_TEXT.has(CardEffect.Kind.FILE), "File has a line and a glossary entry")
-	_check(StarterContent.enemy_threat(EnemyData.make("t", 20, _intent_list(effect), &"t")) > 0.0, "an enemy that only files still has a threat value")
+	_check(Encounters.enemy_threat(EnemyData.make("t", 20, _intent_list(effect), &"t")) > 0.0, "an enemy that only files still has a threat value")
 
 
 func _unseen_pair(unseen_first: bool) -> Combat:
@@ -159,4 +159,4 @@ func _test_unseen_survives_scaling() -> void:
 	var base := EnemyData.make("Hidden", 30, _intent_list(CardEffect.make(CardEffect.Kind.DAMAGE, 5)), &"hidden")
 	base.unseen = true
 	_check(Encounters.scaled(base, 1.5).unseen, "a scaled copy stays Unseen")
-	_check(StarterContent.elite_named(base).unseen, "an elite copy stays Unseen")
+	_check(Encounters.elite_named(base).unseen, "an elite copy stays Unseen")

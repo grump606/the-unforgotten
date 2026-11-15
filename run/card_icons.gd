@@ -90,9 +90,9 @@ static func icon_variant(c: CardData) -> StringName:
 			total += effect.amount
 	if total <= 0 or primary_kind(c) != CardEffect.Kind.DAMAGE:
 		return &""
-	if c.character == &"thief":
+	if c.character == CharacterIds.THIEF:
 		return &"needle"
-	if c.character == &"medium":
+	if c.character == CharacterIds.MEDIUM:
 		return &"bone"
 	if c.target_mode == CardData.TargetMode.ALL_ENEMIES:
 		return &"sweep"

@@ -464,7 +464,7 @@ Anchor, at least two per class and two neutrals). The bots do not take Remember 
   Husher [Shaken 2, 6, 9]; Unnamed [9, Shaken 1, 11]; Threshold Keeper [10, Frayed 2, 18]; Memorial Giant
   [Frayed 2, 19]; Ash Hound [5, Malice +1, 9]; Keepsake Crow [3, 3, +Murmur, 10]; Bellkeeper phase one
   [Block 14, 13, +Dread, 18]; Eraser [Expose 2, 13, Block 10, 6x3, 13], phase two [13, Malice +1, 13, 16].
-  `StarterContent.scaled` now keeps the hit count. Engine needed no change: enemy-source Shaken, Frayed,
+  `Encounters.scaled` now keeps the hit count. Engine needed no change: enemy-source Shaken, Frayed,
   Malice and ADD_CARD already resolved (tests added). Sim, seed 7 (150 runs; before in brackets): smart
   Thief 70 (71), Deserter 77 (75), Medium 94 (86); greedy 58 (50), 68 (65), 15 (14).
 

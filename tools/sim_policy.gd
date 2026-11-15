@@ -195,7 +195,7 @@ static func event_stop(run: RunState) -> bool:
 	var pick := -1
 	var leave := -1
 	for i in choices.size():
-		if not bool(run.event_choice_state(i)["enabled"]):
+		if not run.event_choice_state(i).enabled:
 			continue
 		var costs := event_costs(choices[i].effects)
 		var costless: bool = costs["hp"] == 0 and costs["gold"] == 0 and costs["max_hp"] == 0 and costs["curses"] == 0 and not costs["gamble"]
@@ -209,7 +209,7 @@ static func event_stop(run: RunState) -> bool:
 		# No free button and no leave: the cheapest enabled one (fewest HP and gold lost).
 		var cheapest := INF
 		for i in choices.size():
-			if not bool(run.event_choice_state(i)["enabled"]):
+			if not run.event_choice_state(i).enabled:
 				continue
 			var costs := event_costs(choices[i].effects)
 			var price: float = costs["hp"] + costs["gold"] + 4.0 * costs["max_hp"] + 8.0 * costs["curses"]

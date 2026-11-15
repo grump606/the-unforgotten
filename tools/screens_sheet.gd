@@ -13,21 +13,21 @@ func _initialize() -> void:
 	if args.size() > 0:
 		out_dir = args[0]
 	DirAccess.make_dir_recursive_absolute(out_dir)
-	for id in [&"deserter", &"thief", &"medium", &"stray"]:
+	for id in [CharacterIds.DESERTER, CharacterIds.THIEF, CharacterIds.MEDIUM, CharacterIds.STRAY]:
 		var scene: Control = await _run(id)
 		_go_to(scene, RunState.StopType.REST, 0)
 		await _shot(scene, "rest_%s.png" % id, 3.0)
-		if id == &"deserter":
+		if id == CharacterIds.DESERTER:
 			await _shot(scene, "rest_%s_later.png" % id, 6.4)
-		if id == &"medium":
+		if id == CharacterIds.MEDIUM:
 			_go_to(scene, RunState.StopType.STORY, 0)
 			await _shot(scene, "story_boarding_medium.png", 2.0)
-		if id != &"deserter": # the deserter's beat 2 is story_2.png below
+		if id != CharacterIds.DESERTER: # the deserter's beat 2 is story_2.png below
 			_go_to(scene, RunState.StopType.STORY, 2)
 			await _shot(scene, "story_platform_%s.png" % id, 2.0)
 		scene.queue_free()
 		await process_frame
-	var scene: Control = await _run(&"deserter")
+	var scene: Control = await _run(CharacterIds.DESERTER)
 	for beat in 4:
 		_go_to(scene, RunState.StopType.STORY, beat)
 		await _shot(scene, "story_%d.png" % beat, 3.0)

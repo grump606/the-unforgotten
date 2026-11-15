@@ -12,7 +12,7 @@ combat.start()
 
 - `player: Combatant` - the caller's persistent instance (see ownership).
 - `deck: Array[CardData]` - the full deck for this fight. `CardPiles` copies the array, so later edits to the caller's array do not affect a running fight.
-- `enemy_datas: Array[EnemyData]` - 1 to `Combat.MAX_ENEMIES` (3) entries. `StarterContent.varied_encounter(count, rng)` and `early_encounter(count)` build them; the loaders return smaller or empty arrays if a resource fails to load, so check `size()`.
+- `enemy_datas: Array[EnemyData]` - 1 to `Combat.MAX_ENEMIES` (3) entries. `Encounters.varied_encounter(count, rng)` and `early_encounter(count)` build them; the loaders return smaller or empty arrays if a resource fails to load, so check `size()`.
 - `rng_seed: int` - seeds shuffling only. Same seed + same deck + same inputs => same fight.
 
 Drive it with `can_play(i)`, `play_card(i, target_index := -1)` and `end_player_turn(discard_indices := [])` while `phase == Combat.Phase.PLAYER_TURN`. `play_card` returns false (changing nothing) for illegal plays. `-1` targets the first living enemy; SELF and ALL_ENEMIES cards ignore the target.
@@ -71,7 +71,7 @@ Still open (minor, caller-side workarounds below):
 
 ## Stop types
 
-`RunState.StopType`: `COMBAT` (`start_combat()` then `complete_combat(victory)`; a win pays gold and offers a reward, except a boss stop (`Stop.boss`), which fights `StarterContent.boss_encounter()` and pays and offers nothing), `REST` (`rest()`), `STORY` (`current_beat()`, `read_story()`), `VENDOR` (`vendor()` for the stock, `vendor_buy_card/remove_card/buy_heal`, then `leave_vendor()`). Code that walks the line must handle every type: assuming stop 0 is a fight breaks. `run.gd` and `tools/run_sim.gd` are the two reference walkers.
+`RunState.StopType`: `COMBAT` (`start_combat()` then `complete_combat(victory)`; a win pays gold and offers a reward, except a boss stop (`Stop.boss`), which fights `Encounters.boss_encounter()` and pays and offers nothing), `REST` (`rest()`), `STORY` (`current_beat()`, `read_story()`), `VENDOR` (`vendor()` for the stock, `vendor_buy_card/remove_card/buy_heal`, then `leave_vendor()`). Code that walks the line must handle every type: assuming stop 0 is a fight breaks. `run.gd` and `tools/run_sim.gd` are the two reference walkers.
 
 ## Save and resume
 

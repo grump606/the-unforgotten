@@ -15,7 +15,7 @@ func _initialize() -> void:
 	settings.save(scene.settings_path)
 	root.add_child(scene)
 	await shot("menu.png")
-	scene._start_run(&"medium")
+	scene._start_run(CharacterIds.MEDIUM)
 	await shot("story.png")
 	scene._run.stop_index = 1
 	scene._show_stop()

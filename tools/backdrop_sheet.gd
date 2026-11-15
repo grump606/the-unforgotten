@@ -20,7 +20,7 @@ func _initialize() -> void:
 	if args.size() > 0:
 		out_dir = args[0]
 	DirAccess.make_dir_recursive_absolute(out_dir)
-	for id in [&"", &"deserter", &"thief", &"medium", &"stray"]:
+	for id in [&"", CharacterIds.DESERTER, CharacterIds.THIEF, CharacterIds.MEDIUM, CharacterIds.STRAY]:
 		for count in [1, 2, 3]:
 			await _shot("%s_%d.png" % [id if id != &"" else &"neutral", count], PACKS[count], false, id, 2.0)
 	await _shot("boss.png", PACKS[0], true, &"", 2.0)
@@ -29,7 +29,7 @@ func _initialize() -> void:
 	for entry in [[1, "street"], [9, "bell_court"], [12, "garden"], [16, "archive"], [21, "threshold"]]:
 		var is_boss: bool = entry[0] == 9 or entry[0] == 21
 		var pack: Array = ["res://data/enemies/the_brakeman.tres"] if entry[0] == 9 else (PACKS[0] if entry[0] == 21 else PACKS[3])
-		await _shot("destination_%s.png" % entry[1], pack, is_boss, &"medium", 2.0, DestinationArt.battle_key(entry[0]))
+		await _shot("destination_%s.png" % entry[1], pack, is_boss, CharacterIds.MEDIUM, 2.0, DestinationArt.battle_key(entry[0]))
 	quit()
 
 

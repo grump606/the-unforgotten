@@ -289,7 +289,7 @@ func _test_mid_boss_and_boss() -> void:
 	_check(stop.type == RunState.StopType.COMBAT and stop.mid_boss and not stop.boss and stop.enemy_count == 1, "the mid-boss stop")
 	_check(run_state.boss_label() == "Mid-boss" and run_state.stop_index == 14, "the mid-boss is labelled and sits on row 14")
 	var combat := run_state.start_combat()
-	_check(combat != null and combat.enemies.size() == 1 and combat.enemies[0].data.id == StarterContent.mid_boss_encounter()[0].id, "the mid-boss fight is the mid-boss encounter")
+	_check(combat != null and combat.enemies.size() == 1 and combat.enemies[0].data.id == Encounters.mid_boss_encounter()[0].id, "the mid-boss fight is the mid-boss encounter")
 	var gold := run_state.gold
 	run_state.player.hp = 5
 	# A relic found on the way (a chest, an event) may heal or pay on a win too; this check is about the map's own heal and gold.
@@ -304,7 +304,7 @@ func _test_mid_boss_and_boss() -> void:
 	var boss := run_state.current_stop()
 	_check(boss.boss and not boss.mid_boss and run_state.boss_label() == "Boss" and run_state.stop_index == 29, "the final boss stop on row 29")
 	var boss_combat := run_state.start_combat()
-	_check(boss_combat != null and boss_combat.enemies[0].data.id == StarterContent.boss_encounter()[0].id, "the final boss fight is the boss encounter")
+	_check(boss_combat != null and boss_combat.enemies[0].data.id == Encounters.boss_encounter()[0].id, "the final boss fight is the boss encounter")
 	var gold_before := run_state.gold
 	run_state.complete_combat(true)
 	_check(run_state.finished and run_state.escaped and not run_state.reward_pending() and run_state.gold == gold_before, "beating the final boss ends the run as an escape with no reward")
@@ -348,20 +348,20 @@ func _test_elite() -> void:
 	# The pack is the budget pack at ELITE_BUDGET_MULTIPLIER times the regular difficulty (replay the RNG to check).
 	var replay := RandomNumberGenerator.new()
 	replay.state = rng_state
-	var expected := StarterContent.budget_encounter(stop.enemy_count, replay, stop.row, StarterContent.map_class_difficulty(&"deserter") * RunState.ELITE_BUDGET_MULTIPLIER, true)
+	var expected := Encounters.budget_encounter(stop.enemy_count, replay, stop.row, Encounters.map_class_difficulty(&"deserter") * RunState.ELITE_BUDGET_MULTIPLIER, true)
 	var same := expected.size() == combat.enemies.size()
 	for i in expected.size() if same else 0:
 		same = same and expected[i].max_hp == combat.enemies[i].max_hp and expected[i].display_name == combat.enemies[i].display_name
 	_check(same, "the elite pack is built at the elite budget")
 	var all_named := true
 	for enemy in combat.enemies:
-		all_named = all_named and enemy.display_name.begins_with(StarterContent.ELITE_NAME_PREFIX)
+		all_named = all_named and enemy.display_name.begins_with(Encounters.ELITE_NAME_PREFIX)
 	_check(all_named, "every enemy of an elite pack is named Elite ...")
-	var plain_names := StarterContent.budget_encounter(2, RandomNumberGenerator.new(), stop.row, 1.0)
-	_check(not plain_names[0].display_name.begins_with(StarterContent.ELITE_NAME_PREFIX), "a regular pack keeps the plain names")
+	var plain_names := Encounters.budget_encounter(2, RandomNumberGenerator.new(), stop.row, 1.0)
+	_check(not plain_names[0].display_name.begins_with(Encounters.ELITE_NAME_PREFIX), "a regular pack keeps the plain names")
 	_check(run_state.in_elite_stop() and stop.describe().begins_with("Elite ("), "the run knows it is at an elite stop")
-	var plain_threat := StarterContent.pack_threat(StarterContent.budget_encounter(stop.enemy_count, RandomNumberGenerator.new(), stop.row, StarterContent.map_class_difficulty(&"deserter")))
-	_check(StarterContent.pack_threat(expected) > plain_threat, "an elite pack is tougher than a regular one on the same row")
+	var plain_threat := Encounters.pack_threat(Encounters.budget_encounter(stop.enemy_count, RandomNumberGenerator.new(), stop.row, Encounters.map_class_difficulty(&"deserter")))
+	_check(Encounters.pack_threat(expected) > plain_threat, "an elite pack is tougher than a regular one on the same row")
 	# Winning: extra gold now, and spoils (a relic) that wait to be taken before the card reward.
 	var gold := run_state.gold
 	var relics_before := run_state.relics.size()
@@ -436,8 +436,8 @@ func _test_ramp() -> void:
 				var combat := run_state.start_combat()
 				var replay := RandomNumberGenerator.new()
 				replay.state = state
-				var difficulty := StarterContent.map_class_difficulty(run_state.character.id) * (RunState.ELITE_BUDGET_MULTIPLIER if stop.elite else 1.0)
-				var expected := StarterContent.budget_encounter(stop.enemy_count, replay, n.row, difficulty, stop.elite)
+				var difficulty := Encounters.map_class_difficulty(run_state.character.id) * (RunState.ELITE_BUDGET_MULTIPLIER if stop.elite else 1.0)
+				var expected := Encounters.budget_encounter(stop.enemy_count, replay, n.row, difficulty, stop.elite)
 				var same := combat != null and combat.enemies.size() == expected.size()
 				if same:
 					for i in expected.size():

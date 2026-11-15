@@ -57,7 +57,7 @@ func _initialize() -> void:
 			var fight_seed := base_seed * SEED_STRIDE + count * SIZE_STRIDE + i
 			var rng := RandomNumberGenerator.new()
 			rng.seed = fight_seed
-			var enemy_datas := StarterContent.varied_encounter(count, rng)
+			var enemy_datas := Encounters.varied_encounter(count, rng)
 			if enemy_datas.size() != count:
 				printerr("balance_sim: encounter of %d enemies failed to load" % count)
 				quit(1)

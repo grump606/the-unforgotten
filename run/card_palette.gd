@@ -9,23 +9,23 @@ const PALETTES := {
 		"ink": Color("#171D28"), "window": Color("#171D28"), "banner": Color("#BBB7A8"),
 		"banner_ink": Color("#171D28"), "accent": Color("#526979"), "glyph": Color("#D7D0BC"),
 	},
-	&"deserter": {
+	CharacterIds.DESERTER: {
 		"label": "DESERTER", "stock": Color("#29313A"), "frame": Color("#A66A50"),
 		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#49545D"),
 		"banner_ink": Color("#F0EBDD"), "accent": Color("#A66A50"), "glyph": Color("#171D28"),
 	},
-	&"thief": {
+	CharacterIds.THIEF: {
 		"label": "THIEF", "stock": Color("#253D3D"), "frame": Color("#78A99B"),
 		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#41615B"),
 		"banner_ink": Color("#F0EBDD"), "accent": Color("#78A99B"), "glyph": Color("#171D28"),
 	},
-	&"medium": {
+	CharacterIds.MEDIUM: {
 		"label": "MEDIUM", "stock": Color("#342F42"), "frame": Color("#9A89AD"),
 		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#5C526B"),
 		"banner_ink": Color("#F0EBDD"), "accent": Color("#9A89AD"), "glyph": Color("#171D28"),
 	},
 	# The Stray: dark cobalt blue. Placeholder colours until the class art is designed (docs/CLASSES_PLAN.md).
-	&"stray": {
+	CharacterIds.STRAY: {
 		"label": "STRAY", "stock": Color("#1F2A3E"), "frame": Color("#6D87B3"),
 		"ink": Color("#E8E1D0"), "window": Color("#171D28"), "banner": Color("#3B4F78"),
 		"banner_ink": Color("#F0EBDD"), "accent": Color("#6D87B3"), "glyph": Color("#171D28"),

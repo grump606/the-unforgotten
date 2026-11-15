@@ -79,9 +79,20 @@ class Choice extends RefCounted:
 	var required := 0
 	var max_picks := 0
 
-# Choices queued by the card being played ({kind, amount} Dictionaries, in effect order). They open one
-# after another once the whole card has resolved; `_choice` is the one currently open.
-var _choice_queue: Array[Dictionary] = []
+## A pick step queued by the card being played, not yet opened (it becomes a Choice when it opens).
+class PendingChoice extends RefCounted:
+	## CardEffect.Kind.GLIMPSE or CardEffect.Kind.RECALL.
+	var kind: CardEffect.Kind = CardEffect.Kind.GLIMPSE
+	## The effect's amount: cards to look at (GLIMPSE) or to pick (RECALL).
+	var amount := 0
+
+	func _init(p_kind: CardEffect.Kind, p_amount: int) -> void:
+		kind = p_kind
+		amount = p_amount
+
+# Choices queued by the card being played (in effect order). They open one after another once the
+# whole card has resolved; `_choice` is the one currently open.
+var _choice_queue: Array[PendingChoice] = []
 var _choice: Choice = null
 # A null-card ADD_CARD logs once per fight, not once per play.
 var _warned_null_card := false
@@ -304,10 +315,10 @@ func _clear_choices() -> void:
 ## a non-empty Forgotten pile; otherwise it is skipped) and enters Phase.CHOOSING. No-op if none.
 func _open_next_choice() -> void:
 	while not _choice_queue.is_empty():
-		var entry: Dictionary = _choice_queue.pop_front()
+		var entry: PendingChoice = _choice_queue.pop_front()
 		var choice := Choice.new()
-		choice.kind = entry["kind"]
-		var n: int = entry["amount"]
+		choice.kind = entry.kind
+		var n := entry.amount
 		if choice.kind == CardEffect.Kind.GLIMPSE:
 			choice.cards = piles.top_cards(n)
 			choice.required = 0
@@ -605,7 +616,7 @@ func _begin_player_turn() -> void:
 	piles.draw(maxi(HAND_SIZE - piles.counted_in_hand(), 0), HAND_MAX)
 	# The fight-start Glimpse looks at the draw pile after the opening hand is dealt.
 	if turn == 1 and _relic_total(RelicData.Kind.FIGHT_START_GLIMPSE) > 0:
-		_choice_queue.append({"kind": CardEffect.Kind.GLIMPSE, "amount": _relic_total(RelicData.Kind.FIGHT_START_GLIMPSE)})
+		_choice_queue.append(PendingChoice.new(CardEffect.Kind.GLIMPSE, _relic_total(RelicData.Kind.FIGHT_START_GLIMPSE)))
 	# Sworn Oaths act once the hand is dealt. An Oath that costs HP can end the fight here.
 	_fire_oaths(CardData.OathTrigger.TURN_START)
 	_check_phases()
@@ -739,7 +750,7 @@ func _apply_pile_effect(effect: CardEffect, source: Combatant, amount: int) -> v
 		CardEffect.Kind.GLIMPSE, CardEffect.Kind.RECALL:
 			# Only the player has piles to pick from; the pick opens after the card resolves.
 			if source == player and amount > 0:
-				_choice_queue.append({"kind": effect.kind, "amount": amount})
+				_choice_queue.append(PendingChoice.new(effect.kind, amount))
 		CardEffect.Kind.FILE:
 			# Acts on the player's hand whoever it comes from: an enemy intent files the cards you kept.
 			piles.file_from_hand(amount)

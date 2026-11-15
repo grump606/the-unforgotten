@@ -131,14 +131,14 @@ func _test_proto_statuses() -> void:
 		_check(pest.intents[2].amount > 0, "the Pest's Malice intent is a buff for itself")
 	_check(StarterContent.enemy_by_id(&"proto_pest") == null and not StarterContent.enemy_ids().has(&"proto_pest"), "the Pest is not in the enemy registry")
 	var pooled := false
-	for enemy in StarterContent.enemy_pool():
+	for enemy in Encounters.enemy_pool():
 		pooled = pooled or String(enemy.id).begins_with("proto_")
-	for boss in StarterContent.boss_encounter() + StarterContent.mid_boss_encounter():
+	for boss in Encounters.boss_encounter() + Encounters.mid_boss_encounter():
 		pooled = pooled or String(boss.id).begins_with("proto_")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
 	for tier in 3:
-		for enemy in StarterContent.varied_encounter(3, rng, tier, 0):
+		for enemy in Encounters.varied_encounter(3, rng, tier, 0):
 			pooled = pooled or String(enemy.id).begins_with("proto_")
 	_check(not pooled, "the Pest is in no encounter pool")
 	# --fight= takes it by id, display name and alias, and --proto works with it.
@@ -245,9 +245,9 @@ func _test_proto_cycling() -> void:
 		_check(enemy.intents[2].kind == CardEffect.Kind.DAMAGE and enemy.intents[3].kind == CardEffect.Kind.DAMAGE and enemy.intents[3].amount > enemy.intents[2].amount, "intents 3 and 4 are a plain and a heavier attack")
 	_check(Fighter.ART_KEYS.has(&"proto_dreadkeeper"), "the Dreadkeeper has a figure")
 	var pooled := false
-	for e in StarterContent.enemy_pool():
+	for e in Encounters.enemy_pool():
 		pooled = pooled or String(e.id).begins_with("proto_")
-	for boss in StarterContent.boss_encounter() + StarterContent.mid_boss_encounter():
+	for boss in Encounters.boss_encounter() + Encounters.mid_boss_encounter():
 		pooled = pooled or String(boss.id).begins_with("proto_")
 	_check(not pooled and StarterContent.enemy_by_id(&"proto_dreadkeeper") == null, "the Dreadkeeper is in no registry or encounter pool")
 	# The deck: one of each, the new kinds present, every card a proto_ card, ids unique, deck of a sensible size.

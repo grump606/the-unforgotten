@@ -63,16 +63,16 @@ const EVENT_RELIC_FALLBACK_GOLD := 40
 
 ## One stop on the line. `enemy_count` only matters for COMBAT stops and
 ## `beat_index` (into StoryContent) only for STORY stops. A COMBAT stop with
-## `boss` set fights StarterContent.boss_encounter() instead of a random pack,
+## `boss` set fights Encounters.boss_encounter() instead of a random pack,
 ## and winning it ends the run with no gold and no card reward. A COMBAT stop with `mid_boss` set
-## fights StarterContent.mid_boss_encounter(); winning it pays gold and offers a card reward like a
+## fights Encounters.mid_boss_encounter(); winning it pays gold and offers a card reward like a
 ## regular fight, and the run goes on.
 ## `tier` is the 0-based act (0 up to the mid-boss, 1 after it) and `fight` the 0-based number of a
 ## regular COMBAT stop among the regular fights; both are set by RunState._default_line and
-## drive the encounter pools and stat ramp (see StarterContent.varied_encounter).
+## drive the encounter pools and stat ramp (see Encounters.varied_encounter).
 ## In map mode `choose_node` builds the stop: `node_id` is the map node (-1 on the line), `backdrop` the
 ## node's battle screen key (&"" on the line and for non-fights) and `row` its run row (-1 on the line). A map
-## fight is built by StarterContent.budget_encounter from `enemy_count` and `row` (`tier` and `fight` are line-only).
+## fight is built by Encounters.budget_encounter from `enemy_count` and `row` (`tier` and `fight` are line-only).
 class Stop:
 	var type: StopType
 	var enemy_count: int
@@ -402,7 +402,7 @@ func _stop_for_node(n: RouteMap.MapNode) -> Stop:
 		RouteMap.NodeType.BOSS:
 			stop = Stop.new(StopType.COMBAT, 1, 0, true)
 		RouteMap.NodeType.ELITE:
-			stop = Stop.new(StopType.COMBAT, maxi(n.enemy_count, StarterContent.ELITE_MIN_ENEMIES))
+			stop = Stop.new(StopType.COMBAT, maxi(n.enemy_count, Encounters.ELITE_MIN_ENEMIES))
 			stop.elite = true
 		_:
 			stop = Stop.new(StopType.COMBAT, n.enemy_count)
@@ -453,20 +453,20 @@ func start_combat() -> Combat:
 			if enemy != null:
 				enemies.append(enemy)
 	elif stop.finale:
-		enemies = StarterContent.finale_encounter(chapter, character.id)
+		enemies = Encounters.finale_encounter(chapter, character.id)
 	elif stop.boss:
-		enemies = StarterContent.boss_encounter(chapter, character.id)
+		enemies = Encounters.boss_encounter(chapter, character.id)
 	elif stop.mid_boss:
-		enemies = StarterContent.mid_boss_encounter(chapter, character.id)
+		enemies = Encounters.mid_boss_encounter(chapter, character.id)
 	elif route != null and stop.row >= 0:
-		var difficulty := StarterContent.map_class_difficulty(character.id, chapter)
+		var difficulty := Encounters.map_class_difficulty(character.id, chapter)
 		if stop.elite:
 			difficulty *= ELITE_BUDGET_MULTIPLIER
-		enemies = StarterContent.budget_encounter(stop.enemy_count, _rng, stop.row, difficulty, stop.elite, chapter)
+		enemies = Encounters.budget_encounter(stop.enemy_count, _rng, stop.row, difficulty, stop.elite, chapter)
 		if elite_modifier() == EliteModifiers.Kind.ENRAGED:
 			EliteModifiers.enrage(enemies)
 	else:
-		enemies = StarterContent.varied_encounter(stop.enemy_count, _rng, stop.tier, stop.fight)
+		enemies = Encounters.varied_encounter(stop.enemy_count, _rng, stop.tier, stop.fight)
 	_active_combat = Combat.create(player, deck, enemies, _rng.randi(), relics)
 	if _active_combat != null and debug_encounter.is_empty() and elite_modifier() >= 0:
 		EliteModifiers.apply_to_combat(_active_combat, elite_modifier(), stop.row / RouteMap.ACT_ROWS)
@@ -911,11 +911,11 @@ func event_choices() -> Array[EventChoice]:
 	return _events.event_choices(self)
 
 
-## How button `index` (a position in `event_choices()`) looks now: {"label", "summary" (the printed cost and reward line
-## made from the effects), "enabled", "reason" (why not, "" when enabled)}. A gold payment the player cannot make, a
-## card pick the deck cannot supply and a relic nothing is left to give each disable it; an HP cost never does (HP
-## stops at 1). Everything is disabled once a choice was made.
-func event_choice_state(index: int) -> Dictionary:
+## How button `index` (a position in `event_choices()`) looks now: its label, summary (the printed cost and reward line
+## made from the effects), whether it is enabled and the reason why not ("" when enabled). A gold payment the player
+## cannot make, a card pick the deck cannot supply and a relic nothing is left to give each disable it; an HP cost never
+## does (HP stops at 1). Everything is disabled once a choice was made.
+func event_choice_state(index: int) -> RunEvents.ChoiceState:
 	return _events.event_choice_state(self, index)
 
 

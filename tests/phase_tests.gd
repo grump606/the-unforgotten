@@ -155,7 +155,7 @@ func _test_switch_by_thorns() -> void:
 
 
 func _test_bosses_define_phase_two() -> void:
-	for data in [StarterContent.mid_boss_encounter()[0], StarterContent.boss_encounter()[0]]:
+	for data in [Encounters.mid_boss_encounter()[0], Encounters.boss_encounter()[0]]:
 		_check(not data.phase_two_intents.is_empty(), "%s has a phase two" % data.display_name)
 		_check(data.phase_two_title.strip_edges() != "", "%s has a phase two title" % data.display_name)
 		_check(data.phase_two_hp_percent >= 1 and data.phase_two_hp_percent <= 99, "%s has a sane phase two threshold" % data.display_name)
@@ -215,5 +215,5 @@ func _test_phase_three() -> void:
 	# The copies the pack builder and the elite rename make keep it.
 	var scaled := Encounters.scaled(data, 1.5)
 	_check(scaled.phase_three_intents.size() == 1 and scaled.phase_three_intents[0].amount == 17 and scaled.phase_three_hp_percent == 33 and scaled.phase_three_title == "Third", "a scaled copy keeps phase three, its damage scaled")
-	var named := StarterContent.elite_named(data)
+	var named := Encounters.elite_named(data)
 	_check(named.phase_three_intents.size() == 1 and named.phase_three_title == "Third", "an elite copy keeps it")

@@ -154,7 +154,7 @@ func _start_combat() -> void:
 		# One seeded stream decides the enemy count, the encounter and the combat seed, in a fixed order.
 		encounter_rng.seed = chosen_seed
 		var seeded_count := encounter_rng.randi_range(1, Combat.MAX_ENEMIES)
-		var seeded_enemies := StarterContent.varied_encounter(seeded_count, encounter_rng)
+		var seeded_enemies := Encounters.varied_encounter(seeded_count, encounter_rng)
 		combat_seed = encounter_rng.randi()
 		# New Fight then plays the next seed rather than repeating this one.
 		seed_override = chosen_seed + 1
@@ -162,7 +162,7 @@ func _start_combat() -> void:
 		return
 	var enemy_count := randi_range(1, Combat.MAX_ENEMIES)
 	encounter_rng.randomize()
-	_start_with(player, StarterContent.varied_encounter(enemy_count, encounter_rng), randi())
+	_start_with(player, Encounters.varied_encounter(enemy_count, encounter_rng), randi())
 
 
 ## The seed for a standalone fight, or -1 for a random one: seed_override first, then the

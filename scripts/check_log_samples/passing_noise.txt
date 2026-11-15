@@ -16,7 +16,7 @@ ERROR: Combat.create: the player is already dead
    at: push_error (core/variant/variant_utility.cpp:1023)
 ERROR: Combat.start: the fight was already started or has ended
    at: push_error (core/variant/variant_utility.cpp:1023)
-ERROR: StarterContent.budget_encounter: no pool enemy loaded, falling back to a known enemy
+ERROR: Encounters.budget_encounter: no pool enemy loaded, falling back to a known enemy
    at: push_error (core/variant/variant_utility.cpp:1023)
 ERROR: StarterContent.character: unknown character 'nobody'
    at: push_error (core/variant/variant_utility.cpp:1023)

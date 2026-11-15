@@ -193,7 +193,7 @@ func _test_mid_boss_stop() -> void:
 	var fight := state.start_combat()
 	_check(fight != null and fight.enemies.size() == 1 and fight.enemies[0].data.id == &"the_brakeman", "the mid-boss stop fights the Brakeman alone")
 	if fight != null:
-		_check(fight.enemies[0].max_hp == StarterContent.mid_boss_encounter()[0].max_hp, "the mid-boss is not stat-ramped")
+		_check(fight.enemies[0].max_hp == Encounters.mid_boss_encounter()[0].max_hp, "the mid-boss is not stat-ramped")
 		fight.abandon()
 	var gold_before := state.gold
 	state.complete_combat(true)

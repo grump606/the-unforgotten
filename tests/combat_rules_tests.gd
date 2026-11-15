@@ -57,13 +57,13 @@ func _test_scaled_keeps_phase_two() -> void:
 	boss.phase_two_intents = second
 	boss.phase_two_hp_percent = 40
 	boss.phase_two_title = "Rage"
-	var ramped := StarterContent.scaled(boss, 1.5)
+	var ramped := Encounters.scaled(boss, 1.5)
 	_check(ramped != boss and ramped.max_hp == 150 and ramped.max_haunt == 7 and ramped.id == &"boss", "scaled keeps id and haunt cap and ramps HP")
 	_check(ramped.intents[0].amount == 15 and ramped.intents[1].amount == 4, "phase one damage ramps, block does not")
 	_check(ramped.phase_two_intents.size() == 1 and ramped.phase_two_intents[0].amount == 30 and ramped.phase_two_intents[0].hits == 2, "phase two intents survive and ramp")
 	_check(ramped.phase_two_hp_percent == 40 and ramped.phase_two_title == "Rage", "phase two threshold and title survive")
 	_check(boss.intents[0].amount == 10 and boss.phase_two_intents[0].amount == 20, "the source resource is untouched")
-	_check(StarterContent.scaled(boss, 1.0) == boss, "factor 1 returns the enemy itself")
+	_check(Encounters.scaled(boss, 1.0) == boss, "factor 1 returns the enemy itself")
 
 
 func _test_shared_rule_helpers() -> void:

@@ -13,7 +13,7 @@ the deck, relics and gold carry over; HP gets a partial heal at each chapter bre
 - `RouteMap.ACTS = 2`, `ACT_ROWS = 15`, `ROWS = 30`, `DISTRICT_NAMES` (`run/route_map.gd`). `RouteMap.generate(seed, char_id, overrides)`
   builds the whole map; a map is saved as its full dict (`to_dict()`), never re-derived from the seed.
 - The map's row layout (story beat rows, forced treasure row, forced rest row, mid-boss, boss) is in `MAP_DESIGN.md`, "Row layout".
-- Difficulty: `StarterContent.fight_budget(row)` = `MAP_DIFFICULTY` x lerp(`BUDGET_ACT_START[act]`, `BUDGET_ACT_END[act]`, local), with
+- Difficulty: `Encounters.fight_budget(row)` = `MAP_DIFFICULTY` x lerp(`BUDGET_ACT_START[act]`, `BUDGET_ACT_END[act]`, local), with
   act arrays `[34, 46]` to `[50, 62]`, times `MAP_CLASS_DIFFICULTY` and, for elites, `ELITE_BUDGET_MULTIPLIER`. Packs come from one
   global `Encounters.enemy_pool()`.
 - Story: `StoryContent.BEAT_PATHS` has 4 beats in order, with per-character overrides under `data/story/<character>/`.

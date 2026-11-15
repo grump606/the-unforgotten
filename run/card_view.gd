@@ -467,16 +467,16 @@ func _draw_class_frame(p: Dictionary) -> void:
 		draw_line(Vector2(4.5, y), Vector2(4.5 + length, y + 1), Color(p.ink, 0.12), 1.0)
 		draw_line(Vector2(BASE.x - 4.5, y + 3), Vector2(BASE.x - 4.5 - length, y + 4), Color(p.ink, 0.12), 1.0)
 	match class_id:
-		&"deserter":
+		CharacterIds.DESERTER:
 			# Small repaired cloth corners echo the patched greatcoat.
 			for pt in [Vector2(3, 3), Vector2(BASE.x - 3, 3), Vector2(3, BASE.y - 3), Vector2(BASE.x - 3, BASE.y - 3)]:
 				draw_line(pt + Vector2(-2, -1), pt + Vector2(2, 1), Color(p.ink, 0.65), 1.0)
 				draw_line(pt + Vector2(-2, 1), pt + Vector2(2, -1), Color(p.ink, 0.65), 1.0)
-		&"thief":
+		CharacterIds.THIEF:
 			# Sea-glass thread stitched round the stock.
 			var r := Rect2(7, 7, BASE.x - 14, BASE.y - 14)
 			_dashed_rect(r, Color(accent, 0.55))
-		&"medium":
+		CharacterIds.MEDIUM:
 			# A thin bone double line.
 			_box(Rect2(6, 6, BASE.x - 12, BASE.y - 12), Color(0, 0, 0, 0), 4, 1, Color(accent, 0.4))
 		&"status":
@@ -505,16 +505,16 @@ func _dashed_rect(r: Rect2, col: Color) -> void:
 func _draw_header_decor(header: Rect2, p: Dictionary) -> void:
 	var accent: Color = p.accent
 	match class_id:
-		&"deserter":
+		CharacterIds.DESERTER:
 			# A short hand-sewn repair, rather than industrial hazard striping.
 			draw_line(Vector2(38, header.end.y - 3), Vector2(98, header.end.y - 3), Color(accent, 0.55), 1.0)
 			for x in range(42, 98, 8):
 				draw_line(Vector2(x, header.end.y - 5), Vector2(x + 2, header.end.y - 1), Color(p.ink, 0.55), 1.0)
-		&"thief":
+		CharacterIds.THIEF:
 			draw_line(Vector2(header.position.x + 4, header.end.y - 3), Vector2(header.end.x - 4, header.end.y - 3), Color(accent, 0.7), 1.0)
 			for i in 6:
 				draw_line(Vector2(header.position.x + 40 + i * 9, header.end.y - 3), Vector2(header.position.x + 44 + i * 9, header.end.y - 1), Color(accent, 0.7), 1.0)
-		&"medium":
+		CharacterIds.MEDIUM:
 			for pt in [Vector2(42, 21), Vector2(94, 21), Vector2(60, 25), Vector2(78, 25)]:
 				draw_circle(pt + Vector2(0, 0), 0.9, Color(accent, 0.7))
 		&"status":
@@ -531,12 +531,12 @@ func _draw_emblem(c: Vector2, p: Dictionary) -> void:
 	draw_circle(c, 13.5, Color(0, 0, 0, 0.5))
 	draw_circle(c, 12.5, frame)
 	match class_id:
-		&"deserter":
+		CharacterIds.DESERTER:
 			# The soldier's squared forearm guard.
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-6, -7), c + Vector2(6, -7), c + Vector2(5, 5), c + Vector2(0, 8), c + Vector2(-5, 5)]), glyph)
 			draw_line(c + Vector2(-3, -2), c + Vector2(3, -2), frame, 1.2)
 			draw_line(c + Vector2(-3, 2), c + Vector2(3, 2), frame, 1.2)
-		&"thief":
+		CharacterIds.THIEF:
 			# A keyhole.
 			draw_circle(c + Vector2(0, -2.5), 4.0, glyph)
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-1.8, 0), c + Vector2(1.8, 0), c + Vector2(3.8, 7.5), c + Vector2(-3.8, 7.5)]), glyph)
@@ -545,7 +545,7 @@ func _draw_emblem(c: Vector2, p: Dictionary) -> void:
 			draw_arc(c + Vector2(0, 1), 6.5, PI * 1.12, PI * 1.88, 12, glyph, 1.6, true)
 			draw_arc(c + Vector2(0, -1), 6.5, PI * 0.12, PI * 0.88, 12, glyph, 1.6, true)
 			draw_circle(c, 2.2, glyph)
-		&"medium":
+		CharacterIds.MEDIUM:
 			# Cloudy-glass orb, matching the Medium's current keepsake.
 			draw_circle(c, 7.0, glyph)
 			draw_arc(c, 5.1, PI * 1.1, PI * 1.7, 14, Color(p.ink, 0.8), 1.3, true)
@@ -560,7 +560,7 @@ func _draw_window_motif(win: Rect2, p: Dictionary) -> void:
 	var accent: Color = p.accent
 	var c := win.get_center()
 	match class_id:
-		&"deserter":
+		CharacterIds.DESERTER:
 			var x := win.position.x - 40
 			while x < win.end.x:
 				var a := Vector2(maxf(x, win.position.x), win.end.y)
@@ -571,12 +571,12 @@ func _draw_window_motif(win: Rect2, p: Dictionary) -> void:
 					b = Vector2(win.end.x, win.position.y + (x + 50 - win.end.x))
 				draw_line(a, b, Color(accent, 0.12), 3.0)
 				x += 14
-		&"thief":
+		CharacterIds.THIEF:
 			var y := win.position.y + 6
 			while y < win.end.y - 3:
 				draw_line(Vector2(win.position.x + 4, y), Vector2(win.end.x - 4, y), Color(accent, 0.10), 1.0)
 				y += 6
-		&"medium":
+		CharacterIds.MEDIUM:
 			for r in [10.0, 18.0, 26.0]:
 				draw_arc(c, r, 0, TAU, 32, Color(accent, 0.12), 1.0, true)
 		&"status":

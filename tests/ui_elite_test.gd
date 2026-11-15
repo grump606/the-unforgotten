@@ -79,7 +79,7 @@ func _initialize() -> void:
 	var all_named := true
 	for i in views.size():
 		all_elite = all_elite and views[i].is_elite and is_equal_approx(views[i].figure_height, views[i].base_height * Fighter.ELITE_SCALE)
-		all_named = all_named and combat.enemies[i].data.display_name.begins_with(StarterContent.ELITE_NAME_PREFIX)
+		all_named = all_named and combat.enemies[i].data.display_name.begins_with(Encounters.ELITE_NAME_PREFIX)
 	check(all_elite, "every elite enemy is drawn ELITE_SCALE larger")
 	check(all_named, "every elite enemy is named Elite ...")
 	var regular := Fighter.new()

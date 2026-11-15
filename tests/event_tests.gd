@@ -293,7 +293,7 @@ func _test_free_exit() -> void:
 				var state := run_state.event_choice_state(i)
 				var choice := run_state.event_choices()[i]
 				var costs := SimPolicy.event_costs(choice.effects)
-				if bool(state["enabled"]) and costs["hp"] == 0 and costs["gold"] == 0 and costs["max_hp"] == 0 and costs["curses"] == 0 and not costs["gamble"]:
+				if state.enabled and costs["hp"] == 0 and costs["gold"] == 0 and costs["max_hp"] == 0 and costs["curses"] == 0 and not costs["gamble"]:
 					free += 1
 			_check(free >= 1, "%s / %s: a free enabled button exists at 0 gold and 1 HP" % [event.id, character])
 
@@ -329,7 +329,7 @@ func _test_stop_basics() -> void:
 	_check(leave >= 0, "this event has a plain leave button")
 	var result := run_state.resolve_event_choice(leave)
 	_check(result.ok and result.text != "" and result.followup == &"" and run_state.event_resolved() and run_state.event_outcome() == result.text, "a free button gives its outcome and nothing owed")
-	_check(not run_state.resolve_event_choice(leave).ok and not bool(run_state.event_choice_state(0)["enabled"]), "a second choice is refused and every button is disabled")
+	_check(not run_state.resolve_event_choice(leave).ok and not run_state.event_choice_state(0).enabled, "a second choice is refused and every button is disabled")
 	_check(run_state.finish_event() and run_state.current_stop() == null and not run_state.reachable_nodes().is_empty() and run_state.at_stop_boundary(), "finishing leaves for the map")
 	_check(not run_state.in_event_stop() and run_state.current_event() == null and not run_state.finish_event(), "the finished event is gone")
 	_check(run_state.events_seen == [event.id], "the seen list keeps the event")
@@ -353,10 +353,10 @@ func _test_effects() -> void:
 	# Losing HP stops at 1.
 	run_state = _custom([[_eff(K.LOSE_HP, 10)]])
 	run_state.player.hp = 25
-	_check(bool(run_state.event_choice_state(0)["enabled"]) and run_state.resolve_event_choice(0).ok and run_state.player.hp == 15, "losing HP takes the HP")
+	_check(run_state.event_choice_state(0).enabled and run_state.resolve_event_choice(0).ok and run_state.player.hp == 15, "losing HP takes the HP")
 	run_state = _custom([[_eff(K.LOSE_HP, 10)]])
 	run_state.player.hp = 5
-	_check(bool(run_state.event_choice_state(0)["enabled"]), "an HP cost stays enabled at low HP")
+	_check(run_state.event_choice_state(0).enabled, "an HP cost stays enabled at low HP")
 	run_state.resolve_event_choice(0)
 	_check(run_state.player.hp == 1 and not run_state.player.is_dead(), "HP never drops below 1")
 	run_state = _custom([[_eff(K.LOSE_HP_PERCENT, 50)]])
@@ -429,22 +429,22 @@ func _test_costs_and_states() -> void:
 	var run_state := _custom([[_eff(K.GOLD, -30)], [_eff(K.GOLD, 10)]])
 	run_state.gold = 12
 	var state := run_state.event_choice_state(0)
-	_check(not bool(state["enabled"]) and String(state["reason"]).contains("30") and String(state["reason"]).contains("12"), "a gold cost the player cannot pay is disabled with the reason: %s" % state["reason"])
+	_check(not state.enabled and state.reason.contains("30") and state.reason.contains("12"), "a gold cost the player cannot pay is disabled with the reason: %s" % state.reason)
 	var gold := run_state.gold
 	var hp := run_state.player.hp
 	_check(not run_state.resolve_event_choice(0).ok and run_state.gold == gold and run_state.player.hp == hp and not run_state.event_resolved(), "pressing a disabled button changes nothing")
-	_check(bool(run_state.event_choice_state(1)["enabled"]) and String(run_state.event_choice_state(1)["reason"]) == "", "an affordable button has no reason")
+	_check(run_state.event_choice_state(1).enabled and run_state.event_choice_state(1).reason == "", "an affordable button has no reason")
 	run_state.gold = 30
-	_check(bool(run_state.event_choice_state(0)["enabled"]), "exactly enough gold is enough")
-	_check(String(run_state.event_choice_state(1)["summary"]) == "Gain 10 gold" and String(run_state.event_choice_state(0)["label"]) == "Do it", "a state carries the label and the printed line")
-	_check(not bool(run_state.event_choice_state(7)["enabled"]), "a bad index is disabled")
+	_check(run_state.event_choice_state(0).enabled, "exactly enough gold is enough")
+	_check(run_state.event_choice_state(1).summary == "Gain 10 gold" and run_state.event_choice_state(0).label == "Do it", "a state carries the label and the printed line")
+	_check(not run_state.event_choice_state(7).enabled, "a bad index is disabled")
 	# Removal needs a second card; Remember needs a card that can be.
 	var remove := _custom([[_eff(K.REMOVE_CARD)]])
 	remove.deck.assign([remove.deck[0]])
-	_check(not bool(remove.event_choice_state(0)["enabled"]) and String(remove.event_choice_state(0)["reason"]).contains("only one card"), "removal is disabled with a one-card deck")
+	_check(not remove.event_choice_state(0).enabled and remove.event_choice_state(0).reason.contains("only one card"), "removal is disabled with a one-card deck")
 	var remember := _custom([[_eff(K.REMEMBER_CARD)]])
 	remember.deck.assign([StarterContent.status_card(&"dread"), StarterContent.status_card(&"murmur")])
-	_check(not bool(remember.event_choice_state(0)["enabled"]) and String(remember.event_choice_state(0)["reason"]).contains("remembered"), "Remember is disabled when no card can be")
+	_check(not remember.event_choice_state(0).enabled and remember.event_choice_state(0).reason.contains("remembered"), "Remember is disabled when no card can be")
 
 
 func _test_picks() -> void:
@@ -485,7 +485,7 @@ func _test_picks() -> void:
 		for i in run_state.deck.size():
 			if run_state.deck[i].can_remember():
 				rememberable.append(i)
-		_check(not rememberable.is_empty() and bool(run_state.event_choice_state(0)["enabled"]), "%s: the starting deck has a card to remember" % character)
+		_check(not rememberable.is_empty() and run_state.event_choice_state(0).enabled, "%s: the starting deck has a card to remember" % character)
 		result = run_state.resolve_event_choice(0)
 		_check(result.followup == &"remember" and run_state.event_remember_indices() == rememberable, "%s: Remember offers the cards that can be" % character)
 		var plain_index := -1
@@ -528,14 +528,14 @@ func _test_relics() -> void:
 		if relic.character == &"":
 			run_state.relics.append(relic)
 	var neutral_state := run_state.event_choice_state(0)
-	_check(bool(neutral_state["enabled"]) and RunEvents.relic_candidates(run_state, EventEffect.Pool.NEUTRAL).is_empty(), "with every neutral relic owned, a neutral relic button stays enabled")
-	_check(String(neutral_state["summary"]).contains("%d gold" % RunState.EVENT_RELIC_FALLBACK_GOLD) and not String(neutral_state["summary"]).contains("relic."), "and its printed text says it pays gold now: %s" % neutral_state["summary"])
+	_check(neutral_state.enabled and RunEvents.relic_candidates(run_state, EventEffect.Pool.NEUTRAL).is_empty(), "with every neutral relic owned, a neutral relic button stays enabled")
+	_check(neutral_state.summary.contains("%d gold" % RunState.EVENT_RELIC_FALLBACK_GOLD) and not neutral_state.summary.contains("relic."), "and its printed text says it pays gold now: %s" % neutral_state.summary)
 	var owned_count := run_state.relics.size()
 	var plain_gold := run_state.gold
 	var result := run_state.resolve_event_choice(0)
 	_check(result.ok and run_state.relics.size() == owned_count and run_state.gold == plain_gold + RunState.EVENT_RELIC_FALLBACK_GOLD, "pressing it pays the fallback gold and gives no class relic")
 	var full_pool := _custom([[any]], &"thief")
-	_check(String(full_pool.event_choice_state(0)["summary"]).contains("neutral relic"), "with a neutral relic left the text still names the relic")
+	_check(full_pool.event_choice_state(0).summary.contains("neutral relic"), "with a neutral relic left the text still names the relic")
 	var neutral_win := _gamble(100, [any])
 	run_state = _custom([[neutral_win]], &"thief")
 	for relic in StarterContent.relic_pool(&"thief", 1):
@@ -548,7 +548,7 @@ func _test_relics() -> void:
 	run_state = _custom([[any]], &"stray")
 	run_state.relics.assign(StarterContent.relic_pool(&"stray", 1))
 	var state := run_state.event_choice_state(0)
-	_check(bool(state["enabled"]) and String(state["summary"]).contains("gold"), "a relic button pays gold when nothing is left: %s" % state["summary"])
+	_check(state.enabled and state.summary.contains("gold"), "a relic button pays gold when nothing is left: %s" % state.summary)
 	var win := _gamble(100, [any])
 	run_state = _custom([[win]], &"stray")
 	run_state.relics.assign(StarterContent.relic_pool(&"stray", 1))
@@ -633,7 +633,7 @@ func _test_gambles() -> void:
 	# Gold lost inside a gamble stops at zero rather than failing.
 	run_state = _custom([[_gamble(0, [], [_eff(K.GOLD, -15)])]])
 	run_state.gold = 4
-	_check(bool(run_state.event_choice_state(0)["enabled"]) and run_state.resolve_event_choice(0).ok and run_state.gold == 0, "gold lost in a gamble stops at 0 and the button stays enabled")
+	_check(run_state.event_choice_state(0).enabled and run_state.resolve_event_choice(0).ok and run_state.gold == 0, "gold lost in a gamble stops at 0 and the button stays enabled")
 	# The second removal of the chalk never empties the deck.
 	var chalk := _event_by_id(&"erasers_chalk")
 	var deck_cards: Array[CardData] = [StarterContent.card_by_id(&"shove"), StarterContent.card_by_id(&"slip_past")]
@@ -743,7 +743,7 @@ func _test_save_after_max_hp_events() -> void:
 			for i in event.choices_for(character).size():
 				var sim := _event_run(3, character)
 				sim._events.open_event = event
-				if not bool(sim.event_choice_state(i)["enabled"]):
+				if not sim.event_choice_state(i).enabled:
 					continue
 				sim.resolve_event_choice(i)
 				var from_relics := 0 # a relic's own max HP is counted by the relic allowance, not the event one
@@ -962,7 +962,7 @@ func _test_every_event_every_class() -> void:
 				run_state.gold = 100
 				run_state.player.hp = maxi(run_state.player.max_hp / 2, 2)
 				var state := run_state.event_choice_state(pick)
-				if not bool(state["enabled"]):
+				if not state.enabled:
 					continue
 				var result := run_state.resolve_event_choice(pick)
 				_check(result.ok and result.text != "", "%s / %s / button %d: pressed" % [event.id, character, pick])

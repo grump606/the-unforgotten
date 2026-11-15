@@ -1,7 +1,7 @@
 extends SceneTree
 ## Prints the threat measure's numbers: every regular enemy's threat, the legacy line's average pack threat per
 ## regular fight (what the map budget curve is calibrated against), the budget curve, and for each run row and
-## enemy count the distribution of pack threat from StarterContent.budget_encounter (how close it lands to the
+## enemy count the distribution of pack threat from Encounters.budget_encounter (how close it lands to the
 ## budget, how often the scale bounds bite, the scale factors, and which enemies show up).
 ## Run: godot --headless --path . -s res://tools/threat_table.gd -- [--seeds N] [--section enemies|legacy|budget|packs]
 ## --seeds N is the number of seeded packs per row and count (default 300, and 600 for the legacy average).
@@ -35,10 +35,10 @@ func _initialize() -> void:
 
 
 func _print_enemies() -> void:
-	print("Enemy threat (turn damage = average per turn over the intent cycle incl. status points; threat = turn damage * HP / %.0f)" % StarterContent.THREAT_REF_DPS)
+	print("Enemy threat (turn damage = average per turn over the intent cycle incl. status points; threat = turn damage * HP / %.0f)" % Encounters.THREAT_REF_DPS)
 	print("%-18s %-24s %4s %10s %8s" % ["id", "name", "HP", "turn dmg", "threat"])
-	for enemy in StarterContent.enemy_pool():
-		print("%-18s %-24s %4d %10.2f %8.2f" % [enemy.id, enemy.display_name, enemy.max_hp, StarterContent._turn_damage(enemy), StarterContent.enemy_threat(enemy)])
+	for enemy in Encounters.enemy_pool():
+		print("%-18s %-24s %4d %10.2f %8.2f" % [enemy.id, enemy.display_name, enemy.max_hp, Encounters._turn_damage(enemy), Encounters.enemy_threat(enemy)])
 	print("")
 
 
@@ -52,7 +52,7 @@ func _print_legacy(samples: int) -> void:
 		for s in samples:
 			var rng := RandomNumberGenerator.new()
 			rng.seed = 1000 + s
-			var threat := StarterContent.pack_threat(StarterContent.varied_encounter(LEGACY_COUNTS[fight], rng, LEGACY_TIERS[fight], fight))
+			var threat := Encounters.pack_threat(Encounters.varied_encounter(LEGACY_COUNTS[fight], rng, LEGACY_TIERS[fight], fight))
 			total += threat
 			lowest = minf(lowest, threat)
 			highest = maxf(highest, threat)
@@ -61,10 +61,10 @@ func _print_legacy(samples: int) -> void:
 
 
 func _print_budget() -> void:
-	print("Budget curve (MAP_DIFFICULTY %.2f)" % StarterContent.MAP_DIFFICULTY)
+	print("Budget curve (MAP_DIFFICULTY %.2f)" % Encounters.MAP_DIFFICULTY)
 	var line := ""
 	for row in RouteMap.ROWS:
-		line += "r%d=%.1f  " % [row, StarterContent.fight_budget(row)]
+		line += "r%d=%.1f  " % [row, Encounters.fight_budget(row)]
 		if row % 5 == 4:
 			print(line)
 			line = ""
@@ -85,7 +85,7 @@ func _print_packs(seeds: int) -> void:
 		if row == 14 or row == 29:
 			continue # boss rows have no budgeted fight
 		for count in range(1, 4):
-			var target := StarterContent.fight_budget(row)
+			var target := Encounters.fight_budget(row)
 			var lowest := INF
 			var highest := 0.0
 			var total := 0.0
@@ -99,9 +99,9 @@ func _print_packs(seeds: int) -> void:
 			for s in seeds:
 				var rng := RandomNumberGenerator.new()
 				rng.seed = 7000 + s * 31 + row
-				var pack := StarterContent.budget_encounter(count, rng, row)
-				var info := StarterContent.last_pack_info
-				var threat := StarterContent.pack_threat(pack)
+				var pack := Encounters.budget_encounter(count, rng, row)
+				var info := Encounters.last_pack_info
+				var threat := Encounters.pack_threat(pack)
 				lowest = minf(lowest, threat)
 				highest = maxf(highest, threat)
 				total += threat

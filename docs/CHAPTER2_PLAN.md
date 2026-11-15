@@ -115,7 +115,7 @@ Recollection). Chapter 2 gets **seven new ones**, so the two chapters share no e
 | 7 | Quiet Scribe | caster | `SHAKEN` and `LOSE_HP`, slow but unavoidable damage |
 
 Each enemy needs: data (`data/enemies/*.tres`), an intent list, a threat value the budget builder can read (automatic from intents,
-`StarterContent.enemy_threat`), a figure painting and an idle animation, and a name that fits the Registry. Balance is by the budget
+`Encounters.enemy_threat`), a figure painting and an idle animation, and a name that fits the Registry. Balance is by the budget
 builder, so an enemy's exact numbers matter less than its **role** and its **threat spread**: a pool of 7 should offer a mix of
 low-threat 1-enemy and high-threat 3-enemy packs (check with `tools/threat_table.gd`).
 
@@ -175,7 +175,7 @@ These are the engine changes the chapter machinery does not yet do. None changes
 1. **A per-chapter enemy pool.** `Encounters.enemy_pool()` returns every enemy in `ALL_ENEMY_PATHS`. Add `ChapterData.enemy_paths` and have
    `budget_encounter` and `varied_encounter` draw from the chapter's pool. Chapter 1's pool must be exactly today's 7 so its maps and fights
    are unchanged (golden test).
-2. **Bosses by chapter.** `StarterContent.boss_encounter()` and `mid_boss_encounter()` ignore `ChapterData.mid_boss`/`end_boss`. Read them.
+2. **Bosses by chapter.** `Encounters.boss_encounter()` and `mid_boss_encounter()` ignore `ChapterData.mid_boss`/`end_boss`. Read them.
    `Fighter`'s art key table (`run/fighter.gd`), `BattleBackdrop` and the boss intro name the Chapter 1 bosses by id; they need the new ones.
 3. **Budget by chapter.** `RunState.start_combat` calls `budget_encounter(stop.enemy_count, _rng, stop.row, ...)`; pass the chapter so
    `fight_budget(row, chapter)` is used (the argument exists already, unused).
@@ -230,7 +230,7 @@ the Chapter 2 artwork is commissioned only after that pass. Each item is its own
 when numbers change.
 
 **Gate 1: Chapter 2 plays, in the sim.**
-1. **Done 2026-11-12. Plumbing 1 to 3** (`ChapterData` carries the enemy pools, the boss paths and the budget curve; `Encounters.boss_encounter(chapter)`, `StarterContent.budget_encounter(..., chapter)`, `RunState.start_combat` pass the chapter; `Chapters` builds Chapters 2 and 3 as stubs that reuse Chapter 1's enemies and bosses with their own curve, `Chapters.STUB_CURVES`; `tests/chapters_tests.gd` proves Chapter 1's packs are unchanged). First stub curve: Chapter 2 66 to 82, Chapter 3 84 to 100 (before MAP_DIFFICULTY). **First sim finding** (200 runs, `--chapters 3`): the share of Chapter 2 starters that reach its break is greedy 90, 74, 61 and 39% and smart 82, 95, 78 and 59% for the Deserter, Thief, Medium and Stray, against a 47 to 61% target; one curve cannot land every class, so tuning needs the per-class factor (`MAP_CLASS_DIFFICULTY`) as well, and the Stray needs the most help. The original item:  with a **stub Chapter 2** (placeholder enemies cloned from Chapter 1 with new names,
+1. **Done 2026-11-12. Plumbing 1 to 3** (`ChapterData` carries the enemy pools, the boss paths and the budget curve; `Encounters.boss_encounter(chapter)`, `Encounters.budget_encounter(..., chapter)`, `RunState.start_combat` pass the chapter; `Chapters` builds Chapters 2 and 3 as stubs that reuse Chapter 1's enemies and bosses with their own curve, `Chapters.STUB_CURVES`; `tests/chapters_tests.gd` proves Chapter 1's packs are unchanged). First stub curve: Chapter 2 66 to 82, Chapter 3 84 to 100 (before MAP_DIFFICULTY). **First sim finding** (200 runs, `--chapters 3`): the share of Chapter 2 starters that reach its break is greedy 90, 74, 61 and 39% and smart 82, 95, 78 and 59% for the Deserter, Thief, Medium and Stray, against a 47 to 61% target; one curve cannot land every class, so tuning needs the per-class factor (`MAP_CLASS_DIFFICULTY`) as well, and the Stray needs the most help. The original item:  with a **stub Chapter 2** (placeholder enemies cloned from Chapter 1 with new names,
    its own curve), behind `THE_UNFORGOTTEN_CHAPTERS=2`. Done when a two-chapter sim runs and the Chapter 1 golden maps and tests are unchanged.
 2a. **Done 2026-11-12: the two new effects.** **File** is `CardEffect.Kind.FILE` (an intent, or a card, that sends the dearest cards of your hand to the bottom of your draw pile, never an Anchored one; `CardPiles.file_from_hand`); **Unseen** is an `EnemyData.unseen` flag, not an effect kind, because it is a trait of the enemy and not something it does (`Combat.is_shielded`: a card aimed at it lands on the first targetable enemy, an all-enemies card still reaches it). Both are in `docs/RULES.md` and `tests/new_effects_tests.gd`; the unit tests of every kind (glossary, icon, vendor value, bot scoring, handler) pass. The Unseen pill uses the generic status glyph for now (art pass later).
 2. **Done 2026-11-12 (first pass): the seven enemies and two bosses as data.** `data/enemies/chapter2/*.tres` (a separate registry, `StarterContent.CHAPTER2_*_PATHS`, so Chapter 1 never draws them); `Chapters` gives Chapter 2 its own pools, boss paths and titles, district names and per-class budget factors (`ChapterData.class_difficulty`; the map labels and the mid-boss reward line now read the chapter). Placeholder art: no art key, so they draw as the generic ghost. Chapter 3 is still a stub of Chapter 1's content.

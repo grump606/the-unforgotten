@@ -112,8 +112,8 @@ func _test_defeat() -> void:
 
 func _test_same_seed_same_hand() -> void:
 	var deck := StarterContent.deck()
-	var a := Combat.new(Combatant.new("p", 20), deck, StarterContent.early_encounter(2), 42)
-	var b := Combat.new(Combatant.new("p", 20), deck, StarterContent.early_encounter(2), 42)
+	var a := Combat.new(Combatant.new("p", 20), deck, Encounters.early_encounter(2), 42)
+	var b := Combat.new(Combatant.new("p", 20), deck, Encounters.early_encounter(2), 42)
 	a.start()
 	b.start()
 	var same := true
@@ -162,9 +162,9 @@ func _test_every_living_enemy_acts() -> void:
 
 
 func _test_early_encounter_sizes() -> void:
-	_check(StarterContent.early_encounter(0).size() == 1, "encounter size clamps up to 1")
-	_check(StarterContent.early_encounter(2).size() == 2, "encounter of 2")
-	_check(StarterContent.early_encounter(9).size() == Combat.MAX_ENEMIES, "encounter size clamps down to max")
+	_check(Encounters.early_encounter(0).size() == 1, "encounter size clamps up to 1")
+	_check(Encounters.early_encounter(2).size() == 2, "encounter of 2")
+	_check(Encounters.early_encounter(9).size() == Combat.MAX_ENEMIES, "encounter size clamps down to max")
 
 
 func _test_draw_on_empty_piles() -> void:

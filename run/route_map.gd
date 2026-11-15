@@ -88,6 +88,103 @@ const _TYPE_KEYS := ["fight", "rest", "shop", "elite", "treasure", "event"]
 const _TYPE_OF_KEY := {"fight": NodeType.FIGHT, "rest": NodeType.REST, "shop": NodeType.SHOP, "elite": NodeType.ELITE, "treasure": NodeType.TREASURE, "event": NodeType.EVENT}
 
 
+## One enemy-count band of a RouteConfig: the weights for counts 1, 2, 3 ... used up to row `max_row` of the run.
+class EnemyBand extends RefCounted:
+	var max_row := 0
+	var weights: Array[float] = []
+
+	func _init(p_max_row: int = 0, p_weights: Array[float] = []) -> void:
+		max_row = p_max_row
+		weights = p_weights
+
+	## The plain-data form, as CONFIG writes a band.
+	func to_dict() -> Dictionary:
+		var plain_weights: Array = []
+		for weight in weights:
+			plain_weights.append(weight)
+		return {"max_row": max_row, "weights": plain_weights}
+
+
+## The tuning a map is built with: CONFIG with a caller's overrides merged in (see `from_overrides`). A new one has
+## every field empty or zero (as a map that was never generated has no config); `from_overrides({})` is the defaults.
+class RouteConfig extends RefCounted:
+	## Relative weights per free node, by type key (the keys of CONFIG["type_weights"], in that order).
+	var type_weights: Dictionary[String, float] = {}
+	## Enemy count weights by the node's row in the run; the first band whose max_row is not below the row applies.
+	var enemy_bands: Array[EnemyBand] = []
+	## Node counts a free row may have.
+	var free_widths: Array[int] = []
+	## The first free rows of each act that are all fights.
+	var safe_rows := 0
+	## Availability windows (0 turns one off).
+	var rest_window := 0
+	var shop_window := 0
+	## Chance that a node with a single exit edge gets a second one.
+	var extra_edge_chance := 0.0
+
+	## CONFIG with `overrides` merged in, key by key (and `type_weights` entry by entry). Unknown keys and values of
+	## the wrong shape or range are ignored, so every field has a usable value; `RouteMap.config_problems()` lists
+	## what would be ignored. Whole numbers stay ints even when the overrides came back from JSON as floats.
+	static func from_overrides(overrides: Dictionary = {}) -> RouteConfig:
+		var merged: Dictionary = RouteMap.CONFIG.duplicate(true)
+		for key in overrides:
+			var name := str(key)
+			if not merged.has(name):
+				continue
+			var value: Variant = overrides[key]
+			if name == "type_weights":
+				if value is Dictionary:
+					for type_key in value:
+						if RouteMap._TYPE_KEYS.has(str(type_key)) and RouteMap._weight_ok(value[type_key]):
+							merged["type_weights"][str(type_key)] = float(value[type_key])
+			elif RouteMap._config_problem(name, value) == "":
+				merged[name] = value.duplicate(true) if value is Array or value is Dictionary else value
+		var cfg := RouteConfig.new()
+		for type_key in merged["type_weights"]:
+			cfg.type_weights[str(type_key)] = float(merged["type_weights"][type_key])
+		for band in merged["enemy_bands"]:
+			var band_weights: Array[float] = []
+			for weight in band["weights"]:
+				band_weights.append(float(weight))
+			cfg.enemy_bands.append(EnemyBand.new(int(band["max_row"]), band_weights))
+		for width in merged["free_widths"]:
+			cfg.free_widths.append(int(width))
+		cfg.safe_rows = int(merged["safe_rows"])
+		cfg.rest_window = int(merged["rest_window"])
+		cfg.shop_window = int(merged["shop_window"])
+		cfg.extra_edge_chance = float(merged["extra_edge_chance"])
+		return cfg
+
+	## A deep copy.
+	func copy() -> RouteConfig:
+		var cfg := RouteConfig.new()
+		cfg.type_weights = type_weights.duplicate()
+		for band in enemy_bands:
+			cfg.enemy_bands.append(EnemyBand.new(band.max_row, band.weights.duplicate()))
+		cfg.free_widths = free_widths.duplicate()
+		cfg.safe_rows = safe_rows
+		cfg.rest_window = rest_window
+		cfg.shop_window = shop_window
+		cfg.extra_edge_chance = extra_edge_chance
+		return cfg
+
+	## The plain-data form, with CONFIG's keys in CONFIG's order (what `RouteMap.to_dict()` saves).
+	func to_dict() -> Dictionary:
+		var weights := {}
+		for type_key in type_weights:
+			weights[type_key] = type_weights[type_key]
+		var bands: Array = []
+		for band in enemy_bands:
+			bands.append(band.to_dict())
+		var widths: Array = []
+		for width in free_widths:
+			widths.append(width)
+		return {
+			"type_weights": weights, "enemy_bands": bands, "free_widths": widths, "safe_rows": safe_rows,
+			"rest_window": rest_window, "shop_window": shop_window, "extra_edge_chance": extra_edge_chance,
+		}
+
+
 ## One node. `enemy_count` is 0 for non-fights and 1 for bosses; `backdrop` is "" for non-fights;
 ## `beat_index` matters for STORY nodes only.
 class MapNode:
@@ -119,7 +216,7 @@ class MapNode:
 var seed_value: int = 0
 var character_id: StringName = &""
 var kind: StringName = KIND_GENERATED
-var config: Dictionary = {}
+var config := RouteConfig.new()
 var nodes: Array[MapNode] = []
 ## Node ids by row, in column order.
 var _rows: Array = []
@@ -168,38 +265,11 @@ static func window_rows(act: int) -> Array[int]:
 	return result
 
 
-## `CONFIG` with the caller's overrides merged in (a deep copy; the constant is never changed). Unknown keys
-## and values of the wrong shape or range are ignored, so the result always has a usable value for every key;
-## `config_problems()` lists what would be ignored.
-static func make_config(overrides: Dictionary = {}) -> Dictionary:
-	var merged: Dictionary = CONFIG.duplicate(true)
-	for key in overrides:
-		var name := str(key)
-		if not merged.has(name):
-			continue
-		var value: Variant = overrides[key]
-		if name == "type_weights":
-			if value is Dictionary:
-				for type_key in value:
-					if _TYPE_KEYS.has(str(type_key)) and _weight_ok(value[type_key]):
-						merged["type_weights"][str(type_key)] = float(value[type_key])
-		elif _config_problem(name, value) == "":
-			merged[name] = value.duplicate(true) if value is Array or value is Dictionary else value
-	# Whole numbers stay ints even when the config came back from JSON as floats.
-	for key in ["safe_rows", "rest_window", "shop_window"]:
-		merged[key] = int(merged[key])
-	merged["extra_edge_chance"] = float(merged["extra_edge_chance"])
-	var widths: Array = []
-	for width in merged["free_widths"]:
-		widths.append(int(width))
-	merged["free_widths"] = widths
-	for band in merged["enemy_bands"]:
-		band["max_row"] = int(band["max_row"])
-		var band_weights: Array = []
-		for weight in band["weights"]:
-			band_weights.append(float(weight))
-		band["weights"] = band_weights
-	return merged
+## `CONFIG` with the caller's overrides merged in, as a RouteConfig (the constant is never changed). Unknown keys
+## and values of the wrong shape or range are ignored, so the result always has a usable value for every field;
+## `config_problems()` lists what would be ignored. Same as `RouteConfig.from_overrides`.
+static func make_config(overrides: Dictionary = {}) -> RouteConfig:
+	return RouteConfig.from_overrides(overrides)
 
 
 ## What is wrong with the shape of a config dictionary (empty when `make_config` would use all of it).
@@ -426,13 +496,13 @@ static func generate(map_seed: int, char_id: StringName, overrides: Dictionary =
 	return map
 
 
-static func _build(rng: RandomNumberGenerator, map_seed: int, char_id: StringName, cfg: Dictionary, chapter_number: int = 1) -> RouteMap:
+static func _build(rng: RandomNumberGenerator, map_seed: int, char_id: StringName, cfg: RouteConfig, chapter_number: int = 1) -> RouteMap:
 	var map := RouteMap.new()
 	map.chapter = chapter_number
 	map.seed_value = map_seed
 	map.character_id = char_id
 	map.kind = KIND_GENERATED
-	map.config = cfg.duplicate(true)
+	map.config = cfg.copy()
 	map._make_nodes(rng)
 	map._make_edges(rng)
 	map._assign_types(rng)
@@ -442,7 +512,7 @@ static func _build(rng: RandomNumberGenerator, map_seed: int, char_id: StringNam
 
 
 func _make_nodes(rng: RandomNumberGenerator) -> void:
-	var widths: Array = config["free_widths"]
+	var widths := config.free_widths
 	for row in ROWS:
 		var info := row_info(row)
 		var row_type: int = info["type"]
@@ -472,7 +542,7 @@ func _link(from_id: int, to_id: int) -> void:
 
 
 func _make_edges(rng: RandomNumberGenerator) -> void:
-	var extra_chance := float(config["extra_edge_chance"])
+	var extra_chance := config.extra_edge_chance
 	for row in range(ROWS - 1):
 		var upper: Array = _rows[row]
 		var lower: Array = _rows[row + 1]
@@ -649,8 +719,8 @@ func _fights_in_row(row: int) -> int:
 ## rest in proportion); every free row keeps at least one plain fight (a rest or shop takes a fight's place, it
 ## does not replace the row).
 func _assign_types(rng: RandomNumberGenerator) -> void:
-	var weights: Dictionary = config["type_weights"]
-	var safe := int(config["safe_rows"])
+	var weights := config.type_weights
+	var safe := config.safe_rows
 	for row in ROWS:
 		var info := row_info(row)
 		if int(info["type"]) != FREE_ROW:
@@ -675,7 +745,7 @@ func _assign_types(rng: RandomNumberGenerator) -> void:
 				var type: int = _TYPE_OF_KEY[key]
 				if type == NodeType.TREASURE:
 					continue # chests only fill the forced treasure row
-				var weight := float(weights.get(key, 0.0))
+				var weight: float = weights.get(key, 0.0)
 				if type != NodeType.FIGHT and not _type_allowed(n, type as NodeType):
 					weight = 0.0
 				options.append(type)
@@ -693,7 +763,7 @@ func _assign_types(rng: RandomNumberGenerator) -> void:
 
 
 func _window_of(type: NodeType) -> int:
-	return int(config["rest_window"]) if type == NodeType.REST else int(config["shop_window"])
+	return config.rest_window if type == NodeType.REST else config.shop_window
 
 
 ## The last window index (a position in `window_rows`) at which a window for `type` may end. The forced rest row
@@ -724,7 +794,7 @@ func _window_holds(act_rows: Array[int], free_index: int, window: int, type: Nod
 ## qualifies the generator's validate-and-retry loop is the backstop.
 func _ensure_in_window(rng: RandomNumberGenerator, act_rows: Array[int], free_index: int, target: NodeType, other: NodeType) -> void:
 	var window := _window_of(target)
-	var safe := int(config["safe_rows"])
+	var safe := config.safe_rows
 	if window <= 0 or free_index < safe or free_index - window + 1 < safe or free_index > window_last_index(target, act_rows.size()):
 		return
 	if _window_holds(act_rows, free_index, window, target, -1):
@@ -750,11 +820,10 @@ func _ensure_in_window(rng: RandomNumberGenerator, act_rows: Array[int], free_in
 
 
 func _enemy_weights(row: int) -> Array:
-	for band in config["enemy_bands"]:
-		if row <= int(band["max_row"]):
-			return band["weights"]
-	var bands: Array = config["enemy_bands"]
-	return bands[bands.size() - 1]["weights"]
+	for band in config.enemy_bands:
+		if row <= band.max_row:
+			return band.weights
+	return config.enemy_bands[config.enemy_bands.size() - 1].weights
 
 
 func _assign_counts(rng: RandomNumberGenerator) -> void:
@@ -963,7 +1032,7 @@ func _check_layout(v: Array[String], rows: Array) -> void:
 	if rows.size() != ROWS:
 		v.append("map has %d rows, expected %d" % [rows.size(), ROWS])
 		return
-	var widths: Array = config["free_widths"] if config.get("free_widths") is Array else []
+	var widths := config.free_widths
 	if widths.is_empty():
 		v.append("config has no free_widths")
 		return
@@ -1037,7 +1106,7 @@ func _check_edges(v: Array[String], rows: Array) -> void:
 
 
 func _check_types(v: Array[String], rows: Array, preds: Array) -> void:
-	var safe := int(config["safe_rows"])
+	var safe := config.safe_rows
 	for r in rows.size():
 		var info := row_info(r)
 		if int(info["type"]) != FREE_ROW or bool(info["forced"]) or bool(info["treasure"]):
@@ -1081,8 +1150,8 @@ func _check_rest_rules(v: Array[String], rows: Array, preds: Array) -> void:
 
 
 func _check_availability(v: Array[String], rows_by_number: Array) -> void:
-	var safe := int(config["safe_rows"])
-	for pair in [[NodeType.REST, int(config["rest_window"]), "rest"], [NodeType.SHOP, int(config["shop_window"]), "shop"]]:
+	var safe := config.safe_rows
+	for pair in [[NodeType.REST, config.rest_window, "rest"], [NodeType.SHOP, config.shop_window, "shop"]]:
 		var window: int = pair[1]
 		if window <= 0:
 			continue
@@ -1168,7 +1237,7 @@ func to_dict() -> Dictionary:
 		})
 	var data := {
 		"version": 1, "kind": String(kind), "seed": seed_value, "character_id": String(character_id),
-		"config": config.duplicate(true), "nodes": list,
+		"config": config.to_dict(), "nodes": list,
 	}
 	if chapter > 1:
 		data["chapter"] = chapter # only a later chapter writes it, so a Chapter 1 map is saved exactly as before

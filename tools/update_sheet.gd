@@ -17,7 +17,7 @@ func _initialize() -> void:
 	var save_path := out_dir.path_join("scratch_save.json") # never the real save
 	var suffix := "_%sx%s" % [args[1], args[2]] if args.size() > 2 else ""
 	await _shoot(save_path, "update_select%s.png" % suffix)
-	RunSave.save(RunState.new(7, &"deserter"), save_path)
+	RunSave.save(RunState.new(7, CharacterIds.DESERTER), save_path)
 	await _shoot(save_path, "update_continue%s.png" % suffix)
 	RunSave.delete(save_path)
 	quit()

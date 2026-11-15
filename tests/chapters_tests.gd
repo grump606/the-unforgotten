@@ -20,8 +20,8 @@ func run() -> int:
 			a.seed = row * 10 + count
 			var b := RandomNumberGenerator.new()
 			b.seed = row * 10 + count
-			var default_pack := StarterContent.budget_encounter(count, a, row)
-			var explicit_pack := StarterContent.budget_encounter(count, b, row, 1.0, false, 1)
+			var default_pack := Encounters.budget_encounter(count, a, row)
+			var explicit_pack := Encounters.budget_encounter(count, b, row, 1.0, false, 1)
 			var same := default_pack.size() == explicit_pack.size()
 			for i in mini(default_pack.size(), explicit_pack.size()):
 				same = same and default_pack[i].id == explicit_pack[i].id and default_pack[i].max_hp == explicit_pack[i].max_hp
@@ -29,15 +29,15 @@ func run() -> int:
 	var later := Chapters.chapter(2)
 	_check(later.number == 2 and later != c, "chapter 2 exists as a stub")
 	_check(later.budget_start[0] > c.budget_end[1], "the stub's budget starts above where chapter 1 ends")
-	_check(StarterContent.fight_budget(0, 2) > StarterContent.fight_budget(29, 1) and StarterContent.fight_budget(29, 2) > StarterContent.fight_budget(0, 2), "chapter 2's curve starts above chapter 1's end and rises")
-	_check(StarterContent.fight_budget(0, 3) > StarterContent.fight_budget(29, 2), "chapter 3 starts above chapter 2's end")
+	_check(Encounters.fight_budget(0, 2) > Encounters.fight_budget(29, 1) and Encounters.fight_budget(29, 2) > Encounters.fight_budget(0, 2), "chapter 2's curve starts above chapter 1's end and rises")
+	_check(Encounters.fight_budget(0, 3) > Encounters.fight_budget(29, 2), "chapter 3 starts above chapter 2's end")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5
-	var pack := StarterContent.budget_encounter(2, rng, 3, 1.0, false, 2)
-	_check(not pack.is_empty() and absf(StarterContent.pack_threat(pack) - StarterContent.fight_budget(3, 2)) / StarterContent.fight_budget(3, 2) < 0.2, "a chapter 2 pack aims at chapter 2's budget")
-	_check(StarterContent.boss_encounter(2).size() == 1 and StarterContent.mid_boss_encounter(2).size() == 1, "later chapters load their bosses")
+	var pack := Encounters.budget_encounter(2, rng, 3, 1.0, false, 2)
+	_check(not pack.is_empty() and absf(Encounters.pack_threat(pack) - Encounters.fight_budget(3, 2)) / Encounters.fight_budget(3, 2) < 0.2, "a chapter 2 pack aims at chapter 2's budget")
+	_check(Encounters.boss_encounter(2).size() == 1 and Encounters.mid_boss_encounter(2).size() == 1, "later chapters load their bosses")
 	for row in RouteMap.ROWS:
-		_check(is_equal_approx(StarterContent.fight_budget(row), StarterContent.fight_budget(row, 1)), "fight_budget defaults to chapter 1 (row %d)" % row)
+		_check(is_equal_approx(Encounters.fight_budget(row), Encounters.fight_budget(row, 1)), "fight_budget defaults to chapter 1 (row %d)" % row)
 	_test_chapter_2_content()
 	_test_events_and_story_by_chapter()
 	_test_pools_by_chapter()
@@ -77,8 +77,8 @@ func _test_chapter_2_content() -> void:
 		var enemy := load(path) as EnemyData
 		_check(enemy == null or enemy.id == &"the_misfiled" or not enemy.unseen, "only The Misfiled is Unseen")
 	_check(two.mid_boss_path == StarterContent.ARCHIVIST_PATH and two.end_boss_path == StarterContent.REGISTRAR_PATH, "chapter 2's bosses")
-	_check(StarterContent.boss_encounter(2)[0].id == &"the_registrar" and StarterContent.mid_boss_encounter(2)[0].id == &"the_archivist", "chapter 2 fights its own bosses")
-	_check(StarterContent.boss_encounter(1)[0].id == &"the_conductor", "chapter 1 still fights the Eraser")
+	_check(Encounters.boss_encounter(2)[0].id == &"the_registrar" and Encounters.mid_boss_encounter(2)[0].id == &"the_archivist", "chapter 2 fights its own bosses")
+	_check(Encounters.boss_encounter(1)[0].id == &"the_conductor", "chapter 1 still fights the Eraser")
 	# The pack builder fills chapter 2's budget over many rows and sizes, without falling back.
 	var misses := 0
 	var packs := 0
@@ -86,9 +86,9 @@ func _test_chapter_2_content() -> void:
 		for count in [1, 2, 3]:
 			var rng := RandomNumberGenerator.new()
 			rng.seed = row * 100 + count
-			var pack := StarterContent.budget_encounter(count, rng, row, 1.0, false, 2)
+			var pack := Encounters.budget_encounter(count, rng, row, 1.0, false, 2)
 			packs += 1
-			var ok: bool = not pack.is_empty() and not StarterContent.last_pack_info["fallback"]
+			var ok: bool = not pack.is_empty() and not Encounters.last_pack_info["fallback"]
 			for enemy in pack:
 				ok = ok and not Chapters.chapter(1).enemy_paths.any(func(p: String) -> bool: return (load(p) as EnemyData).id == enemy.id)
 			if not ok:

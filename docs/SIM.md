@@ -106,7 +106,7 @@ still too strong in both the chapter and the finale; the Deserter slightly hard 
 
 ### Chapter 3 third pass: the Thief fix (300 runs per class and bot, seed 1)
 
-**Cause:** the Thief's chapter 3 packs were stuck at `StarterContent.PACK_SCALE_MAX` (1.8), so no class factor above about 1.6 made them harder; the Thief's strong
+**Cause:** the Thief's chapter 3 packs were stuck at `Encounters.PACK_SCALE_MAX` (1.8), so no class factor above about 1.6 made them harder; the Thief's strong
 survivors (about 52 HP on arrival) were never really tested. **Fix:** `ChapterData.pack_scale_max` (chapter 3: 2.6; chapters 1 and 2 keep 1.8, and their sim results are unchanged),
 then the factors were retuned: `CHAPTER_3_CLASS_DIFFICULTY` deserter 1.2, thief 2.8, medium 1.25, stray 1.05; `CHAPTER_3_BOSS_FACTOR` 1.1 / 3.4 / 0.9 / 0.6.
 

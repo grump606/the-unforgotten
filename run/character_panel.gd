@@ -16,7 +16,7 @@ const FIGURE_HEIGHT := 62.0
 ## The painted portrait shows this top share of the class sprite: head, shoulders and chest.
 const PAINTED_CROP := 0.32
 ## Classes whose portrait shows more of the sprite (the broad Stray would otherwise fill the window).
-const PAINTED_CROP_BY_CLASS := {&"stray": 0.62}
+const PAINTED_CROP_BY_CLASS := {CharacterIds.STRAY: 0.62}
 ## Starting-deck cards: four per row, small enough that three panels sit comfortably across 1152 px
 ## and the whole group fits the window height without crowding the edges.
 const DECK_CARD_SCALE := 0.4
@@ -214,17 +214,17 @@ func _draw() -> void:
 func _draw_frame_decor(whole: Rect2) -> void:
 	var accent: Color = _p.accent
 	match class_id:
-		&"deserter":
+		CharacterIds.DESERTER:
 			for pt in [Vector2(3, 3), Vector2(whole.end.x - 3, 3), Vector2(3, whole.end.y - 3), whole.end - Vector2(3, 3)]:
 				draw_circle(pt, 1.8, Color(0.2, 0.1, 0.05))
-		&"thief":
+		CharacterIds.THIEF:
 			var r := whole.grow(-7)
 			var x := r.position.x + 4
 			while x < r.end.x - 4:
 				draw_line(Vector2(x, r.position.y), Vector2(minf(x + 3, r.end.x - 4), r.position.y), Color(accent, 0.55), 1.0)
 				draw_line(Vector2(x, r.end.y), Vector2(minf(x + 3, r.end.x - 4), r.end.y), Color(accent, 0.55), 1.0)
 				x += 6
-		&"medium":
+		CharacterIds.MEDIUM:
 			_box(whole.grow(-7), Color(0, 0, 0, 0), 4, 1, Color(accent, 0.4))
 
 
@@ -279,11 +279,11 @@ func _draw_figure_code(origin: Vector2, cx: float) -> void:
 	var fit := PORTRAIT_HEIGHT / FIGURE_HEIGHT
 	draw_set_transform(origin + Vector2(cx * (1.0 - fit), 0.0), 0.0, Vector2(fit, fit))
 	match class_id:
-		&"deserter":
+		CharacterIds.DESERTER:
 			_draw_deserter(cx)
-		&"thief":
+		CharacterIds.THIEF:
 			_draw_thief(cx)
-		&"medium":
+		CharacterIds.MEDIUM:
 			_draw_medium(cx)
 
 
@@ -376,16 +376,16 @@ func _draw_emblem(c: Vector2) -> void:
 	draw_circle(c, 13.5, Color(0, 0, 0, 0.5))
 	draw_circle(c, 12.5, frame)
 	match class_id:
-		&"deserter":
+		CharacterIds.DESERTER:
 			# The soldier's squared forearm guard.
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-6, -7), c + Vector2(6, -7), c + Vector2(5, 5), c + Vector2(0, 8), c + Vector2(-5, 5)]), glyph)
 			draw_line(c + Vector2(-3, -2), c + Vector2(3, -2), frame, 1.2)
 			draw_line(c + Vector2(-3, 2), c + Vector2(3, 2), frame, 1.2)
-		&"thief":
+		CharacterIds.THIEF:
 			# A keyhole.
 			draw_circle(c + Vector2(0, -2.5), 4.0, glyph)
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-1.8, 0), c + Vector2(1.8, 0), c + Vector2(3.8, 7.5), c + Vector2(-3.8, 7.5)]), glyph)
-		&"medium":
+		CharacterIds.MEDIUM:
 			# Cloudy-glass orb, matching the Medium's current keepsake.
 			draw_circle(c, 7.0, glyph)
 			draw_arc(c, 5.1, PI * 1.1, PI * 1.7, 14, Color(p.ink, 0.8), 1.3, true)

@@ -4,13 +4,43 @@ extends RefCounted
 ## into each call rather than held, so there is no reference cycle. RunState keeps the public event API and delegates here.
 ## Of RunState's internals it uses only the run RNG (`run._rng`) and `run._advance()` (leaving the stop).
 
+## A pick the player still owes after a choice: a REMOVE_CARD, REMEMBER_CARD or PICK_CARD effect.
+class PendingPick extends RefCounted:
+	var kind: EventEffect.Kind = EventEffect.Kind.REMOVE_CARD
+	## PICK_CARD only: the cards on offer (stable until one is taken).
+	var cards: Array[CardData] = []
+
+	func _init(p_kind: EventEffect.Kind, p_cards: Array[CardData] = []) -> void:
+		kind = p_kind
+		cards = p_cards
+
+## How an event button looks now (see `event_choice_state`).
+class ChoiceState extends RefCounted:
+	var label := ""
+	## The printed cost and reward line made from the effects.
+	var summary := ""
+	var enabled := true
+	## Why it is disabled ("" when enabled).
+	var reason := ""
+
+	func _init(p_label: String, p_summary: String, p_enabled: bool, p_reason: String) -> void:
+		label = p_label
+		summary = p_summary
+		enabled = p_enabled
+		reason = p_reason
+
+	## Turns it off with a reason.
+	func disable(why: String) -> void:
+		enabled = false
+		reason = why
+
 ## The event of the current EVENT stop, rolled by `current_event` the first time it is asked for (null before that, off an
 ## event stop and when event content failed to load). Once rolled the stop is open: not a stop boundary.
 var open_event: EventData = null
 ## Set once a choice of the open event was pressed: the outcome text, and the picks still owed to the player.
 var resolved := false
 var outcome := ""
-var pending: Array[Dictionary] = []
+var pending: Array[PendingPick] = []
 
 
 ## The event of the current EVENT stop (null elsewhere, or if event content failed to load: the stop can then be
@@ -52,29 +82,25 @@ func event_choices(run: RunState) -> Array[EventChoice]:
 	return event.choices_for(run.character.id)
 
 
-## How button `index` (a position in `event_choices(run)`) looks now: {"label", "summary" (the printed cost and reward line
-## made from the effects), "enabled", "reason" (why not, "" when enabled)}. A gold payment the player cannot make, a
-## card pick the deck cannot supply and a relic nothing is left to give each disable it; an HP cost never does (HP
-## stops at 1). Everything is disabled once a choice was made.
-func event_choice_state(run: RunState, index: int) -> Dictionary:
+## How button `index` (a position in `event_choices(run)`) looks now (a ChoiceState). A gold payment the player cannot
+## make, a card pick the deck cannot supply and a relic nothing is left to give each disable it; an HP cost never does
+## (HP stops at 1). Everything is disabled once a choice was made.
+func event_choice_state(run: RunState, index: int) -> ChoiceState:
 	var choices := event_choices(run)
 	if index < 0 or index >= choices.size():
-		return {"label": "", "summary": "", "enabled": false, "reason": "no such choice"}
+		return ChoiceState.new("", "", false, "no such choice")
 	var choice := choices[index]
-	var state := {"label": choice.label_for(run.character.id), "summary": _event_summary_with_fallback(run, choice.summary()), "enabled": true, "reason": ""}
+	var state := ChoiceState.new(choice.label_for(run.character.id), _event_summary_with_fallback(run, choice.summary()), true, "")
 	if resolved:
-		state["enabled"] = false
-		state["reason"] = "Already chosen."
+		state.disable("Already chosen.")
 		return state
 	if choice.gold_cost() > run.gold:
-		state["enabled"] = false
-		state["reason"] = "Needs %d gold (you have %d)." % [choice.gold_cost(), run.gold]
+		state.disable("Needs %d gold (you have %d)." % [choice.gold_cost(), run.gold])
 		return state
 	for effect in choice.effects:
 		var why := _event_blocked(run, effect)
 		if why != "":
-			state["enabled"] = false
-			state["reason"] = why
+			state.disable(why)
 			break
 	return state
 
@@ -107,8 +133,8 @@ func resolve_event_choice(run: RunState, index: int) -> RunState.EventResult:
 	if current_event(run) == null:
 		return RunState.EventResult.fail("no event")
 	var state := event_choice_state(run, index)
-	if not bool(state["enabled"]):
-		return RunState.EventResult.fail(String(state["reason"]))
+	if not state.enabled:
+		return RunState.EventResult.fail(state.reason)
 	var choice := event_choices(run)[index]
 	var lines: Array[String] = []
 	var gambles: Array[bool] = []
@@ -145,7 +171,7 @@ func event_followup(run: RunState) -> StringName:
 	_prune_event_pending(run)
 	if pending.is_empty():
 		return &""
-	match int(pending[0]["kind"]):
+	match pending[0].kind:
 		EventEffect.Kind.REMOVE_CARD:
 			return &"remove"
 		EventEffect.Kind.REMEMBER_CARD:
@@ -159,9 +185,9 @@ func event_followup(run: RunState) -> StringName:
 ## A removal needs a card to spare, so only run.deck.size() - 1 removals stay owed.
 func _prune_event_pending(run: RunState) -> void:
 	var removals_left := run.deck.size() - 1
-	var kept: Array[Dictionary] = []
+	var kept: Array[PendingPick] = []
 	for entry in pending:
-		match int(entry["kind"]):
+		match entry.kind:
 			EventEffect.Kind.REMOVE_CARD:
 				if removals_left <= 0:
 					continue
@@ -177,7 +203,7 @@ func _prune_event_pending(run: RunState) -> void:
 func event_pick_choices(run: RunState) -> Array[CardData]:
 	var offered: Array[CardData] = []
 	if event_followup(run) == &"pick":
-		offered.assign(pending[0]["cards"])
+		offered.assign(pending[0].cards)
 	return offered
 
 
@@ -313,17 +339,17 @@ func _apply_event_effect(run: RunState, effect: EventEffect, lines: Array[String
 		EventEffect.Kind.PICK_CARD:
 			var offered := _event_draw_distinct(run, _event_card_candidates(run, effect), effect.count)
 			if not offered.is_empty():
-				pending.append({"kind": effect.kind, "cards": offered})
+				pending.append(PendingPick.new(effect.kind, offered))
 		EventEffect.Kind.REMOVE_CARD:
-			pending.append({"kind": effect.kind})
+			pending.append(PendingPick.new(effect.kind))
 		EventEffect.Kind.REMEMBER_CARD:
 			if not run.rememberable_deck_indices().is_empty():
-				pending.append({"kind": effect.kind})
+				pending.append(PendingPick.new(effect.kind))
 		EventEffect.Kind.REMOVE_RANDOM_CARD:
 			for _i in maxi(effect.count, 1):
 				var owed := 0
 				for entry in pending:
-					if int(entry["kind"]) == EventEffect.Kind.REMOVE_CARD:
+					if entry.kind == EventEffect.Kind.REMOVE_CARD:
 						owed += 1
 				if run.deck.size() - owed <= 1:
 					break

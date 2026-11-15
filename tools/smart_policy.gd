@@ -724,7 +724,7 @@ static func event_stop(run: RunState) -> bool:
 	var fallback := -1
 	var fallback_price := INF
 	for i in choices.size():
-		if not bool(run.event_choice_state(i)["enabled"]):
+		if not run.event_choice_state(i).enabled:
 			continue
 		var costs := SimPolicy.event_costs(choices[i].effects)
 		var price: float = costs["hp"] + costs["gold"] + 4.0 * costs["max_hp"] + 8.0 * costs["curses"]

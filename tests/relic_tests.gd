@@ -97,8 +97,8 @@ func _test_content() -> void:
 
 func _test_no_relics_changes_nothing() -> void:
 	var deck := StarterContent.deck()
-	var plain := Combat.new(Combatant.new("p", 20), deck, StarterContent.early_encounter(2), 42)
-	var with_empty := Combat.create(Combatant.new("p", 20), deck, StarterContent.early_encounter(2), 42, [])
+	var plain := Combat.new(Combatant.new("p", 20), deck, Encounters.early_encounter(2), 42)
+	var with_empty := Combat.create(Combatant.new("p", 20), deck, Encounters.early_encounter(2), 42, [])
 	plain.start()
 	with_empty.start()
 	var same := plain.energy == with_empty.energy and plain.player.block == with_empty.player.block and plain.player.thorns == with_empty.player.thorns

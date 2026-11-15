@@ -163,7 +163,7 @@ func _test_haunt_cap() -> void:
 	mixed.start()
 	_play(mixed, sweep)
 	_check(mixed.enemies[0].status_turns(Combatant.Status.HAUNTED) == 5 and mixed.enemies[1].status_turns(Combatant.Status.HAUNTED) == 8, "Haunt to all caps only the capped enemy")
-	var scaled := StarterContent.scaled(_capped(5)[0], 1.5)
+	var scaled := Encounters.scaled(_capped(5)[0], 1.5)
 	_check(scaled.max_haunt == 5, "scaling an enemy keeps its Haunt cap")
 	var direct := EnemyUnit.new(_capped(3)[0])
 	direct.apply_status(Combatant.Status.HAUNTED, 9)

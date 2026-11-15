@@ -20,10 +20,10 @@ const MOTE_COUNT := 44
 const NOISE_SIZE := 64
 ## Per-class tint, mixed into the lines, glass, glow and dust only (neutral for anything else).
 const TINTS := {
-	&"deserter": Color(0.70, 0.34, 0.14),
-	&"thief": Color(0.12, 0.60, 0.58),
-	&"medium": Color(0.52, 0.30, 0.78),
-	&"stray": Color(0.22, 0.32, 0.56),
+	CharacterIds.DESERTER: Color(0.70, 0.34, 0.14),
+	CharacterIds.THIEF: Color(0.12, 0.60, 0.58),
+	CharacterIds.MEDIUM: Color(0.52, 0.30, 0.78),
+	CharacterIds.STRAY: Color(0.22, 0.32, 0.56),
 }
 const TINT_AMOUNT := 0.32
 ## The boss fight keeps its red mood: the class tint is scaled down there.

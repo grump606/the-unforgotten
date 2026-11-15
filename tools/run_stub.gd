@@ -65,7 +65,7 @@ func _run(run_seed: int, character_id: StringName) -> int:
 	print("Run stub: seed %d, character %s, player HP %d, deck %d" % [run_seed, character_id, player.hp, deck.size()])
 
 	for fight_no in range(1, Combat.MAX_ENEMIES + 1):
-		var enemy_datas := StarterContent.varied_encounter(fight_no, rng)
+		var enemy_datas := Encounters.varied_encounter(fight_no, rng)
 		if enemy_datas.size() != fight_no:
 			printerr("run_stub: encounter of %d enemies failed to load" % fight_no)
 			return 1
