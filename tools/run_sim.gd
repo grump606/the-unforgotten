@@ -157,7 +157,7 @@ func _simulate(runs: int, base_seed: int, shard_index: int, shard_count: int) ->
 				continue
 			if stop == null:
 				# Map mode between stops: pick the next node.
-				var pick := SmartPolicy.choose_route(run, _route) if _smart else SimPolicy.choose_route(run, _route)
+				var pick := SmartRunPicks.choose_route(run, _route) if _smart else SimPolicy.choose_route(run, _route)
 				if not run.choose_node(pick):
 					printerr("run_sim: no reachable node to choose after row %d" % index)
 					return {}
@@ -199,7 +199,7 @@ func _simulate(runs: int, base_seed: int, shard_index: int, shard_count: int) ->
 						printerr("run_sim: the chest could not be opened and taken at stop %d" % index)
 						return {}
 				RunState.StopType.EVENT:
-					if not (SmartPolicy.event_stop(run) if _smart else SimPolicy.event_stop(run)):
+					if not (SmartRunPicks.event_stop(run) if _smart else SimPolicy.event_stop(run)):
 						printerr("run_sim: the event could not be settled at stop %d" % index)
 						return {}
 					events_played += 1
@@ -621,7 +621,7 @@ func _take_reward(run: RunState) -> bool:
 		return run.take_boss_spoils()
 	if _smart:
 		# A null pick skips the reward; the policy may also use a free Heal or Remove instead.
-		if not SmartPolicy.take_reward(run):
+		if not SmartRunPicks.take_reward(run):
 			printerr("run_sim: the run rejected the smart policy's reward choice")
 			return false
 		return true
@@ -668,7 +668,7 @@ func _card_score(run: RunState, card: CardData) -> float:
 ## Never removes cards. False on a RunState failure.
 func _shop(run: RunState) -> bool:
 	if _smart:
-		return SmartPolicy.shop(run)
+		return SmartRunPicks.shop(run)
 	if not SimPolicy.shop_basics(run):
 		return false
 	var vendor := run.vendor()

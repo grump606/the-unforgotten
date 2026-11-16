@@ -58,7 +58,7 @@ func _test_enum_is_appended() -> void:
 	for trigger in T.values():
 		var oath := _oath(trigger, [_fx(K.BLOCK, 1)])
 		_check(oath.oath_trigger_text() != "", "trigger %d has text" % trigger)
-		_check(float(SmartPolicy.OATH_FIRING_SHARE[trigger]) > 0.0, "the smart bot has a firing share for trigger %d" % trigger)
+		_check(float(SmartCardScore.OATH_FIRING_SHARE[trigger]) > 0.0, "the smart bot has a firing share for trigger %d" % trigger)
 
 
 func _test_end_of_turn() -> void:
@@ -257,4 +257,4 @@ func _test_bots() -> void:
 	var combat := _fight(hand)
 	_check(SimPolicy.keep_score(combat, thrown) < SimPolicy.keep_score(combat, keep), "greedy would rather discard the card with discard effects")
 	var weights := {"damage": 1.0, "block": 1.0, "forgotten": 3, "recall": 5.0}
-	_check(SmartPolicy.card_score(thrown, weights) > SmartPolicy.card_score(keep, weights), "the smart deck score counts discard effects")
+	_check(SmartCardScore.card_score(thrown, weights) > SmartCardScore.card_score(keep, weights), "the smart deck score counts discard effects")

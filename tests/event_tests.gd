@@ -714,7 +714,7 @@ func _test_resume() -> void:
 		for step in 8:
 			var event := sim.current_event()
 			log.append(String(event.id))
-			SmartPolicy.event_stop(sim)
+			SmartRunPicks.event_stop(sim)
 			log.append([sim.player.hp, sim.player.max_hp, sim.gold, sim.deck.size(), sim.relics.size()])
 			var path_node := sim.current_node
 			sim.restore_map(sim.route, path_node, sim.visited, true)
@@ -727,9 +727,9 @@ func _test_smart_bot_fallback() -> void:
 	var dear := _eff(K.GOLD, -30)
 	var dearer := _eff(K.GOLD, -45)
 	var run_state := _custom([[dearer], [dear]])
-	run_state.gold = 50 # affordable, but under SmartPolicy.EVENT_MIN_GOLD, so both score -INF
-	_check(SmartPolicy.event_score(run_state, [dear] as Array[EventEffect]) == -INF and SmartPolicy.event_score(run_state, [dearer] as Array[EventEffect]) == -INF, "both payments score never at 50 gold")
-	_check(SmartPolicy.event_stop(run_state), "the smart bot settles an event whose buttons all score never")
+	run_state.gold = 50 # affordable, but under SmartRunPicks.EVENT_MIN_GOLD, so both score -INF
+	_check(SmartRunPicks.event_score(run_state, [dear] as Array[EventEffect]) == -INF and SmartRunPicks.event_score(run_state, [dearer] as Array[EventEffect]) == -INF, "both payments score never at 50 gold")
+	_check(SmartRunPicks.event_stop(run_state), "the smart bot settles an event whose buttons all score never")
 	_check(run_state.gold == 20, "it paid the cheaper button")
 
 

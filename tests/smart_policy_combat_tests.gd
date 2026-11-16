@@ -86,7 +86,7 @@ func _test_dormant_never_played() -> void:
 		_check(_play(combat, use_smart), "turn with only a dormant card is legal (smart %s)" % use_smart)
 		_check(combat.enemies[0].hp == 40, "a dormant card is never played (smart %s)" % use_smart)
 	var weights := {"damage": 1.0, "block": 1.0}
-	_check(SmartPolicy.card_score(_keyword_card(&"d", "dormant"), weights) < SmartPolicy.card_score(_card(&"c", 2, CardEffect.Kind.BLOCK, 1), weights), "a dormant card scores below any live card")
+	_check(SmartCardScore.card_score(_keyword_card(&"d", "dormant"), weights) < SmartCardScore.card_score(_card(&"c", 2, CardEffect.Kind.BLOCK, 1), weights), "a dormant card scores below any live card")
 
 
 func _test_surge_spends_all_energy() -> void:
@@ -106,9 +106,9 @@ func _test_surge_spends_all_energy() -> void:
 	var hand3: Array[CardData] = [_surge_card(3, 1)]
 	var combat3 := _combat_with_hand(hand3)
 	combat3.energy = 1
-	var low := SmartPolicy._play_value(combat3, 0, 0)
+	var low := SmartPlayValue.play_value(combat3, 0, 0)
 	combat3.energy = 3
-	var high := SmartPolicy._play_value(combat3, 0, 0)
+	var high := SmartPlayValue.play_value(combat3, 0, 0)
 	_check(high > low, "surge value scales with energy (%f vs %f)" % [low, high])
 
 
@@ -118,24 +118,24 @@ func _test_shaken_timing_and_self_cost() -> void:
 	var shake := _one(CardEffect.Kind.SHAKEN, 2, CardData.TargetMode.SINGLE_ENEMY)
 	var enemies: Array[EnemyData] = [_enemy(40, 14)]
 	var big := _combat([shake], enemies)
-	_check(SmartPolicy._play_value(big, 0, 0) > 0.0, "Shaken is worth playing before a big hit")
+	_check(SmartPlayValue.play_value(big, 0, 0) > 0.0, "Shaken is worth playing before a big hit")
 	_check(_play(big, true) and big.enemies[0].status_turns(Combatant.Status.SHAKEN) > 0, "the smart bot plays Shaken on a big attacker")
 	var big_g := _combat([shake], enemies)
 	_check(_play(big_g, false) and big_g.enemies[0].status_turns(Combatant.Status.SHAKEN) > 0, "the greedy bot plays Shaken on a big attacker")
 	var hit := _card(&"hit", 1, CardEffect.Kind.DAMAGE, 6)
 	var near_dead := _combat_with_hand([shake, hit] as Array[CardData], 5)
-	_check(SmartPolicy._play_value(near_dead, 0, 0) == 0.0, "Shaken is worth nothing on an enemy the hand kills")
+	_check(SmartPlayValue.play_value(near_dead, 0, 0) == 0.0, "Shaken is worth nothing on an enemy the hand kills")
 	_check(_play(near_dead, true) and near_dead.enemies[0].is_dead() and near_dead.enemies[0].status_turns(Combatant.Status.SHAKEN) == 0, "the smart bot kills instead of shaking a nearly dead enemy")
 	var block_intent: Array[CardEffect] = [CardEffect.make(CardEffect.Kind.BLOCK, 3)]
 	var passive_enemy: Array[EnemyData] = [EnemyData.make("e", 30, block_intent)]
 	var passive := _combat([shake], passive_enemy)
-	_check(SmartPolicy._play_value(passive, 0, 0) == 0.0, "Shaken is worth nothing on an enemy with no attack")
+	_check(SmartPlayValue.play_value(passive, 0, 0) == 0.0, "Shaken is worth nothing on an enemy with no attack")
 	# Self-targeted Shaken / Frayed: a pure cost.
 	for kind in [CardEffect.Kind.SHAKEN, CardEffect.Kind.FRAYED]:
 		var self_cost := _one(kind, 1, CardData.TargetMode.SELF)
 		for use_smart in [false, true]:
 			var combat := _combat([self_cost], enemies)
-			_check(SmartPolicy._play_value(combat, 0, -1) < 0.0, "a self-targeted debuff has negative value")
+			_check(SmartPlayValue.play_value(combat, 0, -1) < 0.0, "a self-targeted debuff has negative value")
 			_check(_play(combat, use_smart), "turn with only a self-debuff card ends")
 			_check(combat.player.status_turns(Combatant.Status.SHAKEN) == 0 and combat.player.status_turns(Combatant.Status.FRAYED) == 0, "the bot never plays a self-debuff for nothing (smart %s)" % use_smart)
 
@@ -235,21 +235,21 @@ func _test_add_dread_never_played() -> void:
 			_check(_count_of(combat, dread) == 0, "Add Dread to pile %d is never played (smart %s)" % [pile, use_smart])
 	var gift := _custom(0, [CardEffect.make(CardEffect.Kind.ADD_CARD, 1, 0, 0, 1, false, false, _strike(9), CardEffect.Pile.HAND)], CardData.TargetMode.SELF)
 	var combat2 := _combat_with_hand([gift])
-	_check(SmartPolicy._play_value(combat2, 0, -1) > 0.0, "adding a good playable card to hand has positive value")
+	_check(SmartPlayValue.play_value(combat2, 0, -1) > 0.0, "adding a good playable card to hand has positive value")
 	var costly := _custom(0, [CardEffect.make(CardEffect.Kind.ADD_CARD, 1, 0, 0, 1, false, false, dread, CardEffect.Pile.HAND)], CardData.TargetMode.SELF)
 	var combat3 := _combat_with_hand([costly])
-	_check(SmartPolicy._play_value(combat3, 0, -1) < 0.0, "adding Dread to yourself has negative value")
+	_check(SmartPlayValue.play_value(combat3, 0, -1) < 0.0, "adding Dread to yourself has negative value")
 	var weights := {"damage": 1.0, "block": 1.0}
-	_check(SmartPolicy.card_score(costly, weights) < 0.0 and SmartPolicy.card_score(gift, weights) > 0.0, "card_score prices Add card by what it adds")
+	_check(SmartCardScore.card_score(costly, weights) < 0.0 and SmartCardScore.card_score(gift, weights) > 0.0, "card_score prices Add card by what it adds")
 	var glimpse := _custom(0, [_fx(CardEffect.Kind.GLIMPSE, 3)], CardData.TargetMode.SELF)
 	var empty := _combat_with_hand([glimpse])
 	empty.piles.draw_pile.clear()
-	_check(SmartPolicy._play_value(empty, 0, -1) == 0.0, "Glimpse with an empty draw pile is worth nothing")
+	_check(SmartPlayValue.play_value(empty, 0, -1) == 0.0, "Glimpse with an empty draw pile is worth nothing")
 	var recall := _custom(0, [_fx(CardEffect.Kind.RECALL, 1)], CardData.TargetMode.SELF)
 	var none := _combat_with_hand([recall])
-	_check(SmartPolicy._play_value(none, 0, -1) == 0.0, "Recall with an empty Forgotten pile is worth nothing")
+	_check(SmartPlayValue.play_value(none, 0, -1) == 0.0, "Recall with an empty Forgotten pile is worth nothing")
 	none.piles.forgotten.assign([_strike(9)])
-	_check(SmartPolicy._play_value(none, 0, -1) > 0.0, "Recall with a good Forgotten card is worth something")
+	_check(SmartPlayValue.play_value(none, 0, -1) > 0.0, "Recall with a good Forgotten card is worth something")
 
 
 ## A Surge goes after the cards that need fixed energy, so it spends only what is left.

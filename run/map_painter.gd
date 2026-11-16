@@ -144,7 +144,7 @@ func _draw_node(id: int) -> void:
 		_v.draw_arc(c, r + 3.6 * s, 0.0, TAU, 48, Color("#fff1c9", 0.55 + 0.3 * pulse), 1.8 * s, true)
 	if _v.has_focus() and id == _v._selected and state == MapView.REACHABLE:
 		_v.draw_arc(c, r + 9.0 * s, 0.0, TAU, 48, MapView.BONE, 1.6 * s, true)
-	var col := _v._glyph_color(n.type)
+	var col := _v.glyph_color(n.type)
 	col = Color(col.r * k, col.g * k, col.b * k, alpha)
 	_draw_glyph(n.type, c, r * 0.66, col)
 	if state == MapView.VISITED:
@@ -381,7 +381,7 @@ func _draw_legend() -> void:
 	var x := (size.x - total) * 0.5
 	for i in items.size():
 		var type: RouteMap.NodeType = items[i][0]
-		var col := _v._glyph_color(type)
+		var col := _v.glyph_color(type)
 		if type == RouteMap.NodeType.ELITE:
 			_ring_flames(Vector2(x + gw * 0.5, y - 3.0 * s), 7.5 * s, 1.0, 1.0)
 		_draw_glyph(type, Vector2(x + gw * 0.5, y - 3.0 * s), 7.5 * s, Color(col, 0.9))

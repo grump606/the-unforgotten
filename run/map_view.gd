@@ -408,7 +408,8 @@ func _draw() -> void:
 	_painter.draw()
 
 
-func _glyph_color(type: RouteMap.NodeType) -> Color:
+## The colour of a node type's glyph (the map and its legend both draw it).
+func glyph_color(type: RouteMap.NodeType) -> Color:
 	match type:
 		RouteMap.NodeType.FIGHT:
 			return Color("#e07a70")

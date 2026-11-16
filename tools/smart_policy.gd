@@ -47,11 +47,11 @@ extends RefCounted
 ## scores below REMOVE_BELOW x the average). At a reward it may instead use the once-per-run
 ## free Heal or Remove (see take_reward).
 ##
-## Files: this script runs the turn (which play, the open Glimpse / Recall pick, the end-of-turn discard) and is the
-## entry point the sims and tests call; SmartPlayValue (tools/smart_play_value.gd) prices a play in a fight,
-## SmartCardScore (tools/smart_card_score.gd) scores a card for the deck and holds the tunables both share, and
-## SmartRunPicks (tools/smart_run_picks.gd) makes the choices outside a fight (route, events, rewards, Remember,
-## vendor). The functions and constants at the end of this script forward to those, so callers name SmartPolicy only.
+## Files: this script runs the turn (which play, the open Glimpse / Recall pick, the end-of-turn discard);
+## SmartPlayValue (tools/smart_play_value.gd) prices a play in a fight, SmartCardScore (tools/smart_card_score.gd)
+## scores a card for the deck and holds the tunables both share, and SmartRunPicks (tools/smart_run_picks.gd) makes
+## the choices outside a fight (route, events, rewards, Remember, vendor). Callers, the sims and tests included, name
+## the class that owns what they use; there are no forwarders here.
 
 ## Ordering nudge for a Fading card worth playing: it is lost if still in hand at the end of the turn.
 const FADING_URGENCY := 2.0
@@ -168,104 +168,3 @@ static func _targets(combat: Combat, card: CardData) -> Array[int]:
 	else:
 		targets.append(-1)
 	return targets
-
-
-# --- Forwarded to the helpers (the names the sims, tests and docs use) ------------------------------------
-
-const TYPICAL_BLOCK := SmartCardScore.TYPICAL_BLOCK
-const TYPICAL_SURGE_ENERGY := SmartCardScore.TYPICAL_SURGE_ENERGY
-const GLIMPSE_CLASS_SHARE := SmartCardScore.GLIMPSE_CLASS_SHARE
-const OATH_FIRING_SHARE := SmartCardScore.OATH_FIRING_SHARE
-const MIN_DECK := SmartRunPicks.MIN_DECK
-const EVENT_MIN_GOLD := SmartRunPicks.EVENT_MIN_GOLD
-
-
-## See SmartCardScore.card_score.
-static func card_score(card: CardData, weights: Dictionary, depth: int = 0) -> float:
-	return SmartCardScore.card_score(card, weights, depth)
-
-
-## See SmartCardScore.glimpse_junk.
-static func glimpse_junk(card: CardData, weights: Dictionary, average: float) -> bool:
-	return SmartCardScore.glimpse_junk(card, weights, average)
-
-
-## See SmartCardScore.deck_weights.
-static func _weights(deck: Array[CardData]) -> Dictionary:
-	return SmartCardScore.deck_weights(deck)
-
-
-## See SmartCardScore.nominal_damage.
-static func _nominal_damage(effect: CardEffect, forgotten: int = SmartCardScore.TYPICAL_FORGOTTEN) -> float:
-	return SmartCardScore.nominal_damage(effect, forgotten)
-
-
-## See SmartCardScore.average_score.
-static func _average_score(deck: Array[CardData], weights: Dictionary) -> float:
-	return SmartCardScore.average_score(deck, weights)
-
-
-## See SmartPlayValue.oath_turns_left.
-static func oath_turns_left(combat: Combat) -> int:
-	return SmartPlayValue.oath_turns_left(combat)
-
-
-## See SmartPlayValue.play_value.
-static func _play_value(combat: Combat, hand_index: int, target: int, incoming: int = -1) -> float:
-	return SmartPlayValue.play_value(combat, hand_index, target, incoming)
-
-
-## See SmartPlayValue.kills.
-static func _kills(combat: Combat, card: CardData, target: int) -> bool:
-	return SmartPlayValue.kills(combat, card, target)
-
-
-## See SmartPlayValue.other_uses.
-static func _other_uses(combat: Combat, hand_index: int, energy_left: int, is_malice: bool) -> int:
-	return SmartPlayValue.other_uses(combat, hand_index, energy_left, is_malice)
-
-
-## See SmartPlayValue.other_damage_total.
-static func _other_damage_total(combat: Combat, hand_index: int) -> int:
-	return SmartPlayValue.other_damage_total(combat, hand_index)
-
-
-## See SmartPlayValue.other_damage.
-static func _other_damage(combat: Combat, hand_index: int, energy_left: int) -> int:
-	return SmartPlayValue.other_damage(combat, hand_index, energy_left)
-
-
-## See SmartRunPicks.event_stop.
-static func event_stop(run: RunState) -> bool:
-	return SmartRunPicks.event_stop(run)
-
-
-## See SmartRunPicks.event_score.
-static func event_score(run: RunState, effects: Array[EventEffect]) -> float:
-	return SmartRunPicks.event_score(run, effects)
-
-
-## See SmartRunPicks.choose_route.
-static func choose_route(run: RunState, route: String = RoutePolicy.SMART) -> int:
-	return SmartRunPicks.choose_route(run, route)
-
-
-## See SmartRunPicks.pick_reward.
-static func pick_reward(run: RunState) -> CardData:
-	return SmartRunPicks.pick_reward(run)
-
-
-## See SmartRunPicks.take_reward.
-static func take_reward(run: RunState) -> bool:
-	return SmartRunPicks.take_reward(run)
-
-
-## See SmartRunPicks.remember_pick.
-static func remember_pick(run: RunState, indices: Array[int] = []) -> int:
-	return SmartRunPicks.remember_pick(run, indices)
-
-
-## See SmartRunPicks.shop.
-static func shop(run: RunState) -> bool:
-	return SmartRunPicks.shop(run)
-

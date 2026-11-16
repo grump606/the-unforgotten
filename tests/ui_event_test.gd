@@ -255,13 +255,10 @@ func _initialize() -> void:
 	check(event_id >= 0 and view.tooltip_for(event_id) == "Event: something unexpected", "the event tooltip is 'Event: something unexpected'")
 	var glyph_colours := {}
 	for type in [RouteMap.NodeType.FIGHT, RouteMap.NodeType.REST, RouteMap.NodeType.SHOP, RouteMap.NodeType.TREASURE, RouteMap.NodeType.STORY]:
-		glyph_colours[view._glyph_color(type).to_html()] = true
-	check(not glyph_colours.has(view._glyph_color(RouteMap.NodeType.EVENT).to_html()), "the event glyph colour differs from every other node's")
+		glyph_colours[view.glyph_color(type).to_html()] = true
+	check(not glyph_colours.has(view.glyph_color(RouteMap.NodeType.EVENT).to_html()), "the event glyph colour differs from every other node's")
 	check(event_id >= 0 and MapView.node_label(route.node(event_id)) == "Event", "the plain node label names an event")
-	var legend_has_event := false
-	for pair in [[RouteMap.NodeType.EVENT, "Event"]]:
-		legend_has_event = FileAccess.get_file_as_string("res://run/map_view.gd").contains('[RouteMap.NodeType.EVENT, "Event"]')
-	check(legend_has_event, "the legend lists Event")
+	check(MapView.LEGEND.has([RouteMap.NodeType.EVENT, "Event"]), "the legend lists Event")
 	view.queue_free()
 	await process_frame
 

@@ -83,7 +83,7 @@ func _test_smart_skips_a_bad_trade() -> void:
 func _test_smart_turns_left() -> void:
 	var turns: Array[int] = []
 	for t in [1, 2, 3, 4, 8]:
-		turns.append(SmartPolicy.oath_turns_left(_fight([_block_oath()], t)))
+		turns.append(SmartPlayValue.oath_turns_left(_fight([_block_oath()], t)))
 	_check(turns == [3, 2, 1, 0, 0], "turns left after swearing: %s" % str(turns))
 
 
@@ -91,8 +91,8 @@ func _test_deck_scores_are_positive_and_discounted() -> void:
 	var weights := {"damage": 1.0, "block": 1.0, "forgotten": 3, "recall": 5.0}
 	var oath := _oath(1, CardData.OathTrigger.TURN_START, [_fx(K.BLOCK, 4)] as Array[CardEffect])
 	var anchor := _oath(1, CardData.OathTrigger.ANCHOR_KEPT, [_fx(K.BLOCK, 4)] as Array[CardEffect])
-	var score := SmartPolicy.card_score(oath, weights)
+	var score := SmartCardScore.card_score(oath, weights)
 	_check(score > 0.0, "an Oath with a good effect scores above zero")
-	_check(SmartPolicy.card_score(anchor, weights) < score, "an Oath that rarely fires scores below one that fires every turn")
+	_check(SmartCardScore.card_score(anchor, weights) < score, "an Oath that rarely fires scores below one that fires every turn")
 	var plain := CardData.make(&"p", "P", 1, [_fx(K.BLOCK, 4)] as Array[CardEffect], CardData.TargetMode.SELF)
-	_check(score > SmartPolicy.card_score(plain, weights), "but a lasting effect still beats the same effect once")
+	_check(score > SmartCardScore.card_score(plain, weights), "but a lasting effect still beats the same effect once")

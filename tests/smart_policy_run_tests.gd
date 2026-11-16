@@ -43,13 +43,13 @@ func _test_plays_whole_runs_without_illegal_moves() -> void:
 						combat.abandon()
 					run.force_combat_result(combat.living_enemies().is_empty())
 					if run.reward_pending():
-						_check(run.resolve_reward(SmartPolicy.pick_reward(run)), "smart reward pick is accepted")
+						_check(run.resolve_reward(SmartRunPicks.pick_reward(run)), "smart reward pick is accepted")
 				RunState.StopType.REST:
 					_check(SimPolicy.rest_stop(run, true), "smart rest stop is accepted")
 				RunState.StopType.STORY:
 					run.read_story()
 				RunState.StopType.VENDOR:
-					_check(SmartPolicy.shop(run), "smart vendor visit succeeds")
+					_check(SmartRunPicks.shop(run), "smart vendor visit succeeds")
 		_check(run.finished, "run finished (seed %d)" % seed_value)
 
 
@@ -118,7 +118,7 @@ func _test_every_new_kind_fight_finishes() -> void:
 		# The card scorers handle every kind (finite numbers).
 		var weights := {"damage": 1.0, "block": 1.0}
 		for card in deck:
-			var score := SmartPolicy.card_score(card, weights)
+			var score := SmartCardScore.card_score(card, weights)
 			_check(not is_nan(score) and not is_inf(score), "card_score is finite for every kind")
 
 
@@ -207,7 +207,7 @@ func _test_rest_stop_remembers_or_rests() -> void:
 				remembered += 1
 		_check(remembered == 1 and high.player.hp == hp, "high HP: one card is Remembered and nothing is healed (smart %s)" % use_smart)
 	var run := _rest_run(&"thief")
-	var pick := SmartPolicy.remember_pick(run)
+	var pick := SmartRunPicks.remember_pick(run)
 	_check(pick >= 0 and run.deck[pick].can_remember(), "smart names a card that can be Remembered")
 
 

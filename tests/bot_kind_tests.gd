@@ -19,11 +19,11 @@ func _card_with(kind: CardEffect.Kind) -> CardData:
 
 
 func _every_kind_has_a_deck_score() -> void:
-	var weights := SmartPolicy._weights([] as Array[CardData])
+	var weights := SmartCardScore.deck_weights([] as Array[CardData])
 	for kind_name in CardEffect.Kind.keys():
 		var kind: CardEffect.Kind = CardEffect.Kind[kind_name]
 		var card := _card_with(kind)
-		_check(SmartPolicy.card_score(card, weights) != 0.0, "the smart bot scores a deck card with %s" % kind_name)
+		_check(SmartCardScore.card_score(card, weights) != 0.0, "the smart bot scores a deck card with %s" % kind_name)
 
 
 func _every_kind_has_a_nominal_damage_or_is_not_damage() -> void:
@@ -31,4 +31,4 @@ func _every_kind_has_a_nominal_damage_or_is_not_damage() -> void:
 		var kind: CardEffect.Kind = CardEffect.Kind[kind_name]
 		var effect := CardEffect.make(kind, 2, 5, 3)
 		if effect.is_damage():
-			_check(SmartPolicy._nominal_damage(effect) > 0.0, "the smart bot estimates damage for %s" % kind_name)
+			_check(SmartCardScore.nominal_damage(effect) > 0.0, "the smart bot estimates damage for %s" % kind_name)

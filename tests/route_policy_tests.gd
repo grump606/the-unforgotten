@@ -145,11 +145,11 @@ func _test_every_strategy_is_sound() -> void:
 func _test_defaults_and_delegation() -> void:
 	_handlers.append(func(run_state: RunState, options: Array[int]) -> void:
 		_check(SimPolicy.choose_route(run_state) == options[0], "greedy default route is the first node")
-		_check(SmartPolicy.choose_route(run_state) == SmartPolicy.choose_route(run_state, RoutePolicy.SMART), "smart default route is the smart rules")
+		_check(SmartRunPicks.choose_route(run_state) == SmartRunPicks.choose_route(run_state, RoutePolicy.SMART), "smart default route is the smart rules")
 		for strategy in RoutePolicy.STRATEGIES:
 			_check(SimPolicy.choose_route(run_state, strategy) == RoutePolicy.choose(run_state, strategy), "SimPolicy forwards %s" % strategy)
-			_check(SmartPolicy.choose_route(run_state, strategy) == RoutePolicy.choose(run_state, strategy), "SmartPolicy forwards %s" % strategy)
-		_check(SimPolicy.choose_route(run_state, RoutePolicy.SMART) == SmartPolicy.choose_route(run_state), "greedy can use the smart rules")
+			_check(SmartRunPicks.choose_route(run_state, strategy) == RoutePolicy.choose(run_state, strategy), "SmartPolicy forwards %s" % strategy)
+		_check(SimPolicy.choose_route(run_state, RoutePolicy.SMART) == SmartRunPicks.choose_route(run_state), "greedy can use the smart rules")
 	)
 
 

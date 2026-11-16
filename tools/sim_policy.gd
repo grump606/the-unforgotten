@@ -239,7 +239,7 @@ static func finish_event_picks(run: RunState, smart: bool, pick := -1) -> bool:
 				var indices := run.event_remember_indices()
 				var chosen := indices[0]
 				if smart:
-					chosen = SmartPolicy.remember_pick(run, indices)
+					chosen = SmartRunPicks.remember_pick(run, indices)
 				else:
 					for i in indices:
 						if is_damage_card(run.deck[i]):
@@ -250,9 +250,9 @@ static func finish_event_picks(run: RunState, smart: bool, pick := -1) -> bool:
 				var cards := run.event_pick_choices()
 				var best := cards[0]
 				if smart:
-					var weights := SmartPolicy._weights(run.deck)
+					var weights := SmartCardScore.deck_weights(run.deck)
 					for card in cards:
-						if SmartPolicy.card_score(card, weights) > SmartPolicy.card_score(best, weights):
+						if SmartCardScore.card_score(card, weights) > SmartCardScore.card_score(best, weights):
 							best = card
 				ok = run.event_pick_card(best)
 		if not ok:
@@ -269,22 +269,22 @@ static func event_remove_pick(run: RunState, smart: bool) -> int:
 			return i
 	if not smart:
 		return 0
-	var weights := SmartPolicy._weights(run.deck)
+	var weights := SmartCardScore.deck_weights(run.deck)
 	var weakest := 0
 	for i in run.deck.size():
-		if SmartPolicy.card_score(run.deck[i], weights) < SmartPolicy.card_score(run.deck[weakest], weights):
+		if SmartCardScore.card_score(run.deck[i], weights) < SmartCardScore.card_score(run.deck[weakest], weights):
 			weakest = i
 	return weakest
 
 
 ## Rest stop for both bots: Rest (heal to full) while HP is under REST_BELOW of max or nothing can be
-## Remembered, else Remember a card (no heal). `smart` picks the card by score gain (SmartPolicy.remember_pick),
+## Remembered, else Remember a card (no heal). `smart` picks the card by score gain (SmartRunPicks.remember_pick),
 ## greedy takes the first attack that can be Remembered, else the first card. False on a RunState failure.
 static func rest_stop(run: RunState, smart: bool) -> bool:
 	var indices := run.rememberable_indices()
 	if prefers_rest(run.player, not indices.is_empty()):
 		return run.rest() >= 0
-	var pick := SmartPolicy.remember_pick(run) if smart else indices[0]
+	var pick := SmartRunPicks.remember_pick(run) if smart else indices[0]
 	if not smart:
 		for i in indices:
 			if is_damage_card(run.deck[i]):

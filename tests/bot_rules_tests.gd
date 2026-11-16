@@ -56,11 +56,11 @@ func _damage_effects_chain_block() -> void:
 	var card := CardData.make(&"two_hits", "Two Hits", 0, [_fx(CardEffect.Kind.DAMAGE, 5), _fx(CardEffect.Kind.DAMAGE, 5)] as Array[CardEffect])
 	var combat := _fight([card] as Array[CardData], 4)
 	combat.enemies[0].gain_block(6)
-	_check(SmartPolicy._kills(combat, card, 0), "the bot sees that 6 Block absorbs only 6 of 10 damage across the card's two hits, killing a 4 HP enemy")
+	_check(SmartPlayValue.kills(combat, card, 0), "the bot sees that 6 Block absorbs only 6 of 10 damage across the card's two hits, killing a 4 HP enemy")
 	_check(combat.play_card(0, 0) and combat.enemies[0].is_dead(), "the engine does kill it")
 	var sturdy := _fight([card] as Array[CardData], 5)
 	sturdy.enemies[0].gain_block(6)
-	_check(not SmartPolicy._kills(sturdy, card, 0), "with 5 HP left over it does not kill: 4 gets through")
+	_check(not SmartPlayValue.kills(sturdy, card, 0), "with 5 HP left over it does not kill: 4 gets through")
 	sturdy.play_card(0, 0)
 	_check(not sturdy.enemies[0].is_dead() and sturdy.enemies[0].hp == 1, "the engine leaves it at 1 HP")
 

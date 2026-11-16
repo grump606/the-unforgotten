@@ -2,7 +2,7 @@ class_name RoutePolicy
 extends RefCounted
 ## Map mode route strategies for the bots (docs/MAP_DESIGN.md, "Phase 4e"). A strategy only answers "which
 ## reachable node next"; combat, cards, shops and events stay with SimPolicy / SmartPolicy, so any combat policy
-## pairs with any route. SimPolicy.choose_route and SmartPolicy.choose_route call `choose`.
+## pairs with any route. SimPolicy.choose_route and SmartRunPicks.choose_route call `choose`.
 ##
 ## Strategies (STRATEGIES):
 ##   first     the first reachable node (the greedy bot's original behaviour).
@@ -15,7 +15,7 @@ extends RefCounted
 ##   random    uniform over the reachable nodes. Seeded from the map's seed and the position on it, so a run's
 ##             route is reproducible and independent of every other random stream.
 ##   smart     SmartPolicy's original rules (the smart bot's default): a rest under half HP, a shop from 120 gold,
-##             a chest, an event while healthy, else a fight. Lives in SmartPolicy.choose_route; `choose` forwards.
+##             a chest, an event while healthy, else a fight. Lives in SmartRunPicks.choose_route; `choose` forwards.
 ## Every strategy returns -1 only when nothing is reachable, and never an unreachable id.
 
 const FIRST := "first"
@@ -65,7 +65,7 @@ static func choose(run: RunState, strategy: String) -> int:
 		RANDOM:
 			return _random(run, options)
 		SMART:
-			return SmartPolicy.choose_route(run, SMART)
+			return SmartRunPicks.choose_route(run, SMART)
 	return options[0]
 
 

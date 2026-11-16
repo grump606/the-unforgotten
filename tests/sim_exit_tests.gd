@@ -69,7 +69,7 @@ func _test_bot_errors_are_counted() -> void:
 	unknown.kind = 9999 as CardEffect.Kind
 	var card := CardData.make(&"odd", "Odd", 1, [unknown] as Array[CardEffect])
 	var count := SimPolicy.bot_errors
-	SmartPolicy.card_score(card, SmartPolicy._weights([] as Array[CardData]))
+	SmartCardScore.card_score(card, SmartCardScore.deck_weights([] as Array[CardData]))
 	_check(SimPolicy.bot_errors > count, "SmartPolicy counts an unknown CardEffect.Kind through bot_error")
 	SimPolicy.bot_errors = before
 	_check(SimPolicy.exit_code(SimPolicy.bot_errors) == 0, "the counter is reset for the other suites")

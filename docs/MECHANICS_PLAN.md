@@ -572,7 +572,7 @@ the fight. Proposed rules, all open to change:
 - **As built in 6c (bots and balance):** the greedy bot swears an Oath on turns 1 and 2 only, before other
   cards, never a second copy of one it has Sworn, and judges it by its lasting effect rather than its play cost
   (`SimPolicy.oath_worth_swearing`). The smart bot adds an Oath's value to its play value: one firing of the
-  oath effects times the turns left (`SmartPolicy.oath_turns_left`: 3, 2, 1, then 0 from turn 4) times a
+  oath effects times the turns left (`SmartPlayValue.oath_turns_left`: 3, 2, 1, then 0 from turn 4) times a
   trigger share (every turn 1.0, a Forgotten card 0.5, a kept Anchor card 0.3). Deck scoring uses the same
   shares and a 0.6 discount (`OATH_DECK_DISCOUNT`). Without this the smart bot took Oaths into 77% of Thief and
   Deserter decks and never played them (Deserter smart 23%, Thief smart 41%). Card numbers changed after the

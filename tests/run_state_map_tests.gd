@@ -540,9 +540,9 @@ func _test_save_allowed() -> void:
 
 func _test_route_choice_policies() -> void:
 	var run_state := RunState.new(91, &"deserter", true)
-	_check(SimPolicy.choose_route(run_state) == run_state.route.starts()[0] and SmartPolicy.choose_route(run_state) == run_state.route.starts()[0], "both bots take a start node first")
+	_check(SimPolicy.choose_route(run_state) == run_state.route.starts()[0] and SmartRunPicks.choose_route(run_state) == run_state.route.starts()[0], "both bots take a start node first")
 	_check(run_state.choose_node(SimPolicy.choose_route(run_state)), "the bot's pick is accepted")
-	_check(SimPolicy.choose_route(run_state) == -1 and SmartPolicy.choose_route(run_state) == -1, "no pick while a stop is open")
+	_check(SimPolicy.choose_route(run_state) == -1 and SmartRunPicks.choose_route(run_state) == -1, "no pick while a stop is open")
 	# Smart: rest when hurt, shop when rich, else a fight.
 	for seed_value in 40:
 		var r := RunState.new(seed_value, &"deserter", true)
@@ -560,20 +560,20 @@ func _test_route_choice_policies() -> void:
 			var gold := r.gold
 			r.player.hp = r.player.max_hp
 			r.gold = 0
-			var plain := SmartPolicy.choose_route(r)
+			var plain := SmartRunPicks.choose_route(r)
 			if types.has(RouteMap.NodeType.EVENT):
 				_check(r.route.node(plain).type == RouteMap.NodeType.EVENT, "smart takes an event over a fight while healthy")
 			elif types.has(RouteMap.NodeType.FIGHT):
 				_check(r.route.node(plain).type == RouteMap.NodeType.FIGHT, "smart takes a fight by default")
 			r.player.hp = 1
-			var hurt := SmartPolicy.choose_route(r)
+			var hurt := SmartRunPicks.choose_route(r)
 			if types.has(RouteMap.NodeType.EVENT) and types.has(RouteMap.NodeType.FIGHT) and not types.has(RouteMap.NodeType.REST):
 				_check(r.route.node(hurt).type == RouteMap.NodeType.FIGHT, "smart leaves an event alone while hurt")
 			if types.has(RouteMap.NodeType.REST):
 				_check(r.route.node(hurt).type == RouteMap.NodeType.REST, "smart rests when hurt")
 			r.player.hp = r.player.max_hp
 			r.gold = 500
-			var rich := SmartPolicy.choose_route(r)
+			var rich := SmartRunPicks.choose_route(r)
 			if types.has(RouteMap.NodeType.SHOP):
 				_check(r.route.node(rich).type == RouteMap.NodeType.SHOP, "smart shops when rich")
 			_check(options.has(plain) and options.has(hurt) and options.has(rich), "smart always picks a reachable node")
@@ -693,7 +693,7 @@ func _test_treasure() -> void:
 	# Route choice: a chest is taken ahead of a fight.
 	var router := RunState.new(13, &"deserter", true)
 	var chest_row := router.route.row_nodes(6)
-	_check(SmartPolicy.choose_route(router) != -1 and chest_row[0].type == RouteMap.NodeType.TREASURE, "smart picks a node, and the map has its chest row")
+	_check(SmartRunPicks.choose_route(router) != -1 and chest_row[0].type == RouteMap.NodeType.TREASURE, "smart picks a node, and the map has its chest row")
 	var line := RunState.new(1)
 	var line_chests := 0
 	for line_stop in line.stops:
@@ -725,7 +725,7 @@ func _test_events_in_runs() -> void:
 			steps += 1
 			if run_state.current_stop().type == RunState.StopType.EVENT:
 				ids.append(run_state.current_event().id)
-				_check(SmartPolicy.event_stop(run_state) if smart else SimPolicy.event_stop(run_state), "seed %d: the bot settles event %d" % [seed_value, ids.size()])
+				_check(SmartRunPicks.event_stop(run_state) if smart else SimPolicy.event_stop(run_state), "seed %d: the bot settles event %d" % [seed_value, ids.size()])
 				played += 1
 				_check(run_state.player.hp >= 1 and run_state.player.hp <= run_state.player.max_hp and run_state.gold >= 0 and run_state.deck.size() >= 1, "seed %d: HP, gold and the deck are sane after an event" % seed_value)
 				_check(run_state.at_stop_boundary() and run_state.current_stop() == null, "seed %d: an event leaves the run at the map" % seed_value)

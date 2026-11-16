@@ -25,8 +25,8 @@ func _test_card_scoring_order() -> void:
 	var run := RunState.new(1)
 	var weak := _card(&"weak", 2, CardEffect.Kind.DAMAGE, 1)
 	var strong := _card(&"strong", 1, CardEffect.Kind.DAMAGE, 30)
-	var weights := SmartPolicy._weights(run.deck)
-	_check(SmartPolicy.card_score(weak, weights) < SmartPolicy.card_score(strong, weights), "scoring ranks a stronger card higher")
+	var weights := SmartCardScore.deck_weights(run.deck)
+	_check(SmartCardScore.card_score(weak, weights) < SmartCardScore.card_score(strong, weights), "scoring ranks a stronger card higher")
 
 
 ## The smart bot heals when under half HP and removes its weakest card instead of skipping, once each.
@@ -35,10 +35,10 @@ func _test_reward_alternatives() -> void:
 	low.read_story()
 	low.force_combat_result(true)
 	low.player.hp = low.player.max_hp / 2 - 1
-	_check(SmartPolicy.take_reward(low) and low.reward_heal_used and not low.reward_remove_used and low.deck.size() == low.character.starting_deck.size(), "smart heals below half HP instead of taking a card")
+	_check(SmartRunPicks.take_reward(low) and low.reward_heal_used and not low.reward_remove_used and low.deck.size() == low.character.starting_deck.size(), "smart heals below half HP instead of taking a card")
 	low.force_combat_result(true)
 	low.player.hp = 1
-	_check(SmartPolicy.take_reward(low) and low.player.hp == 1, "smart does not heal twice")
+	_check(SmartRunPicks.take_reward(low) and low.player.hp == 1, "smart does not heal twice")
 
 	# Remove: a deck of strong cards plus one dud, offered nothing better than the average.
 	var run := RunState.new(22)
@@ -47,18 +47,18 @@ func _test_reward_alternatives() -> void:
 	var strong := _card(&"strong", 1, CardEffect.Kind.DAMAGE, 30)
 	var dud := _card(&"dud", 2, CardEffect.Kind.DAMAGE, 1)
 	var deck: Array[CardData] = []
-	for i in SmartPolicy.MIN_DECK:
+	for i in SmartRunPicks.MIN_DECK:
 		deck.append(strong)
 	deck.append(dud)
 	run.deck = deck
 	run._reward_choices.assign([dud, dud, dud])
-	_check(SmartPolicy.take_reward(run), "smart resolves the reward")
-	_check(run.reward_remove_used and not run.reward_heal_used and not run.deck.has(dud) and run.deck.size() == SmartPolicy.MIN_DECK, "smart removes its weakest card when nothing offered beats the average")
+	_check(SmartRunPicks.take_reward(run), "smart resolves the reward")
+	_check(run.reward_remove_used and not run.reward_heal_used and not run.deck.has(dud) and run.deck.size() == SmartRunPicks.MIN_DECK, "smart removes its weakest card when nothing offered beats the average")
 	run.force_combat_result(true)
 	run.deck.append(dud)
 	run._reward_choices.assign([dud, dud, dud])
 	var gold := run.gold
-	_check(SmartPolicy.take_reward(run) and run.deck.has(dud) and run.gold == gold + RunState.SKIP_GOLD, "with Remove spent it falls back to skipping")
+	_check(SmartRunPicks.take_reward(run) and run.deck.has(dud) and run.gold == gold + RunState.SKIP_GOLD, "with Remove spent it falls back to skipping")
 
 
 func _combat_with_hp(hand_cards: Array[CardData], enemies: Array[EnemyData], player_hp: int) -> Combat:
@@ -102,9 +102,9 @@ func _test_values_new_effects() -> void:
 	# Scoring covers the new kinds: every card a character can be offered has a finite, positive
 	# score for that character's deck.
 	for id in StarterContent.character_ids():
-		var weights := SmartPolicy._weights(StarterContent.character(id).starting_deck)
+		var weights := SmartCardScore.deck_weights(StarterContent.character(id).starting_deck)
 		for card in StarterContent.reward_pool(id):
-			var score := SmartPolicy.card_score(card, weights)
+			var score := SmartCardScore.card_score(card, weights)
 			_check(is_finite(score) and score > 0.0, "%s's card %s has a finite positive score (%s)" % [id, card.id, str(score)])
 
 
@@ -197,7 +197,7 @@ func _test_multi_hit_scoring() -> void:
 	var combat2 := _combat_with_hand(hand)
 	_check(SmartPolicy.play_turn(combat2) and combat2.enemies[0].hp == 31, "a multi-hit card is played for all its hits")
 	var weights := {"damage": 1.0, "block": 1.0}
-	_check(SmartPolicy.card_score(multi, weights) > SmartPolicy.card_score(_card(&"one", 1, CardEffect.Kind.DAMAGE, 3), weights), "multi-hit scores above a single hit")
+	_check(SmartCardScore.card_score(multi, weights) > SmartCardScore.card_score(_card(&"one", 1, CardEffect.Kind.DAMAGE, 3), weights), "multi-hit scores above a single hit")
 
 
 ## Both bots' incoming and outgoing estimates go through Combatant.hit_damage / block_from_card.
@@ -229,13 +229,13 @@ func _test_estimates_use_the_pipeline() -> void:
 	var g_hand: Array[CardData] = [guard]
 	var blocking := _combat_with_hand(g_hand)
 	blocking.enemies[0].apply_status(Combatant.Status.MALICE, 20)
-	var plain := SmartPolicy._play_value(blocking, 0, -1)
+	var plain := SmartPlayValue.play_value(blocking, 0, -1)
 	blocking.player.apply_status(Combatant.Status.WARD, 2)
-	var warded := SmartPolicy._play_value(blocking, 0, -1)
+	var warded := SmartPlayValue.play_value(blocking, 0, -1)
 	_check(warded > plain, "a Block card is worth more with Ward (%f vs %f)" % [warded, plain])
 	blocking.player.apply_status(Combatant.Status.WARD, -2)
 	blocking.player.apply_status(Combatant.Status.FRAYED, 1)
-	var frayed := SmartPolicy._play_value(blocking, 0, -1)
+	var frayed := SmartPlayValue.play_value(blocking, 0, -1)
 	_check(frayed < plain, "a Block card is worth less when Frayed (%f vs %f)" % [frayed, plain])
 
 
@@ -253,14 +253,14 @@ func _test_buffs_played_before_what_they_boost() -> void:
 	var hand2: Array[CardData] = [guard, ward]
 	var combat2 := _combat_with_hand(hand2, 40)
 	_check(SimPolicy._pick_card(combat2) == 1, "greedy gains Ward before the Block card")
-	_check(SmartPolicy._play_value(combat2, 1, -1) > SmartPolicy._play_value(combat2, 0, -1), "smart values Ward above the Block card it boosts")
+	_check(SmartPlayValue.play_value(combat2, 1, -1) > SmartPlayValue.play_value(combat2, 0, -1), "smart values Ward above the Block card it boosts")
 	# A temporary Malice is worth something only with a card to boost.
 	var temp := _one(CardEffect.Kind.MALICE, 2, CardData.TargetMode.SELF, true)
 	var with_hit: Array[CardData] = [_card(&"hit", 1, CardEffect.Kind.DAMAGE, 5), temp]
 	var c := _combat_with_hand(with_hit, 40)
 	var alone: Array[CardData] = [temp]
 	var c_alone := _combat_with_hand(alone, 40)
-	_check(SmartPolicy._play_value(c, 1, -1) > 0.0 and SmartPolicy._play_value(c_alone, 0, -1) == 0.0, "temporary Malice is worth something only with a card to boost")
+	_check(SmartPlayValue.play_value(c, 1, -1) > 0.0 and SmartPlayValue.play_value(c_alone, 0, -1) == 0.0, "temporary Malice is worth something only with a card to boost")
 	_check(SimPolicy._pick_card(c_alone) == -1, "greedy skips a temporary Malice with nothing to boost")
 
 
@@ -272,11 +272,11 @@ func _test_damage_per_forgotten_estimates() -> void:
 		var combat := _combat_with_hand([dpf])
 		for i in count:
 			combat.piles.forgotten.append(_strike(1))
-		var value := SmartPolicy._play_value(combat, 0, 0)
+		var value := SmartPlayValue.play_value(combat, 0, 0)
 		_check(value > previous, "the estimate grows with the Forgotten count (%d)" % count)
 		previous = value
 	var weights := {"damage": 1.0, "block": 1.0}
-	_check(SmartPolicy.card_score(dpf, weights) > 0.0, "card_score gives damage per Forgotten a nominal value")
+	_check(SmartCardScore.card_score(dpf, weights) > 0.0, "card_score gives damage per Forgotten a nominal value")
 	for use_smart in [false, true]:
 		var idle := _combat_with_hand([dpf])
 		_play(idle, use_smart)
@@ -299,20 +299,20 @@ func _real(id: StringName) -> CardData:
 ## a Medium Haunt / HP-cost card is not binned just because card_score undervalues it.
 func _test_glimpse_values_class_cards() -> void:
 	var deck := StarterContent.starter_deck(&"medium")
-	var weights := SmartPolicy._weights(deck)
-	var average := SmartPolicy._average_score(deck, weights)
+	var weights := SmartCardScore.deck_weights(deck)
+	var average := SmartCardScore.average_score(deck, weights)
 	var neutral_dud := _card(&"dud", 2, CardEffect.Kind.DAMAGE, 1)
-	_check(SmartPolicy.glimpse_junk(neutral_dud, weights, average), "a weak neutral card is binned")
-	_check(SmartPolicy.glimpse_junk(_dread(), weights, average), "Dormant is binned")
+	_check(SmartCardScore.glimpse_junk(neutral_dud, weights, average), "a weak neutral card is binned")
+	_check(SmartCardScore.glimpse_junk(_dread(), weights, average), "Dormant is binned")
 	# The same card, as a class card and as a neutral one, against an average a little above its score.
 	var kept := _card(&"kept", 0, CardEffect.Kind.DAMAGE, 1)
 	kept.character = &"medium"
 	var neutral_same := _card(&"same", 0, CardEffect.Kind.DAMAGE, 1)
-	var score := SmartPolicy.card_score(kept, weights)
-	var mid_average := score / ((SmartPolicy.GLIMPSE_CLASS_SHARE + 1.0) / 2.0)
-	_check(not SmartPolicy.glimpse_junk(kept, weights, mid_average), "a class card between the class share and the average is kept")
-	_check(SmartPolicy.glimpse_junk(neutral_same, weights, mid_average), "the same neutral card at that average is binned")
-	_check(SmartPolicy.glimpse_junk(kept, weights, score / (SmartPolicy.GLIMPSE_CLASS_SHARE * 0.5)), "a class card far below the average is binned")
+	var score := SmartCardScore.card_score(kept, weights)
+	var mid_average := score / ((SmartCardScore.GLIMPSE_CLASS_SHARE + 1.0) / 2.0)
+	_check(not SmartCardScore.glimpse_junk(kept, weights, mid_average), "a class card between the class share and the average is kept")
+	_check(SmartCardScore.glimpse_junk(neutral_same, weights, mid_average), "the same neutral card at that average is binned")
+	_check(SmartCardScore.glimpse_junk(kept, weights, score / (SmartCardScore.GLIMPSE_CLASS_SHARE * 0.5)), "a class card far below the average is binned")
 
 
 ## Recall is worth something only when the Forgotten pile holds a card worth returning; greedy skips it
@@ -320,14 +320,14 @@ func _test_glimpse_values_class_cards() -> void:
 func _test_recall_judgement() -> void:
 	var recall := _custom(1, [_fx(CardEffect.Kind.RECALL, 1)], CardData.TargetMode.SELF)
 	var empty := _combat_with_hand([recall])
-	_check(SmartPolicy._play_value(empty, 0, -1) == 0.0, "smart: Recall with an empty Forgotten pile is worth nothing")
+	_check(SmartPlayValue.play_value(empty, 0, -1) == 0.0, "smart: Recall with an empty Forgotten pile is worth nothing")
 	_check(SimPolicy._pick_card(empty) == -1, "greedy: Recall with an empty Forgotten pile is not played")
 	var junk_only := _combat_with_hand([recall])
 	junk_only.piles.forgotten.assign([_dread()])
 	_check(SimPolicy._pick_card(junk_only) == -1, "greedy: Recall is not played for a Dormant card")
 	var worthwhile := _combat_with_hand([recall])
 	worthwhile.piles.forgotten.assign([_strike(14)])
-	_check(SmartPolicy._play_value(worthwhile, 0, -1) > 0.0, "smart: Recall with a good Forgotten card is worth playing")
+	_check(SmartPlayValue.play_value(worthwhile, 0, -1) > 0.0, "smart: Recall with a good Forgotten card is worth playing")
 	_check(SimPolicy._pick_card(worthwhile) == 0, "greedy: Recall is played for a good Forgotten card")
 
 
@@ -353,12 +353,12 @@ func _test_new_cards_are_scored_and_taken() -> void:
 		if card == null:
 			continue
 		var deck := StarterContent.starter_deck(card.character if card.character != &"" else &"medium")
-		var weights := SmartPolicy._weights(deck)
-		_check(SmartPolicy.card_score(card, weights) > 0.0, "%s scores above zero" % id)
+		var weights := SmartCardScore.deck_weights(deck)
+		_check(SmartCardScore.card_score(card, weights) > 0.0, "%s scores above zero" % id)
 	var plain := StarterContent.starter_deck(&"medium")
 	var rich: Array[CardData] = plain.duplicate()
 	for i in 6:
 		rich.append(_real(&"bleed_the_veil"))
 	for id in [&"remember", &"chorus_of_the_lost"]:
 		var card := _real(id)
-		_check(SmartPolicy.card_score(card, SmartPolicy._weights(rich)) >= SmartPolicy.card_score(card, SmartPolicy._weights(plain)), "%s is not worth less in a deck full of Forgotten cards" % id)
+		_check(SmartCardScore.card_score(card, SmartCardScore.deck_weights(rich)) >= SmartCardScore.card_score(card, SmartCardScore.deck_weights(plain)), "%s is not worth less in a deck full of Forgotten cards" % id)

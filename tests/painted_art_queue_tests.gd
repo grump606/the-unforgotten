@@ -52,8 +52,51 @@ func run() -> int:
 	_check(_drain() and PaintedArt._cache.has(rest_key), "a queued rest stop's art ends up cached")
 	_check(PaintedArt.paths_for_stop(RunState.StopType.STORY, &"", -1).is_empty(), "a story stop with no beat has no art to warm")
 	_test_queue_touches_cached_paths(vendor_key)
+	_test_churn()
 	_reset()
 	return _failures
+
+
+## Fast screen changes: a seeded random mix of queueing stops' art, pumping, drawing a path at once (often one that is
+## still decoding), changing stop (eviction) and dropping the queue, the way a player clicking through screens drives it.
+## Every texture handed out must be the real one, and nothing may be left decoding once the churn stops.
+func _test_churn() -> void:
+	_reset()
+	var paths: Array[String] = []
+	for dir_name in DirAccess.get_directories_at("res://art/layers/screens"):
+		paths.append(PaintedArt.SCREEN_DIR % dir_name)
+	for dir_name in DirAccess.get_directories_at("res://art/layers/cards").slice(0, 40):
+		paths.append(PaintedArt.CARD_DIR % dir_name)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2026
+	var wrong := 0
+	var draws := 0
+	var takeovers := 0
+	for step in 600:
+		var roll := rng.randi_range(0, 99)
+		if roll < 40:
+			var batch: Array = []
+			for i in rng.randi_range(1, 4):
+				batch.append(paths[rng.randi_range(0, paths.size() - 1)])
+			PaintedArt.queue_paths(batch)
+		elif roll < 75:
+			PaintedArt.pump(0.0)
+		elif roll < 93:
+			var path: String = paths[rng.randi_range(0, paths.size() - 1)]
+			if not PaintedArt._decoding.is_empty() and rng.randi_range(0, 1) == 0:
+				path = PaintedArt._decoding.keys()[0]
+				takeovers += 1
+			var tex := PaintedArt.texture(path)
+			draws += 1
+			if tex == null or tex.get_size().x <= 0:
+				wrong += 1
+		elif roll < 98:
+			PaintedArt.advance_stop()
+		else:
+			PaintedArt.reset_queue()
+	_check(draws > 50 and takeovers > 5, "the churn drew %d textures, %d of them taken over mid-decode" % [draws, takeovers])
+	_check(wrong == 0, "every texture handed out during the churn is real (%d wrong)" % wrong)
+	_check(_drain() and PaintedArt._decoding.is_empty(), "after the churn the queue drains and nothing is left decoding")
 
 
 func _reset() -> void:

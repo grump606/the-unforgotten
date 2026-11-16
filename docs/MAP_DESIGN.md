@@ -253,7 +253,7 @@ buttons, `FallbackMapScreen`, was removed as dead code; its node-name helper liv
 Debug switch (the only way in for now, no menu change): `--map` or `THE_UNFORGOTTEN_MAP=1` starts a map run for the
 `--character` (default Deserter) as a debug session (nothing saved or deleted, see Phase 3); `--hp` and `--gold` apply
 (phase 3); `--fight` and `--screen` take precedence. Bots: `tools/run_sim.gd --map`
-uses `SimPolicy.choose_route` (first reachable node) or `SmartPolicy.choose_route` (rest under half HP, shop from 120
+uses `SimPolicy.choose_route` (first reachable node) or `SmartRunPicks.choose_route` (rest under half HP, shop from 120
 gold, else the first fight).
 
 ## Phase 3: saving map runs
@@ -445,7 +445,7 @@ a "Treasure" legend entry and the tooltip "Treasure: a relic". `MapView.node_lab
 
 ### Bots and debug
 
-`SimPolicy.treasure_stop(run)` opens and takes the chest (both policies); `SmartPolicy.choose_route` prefers a chest
+`SimPolicy.treasure_stop(run)` opens and takes the chest (both policies); `SmartRunPicks.choose_route` prefers a chest
 over a fight (after resting when hurt and shopping when rich). `tools/run_sim.gd --map` handles the stop. `--screen=treasure`
 (or `THE_UNFORGOTTEN_SCREEN=treasure`, `treasure:2` for the second act) opens a chest of a throwaway map run.
 `tools/treasure_sheet.gd` takes the screenshots.
@@ -532,7 +532,7 @@ The stop (`RunState.current_event`, `event_choice_state`, `resolve_event_choice`
 and the twelve events are described in `docs/EVENTS_DESIGN.md`. In short: the event is rolled when its screen is first shown, from the run
 RNG and among the events not yet seen in the run (`events_seen`, saved with a map run; an older v5 save loads with it empty), so a save made on
 arrival resumes into the same event; an open event is not a stop boundary. The map glyph, legend entry and tooltip are described under
-"Map screen". `SimPolicy.event_stop` and `SmartPolicy.event_stop` settle an event through the public API; `SmartPolicy.choose_route` prefers an
+"Map screen". `SimPolicy.event_stop` and `SmartRunPicks.event_stop` settle an event through the public API; `SmartRunPicks.choose_route` prefers an
 event over a fight while HP is at least 70%. `--screen=event` and `--screen=event:<id>` (or `THE_UNFORGOTTEN_SCREEN`) open a throwaway map run
 inside an event, and `tools/event_sheet.gd` takes screenshots of the event screens.
 
@@ -664,7 +664,7 @@ policy (`--policy greedy|smart` still decides combat, cards, shops and events).
 
 ### Route strategies (`tools/route_policy.gd`, `RoutePolicy`)
 
-`SimPolicy.choose_route(run, route)` and `SmartPolicy.choose_route(run, route)` forward every name except the smart rules to
+`SimPolicy.choose_route(run, route)` and `SmartRunPicks.choose_route(run, route)` forward every name except the smart rules to
 `RoutePolicy.choose(run, route)`. Defaults are unchanged: the greedy bot uses `first`, the smart bot uses `smart` (its old rules: a rest under
 50% HP, a shop from 120 gold, a chest, an event from 70% HP, else a fight). `--map` without `--route` therefore behaves exactly as before.
 

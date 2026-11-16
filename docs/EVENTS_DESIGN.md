@@ -154,9 +154,9 @@ effect kind is appended to `EventEffect.Kind`, given a line in `describe()` and 
 ## Bots and debug
 
 `SimPolicy.event_stop` (greedy: the first enabled button that costs no HP, gold, max HP or curse and is no gamble, else a plain leave)
-and `SmartPolicy.event_stop` (scores each button: healing is worth more when HP is under 60%, relics and card picks when healthy, a gold
+and `SmartRunPicks.event_stop` (scores each button: healing is worth more when HP is under 60%, relics and card picks when healthy, a gold
 payment is never made under 60 gold, a gamble that can cost HP is not taken while hurt) settle an event through the public API and make
-every pick it owes (`SimPolicy.finish_event_picks`: removal takes a curse first). `SmartPolicy.choose_route` mildly prefers an event while
+every pick it owes (`SimPolicy.finish_event_picks`: removal takes a curse first). `SmartRunPicks.choose_route` mildly prefers an event while
 HP is at least 70%. `tools/run_sim.gd --map` plays them and reports the events played.
 
 `--screen=event` opens a random event of a throwaway map run, `--screen=event:<id>` a chosen one (an id, or its number: `event:e04`);

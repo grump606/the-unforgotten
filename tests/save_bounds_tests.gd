@@ -105,7 +105,7 @@ func _take_reward(run: RunState, style: int) -> bool:
 			return run.resolve_reward(run.reward_choices()[0])
 		STYLE_HOARDER:
 			return run.resolve_reward(null)
-	return SmartPolicy.take_reward(run)
+	return SmartRunPicks.take_reward(run)
 
 
 func _shop(run: RunState, style: int) -> bool:
@@ -120,4 +120,4 @@ func _shop(run: RunState, style: int) -> bool:
 			return run.leave_vendor()
 		STYLE_HOARDER:
 			return run.leave_vendor()
-	return SmartPolicy.shop(run)
+	return SmartRunPicks.shop(run)

@@ -222,11 +222,11 @@ func _played_run_round_trips(character_id: StringName, seed_value: int) -> bool:
 				combat.abandon()
 				run.force_combat_result(won)
 				if won and run.reward_pending():
-					SmartPolicy.take_reward(run)
+					SmartRunPicks.take_reward(run)
 			RunState.StopType.REST:
 				SimPolicy.rest_stop(run, true)
 			RunState.StopType.STORY:
 				run.read_story()
 			RunState.StopType.VENDOR:
-				SmartPolicy.shop(run)
+				SmartRunPicks.shop(run)
 	return true
