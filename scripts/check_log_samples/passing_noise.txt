@@ -30,11 +30,11 @@ ERROR: Vendor.buy_relic: player is required
    at: push_error (core/variant/variant_utility.cpp:1023)
 ERROR: RunState.start_combat: not at a fresh combat stop
    at: push_error (core/variant/variant_utility.cpp:1023)
-ERROR: RunState.complete_combat: not at a combat stop awaiting a result
+ERROR: RunState.force_combat_result: not at a combat stop awaiting a result
    at: push_error (core/variant/variant_utility.cpp:1023)
-ERROR: RunState.complete_combat: the caller reported a defeat but the fight ended in a victory
+ERROR: RunState.force_combat_result: the caller reported a defeat but the fight ended in a victory
    at: push_error (core/variant/variant_utility.cpp:1023)
-ERROR: RunState.complete_combat: the caller reported a victory but the fight ended in a defeat
+ERROR: RunState.force_combat_result: the caller reported a victory but the fight ended in a defeat
    at: push_error (core/variant/variant_utility.cpp:1023)
 ERROR: RunState.resolve_reward: card was not offered
    at: push_error (core/variant/variant_utility.cpp:1023)

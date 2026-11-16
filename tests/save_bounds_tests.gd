@@ -93,7 +93,7 @@ func _fight(run: RunState, style: int) -> bool:
 			return false
 	var won := combat.phase == Combat.Phase.ENDED and not combat.player.is_dead()
 	combat.abandon()
-	run.complete_combat(won)
+	run.force_combat_result(won)
 	if won and run.reward_pending():
 		return _take_reward(run, style)
 	return true

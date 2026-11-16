@@ -24,7 +24,7 @@ func _test_story_flow() -> void:
 	_check(state.current_beat() == null, "no beat off a story stop")
 	var index_before := state.stop_index
 	_check(not state.read_story() and state.stop_index == index_before, "read_story is rejected off a story stop")
-	state.complete_combat(true)
+	state.force_combat_result(true)
 	_check(not state.read_story() and state.reward_pending(), "read_story is rejected while a reward is pending")
 	# The final story stop sits before the last fight.
 	var late := RunState.new(8)
@@ -159,13 +159,13 @@ func _test_boss_stop() -> void:
 		fight.abandon()
 
 	var gold_before := state.gold
-	state.complete_combat(true)
+	state.force_combat_result(true)
 	_check(state.gold == gold_before, "beating the boss pays no gold (nothing left to spend it on)")
 	_check(not state.reward_pending() and state.reward_choices().is_empty(), "beating the boss offers no card reward")
 	_check(state.finished and state.escaped, "beating the boss escapes the line")
 
 	var beaten := _at_boss(52)
-	beaten.complete_combat(false)
+	beaten.force_combat_result(false)
 	_check(beaten.finished and not beaten.escaped, "losing to the boss ends the run without escape")
 
 
@@ -196,7 +196,7 @@ func _test_mid_boss_stop() -> void:
 		_check(fight.enemies[0].max_hp == Encounters.mid_boss_encounter()[0].max_hp, "the mid-boss is not stat-ramped")
 		fight.abandon()
 	var gold_before := state.gold
-	state.complete_combat(true)
+	state.force_combat_result(true)
 	_check(state.gold == gold_before + Vendor.gold_for_win(1) + RunState.MID_BOSS_GOLD_BONUS, "beating the mid-boss pays gold with its bonus")
 	_check(state.reward_pending() and state.reward_choices().size() == RunState.REWARD_CHOICES, "beating the mid-boss offers a card reward")
 	_check(not state.finished and not state.escaped, "beating the mid-boss does not end the run")
@@ -205,7 +205,7 @@ func _test_mid_boss_stop() -> void:
 	_check(not state.finished and state.stop_index == 10 and state.current_stop().type == RunState.StopType.STORY, "the run continues past the mid-boss to the story beat")
 
 	var beaten := _at_mid_boss(62)
-	beaten.complete_combat(false)
+	beaten.force_combat_result(false)
 	_check(beaten.finished and not beaten.escaped, "losing to the mid-boss ends the run without escape")
 
 	# Relics pay out on the mid-boss like any fight (only the final boss is exempt).
@@ -213,5 +213,5 @@ func _test_mid_boss_stop() -> void:
 	var purse := load("res://data/relics/brass_token_purse.tres") as RelicData
 	relic_run.relics.assign([purse])
 	var relic_gold := relic_run.gold
-	relic_run.complete_combat(true)
+	relic_run.force_combat_result(true)
 	_check(relic_run.gold == relic_gold + Vendor.gold_for_win(1) + RunState.MID_BOSS_GOLD_BONUS + purse.amount, "a WIN_GOLD relic pays on the mid-boss")

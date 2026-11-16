@@ -28,6 +28,7 @@ func run() -> int:
 	_test_cancel_then_late_callback(key, pem)
 	_test_self_update_gate()
 	_test_worker_path(key, pem)
+	_test_thread_start_failure(key, pem)
 	_test_retire_never_blocks(key, pem)
 	_test_cancel_mid_copy_then_install(key, pem)
 	_test_notice_hand_off(key, pem)
@@ -387,6 +388,39 @@ func _test_worker_path(key: CryptoKey, pem: String) -> void:
 	installer.finish_worker()
 	_check(not _has_stray_folder(), "none appears afterwards")
 	_check(installer.state == UpdateInstaller.State.IDLE and probe.launched.is_empty() and probe.quits == 0, "discard during the background copy: nothing is launched")
+	installer.free()
+	UpdateInstaller.cleanup(_dir)
+
+
+## A worker thread that cannot be started must not leave the update waiting for a result that never comes: the hash and
+## the launch copy then run on the calling thread, and the update finishes (or fails) exactly as without a worker.
+func _test_thread_start_failure(key: CryptoKey, pem: String) -> void:
+	var probe := Probe.new()
+	var installer := _installer(pem, probe)
+	installer.force_worker = true
+	installer.fail_thread_start = true
+	installer.start(TEST_TAG)
+	_feed_signature_and_manifest(installer, _stage("no thread installer", key))
+	installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
+	_check(installer.state == UpdateInstaller.State.READY and installer.pending_workers() == 0, "no worker: the download is hashed at once and READY")
+	_check(installer.install_and_restart() and probe.launched.size() == 1 and probe.quits == 1, "no worker: the copy is made and launched at once")
+	_check((probe.launched[0][0] as String).replace("\\", "/").contains("/run_"), "and it is still the private copy that runs")
+	installer.free()
+	UpdateInstaller.cleanup(_dir)
+
+	# A tampered download still fails on the fallback path.
+	probe = Probe.new()
+	installer = _installer(pem, probe)
+	installer.force_worker = true
+	installer.fail_thread_start = true
+	installer.start(TEST_TAG)
+	var staged := _stage("original", key)
+	var file := FileAccess.open(_installer_path() + ".part", FileAccess.WRITE)
+	file.store_string("tampered")
+	file.close()
+	_feed_signature_and_manifest(installer, staged)
+	installer.handle_installer(HTTPRequest.RESULT_SUCCESS, 200)
+	_check(installer.state == UpdateInstaller.State.FAILED and not FileAccess.file_exists(_installer_path()), "no worker: a tampered download fails and is deleted")
 	installer.free()
 	UpdateInstaller.cleanup(_dir)
 

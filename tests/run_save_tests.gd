@@ -66,7 +66,7 @@ func _walk(state: RunState, stops: int) -> Array:
 					hand.append(String(card.id))
 				log.append([names, hand])
 				combat.abandon()
-				state.complete_combat(true)
+				state.force_combat_result(true)
 				if state.reward_pending():
 					var choices := state.reward_choices()
 					var ids: Array = []
@@ -295,7 +295,7 @@ func _test_save_refused_mid_flight() -> void:
 	var combat := state.start_combat()
 	_check(RunSave.save(state, test_path) != "" and not FileAccess.file_exists(test_path), "no save while a fight is in flight")
 	combat.abandon()
-	state.complete_combat(true)
+	state.force_combat_result(true)
 	_check(RunSave.save(state, test_path) != "" and not FileAccess.file_exists(test_path), "no save while a reward is pending")
 	var done := RunState.new(3)
 	done.finished = true

@@ -4,7 +4,7 @@ extends "res://tests/test_base.gd"
 
 ## Wins the current combat stop and skips the reward, moving the run on.
 func _win_and_skip(state: RunState) -> void:
-	state.complete_combat(true)
+	state.force_combat_result(true)
 	state.resolve_reward(null)
 
 

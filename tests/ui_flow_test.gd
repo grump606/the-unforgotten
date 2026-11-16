@@ -490,7 +490,7 @@ func _initialize() -> void:
 	await process_frame
 	_check(exits[0] == 0 and _all_text(pause_scene._pause_box).contains("No save to resume"), "Save & Exit refuses to exit when there is no save to resume from")
 	_set_paused_off(pause_scene)
-	pause_scene._run.complete_combat(true)
+	pause_scene._run.force_combat_result(true)
 	pause_scene._run.resolve_reward(null)
 	pause_scene._show_stop()
 	await process_frame
@@ -526,7 +526,7 @@ func _initialize() -> void:
 	# The reward screen's once-per-run Remove and Heal buttons.
 	var alt := RunState.new(9)
 	alt.read_story()
-	alt.complete_combat(true)
+	alt.force_combat_result(true)
 	pause_scene._run = alt
 	pause_scene._show_stop()
 	await process_frame
@@ -581,7 +581,7 @@ func _initialize() -> void:
 	_first_card(alt_body).pressed.emit()
 	await process_frame
 	_check(alt.deck.size() == alt_deck - 1 and alt.reward_remove_used and not alt.reward_pending() and alt.stop_index == 2, "picking a card removes it and resolves the reward")
-	alt.complete_combat(true)
+	alt.force_combat_result(true)
 	pause_scene._show_stop()
 	await process_frame
 	_check(_find(alt_body, "Remove a card") == null and _find(alt_body, "Heal") != null, "Remove is gone once used; Heal remains")
@@ -590,7 +590,7 @@ func _initialize() -> void:
 	await process_frame
 	_check(alt.player.hp == hp_before_heal + RunState.REWARD_HEAL and alt.reward_heal_used and not alt.reward_pending(), "Heal restores HP and resolves the reward")
 	alt.stop_index = 4  # a combat stop; a reward again
-	alt.complete_combat(true)
+	alt.force_combat_result(true)
 	pause_scene._show_stop()
 	await process_frame
 	_check(_find(alt_body, "Remove a card") == null and _find(alt_body, "Heal") == null, "neither button shows once both are used")

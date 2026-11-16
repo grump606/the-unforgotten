@@ -33,17 +33,17 @@ func _test_card_scoring_order() -> void:
 func _test_reward_alternatives() -> void:
 	var low := RunState.new(21)
 	low.read_story()
-	low.complete_combat(true)
+	low.force_combat_result(true)
 	low.player.hp = low.player.max_hp / 2 - 1
 	_check(SmartPolicy.take_reward(low) and low.reward_heal_used and not low.reward_remove_used and low.deck.size() == low.character.starting_deck.size(), "smart heals below half HP instead of taking a card")
-	low.complete_combat(true)
+	low.force_combat_result(true)
 	low.player.hp = 1
 	_check(SmartPolicy.take_reward(low) and low.player.hp == 1, "smart does not heal twice")
 
 	# Remove: a deck of strong cards plus one dud, offered nothing better than the average.
 	var run := RunState.new(22)
 	run.read_story()
-	run.complete_combat(true)
+	run.force_combat_result(true)
 	var strong := _card(&"strong", 1, CardEffect.Kind.DAMAGE, 30)
 	var dud := _card(&"dud", 2, CardEffect.Kind.DAMAGE, 1)
 	var deck: Array[CardData] = []
@@ -54,7 +54,7 @@ func _test_reward_alternatives() -> void:
 	run._reward_choices.assign([dud, dud, dud])
 	_check(SmartPolicy.take_reward(run), "smart resolves the reward")
 	_check(run.reward_remove_used and not run.reward_heal_used and not run.deck.has(dud) and run.deck.size() == SmartPolicy.MIN_DECK, "smart removes its weakest card when nothing offered beats the average")
-	run.complete_combat(true)
+	run.force_combat_result(true)
 	run.deck.append(dud)
 	run._reward_choices.assign([dud, dud, dud])
 	var gold := run.gold

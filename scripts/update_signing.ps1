@@ -15,9 +15,26 @@ function New-UpdateManifestText {
     if ($MinVersion) {
         # Same rule as UpdateCheck.parse_manifest: a valid version without a leading v.
         if ($MinVersion -notmatch '^[0-9]{1,4}(\.[0-9]{1,4}){0,3}$') { throw "Invalid minimum version '$MinVersion' (use digits and dots, no leading v)." }
+        # A floor above the release would make every game refuse it (UpdateVerifier.verify_manifest).
+        if (-not (Test-MinVersionAllowed -MinVersion $MinVersion -Version $Version)) { throw "Minimum version $MinVersion is above the release version $Version, so no game could install it." }
         $text += "min_version=$MinVersion`n"
     }
     return $text
+}
+
+# True when a min_version floor is allowed for a release of $Version: not above it (equal is fine). The same rule as
+# UpdateVerifier.floor_allowed in the game: dotted numbers, missing groups count as 0 (0.9 < 0.10.1, 0.10.1.0 == 0.10.1).
+# Both sides are tested against tests/golden/min_version_cases.txt.
+function Test-MinVersionAllowed {
+    param([Parameter(Mandatory)][string]$MinVersion, [Parameter(Mandatory)][string]$Version)
+    $a = @($MinVersion.TrimStart('v', 'V').Split('.') | ForEach-Object { [int]$_ })
+    $b = @($Version.TrimStart('v', 'V').Split('.') | ForEach-Object { [int]$_ })
+    for ($i = 0; $i -lt [Math]::Max($a.Count, $b.Count); $i++) {
+        $left = if ($i -lt $a.Count) { $a[$i] } else { 0 }
+        $right = if ($i -lt $b.Count) { $b[$i] } else { 0 }
+        if ($left -ne $right) { return $left -lt $right }
+    }
+    return $true
 }
 
 # Signs $FilePath with the private key in a .pfx/.p12, entirely in memory: RSA PKCS#1 v1.5 over SHA-256, the same

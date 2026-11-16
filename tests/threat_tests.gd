@@ -394,7 +394,7 @@ func _test_run_state_uses_it() -> void:
 			run_state.restore_rng_state(state)
 		match stop.type:
 			RunState.StopType.COMBAT:
-				run_state.complete_combat(true)
+				run_state.force_combat_result(true)
 				if run_state.reward_pending():
 					run_state.resolve_reward(null)
 			RunState.StopType.REST:

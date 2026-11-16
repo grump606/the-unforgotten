@@ -100,7 +100,7 @@ func _advance(run_state: RunState, step: int) -> Array:
 				hand.append(String(card.id))
 			log.append([names, hand])
 			combat.abandon()
-			run_state.complete_combat(true)
+			run_state.force_combat_result(true)
 			if run_state.reward_pending():
 				var ids: Array = []
 				for card in run_state.reward_choices():
@@ -187,7 +187,7 @@ func _test_format_rules() -> void:
 		if busy.current_stop() == null:
 			busy.choose_node(busy.reachable_nodes()[0])
 		elif busy.current_stop().type == RunState.StopType.COMBAT:
-			busy.complete_combat(true)
+			busy.force_combat_result(true)
 		else:
 			_advance(busy, 0)
 	_check(busy.reward_pending(), "setup: a map run with a reward pending")
@@ -582,7 +582,7 @@ func _test_win_heal_saves() -> void:
 		run_state.start_combat()
 		run_state.player.hp = maxi(run_state.player.max_hp / 2, 1)
 		var before := run_state.player.hp
-		run_state.complete_combat(true)
+		run_state.force_combat_result(true)
 		var healed := run_state.player.hp
 		_check(healed > before and run_state.map_win_heal == healed - before, "%s: the win healed (%d to %d)" % [character, before, healed])
 		_check(not run_state.at_stop_boundary(), "%s: a pending reward is not a stop boundary (nothing is saved mid-reward)" % character)

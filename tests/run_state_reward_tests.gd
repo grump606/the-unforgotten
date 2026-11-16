@@ -16,7 +16,7 @@ func run() -> int:
 
 func _test_reward_flow() -> void:
 	var state := _at_first_fight(5)
-	state.complete_combat(true)
+	state.force_combat_result(true)
 	var choices := state.reward_choices()
 	_check(state.reward_pending() and choices.size() == RunState.REWARD_CHOICES, "victory offers %d reward cards" % RunState.REWARD_CHOICES)
 	var ids := {}
@@ -34,7 +34,7 @@ func _test_reward_flow() -> void:
 	_check(not state.resolve_reward(null), "no reward to resolve when none is pending")
 
 	var skipper := _at_first_fight(5)
-	skipper.complete_combat(true)
+	skipper.force_combat_result(true)
 	var size := skipper.deck.size()
 	_check(skipper.resolve_reward(null) and skipper.deck.size() == size and skipper.stop_index == 2, "skipping adds nothing and moves on")
 
@@ -109,13 +109,13 @@ func _test_reward_memory_and_skip_gold() -> void:
 
 	# Skipping pays SKIP_GOLD on top of the win gold, adds nothing and advances; taking pays none.
 	var skipper := _at_first_fight(5)
-	skipper.complete_combat(true)
+	skipper.force_combat_result(true)
 	var gold_before := skipper.gold
 	var size := skipper.deck.size()
 	_check(skipper.resolve_reward(null), "skip is accepted")
 	_check(skipper.gold == gold_before + RunState.SKIP_GOLD and skipper.deck.size() == size and skipper.stop_index == 2, "skipping pays SKIP_GOLD, adds nothing and advances")
 	var taker := _at_first_fight(5)
-	taker.complete_combat(true)
+	taker.force_combat_result(true)
 	var taker_gold := taker.gold
 	taker.resolve_reward(taker.reward_choices()[0])
 	_check(taker.gold == taker_gold, "taking a card pays no skip gold")
@@ -133,7 +133,7 @@ func _test_reward_alternatives() -> void:
 
 	# Heal: restores REWARD_HEAL, pays no skip gold, advances, once only.
 	var healer := _at_first_fight(11)
-	healer.complete_combat(true)
+	healer.force_combat_result(true)
 	healer.player.hp = healer.player.max_hp - 20
 	var gold := healer.gold
 	var offered := healer.offered_ids.size()
@@ -141,24 +141,24 @@ func _test_reward_alternatives() -> void:
 	_check(healer.player.hp == healer.player.max_hp - 20 + RunState.REWARD_HEAL, "heal restores REWARD_HEAL HP")
 	_check(healer.gold == gold and healer.stop_index == 2 and not healer.reward_pending() and healer.deck.size() == idle_deck, "heal pays no skip gold, adds no card and advances")
 	_check(healer.reward_heal_used and healer.offered_ids.size() == offered, "heal is marked used")
-	healer.complete_combat(true)  # stop 2 is a combat stop too
+	healer.force_combat_result(true)  # stop 2 is a combat stop too
 	healer.player.hp = 5
 	_check(not healer.resolve_reward_heal() and healer.player.hp == 5 and healer.reward_pending(), "a second heal is rejected and the reward stays pending")
 	_check(healer.resolve_reward(null), "the pending reward can still be resolved normally")
 
 	# Heal never overheals and is rejected at full HP (the reward stays pending).
 	var capped := _at_first_fight(12)
-	capped.complete_combat(true)
+	capped.force_combat_result(true)
 	capped.player.hp = capped.player.max_hp - 5
 	capped.resolve_reward_heal()
 	_check(capped.player.hp == capped.player.max_hp, "heal is capped at max HP")
 	var full := _at_first_fight(12)
-	full.complete_combat(true)
+	full.force_combat_result(true)
 	_check(not full.resolve_reward_heal() and full.reward_pending() and not full.reward_heal_used, "heal is rejected at full HP and stays unused")
 
 	# Remove: deletes exactly one copy, pays no skip gold, advances, once only.
 	var remover := _at_first_fight(13)
-	remover.complete_combat(true)
+	remover.force_combat_result(true)
 	var target := remover.deck[0]
 	var copies := remover.deck.count(target)
 	gold = remover.gold
@@ -168,18 +168,18 @@ func _test_reward_alternatives() -> void:
 	_check(remover.resolve_reward_remove(target), "remove is accepted")
 	_check(remover.deck.size() == size - 1 and remover.deck.count(target) == copies - 1, "remove deletes exactly one copy")
 	_check(remover.gold == gold and remover.stop_index == 2 and not remover.reward_pending() and remover.reward_remove_used, "remove pays no skip gold, advances and is marked used")
-	remover.complete_combat(true)
+	remover.force_combat_result(true)
 	_check(not remover.resolve_reward_remove(remover.deck[0]) and remover.deck.size() == size - 1 and remover.reward_pending(), "a second remove is rejected")
 
 	# The deck is never emptied (the vendor's rule).
 	var lone := _at_first_fight(14)
-	lone.complete_combat(true)
+	lone.force_combat_result(true)
 	lone.deck.assign([lone.deck[0]])
 	_check(not lone.resolve_reward_remove(lone.deck[0]) and lone.deck.size() == 1 and lone.reward_pending(), "the last card cannot be removed")
 
 	# After the run ends, neither works.
 	var dead := _at_first_fight(15)
-	dead.complete_combat(false)
+	dead.force_combat_result(false)
 	_check(not dead.resolve_reward_heal() and not dead.resolve_reward_remove(dead.deck[0]), "no alternative after the run finished")
 
 
@@ -204,23 +204,23 @@ func _test_rest() -> void:
 func _test_gold_from_wins() -> void:
 	var state := _at_first_fight(11)
 	_check(state.gold == 0, "a run starts with no gold")
-	state.complete_combat(true)
+	state.force_combat_result(true)
 	_check(state.gold == Vendor.gold_for_win(1), "a won solo fight pays its gold")
 	state.resolve_reward(null)
-	state.complete_combat(true)
+	state.force_combat_result(true)
 	_check(state.gold == Vendor.gold_for_win(1) + RunState.SKIP_GOLD + Vendor.gold_for_win(2), "gold accumulates across wins (the skip in between paid SKIP_GOLD)")
 	var loser := _at_first_fight(11)
-	loser.complete_combat(false)
+	loser.force_combat_result(false)
 	_check(loser.gold == 0, "a lost fight pays nothing")
 
 
 func _test_rewards_rolled_eagerly_and_copied() -> void:
 	var shown := _at_first_fight(31)
 	var skipped := _at_first_fight(31)
-	shown.complete_combat(true)
+	shown.force_combat_result(true)
 	shown.reward_choices()
 	shown.resolve_reward(null)
-	skipped.complete_combat(true)
+	skipped.force_combat_result(true)
 	skipped.resolve_reward(null)
 	var fight_shown := shown.start_combat()
 	var fight_skipped := skipped.start_combat()
@@ -235,7 +235,7 @@ func _test_rewards_rolled_eagerly_and_copied() -> void:
 		fight_skipped.abandon()
 
 	var state := _at_first_fight(32)
-	state.complete_combat(true)
+	state.force_combat_result(true)
 	var choices := state.reward_choices()
 	choices.clear()
 	_check(state.reward_choices().size() == RunState.REWARD_CHOICES, "mutating the returned choices does not change the offer")

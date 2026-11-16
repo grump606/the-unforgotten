@@ -30,5 +30,18 @@ if ($floored -cne ($goldenText + "min_version=1.2.0`n")) { Write-Host 'MANIFEST 
 $threw = $false
 try { $null = New-UpdateManifestText -Name 'x' -Version '1.2.3' -Sha256 'ab' -MinVersion 'v1' } catch { $threw = $true }
 if (-not $threw) { Write-Host 'MANIFEST GOLDEN MISMATCH: a leading-v minimum version was accepted.'; exit 1 }
-Write-Host "Manifest golden OK ($($made.Length) bytes, floor line OK)."
+$threw = $false
+try { $null = New-UpdateManifestText -Name 'x' -Version '1.2.3' -Sha256 'ab' -MinVersion '1.2.4' } catch { $threw = $true }
+if (-not $threw) { Write-Host 'MANIFEST GOLDEN MISMATCH: a minimum version above the release was accepted.'; exit 1 }
+# The shared floor cases (tests/update_manifest_golden_tests.gd reads the same file for the game's rule).
+$cases = 0
+foreach ($line in (Get-Content -LiteralPath (Join-Path $root 'tests\golden\min_version_cases.txt'))) {
+    $parts = @($line.Trim() -split '\s+')
+    if ($line.StartsWith('#') -or $parts.Count -ne 3) { continue }
+    $cases++
+    $got = Test-MinVersionAllowed -MinVersion $parts[0] -Version $parts[1]
+    if ($got -ne ($parts[2] -eq 'ok')) { Write-Host "MANIFEST GOLDEN MISMATCH: floor $($parts[0]) for release $($parts[1]) should be $($parts[2])."; exit 1 }
+}
+if ($cases -lt 8) { Write-Host "MANIFEST GOLDEN MISMATCH: only $cases shared floor cases read."; exit 1 }
+Write-Host "Manifest golden OK ($($made.Length) bytes, floor line OK, $cases floor cases)."
 exit 0

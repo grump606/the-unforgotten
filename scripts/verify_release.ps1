@@ -62,13 +62,20 @@ if ($LocalDir) {
         $release = @($json | ConvertFrom-Json) | ForEach-Object { $_ } | Where-Object { $_.tag_name -eq $tag } | Select-Object -First 1
         if (-not $release) { throw "No release with the tag $tag found on $Repo (draft or published)." }
         Write-Host "Release $tag found (draft: $($release.draft))."
-        foreach ($a in $assets) {
-            $asset = @($release.assets) | Where-Object { $_.name -eq $a } | Select-Object -First 1
-            if (-not $asset) { continue }
-            # curl.exe (in Windows 10+) keeps the bytes intact; PowerShell 5.1's `>` would re-encode a binary as text.
-            $token = (gh auth token).Trim()
-            curl.exe --silent --show-error --fail --location -H "Authorization: Bearer $token" -H 'Accept: application/octet-stream' -o (Join-Path $dir $a) "https://api.github.com/repos/$Repo/releases/assets/$($asset.id)"
-            if ($LASTEXITCODE -ne 0) { throw "Could not download $a" }
+        # curl.exe (in Windows 10+) keeps the bytes intact; PowerShell 5.1's `>` would re-encode a binary as text.
+        # The token goes to curl in a header file (-H @file), never on its command line, where other processes and
+        # command-line logging could read it. The file is in this run's own temp folder and removed straight after.
+        $headerFile = Join-Path $dir '.auth-header'
+        try {
+            [System.IO.File]::WriteAllText($headerFile, "Authorization: Bearer $((gh auth token).Trim())`n", (New-Object System.Text.UTF8Encoding($false)))
+            foreach ($a in $assets) {
+                $asset = @($release.assets) | Where-Object { $_.name -eq $a } | Select-Object -First 1
+                if (-not $asset) { continue }
+                curl.exe --silent --show-error --fail --location -H "@$headerFile" -H 'Accept: application/octet-stream' -o (Join-Path $dir $a) "https://api.github.com/repos/$Repo/releases/assets/$($asset.id)"
+                if ($LASTEXITCODE -ne 0) { throw "Could not download $a" }
+            }
+        } finally {
+            Remove-Item -LiteralPath $headerFile -Force -ErrorAction SilentlyContinue
         }
     }
 }
@@ -103,7 +110,11 @@ try {
 
     # 3. The manifest names this release and is byte-for-byte what the signer writes (LF, no BOM, trailing LF).
     Report ($fields['name'] -eq $name -and $fields['version'] -eq $Version) "manifest names $name and version $Version"
-    $expected = (New-Object System.Text.UTF8Encoding($false)).GetBytes((New-UpdateManifestText -Name $name -Version $Version -Sha256 $actual -MinVersion ([string]$fields['min_version'])))
+    # A signed floor above the release would make every game refuse the update (UpdateVerifier.verify_manifest).
+    $floor = [string]$fields['min_version']
+    $floorOk = (-not $floor) -or (($floor -match '^[0-9]{1,4}(\.[0-9]{1,4}){0,3}$') -and (Test-MinVersionAllowed -MinVersion $floor -Version $Version))
+    Report $floorOk 'minimum version is not above the release' $(if ($floor) { "min_version=$floor" } else { 'no floor' })
+    $expected = if ($floorOk) { (New-Object System.Text.UTF8Encoding($false)).GetBytes((New-UpdateManifestText -Name $name -Version $Version -Sha256 $actual -MinVersion $floor)) } else { [byte[]]@() }
     $same = $expected.Length -eq $manifestBytes.Length
     if ($same) { for ($i = 0; $i -lt $expected.Length; $i++) { if ($expected[$i] -ne $manifestBytes[$i]) { $same = $false; break } } }
     Report $same 'manifest bytes are exactly the canonical text (LF, no BOM)'

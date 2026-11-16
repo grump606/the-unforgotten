@@ -99,7 +99,7 @@ func _test_start_combat_rejected_off_combat_stop() -> void:
 	_check(state.current_stop().type == RunState.StopType.REST, "setup: now at the rest stop")
 	_check(state.start_combat() == null, "no fight can start at a rest stop")
 	var other := _at_first_fight(3)
-	other.complete_combat(true)
+	other.force_combat_result(true)
 	_check(other.reward_pending() and other.start_combat() == null, "no fight can start while a reward is pending")
 	var story := RunState.new(3)
 	_check(story.start_combat() == null, "no fight can start at a story stop")
@@ -107,7 +107,7 @@ func _test_start_combat_rejected_off_combat_stop() -> void:
 
 func _test_defeat_ends_run() -> void:
 	var state := _at_first_fight(4)
-	state.complete_combat(false)
+	state.force_combat_result(false)
 	_check(state.finished and not state.escaped, "defeat ends the run without escape")
 	_check(state.current_stop() == null and not state.reward_pending(), "no stop or reward after defeat")
 
@@ -144,8 +144,8 @@ func _test_seed_determinism() -> void:
 		fight_a.abandon()
 	if fight_b != null:
 		fight_b.abandon()
-	a.complete_combat(true)
-	b.complete_combat(true)
+	a.force_combat_result(true)
+	b.force_combat_result(true)
 	var ids_a: Array = a.reward_choices().map(func(c: CardData) -> StringName: return c.id)
 	var ids_b: Array = b.reward_choices().map(func(c: CardData) -> StringName: return c.id)
 	_check(ids_a == ids_b, "same seed offers the same rewards")
@@ -154,15 +154,15 @@ func _test_seed_determinism() -> void:
 # These misuse the API on purpose; the push_error output is expected here.
 func _test_complete_combat_preconditions() -> void:
 	var state := _at_first_fight(21)
-	state.complete_combat(true)
+	state.force_combat_result(true)
 	var gold := state.gold
-	state.complete_combat(true)
+	state.force_combat_result(true)
 	_check(state.gold == gold, "a second victory while the reward is pending pays nothing")
-	state.complete_combat(false)
+	state.force_combat_result(false)
 	_check(not state.finished and state.reward_pending(), "a defeat cannot be recorded while a reward is pending")
 
 	var story := RunState.new(22)
-	story.complete_combat(true)
+	story.force_combat_result(true)
 	_check(story.gold == 0 and not story.reward_pending() and story.stop_index == 0, "complete_combat at a story stop changes nothing")
 
 	var rest_stop := _at_first_fight(23)
@@ -171,13 +171,13 @@ func _test_complete_combat_preconditions() -> void:
 	var hp := rest_stop.player.hp
 	var gold_at_rest := rest_stop.gold
 	_check(rest_stop.current_stop().type == RunState.StopType.REST, "setup: at the rest stop")
-	rest_stop.complete_combat(true)
+	rest_stop.force_combat_result(true)
 	_check(rest_stop.gold == gold_at_rest and not rest_stop.reward_pending() and rest_stop.stop_index == 3, "a victory cannot be recorded at a rest stop (the rest cannot be skipped)")
 	_check(rest_stop.player.hp == hp, "rest stop untouched")
 
 	var dead := _at_first_fight(24)
-	dead.complete_combat(false)
-	dead.complete_combat(true)
+	dead.force_combat_result(false)
+	dead.force_combat_result(true)
 	_check(dead.finished and not dead.escaped and not dead.reward_pending() and dead.gold == 0, "nothing can be recorded after a defeat")
 	_check(not dead.resolve_reward(null), "no reward can be resolved after a defeat")
 
@@ -196,8 +196,8 @@ func _test_complete_combat_preconditions() -> void:
 				winner.rest()
 	var gold_done := winner.gold
 	_check(winner.finished and winner.escaped, "setup: an escaped run")
-	winner.complete_combat(false)
-	winner.complete_combat(true)
+	winner.force_combat_result(false)
+	winner.force_combat_result(true)
 	_check(winner.escaped and winner.gold == gold_done and winner.stop_index == winner.stops.size() and not winner.reward_pending(), "a finished run cannot be rewritten or pushed past the line")
 	_check(not winner.resolve_reward(null), "no reward after the run finished")
 
@@ -221,12 +221,12 @@ func _test_start_combat_twice_releases_first() -> void:
 func _test_survivors_from_mutation_audit() -> void:
 	# The reward offer is cleared once resolved, so the next victory cannot show stale cards.
 	var rewards := _at_first_fight(41)
-	rewards.complete_combat(true)
+	rewards.force_combat_result(true)
 	var first := rewards.reward_choices()
 	_check(first.size() == RunState.REWARD_CHOICES, "setup: a reward was offered")
 	rewards.resolve_reward(first[0])
 	_check(rewards.reward_choices().is_empty(), "no reward choices are left after resolving")
-	rewards.complete_combat(true)
+	rewards.force_combat_result(true)
 	_check(rewards.reward_choices().size() == RunState.REWARD_CHOICES, "the next victory offers a fresh set")
 
 	# A vendor heal spends exactly its price from the run's gold.
@@ -341,7 +341,7 @@ func _test_characters() -> void:
 			var run := RunState.new(seed_value, id)
 			run.read_story()
 			run.start_combat().abandon()
-			run.complete_combat(true)
+			run.force_combat_result(true)
 			var choices := run.reward_choices()
 			_check(choices.size() == RunState.REWARD_CHOICES, "%s: a reward offers %d cards" % [id, RunState.REWARD_CHOICES])
 			var distinct := {}

@@ -94,7 +94,7 @@ func _initialize() -> void:
 	# --- Winning: the spoils panel first, then the card choice ---
 	var gold_before := run_state.gold
 	var relics_before := run_state.relics.size()
-	run_state.complete_combat(true)
+	run_state.force_combat_result(true)
 	scene._show_stop()
 	await process_frame
 	body = scene.get_node("%Body")
@@ -121,7 +121,7 @@ func _initialize() -> void:
 	check(run_state.in_elite_stop() and run_state.route.node(run_state.current_node).act == 1, "--screen=elite:2 opens the second act's elite")
 	run_state.relics.assign(StarterContent.relic_pool(&"thief"))
 	var gold := run_state.gold
-	run_state.complete_combat(true)
+	run_state.force_combat_result(true)
 	scene._show_stop()
 	await process_frame
 	body = scene.get_node("%Body")

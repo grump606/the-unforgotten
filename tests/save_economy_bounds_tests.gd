@@ -65,7 +65,7 @@ func _fight(run: RunState) -> bool:
 	var result := SimPolicy.run_fight(combat)
 	if result == SimPolicy.FIGHT_FAILED:
 		return false
-	if not run.complete_combat(result == 1):
+	if not run.force_combat_result(result == 1):
 		return false
 	if result == 1 and run.reward_pending():
 		return run.resolve_reward(run.reward_choices()[0])

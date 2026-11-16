@@ -220,7 +220,7 @@ func _played_run_round_trips(character_id: StringName, seed_value: int) -> bool:
 						return false
 				var won := combat.phase == Combat.Phase.ENDED and not combat.player.is_dead()
 				combat.abandon()
-				run.complete_combat(won)
+				run.force_combat_result(won)
 				if won and run.reward_pending():
 					SmartPolicy.take_reward(run)
 			RunState.StopType.REST:

@@ -9,6 +9,7 @@ const GOLDEN := "res://tests/golden/update_manifest.txt"
 const NAME := "TheUnforgotten-Setup-1.2.3.exe"
 const VERSION := "1.2.3"
 const SHA256 := "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+const FLOOR_CASES := "res://tests/golden/min_version_cases.txt"
 
 
 func run() -> int:
@@ -32,4 +33,19 @@ func run() -> int:
 	_check(UpdateCheck.parse_manifest((four + "min_version=v1\n").to_utf8_buffer()).is_empty(), "a floor with a leading v is malformed")
 	_check(UpdateCheck.parse_manifest((four + "extra=1\n").to_utf8_buffer()).is_empty(), "any other fifth line is malformed")
 	_check(UpdateCheck.parse_manifest((four + "min_version=1.2.0\nmin_version=1.2.0\n").to_utf8_buffer()).is_empty(), "six lines are malformed")
+	_test_shared_floor_cases()
 	return _failures
+
+
+## The floor rule against the cases scripts/check_manifest_golden.ps1 also reads, so the game and the release scripts
+## cannot disagree on which floors are allowed.
+func _test_shared_floor_cases() -> void:
+	var cases := 0
+	for line in FileAccess.get_file_as_string(FLOOR_CASES).split("\n"):
+		var parts := line.strip_edges().split(" ", false)
+		if parts.size() != 3 or line.begins_with("#"):
+			continue
+		cases += 1
+		var want := parts[2] == "ok"
+		_check(UpdateVerifier.floor_allowed(parts[0], parts[1]) == want, "floor %s for release %s: %s" % [parts[0], parts[1], parts[2]])
+	_check(cases >= 8, "the shared floor cases are read (%d)" % cases)

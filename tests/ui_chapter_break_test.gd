@@ -65,7 +65,7 @@ func _initialize() -> void:
 	run_state.restore_map(run_state.route, id, path, true)
 	check(run_state.current_stop().boss, "standing in the end boss's stop")
 	var gold := run_state.gold
-	run_state.complete_combat(true)
+	run_state.force_combat_result(true)
 	scene._show_stop()
 	await process_frame
 	var body: Control = scene.get_node("%Body")

@@ -20,7 +20,7 @@ func _initialize() -> void:
 	scene._run.stop_index = 1
 	scene._show_stop()
 	await shot("battle.png")
-	scene._run.complete_combat(true)
+	scene._run.force_combat_result(true)
 	scene._show_stop()
 	await shot("reward.png")
 	scene._set_paused(true)

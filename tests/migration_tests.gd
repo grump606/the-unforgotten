@@ -82,10 +82,17 @@ func _test_never_overwrites_newer_data() -> void:
 	_write(dirs[0].path_join("settings.json"), "old settings")
 	_write(dirs[1].path_join("run_save.json"), "newer save")
 	var result := UserDataMigration.migrate(dirs[0], dirs[1])
-	_check(result.skipped == ["run_save.json"] and result.copied == ["settings.json"], "an existing file is skipped and the rest copied")
+	_check(result.conflicts == ["run_save.json"] and result.copied == ["settings.json"], "a different existing file is a conflict and the rest is copied")
 	_check(_read(dirs[1].path_join("run_save.json")) == "newer save", "the newer save is untouched")
 	_check(_read(dirs[1].path_join("settings.json")) == "old settings", "the missing settings were filled in")
-	_check(result.removed, "the old folder is still removed")
+	# The old save exists nowhere else, so its folder must stay (the new folder's file may be broken or unrelated).
+	_check(not result.removed and _read(dirs[0].path_join("run_save.json")) == "old save", "the old folder and its save are kept")
+	var again := UserDataMigration.migrate(dirs[0], dirs[1])
+	_check(again.found and again.conflicts == ["run_save.json"] and again.skipped == ["settings.json"] and not again.removed, "the next launch keeps it too")
+	# Once the new folder holds the same bytes (the player copied it, or the files match), the old folder goes.
+	_write(dirs[1].path_join("run_save.json"), "old save")
+	var settled := UserDataMigration.migrate(dirs[0], dirs[1])
+	_check(settled.conflicts.is_empty() and settled.skipped.size() == 2 and settled.removed, "identical files are safe: the old folder is removed")
 
 
 func _test_refuses_other_folder_names() -> void:

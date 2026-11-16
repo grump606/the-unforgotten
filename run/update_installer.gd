@@ -86,6 +86,8 @@ var requested: Array[String] = []
 var use_worker := true
 ## Tests: run the jobs on the worker thread even in dry_run, to exercise that path.
 var force_worker := false
+## Tests: make the worker thread fail to start, to exercise the fallback (the job then runs on this thread).
+var fail_thread_start := false
 
 var _manifest_signature := PackedByteArray()
 ## The SHA-256 (lowercase hex) the signed manifest promises for the installer.
@@ -229,8 +231,9 @@ func handle_installer(result: int, code: int) -> void:
 	if _threaded():
 		# Hash on the worker; the state stays DOWNLOADING (at 100%) until it reports back.
 		progress = 1.0
-		_start_job(_job_serial + 1, _hash_job.bind(_job_serial + 1, ProjectSettings.globalize_path(_installer_path), _expected_sha256))
-		return
+		if _start_job(_job_serial + 1, _hash_job.bind(_job_serial + 1, ProjectSettings.globalize_path(_installer_path), _expected_sha256)):
+			return
+		# No worker could be started: hash here instead (a short stall beats an update stuck at 100%).
 	_complete_download(UpdateVerifier.verify_file_hash(_installer_path, _expected_sha256))
 
 
@@ -261,7 +264,9 @@ func discard() -> void:
 
 ## Runs the verified installer and closes the game. The file has sat in the player's profile folder since it
 ## was checked, so it is copied into a fresh, randomly named folder first and the COPY is hashed and launched:
-## nothing that learned the download's name can swap the file between the check and the launch. Returns false
+## something that only knows the download's name cannot swap the launched file. This narrows the window; it does
+## not close it against a program already running as the same Windows user, which could find the new folder and
+## change the copy between the hash and the launch (such a program could change the game itself just as well). Returns false
 ## (state FAILED) if anything is off.
 func install_and_restart() -> bool:
 	if state != State.READY or _installing or _launched:
@@ -274,8 +279,9 @@ func install_and_restart() -> bool:
 	if _threaded():
 		# Returns true = started. A failure arrives later as state FAILED (UpdateNotice listens to `changed`).
 		_installing = true
-		_start_job(_job_serial + 1, _copy_job.bind(_job_serial + 1, source_abs, dir_abs, copy_abs, _expected_sha256), dir_abs)
-		return true
+		if _start_job(_job_serial + 1, _copy_job.bind(_job_serial + 1, source_abs, dir_abs, copy_abs, _expected_sha256), dir_abs):
+			return true
+		# No worker could be started: copy and hash here instead, so the install still goes ahead (or fails visibly).
 	return _launch_copy(_prepare_copy(source_abs, dir_abs, copy_abs, _expected_sha256), copy_path)
 
 
@@ -321,12 +327,18 @@ func _threaded() -> bool:
 	return force_worker or (use_worker and not dry_run)
 
 
-func _start_job(serial: int, work: Callable, launch_dir_abs := "") -> void:
+## Starts `work` on a worker thread. False if the thread could not be started (nothing is left running; the caller
+## does the job on this thread instead, so a failed start never leaves the update waiting for a result that never comes).
+func _start_job(serial: int, work: Callable, launch_dir_abs := "") -> bool:
 	_retire_worker()
 	_job_serial = serial
+	var thread := Thread.new()
+	if fail_thread_start or thread.start(work) != OK:
+		push_warning("UpdateInstaller: the worker thread could not be started; doing the job on the main thread")
+		return false
+	_thread = thread
 	_thread_dir = launch_dir_abs
-	_thread = Thread.new()
-	_thread.start(work)
+	return true
 
 
 ## The shared first half of cancel(), discard() and freeing the node: drops the request, invalidates the running job

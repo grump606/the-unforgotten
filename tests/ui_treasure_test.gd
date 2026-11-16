@@ -120,7 +120,7 @@ func _initialize() -> void:
 		real.choose_node(real.reachable_nodes()[0])
 		match real.current_stop().type:
 			RunState.StopType.COMBAT:
-				real.complete_combat(true)
+				real.force_combat_result(true)
 				if real.reward_pending():
 					real.resolve_reward(null)
 			RunState.StopType.REST:

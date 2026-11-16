@@ -261,7 +261,7 @@ func _initialize() -> void:
 		scene._on_node_chosen(run_state.reachable_nodes()[0])
 		check(run_body.find_children("*", "MapView", true, false).is_empty() and run_state.current_stop() != null, "step %d: choosing a node leaves the map for its stop" % step)
 		if run_state.reward_pending() or run_state.current_stop().type == RunState.StopType.COMBAT:
-			run_state.complete_combat(true)
+			run_state.force_combat_result(true)
 			run_state.resolve_reward(null)
 		elif run_state.current_stop().type == RunState.StopType.STORY:
 			run_state.read_story()

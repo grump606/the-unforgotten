@@ -98,11 +98,18 @@ static func verify_manifest(manifest: PackedByteArray, signature: PackedByteArra
 	# game. An older one is refused (the notice falls back to the Download page). A floor above the release itself is a
 	# maintainer mistake that would lock every game out, so it is refused too. No field (every release so far): no floor.
 	if fields.has("min_version"):
-		if UpdateCheck.is_newer(fields["min_version"], fields["version"]):
+		if not floor_allowed(fields["min_version"], fields["version"]):
 			return "the manifest's minimum version is above its own version"
 		if UpdateCheck.is_newer(fields["min_version"], current_version):
 			return "this version is too old to update in game; download the new version instead"
 	return ""
+
+
+## True when a signed `min_version` floor is allowed for a release of `version`: not above it (equal is fine).
+## The release scripts apply the same rule (Test-MinVersionAllowed in scripts/update_signing.ps1); both read the
+## shared cases in tests/golden/min_version_cases.txt.
+static func floor_allowed(min_version: String, version: String) -> bool:
+	return not UpdateCheck.is_newer(min_version, version)
 
 
 ## "" when the file at `path` has SHA-256 `expected_hex` (lowercase); else why not.

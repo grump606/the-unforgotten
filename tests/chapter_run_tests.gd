@@ -58,7 +58,7 @@ func _test_boss_reward() -> void:
 	run.restore_map(run.route, run.current_node, run.visited, true) # inside the boss's stop
 	var gold := run.gold
 	var relics := run.relics.size()
-	_check(run.complete_combat(true), "the chapter's end boss can be won")
+	_check(run.force_combat_result(true), "the chapter's end boss can be won")
 	_check(not run.finished and run.reward_pending() and run.boss_spoils_pending(), "a won end boss waits on its spoils, the run goes on")
 	_check(run.gold == gold + RunState.END_BOSS_GOLD, "it pays END_BOSS_GOLD")
 	var relic := run.boss_relic()
@@ -73,7 +73,7 @@ func _test_boss_reward() -> void:
 	TestHooks.chapter_count =1
 	var last := _run_at_end_boss()
 	last.restore_map(last.route, last.current_node, last.visited, true)
-	_check(last.complete_combat(true) and last.finished and last.escaped and not last.boss_spoils_pending(), "the last chapter's boss ends the run as before")
+	_check(last.force_combat_result(true) and last.finished and last.escaped and not last.boss_spoils_pending(), "the last chapter's boss ends the run as before")
 	TestHooks.chapter_count =2
 	# With every relic owned the spoils pay gold instead.
 	var rich := _run_at_end_boss()
@@ -81,7 +81,7 @@ func _test_boss_reward() -> void:
 	for r in StarterContent.relic_pool(rich.character.id):
 		if not rich.relics.has(r):
 			rich.relics.append(r)
-	rich.complete_combat(true)
+	rich.force_combat_result(true)
 	var before := rich.gold
 	_check(rich.boss_relic() == null and rich.boss_spoils_fallback_gold() == RunState.END_BOSS_FALLBACK_GOLD, "no relic left: gold in its place")
 	rich.take_boss_spoils()
@@ -158,14 +158,14 @@ func _test_open_ended_game() -> void:
 	_check(Chapters.count() == Chapters.COUNT and Chapters.open_ended(), "the shipped game is open ended")
 	var first := _run_at_end_boss()
 	first.restore_map(first.route, first.current_node, first.visited, true)
-	_check(first.complete_combat(true) and first.boss_spoils_pending() and first.take_boss_spoils() and first.chapter_break and not first.finished, "chapter 1's boss leads to the break")
+	_check(first.force_combat_result(true) and first.boss_spoils_pending() and first.take_boss_spoils() and first.chapter_break and not first.finished, "chapter 1's boss leads to the break")
 	var second := _run_at_end_boss()
 	second.chapter = 2
 	second.restore_map(second.route, second.current_node, second.visited, true)
 	second.chapter = 2
 	var relics := second.relics.size()
 	var gold := second.gold
-	_check(second.complete_combat(true) and second.boss_spoils_pending() and not second.finished, "chapter 2's boss still pays its spoils first")
+	_check(second.force_combat_result(true) and second.boss_spoils_pending() and not second.finished, "chapter 2's boss still pays its spoils first")
 	_check(second.gold == gold + RunState.END_BOSS_GOLD, "the gold is paid")
 	_check(second.take_boss_spoils() and second.finished and not second.escaped and second.to_be_continued and not second.chapter_break, "then the journey ends with To be continued, not an escape")
 	_check(second.relics.size() == relics + 1, "after the relic is taken")
@@ -187,7 +187,7 @@ func _test_finale() -> void:
 	TestHooks.chapter_count =3
 	_check(Chapters.has_finale() and not Chapters.open_ended(), "three chapters is a complete game with a finale")
 	var run := _finale_run()
-	_check(run.complete_combat(true) and run.boss_spoils_pending() and not run.finished, "the last chapter's end boss pays its spoils first")
+	_check(run.force_combat_result(true) and run.boss_spoils_pending() and not run.finished, "the last chapter's end boss pays its spoils first")
 	_check(run.take_boss_spoils() and run.chapter_break and run.can_start_finale() and not run.finished and not run.to_be_continued, "then the break, which leads to the finale")
 	_check(not run.start_next_chapter(), "there is no chapter 4")
 	run.player.hp = 5
@@ -211,13 +211,13 @@ func _test_finale() -> void:
 	combat.abandon()
 	var gold := run.gold
 	var relics := run.relics.size()
-	_check(run.complete_combat(true) and run.finished and run.escaped and not run.to_be_continued, "winning it ends the run as an escape")
+	_check(run.force_combat_result(true) and run.finished and run.escaped and not run.to_be_continued, "winning it ends the run as an escape")
 	_check(run.gold == gold and run.relics.size() == relics and not run.reward_pending(), "with no gold, relic or card reward")
 	var lost := _finale_run()
-	lost.complete_combat(true)
+	lost.force_combat_result(true)
 	lost.take_boss_spoils()
 	lost.start_finale()
-	_check(lost.complete_combat(false) and lost.finished and not lost.escaped, "losing it ends the run as a defeat")
+	_check(lost.force_combat_result(false) and lost.finished and not lost.escaped, "losing it ends the run as a defeat")
 	# Bad saves.
 	var bad := RunSave.to_dict(back.run)
 	for case in [["finale", "yes"], ["chapter", 2]]:

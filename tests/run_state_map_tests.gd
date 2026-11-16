@@ -49,7 +49,7 @@ func _resolve(run_state: RunState, victory := true) -> void:
 	var stop := run_state.current_stop()
 	match stop.type:
 		RunState.StopType.COMBAT:
-			run_state.complete_combat(victory)
+			run_state.force_combat_result(victory)
 			if run_state.reward_pending():
 				run_state.resolve_reward(null)
 		RunState.StopType.REST:
@@ -102,7 +102,7 @@ func _test_legacy_untouched() -> void:
 	run_state.read_story()
 	var combat := run_state.start_combat()
 	_check(combat != null and combat.enemies.size() == 1 and run_state.stop_index == 1, "legacy fight 1 is one enemy at stop 1")
-	run_state.complete_combat(true)
+	run_state.force_combat_result(true)
 	_check(run_state.reward_pending() and run_state.resolve_reward(null) and run_state.stop_index == 2, "legacy stop_index still advances by one")
 
 
@@ -140,7 +140,7 @@ func _test_choose_rejections() -> void:
 	# Reachable is empty while a reward is pending, too.
 	var fight := RunState.new(21, &"deserter", true)
 	_walk_to(fight, RouteMap.NodeType.FIGHT)
-	fight.complete_combat(true)
+	fight.force_combat_result(true)
 	_check(fight.reward_pending() and fight.reachable_nodes().is_empty(), "nothing is reachable while a reward is pending")
 	_check(fight.resolve_reward(null) and not fight.reachable_nodes().is_empty(), "the reward ends the stop and opens the map")
 
@@ -182,7 +182,7 @@ func _test_fight_node() -> void:
 		_check(combat != null and combat.enemies.size() == n.enemy_count, "the fight has the node's %d enemies" % n.enemy_count)
 		seen_counts[n.enemy_count] = true
 		var gold := run_state.gold
-		run_state.complete_combat(true)
+		run_state.force_combat_result(true)
 		_check(run_state.gold == gold + RunState.map_win_gold(n.enemy_count), "a win pays for the node's enemy count (map-mode share)")
 		_check(run_state.reward_pending() and run_state.reward_choices().size() > 0, "a won fight offers a reward")
 		run_state.resolve_reward(run_state.reward_choices()[0])
@@ -200,7 +200,7 @@ func _test_win_heal() -> void:
 	var max_hp := run_state.player.max_hp
 	run_state.player.hp = 10
 	var expected := roundi(max_hp * RunState.MAP_FIGHT_HEAL_FRACTION + (max_hp - 10) * RunState.MAP_FIGHT_HEAL_MISSING_FRACTION)
-	run_state.complete_combat(true)
+	run_state.force_combat_result(true)
 	_check(expected > 0 and run_state.player.hp == 10 + expected and run_state.map_win_heal == expected, "a won map fight heals %d HP (flat share plus a share of the missing HP)" % expected)
 	run_state.resolve_reward(null)
 	_check(run_state.player.hp == 10 + expected and run_state.map_win_heal == expected, "taking the reward heals nothing more")
@@ -208,33 +208,33 @@ func _test_win_heal() -> void:
 	var healthy := RunState.new(31, &"thief", true)
 	_walk_to(healthy, RouteMap.NodeType.FIGHT)
 	healthy.start_combat()
-	healthy.complete_combat(true)
+	healthy.force_combat_result(true)
 	_check(healthy.player.hp == healthy.player.max_hp and healthy.map_win_heal == 0, "a full-HP player is not healed past max HP")
 	var nearly := RunState.new(31, &"thief", true)
 	_walk_to(nearly, RouteMap.NodeType.FIGHT)
 	nearly.start_combat()
 	nearly.player.hp = max_hp - 1
-	nearly.complete_combat(true)
+	nearly.force_combat_result(true)
 	_check(nearly.player.hp == max_hp and nearly.map_win_heal == 1, "a heal larger than the wound stops at max HP")
 	# A defeat heals nothing; the line never heals.
 	var lost := RunState.new(31, &"thief", true)
 	_walk_to(lost, RouteMap.NodeType.FIGHT)
 	lost.start_combat()
 	lost.player.hp = 7
-	lost.complete_combat(false)
+	lost.force_combat_result(false)
 	_check(lost.finished and lost.player.hp == 7 and lost.map_win_heal == 0, "a lost fight heals nothing")
 	var line := RunState.new(31, &"thief")
 	line.read_story()
 	line.start_combat()
 	line.player.hp = 7
-	line.complete_combat(true)
+	line.force_combat_result(true)
 	_check(line.player.hp == 7 and line.map_win_heal == 0 and line.gold == Vendor.gold_for_win(1), "line mode: no win heal and the full gold")
 	# The final boss ends the run with no heal.
 	var boss := RunState.new(51, &"deserter", true)
 	_walk_to(boss, RouteMap.NodeType.BOSS)
 	boss.start_combat()
 	boss.player.hp = 9
-	boss.complete_combat(true)
+	boss.force_combat_result(true)
 	_check(boss.escaped and boss.player.hp == 9 and boss.map_win_heal == 0, "the final boss gives no heal")
 
 
@@ -294,7 +294,7 @@ func _test_mid_boss_and_boss() -> void:
 	run_state.player.hp = 5
 	# A relic found on the way (a chest, an event) may heal or pay on a win too; this check is about the map's own heal and gold.
 	run_state.relics.clear()
-	run_state.complete_combat(true)
+	run_state.force_combat_result(true)
 	_check(run_state.gold == gold + RunState.map_win_gold(1) + RunState.MID_BOSS_GOLD_BONUS, "the mid-boss pays gold and its bonus")
 	_check(run_state.player.hp == mini(run_state.player.max_hp, 5 + roundi(run_state.player.max_hp * RunState.MAP_MID_BOSS_HEAL_FRACTION)) and run_state.map_win_heal == run_state.player.hp - 5, "the mid-boss heals MAP_MID_BOSS_HEAL_FRACTION of max HP")
 	_check(run_state.reward_pending() and not run_state.finished, "the mid-boss offers a reward and the run goes on")
@@ -306,7 +306,7 @@ func _test_mid_boss_and_boss() -> void:
 	var boss_combat := run_state.start_combat()
 	_check(boss_combat != null and boss_combat.enemies[0].data.id == Encounters.boss_encounter()[0].id, "the final boss fight is the boss encounter")
 	var gold_before := run_state.gold
-	run_state.complete_combat(true)
+	run_state.force_combat_result(true)
 	_check(run_state.finished and run_state.escaped and not run_state.reward_pending() and run_state.gold == gold_before, "beating the final boss ends the run as an escape with no reward")
 	_check(run_state.stop_index == run_state.stops.size() and run_state.current_stop() == null and run_state.reachable_nodes().is_empty(), "the finished map run has no stop and nothing reachable")
 
@@ -317,7 +317,7 @@ func _test_defeat() -> void:
 	var row := run_state.stop_index
 	var successor: int = run_state.route.next_ids(run_state.current_node)[0]
 	run_state.start_combat()
-	run_state.complete_combat(false)
+	run_state.force_combat_result(false)
 	_check(run_state.finished and not run_state.escaped and run_state.stop_index == row, "a defeat ends the run where it happened")
 	_check(run_state.reachable_nodes().is_empty() and run_state.current_stop() == null and not run_state.choose_node(successor), "nothing can be chosen after a defeat")
 
@@ -365,7 +365,7 @@ func _test_elite() -> void:
 	# Winning: extra gold now, and spoils (a relic) that wait to be taken before the card reward.
 	var gold := run_state.gold
 	var relics_before := run_state.relics.size()
-	run_state.complete_combat(true)
+	run_state.force_combat_result(true)
 	_check(run_state.gold == gold + RunState.map_win_gold(stop.enemy_count) + RunState.ELITE_GOLD_BONUS and run_state.elite_bonus_gold == RunState.ELITE_GOLD_BONUS, "an elite win pays the regular gold plus the elite bonus")
 	_check(run_state.elite_spoils_pending() and run_state.elite_relic() != null and run_state.relics.size() == relics_before, "an elite's relic waits in its spoils, not yet in the run")
 	var spoils_relic := run_state.elite_relic()
@@ -379,7 +379,7 @@ func _test_elite() -> void:
 	_check(_walk_to_elite(skipper), "an elite node for the skip case")
 	skipper.start_combat()
 	var skipper_relics := skipper.relics.size()
-	skipper.complete_combat(true)
+	skipper.force_combat_result(true)
 	_check(skipper.elite_spoils_pending() and skipper.relics.size() == skipper_relics, "spoils pending after a second elite win")
 	skipper.resolve_reward(null)
 	_check(skipper.relics.size() == skipper_relics + 1 and not skipper.elite_spoils_pending(), "skipping the card takes the spoils first")
@@ -393,7 +393,7 @@ func _test_elite() -> void:
 	for relic in full.relics:
 		if relic.kind == RelicData.Kind.WIN_GOLD:
 			win_gold_relics += relic.amount
-	full.complete_combat(true)
+	full.force_combat_result(true)
 	var full_enemies := full.current_stop().enemy_count
 	_check(full.elite_spoils_pending() and full.elite_relic() == null and full.elite_spoils_gold() == RunState.ELITE_RELIC_FALLBACK_GOLD, "with every relic owned the spoils hold gold")
 	_check(full.take_elite_spoils() and full.gold == full_gold + RunState.map_win_gold(full_enemies) + win_gold_relics + RunState.ELITE_GOLD_BONUS + RunState.ELITE_RELIC_FALLBACK_GOLD, "taking them pays the fallback gold")
@@ -401,7 +401,7 @@ func _test_elite() -> void:
 	var plain := RunState.new(31, &"thief", true)
 	_walk_to(plain, RouteMap.NodeType.FIGHT)
 	plain.start_combat()
-	plain.complete_combat(true)
+	plain.force_combat_result(true)
 	_check(not plain.elite_spoils_pending() and plain.elite_bonus_gold == 0 and not plain.in_elite_stop() and not plain.current_stop().elite, "a regular fight is not an elite and holds no spoils")
 
 

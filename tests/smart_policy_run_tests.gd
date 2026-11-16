@@ -41,7 +41,7 @@ func _test_plays_whole_runs_without_illegal_moves() -> void:
 					if combat.phase != Combat.Phase.ENDED:
 						_check(false, "the fight ended within the turn guard (seed %d)" % seed_value)
 						combat.abandon()
-					run.complete_combat(combat.living_enemies().is_empty())
+					run.force_combat_result(combat.living_enemies().is_empty())
 					if run.reward_pending():
 						_check(run.resolve_reward(SmartPolicy.pick_reward(run)), "smart reward pick is accepted")
 				RunState.StopType.REST:
@@ -175,7 +175,7 @@ func _rest_run(character: StringName) -> RunState:
 	while run.current_stop().type != RunState.StopType.REST:
 		match run.current_stop().type:
 			RunState.StopType.COMBAT:
-				run.complete_combat(true)
+				run.force_combat_result(true)
 				if run.reward_pending():
 					run.resolve_reward(null)
 			RunState.StopType.STORY:
@@ -240,7 +240,7 @@ func _test_relics_are_bought_and_fights_finish() -> void:
 	while run.current_stop().type != RunState.StopType.VENDOR:
 		match run.current_stop().type:
 			RunState.StopType.COMBAT:
-				run.complete_combat(true)
+				run.force_combat_result(true)
 				if run.reward_pending():
 					run.resolve_reward(null)
 			RunState.StopType.STORY:

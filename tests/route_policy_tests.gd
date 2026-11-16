@@ -48,7 +48,7 @@ func _resolve(run_state: RunState) -> void:
 	var stop := run_state.current_stop()
 	match stop.type:
 		RunState.StopType.COMBAT:
-			run_state.complete_combat(true)
+			run_state.force_combat_result(true)
 			if run_state.reward_pending():
 				run_state.resolve_reward(null)
 		RunState.StopType.REST:

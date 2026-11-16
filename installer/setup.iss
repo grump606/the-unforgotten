@@ -248,14 +248,28 @@ end;
 
 // The game used to keep its saves in a folder named after its old name (Card Battle Prototype, up to
 // v0.6.6). Copies the run save and the settings from there into the folder named after the game, never
-// over a file that already exists, and removes the old folder once everything arrived. The game does the
-// same at startup (run/user_data_migration.gd), so whichever runs first does the work.
+// over a file that already exists, and removes the old folder only when every data file in it has an
+// identical copy in the new folder. A file already in the new folder with different bytes keeps the old
+// folder, so nothing of the player's is deleted that is not safe elsewhere. The game does the same at
+// startup (run/user_data_migration.gd), so whichever runs first does the work.
+function SameFileBytes(const A, B: String): Boolean;
+var
+  BytesA, BytesB: AnsiString;
+begin
+  Result := LoadStringFromFile(A, BytesA) and LoadStringFromFile(B, BytesB) and (BytesA = BytesB);
+end;
+
+// True when the old file is safe in the new folder (copied, or already there with the same bytes).
 function CopyDataFile(const OldDir, NewDir, Name: String): Boolean;
 begin
   Result := True;
   if not FileExists(OldDir + '\' + Name) then Exit;
-  if FileExists(NewDir + '\' + Name) then Exit;
-  Result := CopyFile(OldDir + '\' + Name, NewDir + '\' + Name, True);
+  if FileExists(NewDir + '\' + Name) then
+  begin
+    Result := SameFileBytes(OldDir + '\' + Name, NewDir + '\' + Name);
+    Exit;
+  end;
+  Result := CopyFile(OldDir + '\' + Name, NewDir + '\' + Name, True) and SameFileBytes(OldDir + '\' + Name, NewDir + '\' + Name);
 end;
 
 procedure MigrateOldSaves();
@@ -279,12 +293,34 @@ begin
 end;
 
 // An install that lived in a folder named after the old name has just been installed into the new folder:
-// remove the old folder (the old exe, its uninstaller and nothing else of the player's).
+// remove what the old setups put there (the game exe under its old or new name and the uninstaller files),
+// then the folder itself only if that left it empty. Anything else in it (a file the player added) stays.
+procedure DeleteOldInstallFile(const Dir, Name: String);
+begin
+  if FileExists(Dir + '\' + Name) then DeleteFile(Dir + '\' + Name);
+end;
+
 procedure RemoveOldInstallDir();
+var
+  Found: TFindRec;
 begin
   if (PreviousInstallDir = '') or not IsOldInstallDir(PreviousInstallDir) then Exit;
   if CompareText(PreviousInstallDir, RemoveBackslash(ExpandConstant('{app}'))) = 0 then Exit;
-  if DirExists(PreviousInstallDir) then DelTree(PreviousInstallDir, True, True, True);
+  if not DirExists(PreviousInstallDir) then Exit;
+  DeleteOldInstallFile(PreviousInstallDir, 'CardBattlePrototype.exe');
+  DeleteOldInstallFile(PreviousInstallDir, '{#AppExe}');
+  if FindFirst(PreviousInstallDir + '\unins???.*', Found) then
+  begin
+    try
+      repeat
+        if (Found.Attributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then
+          DeleteOldInstallFile(PreviousInstallDir, Found.Name);
+      until not FindNext(Found);
+    finally
+      FindClose(Found);
+    end;
+  end;
+  RemoveDir(PreviousInstallDir);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

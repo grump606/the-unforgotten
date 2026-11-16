@@ -1,16 +1,13 @@
 class_name RunState
 extends RefCounted
-## One escape attempt: a fixed line of stops the player passes through, carrying
-## HP and the deck from stop to stop. Pure logic with no nodes, so the run screen
-## is only a view over it. Combat itself is untouched: a combat stop just builds
-## a Combat from this state (see docs/RUN_INTEGRATION.md).
+## One escape attempt: the stops the player passes through, carrying HP, the deck, gold and relics from stop to
+## stop. Pure logic with no nodes, so the run screen is only a view over it. Combat itself is untouched: a combat
+## stop just builds a Combat from this state (see docs/RUN_INTEGRATION.md).
 ##
-## New stop kinds (vendor, cutscene) become new StopType values plus one branch
-## in the screen; the stop line and the persistent player/deck stay as they are.
-##
-## Map mode (off by default, see docs/MAP_DESIGN.md "Phase 2"): the run follows a RouteMap the player
-## picks a path through instead of the fixed line. Everything below that is not about the map behaves
-## exactly as in line mode; `uses_map()` tells them apart.
+## Two shapes: map mode, what New Journey plays (run.gd `new_runs_use_map`): the run follows a RouteMap the player
+## picks a path through, chapter by chapter (docs/MAP_DESIGN.md). Line mode, a RunState's own default (`uses_map()`
+## false), walks a fixed line of stops; the older tests and the line sims use it. Everything that is not about the
+## map behaves the same in both. New stop kinds become new StopType values plus one branch in the screen.
 
 enum StopType { COMBAT, REST, STORY, VENDOR, TREASURE, EVENT }
 
@@ -327,28 +324,38 @@ func boss_label() -> String:
 	return RunRoute.boss_label(self)
 
 
-## Records how the current fight ended. A defeat ends the run; a victory pays
-## gold and offers a reward that must be taken or skipped before the line moves
-## on. Beating the boss stop is the exception: it pays nothing (no later stop could
-## spend it), offers no reward and ends the run as an escape. Only valid at a COMBAT stop that has no reward pending and is not finished
-## (anything else is a caller bug: it is logged and changes nothing).
-## When the run built the fight (start_combat) and it ended on its own (Combat.outcome), that outcome decides
-## the result: a disagreeing `victory` is logged and the fight's outcome wins. A fight with no outcome (still
-## in progress, or abandoned) is abandoned if need be and the caller's `victory` decides (the sims record a
-## turn-cap stall as a defeat; UI tests use it as a shortcut). With no fight started (tests, debug paths) the
-## caller's `victory` is taken as given.
-## Returns false (changing nothing) when the call was rejected, true when the result was recorded.
-func complete_combat(victory: bool) -> bool:
+## Records how the fight the run started (start_combat) ended, from its own outcome (Combat.outcome): the game's path
+## (run.gd, once the battle screen reports the fight over). A defeat ends the run; a victory pays gold and offers a
+## reward that must be taken or skipped before the line moves on. Beating the boss stop is the exception: it pays
+## nothing (no later stop could spend it), offers no reward and ends the run as an escape. Only valid at a COMBAT stop
+## that has no reward pending and is not finished, with a started fight that has ENDED: anything else is a caller bug
+## (logged, nothing changes). Returns false when the call was rejected, true when the result was recorded.
+func complete_combat() -> bool:
+	if _active_combat == null or _active_combat.outcome == Combat.Outcome.NONE:
+		Combat.engine_error("RunState.complete_combat: no fight started by the run has ended")
+		return false
+	return _record_combat_result(_active_combat.outcome == Combat.Outcome.VICTORY, "complete_combat")
+
+
+## Sims, tests and debug tools only: records `victory` as the current fight's result without the fight having to be
+## played out (the sims record a turn-cap stall as a defeat; UI tests skip fights with it). A fight the run started
+## that has ended on its own still decides (a disagreeing `victory` is logged and the outcome wins); one still in
+## progress is abandoned. With no fight started the result is taken as given. Same rules and return as complete_combat.
+func force_combat_result(victory: bool) -> bool:
+	return _record_combat_result(victory, "force_combat_result")
+
+
+func _record_combat_result(victory: bool, caller: String) -> bool:
 	var stop := current_stop()
 	if finished or _reward_pending or stop == null or stop.type != StopType.COMBAT:
-		Combat.engine_error("RunState.complete_combat: not at a combat stop awaiting a result")
+		Combat.engine_error("RunState.%s: not at a combat stop awaiting a result" % caller)
 		return false
 	if _active_combat != null:
 		_active_combat.abandon() # no-op once ended; releases the player from a fight cut short
 		if _active_combat.outcome != Combat.Outcome.NONE:
 			var actual := _active_combat.outcome == Combat.Outcome.VICTORY
 			if actual != victory:
-				Combat.engine_error("RunState.complete_combat: the caller reported %s but the fight ended in %s" % ["a victory" if victory else "a defeat", "a victory" if actual else "a defeat"])
+				Combat.engine_error("RunState.%s: the caller reported %s but the fight ended in %s" % [caller, "a victory" if victory else "a defeat", "a victory" if actual else "a defeat"])
 				victory = actual
 	_active_combat = null
 	if not victory:

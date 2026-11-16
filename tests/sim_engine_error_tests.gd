@@ -49,8 +49,8 @@ func _test_real_sites_count() -> void:
 func _test_complete_combat_result() -> void:
 	var state := RunState.new(1)
 	var n := Combat.engine_errors
-	_check(state.complete_combat(true) == false, "complete_combat is rejected (false) at a story stop")
+	_check(state.force_combat_result(true) == false, "complete_combat is rejected (false) at a story stop")
 	_check(Combat.engine_errors > n, "and the rejection is counted")
 	state.read_story()
-	_check(state.complete_combat(true) == true, "complete_combat at a fresh combat stop is accepted (true)")
-	_check(state.complete_combat(true) == false, "and a second call (reward now pending) is rejected")
+	_check(state.force_combat_result(true) == true, "complete_combat at a fresh combat stop is accepted (true)")
+	_check(state.force_combat_result(true) == false, "and a second call (reward now pending) is rejected")

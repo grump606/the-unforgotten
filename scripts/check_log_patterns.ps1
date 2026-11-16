@@ -37,8 +37,9 @@ $script:CheckKnownPushErrors = @(
     '^ERROR: Combat\.create: the deck is empty$'
     '^ERROR: Combat\.create: the player is already dead$'
     '^ERROR: Combat\.start: the fight was already started or has ended$'                     # combat_core_tests.gd, mechanics_tests.gd
-    '^ERROR: RunState\.complete_combat: not at a combat stop awaiting a result$'             # tests/run_state_flow_tests.gd
-    '^ERROR: RunState\.complete_combat: the caller reported a (defeat but the fight ended in a victory|victory but the fight ended in a defeat)$' # run_state_outcome_tests.gd
+    '^ERROR: RunState\.force_combat_result: not at a combat stop awaiting a result$'         # tests/run_state_flow_tests.gd
+    '^ERROR: RunState\.force_combat_result: the caller reported a (defeat but the fight ended in a victory|victory but the fight ended in a defeat)$' # run_state_outcome_tests.gd
+    '^ERROR: RunState\.complete_combat: no fight started by the run has ended$'               # run_state_outcome_tests.gd
     '^ERROR: RunState\.resolve_reward: card was not offered$'                                # run_state_reward_tests.gd
     '^ERROR: RunState\.resolve_reward_remove: card is not in the deck$'
     '^ERROR: RunState\.start_combat: not at a fresh combat stop$'                            # run_state_flow_tests.gd

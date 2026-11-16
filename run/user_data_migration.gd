@@ -4,9 +4,11 @@ extends RefCounted
 ## ("Card Battle Prototype", used up to v0.6.6) to the folder named after the game ("The Unforgotten").
 ##
 ## The files that hold player data are copied across (never over a file that already exists in the new
-## folder, so newer data always wins), and once every one of them is safe in the new folder the whole old
-## folder is removed: what is left in it is logs, shader caches and test leftovers. If any copy fails the
-## old folder is kept and the move is tried again on the next launch. The Windows installer does the same
+## folder, so newer data always wins), and once every one of them is safe in the new folder (copied, or
+## already there with the same bytes) the whole old folder is removed: what is left in it is logs, shader
+## caches and test leftovers. If a copy fails, or the new folder already holds a DIFFERENT file of the same
+## name, the old folder is kept (its data is not safe anywhere else) and the move is tried again on the next
+## launch. The Windows installer does the same
 ## move after installing (installer/setup.iss, MigrateOldSaves); whichever runs first does the work and the
 ## other finds nothing to do. Headless runs (the automated tests) never touch the real folders.
 
@@ -24,8 +26,10 @@ class Result:
 	## An old folder existed.
 	var found := false
 	var copied: Array[String] = []
-	## Left alone because the new folder already had a file of that name.
+	## Left alone because the new folder already had the same file (same bytes): safe, nothing to copy.
 	var skipped: Array[String] = []
+	## Left alone because the new folder already had a DIFFERENT file of that name: the old folder is kept.
+	var conflicts: Array[String] = []
 	var failed: Array[String] = []
 	## The old folder is gone.
 	var removed := false
@@ -63,17 +67,21 @@ static func migrate(old_dir: String, new_dir: String) -> Result:
 			continue
 		var target := new_dir.path_join(file_name)
 		if FileAccess.file_exists(target):
-			result.skipped.append(file_name)
+			if FileAccess.get_file_as_bytes(source) == FileAccess.get_file_as_bytes(target):
+				result.skipped.append(file_name)
+			else:
+				result.conflicts.append(file_name)
 		elif _copy_checked(source, target):
 			result.copied.append(file_name)
 		else:
 			result.failed.append(file_name)
-	if result.failed.is_empty():
+	if result.failed.is_empty() and result.conflicts.is_empty():
 		result.removed = _remove_tree(old_dir)
-	if not result.copied.is_empty() or not result.failed.is_empty() or result.removed:
-		print("UserDataMigration: moved %d file(s) from '%s'%s%s" % [
+	if not result.copied.is_empty() or not result.failed.is_empty() or not result.conflicts.is_empty() or result.removed:
+		print("UserDataMigration: moved %d file(s) from '%s'%s%s%s" % [
 			result.copied.size(), old_dir,
 			"; failed: %s" % ", ".join(result.failed) if not result.failed.is_empty() else "",
+			"; differs from the new folder (kept): %s" % ", ".join(result.conflicts) if not result.conflicts.is_empty() else "",
 			"; old folder removed" if result.removed else "; old folder kept"])
 	return result
 

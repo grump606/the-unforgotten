@@ -177,7 +177,7 @@ func _simulate(runs: int, base_seed: int, shard_index: int, shard_count: int) ->
 						stalls += 1
 						stalled = true
 					# A rejected result would leave the run at this stop forever.
-					if not run.complete_combat(result == 1):
+					if not run.force_combat_result(result == 1):
 						printerr("run_sim: complete_combat rejected the result at stop %d" % index)
 						return {}
 					# The last boss's win has no reward to take; a chapter's end boss has its spoils.

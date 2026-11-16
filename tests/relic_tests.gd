@@ -416,7 +416,7 @@ func _at_vendor(rng_seed: int, character: StringName = &"deserter") -> RunState:
 		guard += 1
 		match state.current_stop().type:
 			RunState.StopType.COMBAT:
-				state.complete_combat(true)
+				state.force_combat_result(true)
 				state.resolve_reward(null)
 			RunState.StopType.STORY:
 				state.read_story()
@@ -463,33 +463,33 @@ func _test_win_rewards() -> void:
 	var heal_relic := _relic(RelicData.Kind.WIN_HEAL, 3)
 	var plain := RunState.new(11)
 	plain.read_story()
-	plain.complete_combat(true)
+	plain.force_combat_result(true)
 	var base_gold := plain.gold
 	var state := RunState.new(11)
 	state.read_story()
 	state.relics.assign([gold_relic, heal_relic])
 	state.player.take_damage(10)
 	var hp_before := state.player.hp
-	state.complete_combat(true)
+	state.force_combat_result(true)
 	_check(state.gold == base_gold + 4, "WIN_GOLD adds to the gold of a won fight")
 	_check(state.player.hp == hp_before + 3, "WIN_HEAL heals after a won fight")
 	state.resolve_reward(null)
 	var loser := RunState.new(11)
 	loser.read_story()
 	loser.relics.assign([gold_relic, heal_relic])
-	loser.complete_combat(false)
+	loser.force_combat_result(false)
 	_check(loser.gold == 0, "a lost fight pays no WIN_GOLD")
 	# The heal never passes max HP.
 	var healthy := RunState.new(11)
 	healthy.read_story()
 	healthy.relics.assign([heal_relic])
-	healthy.complete_combat(true)
+	healthy.force_combat_result(true)
 	_check(healthy.player.hp == healthy.player.max_hp, "WIN_HEAL never exceeds max HP")
 	# The boss pays no gold, relic or not.
 	var boss := RunState.new(11)
 	boss.stop_index = boss.stops.size() - 1
 	boss.relics.assign([gold_relic])
-	boss.complete_combat(true)
+	boss.force_combat_result(true)
 	_check(boss.finished and boss.escaped and boss.gold == 0, "WIN_GOLD is not paid for the boss")
 
 

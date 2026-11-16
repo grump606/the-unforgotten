@@ -32,7 +32,7 @@ func _at_rest(character: StringName = &"thief") -> RunState:
 	var state := RunState.new(5, character)
 	state.read_story()
 	for i in 2:
-		state.complete_combat(true)
+		state.force_combat_result(true)
 		state.resolve_reward(null)
 	return state
 

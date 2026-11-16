@@ -1,0 +1,13 @@
+# Shared cases for the signed min_version floor: <floor> <release version> <ok|refuse>.
+# A floor above the release version locks every game out, so the game refuses it (UpdateVerifier.verify_manifest)
+# and so do the release scripts (Test-MinVersionAllowed in scripts/update_signing.ps1). Both sides read this file:
+# tests/update_manifest_golden_tests.gd and scripts/check_manifest_golden.ps1.
+0.10.0 0.10.1 ok
+0.10.1 0.10.1 ok
+0.10.1.0 0.10.1 ok
+0.9 0.10.1 ok
+0.9.99 0.10.1 ok
+0.10.2 0.10.1 refuse
+0.10.1.1 0.10.1 refuse
+0.11 0.10.1 refuse
+1.0 0.10.1 refuse
