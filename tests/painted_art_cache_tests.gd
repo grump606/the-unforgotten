@@ -1,17 +1,14 @@
 extends "res://tests/test_base.gd"
 ## PaintedArt: warming fills the cache on the main thread, a missing file stays a cached null, a story stop
 ## warms its own beat's painting, and entries not used for two stops are evicted while recently used ones stay.
-## (The files are read on the loader threads and finished on the main thread, see PaintedArt.pump.)
+## (Decoding is deliberately not threaded: the queue is pumped on the main thread, see PaintedArt.pump.)
 
 
 ## Queues the paths and pumps until the queue is empty (what the run does over several frames).
 func _warm(paths: Array) -> void:
 	PaintedArt.queue_paths(paths)
-	var pumps := 0
-	while PaintedArt.pending() > 0 and pumps < 20000:
+	while PaintedArt.pending() > 0:
 		PaintedArt.pump(0.0)
-		OS.delay_usec(100)
-		pumps += 1
 
 
 func run() -> int:

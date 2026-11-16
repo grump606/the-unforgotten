@@ -2,8 +2,10 @@
 
 Last updated 2026-11-16. **Released:** v0.10.0 (2026-11-13), Chapter 2, the Registry; v0.10.1 (2026-11-15: Find the
 Seam+ keeps Ready in the export, a Draw after a Glimpse waits for the pick, the 400 MiB installer cap and the review
-fixes). **Version on `main`: 0.10.2** (safe save migration, the release floor check, the updater thread fallback and
-threaded art reads). **On `main`, not released:** Chapter 3 and the finale, built and bot-tuned but switched off (`Chapters.COUNT` is still 2, so a run
+fixes). **Version on `main`: 0.10.2** (safe save migration, the release floor check and the updater thread fallback).
+Threaded art reads (PaintedArt on the loader threads, about a third of the main-thread warm-up time) were tried and
+reverted before release: the UI flow test once logged `Parameter "t" is null` (a texture read back before it was
+ready); not reproduced in 6 further runs. Retry only with a test that forces that race. **On `main`, not released:** Chapter 3 and the finale, built and bot-tuned but switched off (`Chapters.COUNT` is still 2, so a run
 still ends with "To be continued"), plus a code review pass (below). The next work is the Chapter 3 playtest and the
 release that turns it on (`docs/CHAPTER3_PLAN.md`, "Order of work", step 6).
 Numbers such as the stop count and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`SIM.md`](SIM.md).

@@ -188,22 +188,14 @@ static func paths_for_stop(stop_type: int, character_id: StringName = &"", story
 
 
 # --- spreading the warm-up over frames ------------------------------------------------------------------
-# Decoding a ~3 MB screen takes long enough to hitch a frame (measured on the art kit: about 29 ms a file on average,
-# 67 ms for the largest screen, two thirds of it reading the file), so the run queues the next stop's art and pumps
-# the queue each frame from its _process. The file read runs on the engine's loader threads
-# (ResourceLoader.load_threaded_request, at most MAX_LOADING at a time); the rest (Texture2D.get_image(), which goes
-# through the RenderingServer, the mipmaps and the texture) stays on the main thread. A draw that needs a path that is
-# still queued or loading takes it over at once through _load (waiting for its own load, never starting a second one:
-# the same art decoded on a worker and the main thread at once crashed intermittently in an earlier design).
+# Decoding a ~3 MB screen takes long enough to hitch a frame, so the run queues the next stop's art and pumps the
+# queue a little each frame from its _process. Still all on the main thread (Texture2D.get_image() goes through the RenderingServer, and decoding the same art from a worker thread and the main thread at once crashed intermittently); a draw that needs a
+# queued path simply decodes it at once through _load, and the pump then skips it.
 
-## Most milliseconds one pump() call keeps finishing loaded files after its first one.
+## Most milliseconds one pump() call keeps decoding after its first file.
 const PUMP_BUDGET_MS := 4.0
-## Files read on the loader threads at the same time.
-const MAX_LOADING := 2
 ## Paths waiting to be decoded, in order (duplicates and already cached paths are skipped when queued or pumped).
 static var _queue: Array[String] = []
-## Paths whose file is being read on a loader thread, in request order (each is finished by pump or by _load).
-static var _loading: Array[String] = []
 
 
 ## Queues the art for a run stop's next screen instead of decoding it now (the paths of paths_for_stop).
@@ -227,53 +219,22 @@ static func queue_paths(paths: Array) -> void:
 			_queue.append(key)
 
 
-## How many queued paths are still waiting (queued, or being read on a loader thread).
+## How many queued paths are still waiting.
 static func pending() -> int:
-	return _queue.size() + _loading.size()
+	return _queue.size()
 
 
-## One step of the warm-up; call once per frame. Starts loader-thread reads for the next queued paths (up to
-## MAX_LOADING at a time), then finishes the reads that are done until `budget_ms` has passed (always at least one, if
-## one is done). Returns how many paths are still pending. A read that is not done yet is simply checked next frame.
+## Decodes queued paths until `budget_ms` has passed (always at least one, if any is waiting) and returns how many
+## remain. Call once per frame; the first file already takes most of a frame, so in practice this is one per frame.
 static func pump(budget_ms := PUMP_BUDGET_MS) -> int:
 	var started := Time.get_ticks_usec()
-	while _loading.size() < MAX_LOADING and not _queue.is_empty():
+	while not _queue.is_empty():
 		var path: String = _queue.pop_front()
-		if _cache.has(path):
-			continue
-		if not ResourceLoader.exists(path):
-			_store(path, null)
-		elif ResourceLoader.load_threaded_request(path, "Texture2D", false, ResourceLoader.CACHE_MODE_IGNORE) == OK:
-			_loading.append(path)
-		else:
-			_load(path) # the loader refused the request: decode it here instead
-	var i := 0
-	while i < _loading.size():
-		var path := _loading[i]
-		if ResourceLoader.load_threaded_get_status(path) == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
-			i += 1
-			continue
-		_loading.remove_at(i)
-		_finish_loading(path)
+		if not _cache.has(path):
+			_load(path)
 		if (Time.get_ticks_usec() - started) / 1000.0 >= budget_ms:
 			break
-	return pending()
-
-
-## Tests: empties the queue and collects every read still on a loader thread (a request must not be left behind).
-static func reset_queue() -> void:
-	_queue.clear()
-	for path in _loading:
-		ResourceLoader.load_threaded_get(path)
-	_loading.clear()
-
-
-## Collects a loader-thread read (load_threaded_get waits for it if it is still running) and caches the result,
-## unless the path was cached meanwhile. Every request is collected exactly once, here.
-static func _finish_loading(path: String) -> void:
-	var src := ResourceLoader.load_threaded_get(path) as Texture2D
-	if not _cache.has(path):
-		_store(path, _image_from(src))
+	return _queue.size()
 
 
 ## Any texture under res:// through the shared cache (mipmapped), or null when it is missing.
@@ -285,25 +246,16 @@ static func _load(path: String) -> Texture2D:
 	_touch(path)
 	if _cache.has(path):
 		return _cache[path]
-	if _loading.has(path):
-		# Already being read on a loader thread: wait for that read rather than start a second one.
-		_loading.erase(path)
-		_finish_loading(path)
-		return _cache[path]
 	return _store(path, _decode(path))
 
 
-## Reads, decompresses and mipmaps an image off disk on the calling (main) thread.
+## Reads, decompresses and mipmaps an image off disk (main thread only, see the queue below).
 static func _decode(path: String) -> Image:
 	if not ResourceLoader.exists(path):
 		return null
 	# CACHE_MODE_IGNORE: the imported (compressed) texture is not kept by the loader's cache, so
 	# only the mipmapped ImageTexture made in _store stays resident once `src` and `img` go out of scope.
-	return _image_from(ResourceLoader.load(path, "Texture2D", ResourceLoader.CACHE_MODE_IGNORE) as Texture2D)
-
-
-## The decompressed, mipmapped image of a loaded texture (main thread: get_image goes through the RenderingServer).
-static func _image_from(src: Texture2D) -> Image:
+	var src := ResourceLoader.load(path, "Texture2D", ResourceLoader.CACHE_MODE_IGNORE) as Texture2D
 	if src == null:
 		return null
 	var img := src.get_image()

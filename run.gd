@@ -561,9 +561,9 @@ func _save_and_exit() -> String:
 	return ""
 
 
-## Queues the art of the stop after this one so the next screen does not stutter on first use. _process pumps the
-## queue each frame (PaintedArt.pump: the files are read on the loader threads and finished on the main thread); a
-## screen that draws before its art is ready just decodes it then, as it always did.
+## Queues the art of the stop after this one so the next screen does not stutter on first use. _process decodes the
+## queue a little each frame (PaintedArt.pump), on the main thread; a screen that draws before its art is decoded
+## just decodes it then, as it always did.
 func _warm_next_stop() -> void:
 	if _run.uses_map():
 		return # the map warms the art of the nodes it offers (see _show_map)
