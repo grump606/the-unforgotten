@@ -26,6 +26,13 @@ func _initialize() -> void:
 		var res := ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE_DEEP)
 		if res != null and res.get_script() != null:
 			before[path] = var_to_str(_dump(res, 0))
+	# The art the warm-up decodes on worker threads (PaintedArt.decode_imported reads the imported .ctex itself): every
+	# file must decode from the export to the same pixels as from the project.
+	var art: Array[String] = []
+	_collect_art("res://art", art)
+	var art_before := {}
+	for path in art:
+		art_before[path] = _image_hash(PaintedArt.decode_imported(path))
 	if not ProjectSettings.load_resource_pack(args[0], true):
 		printerr("export integrity: cannot load the pack in %s" % args[0])
 		quit(1)
@@ -37,8 +44,34 @@ func _initialize() -> void:
 		if after != before[path]:
 			differing += 1
 			print("DIFF %s\n  project: %s\n  export:  %s" % [path, _around(before[path], after), _around(after, before[path])])
-	print("export integrity: %d scripted resources compared, %d differ" % [before.size(), differing])
-	quit(1 if differing > 0 or before.size() < 100 else 0)
+	var art_differing := 0
+	for path: String in art_before:
+		var after := _image_hash(PaintedArt.decode_imported(path))
+		if after == "" or after != art_before[path]:
+			art_differing += 1
+			print("ART DIFF %s: %s" % [path, "does not decode from the export" if after == "" else "decodes to other pixels"])
+	print("export integrity: %d scripted resources compared, %d differ; %d art files decoded, %d differ" % [before.size(), differing, art_before.size(), art_differing])
+	quit(1 if differing > 0 or before.size() < 100 or art_differing > 0 or art_before.size() < 250 else 0)
+
+
+## SHA-256 of an image's size, format and pixels, or "" for no image.
+func _image_hash(img: Image) -> String:
+	if img == null:
+		return ""
+	var ctx := HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	ctx.update(var_to_bytes([img.get_size(), img.get_format()]))
+	ctx.update(img.get_data())
+	return ctx.finish().hex_encode()
+
+
+## Every imported PNG under `dir` (the art PaintedArt decodes).
+func _collect_art(dir: String, into: Array[String]) -> void:
+	for file_name in DirAccess.get_files_at(dir):
+		if file_name.ends_with(".png") and FileAccess.file_exists(dir.path_join(file_name) + ".import"):
+			into.append(dir.path_join(file_name))
+	for sub in DirAccess.get_directories_at(dir):
+		_collect_art(dir.path_join(sub), into)
 
 
 ## A comparable picture of a value: stored properties of resources (recursively), arrays and dictionaries item by item.

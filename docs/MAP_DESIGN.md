@@ -189,7 +189,7 @@ Choices where the spec left room:
 
 ## Map screen
 
-Files: `run/map_view.gd` (`MapView`, the drawing and input), `run/screens/map_screen.gd` (`MapScreen`, the glue to
+Files: `run/map_view.gd` (`MapView`, the layout and input), `run/map_painter.gd` (`MapPainter`, the drawing), `run/screens/map_screen.gd` (`MapScreen`, the glue to
 a run), `tools/map_sheet.gd` (screenshots), `tests/ui_map_test.gd`.
 
 - `MapView` is a pure presentation `Control`: `set_data(route, visited, current, reachable, character_id)` and
@@ -203,7 +203,7 @@ a run), `tools/map_sheet.gd` (screenshots), `tests/ui_map_test.gd`.
   a tick, the
   current node is ringed, reachable ones pulse; hovering any node shows a label ("Fight: 2 enemies", "Rest", "Shop",
   "Story: <beat title>", "Mid-boss", "Final boss"; a chest says "Treasure: a relic" and an event "Event: something unexpected").
-  An event's glyph is a cream question mark inside a violet diamond with a teal dot (`MapView._glyph_question`).
+  An event's glyph is a cream question mark inside a violet diamond with a teal dot (`MapPainter._glyph_question`).
 - `MapScreen` is a `RunScreen`: run.gd attaches it like the others and calls `show_map(run)`, which builds the view
   from `run.route`, `run.visited`, `run.current_node` and `run.reachable_nodes()`. `node_chosen(node_id)` is
   re-emitted; run.gd calls `run.choose_node(id)`. The status line is left empty: run.gd's own header above the map shows the
@@ -440,7 +440,7 @@ it.
 
 ### UI
 
-A chest glyph (`MapView._glyph_chest`: a domed lid on a box with two straps and a lock plate, cream-gold `#f6d98e`),
+A chest glyph (`MapPainter._glyph_chest`: a domed lid on a box with two straps and a lock plate, cream-gold `#f6d98e`),
 a "Treasure" legend entry and the tooltip "Treasure: a relic". `MapView.node_label` names it "Treasure".
 
 ### Bots and debug

@@ -188,14 +188,41 @@ static func paths_for_stop(stop_type: int, character_id: StringName = &"", story
 
 
 # --- spreading the warm-up over frames ------------------------------------------------------------------
-# Decoding a ~3 MB screen takes long enough to hitch a frame, so the run queues the next stop's art and pumps the
-# queue a little each frame from its _process. Still all on the main thread (Texture2D.get_image() goes through the RenderingServer, and decoding the same art from a worker thread and the main thread at once crashed intermittently); a draw that needs a
-# queued path simply decodes it at once through _load, and the pump then skips it.
+# Decoding a screen takes long enough to hitch a frame (measured on the art kit: about 29 ms a file on average, 67 ms
+# for the largest screen; nearly all of it is decoding the lossless WebP), so the run queues the next stop's art and
+# pumps the queue each frame from its _process. The decoding runs on WorkerThreadPool tasks that never touch the
+# RenderingServer: decode_imported() reads the imported .ctex file itself and decodes its WebP/PNG into a plain Image,
+# then mipmaps it and measures its painted box. Only the texture is made on the main thread (about 4 ms). An earlier
+# design loaded GPU textures on the loader threads and logged an intermittent "Parameter "t" is null"; nothing here
+# creates, reads or frees a texture off the main thread. A file decode_imported() cannot read (an unexpected .ctex
+# layout) falls back to the main-thread decode, and tests/painted_art_decode_tests.gd checks every art file decodes
+# to the same pixels both ways. A draw that needs a path that is still queued or decoding takes it at once through
+# _load (waiting for its own task, never starting a second decode).
 
-## Most milliseconds one pump() call keeps decoding after its first file.
+## Most milliseconds one pump() call keeps finishing decoded files after its first one.
 const PUMP_BUDGET_MS := 4.0
+## Decode tasks running at the same time.
+const MAX_DECODING := 2
 ## Paths waiting to be decoded, in order (duplicates and already cached paths are skipped when queued or pumped).
 static var _queue: Array[String] = []
+## Paths being decoded on a worker task -> their DecodeJob, in start order.
+static var _decoding := {}
+
+
+## One worker decode: the worker fills `image` and `used` (or leaves `image` null), the main thread reads them only
+## after WorkerThreadPool.wait_for_task_completion(task) (which is also what frees the task).
+class DecodeJob extends RefCounted:
+	var path := ""
+	var task := -1
+	var image: Image = null
+	var used := Rect2i()
+
+	func run() -> void:
+		var img := PaintedArt.decode_imported(path)
+		if img != null:
+			img.generate_mipmaps()
+			used = img.get_used_rect()
+			image = img
 
 
 ## Queues the art for a run stop's next screen instead of decoding it now (the paths of paths_for_stop).
@@ -219,22 +246,54 @@ static func queue_paths(paths: Array) -> void:
 			_queue.append(key)
 
 
-## How many queued paths are still waiting.
+## How many queued paths are still waiting (queued, or being decoded on a worker).
 static func pending() -> int:
-	return _queue.size()
+	return _queue.size() + _decoding.size()
 
 
-## Decodes queued paths until `budget_ms` has passed (always at least one, if any is waiting) and returns how many
-## remain. Call once per frame; the first file already takes most of a frame, so in practice this is one per frame.
+## One step of the warm-up; call once per frame. Starts worker decodes for the next queued paths (up to MAX_DECODING
+## at a time), then makes the textures of the decodes that are done until `budget_ms` has passed (always at least one,
+## if one is done). Returns how many paths are still pending; a decode that is not done is checked next frame.
 static func pump(budget_ms := PUMP_BUDGET_MS) -> int:
 	var started := Time.get_ticks_usec()
-	while not _queue.is_empty():
+	while _decoding.size() < MAX_DECODING and not _queue.is_empty():
 		var path: String = _queue.pop_front()
-		if not _cache.has(path):
-			_load(path)
+		if _cache.has(path):
+			continue
+		var job := DecodeJob.new()
+		job.path = path
+		job.task = WorkerThreadPool.add_task(job.run, false, "PaintedArt decode")
+		_decoding[path] = job
+	for path: String in _decoding.keys():
+		var job: DecodeJob = _decoding[path]
+		if not WorkerThreadPool.is_task_completed(job.task):
+			continue
+		_finish_decode(path)
 		if (Time.get_ticks_usec() - started) / 1000.0 >= budget_ms:
 			break
-	return _queue.size()
+	return pending()
+
+
+## Collects a worker decode (waiting for it if it is still running) and caches its texture, unless the path was cached
+## meanwhile. A decode that produced nothing falls back to the main-thread decode. Every task is collected exactly once.
+static func _finish_decode(path: String) -> void:
+	var job: DecodeJob = _decoding[path]
+	_decoding.erase(path)
+	WorkerThreadPool.wait_for_task_completion(job.task)
+	if _cache.has(path):
+		return
+	if job.image != null:
+		_store(path, job.image, job.used)
+	else:
+		_store(path, _decode(path))
+
+
+## Tests: empties the queue and collects every decode still running (a task must not be left behind).
+static func reset_queue() -> void:
+	_queue.clear()
+	for path: String in _decoding.keys():
+		WorkerThreadPool.wait_for_task_completion((_decoding[path] as DecodeJob).task)
+	_decoding.clear()
 
 
 ## Any texture under res:// through the shared cache (mipmapped), or null when it is missing.
@@ -246,10 +305,53 @@ static func _load(path: String) -> Texture2D:
 	_touch(path)
 	if _cache.has(path):
 		return _cache[path]
+	if _decoding.has(path):
+		# Already decoding on a worker: wait for that decode rather than start a second one.
+		_finish_decode(path)
+		return _cache[path]
 	return _store(path, _decode(path))
 
 
-## Reads, decompresses and mipmaps an image off disk (main thread only, see the queue below).
+## The imported image of a res:// art file (an imported PNG), decoded from its .ctex file without the RenderingServer,
+## so it is safe on a worker thread. Null for a missing file or a .ctex this does not read (only the lossless, no-mipmap
+## layout the art kit is imported with: GST2 version 1 holding one WebP or PNG). The layout follows
+## CompressedTexture2D::_load_data and load_image_from_file of Godot 4.7; tests/painted_art_decode_tests.gd checks it
+## against the engine's own decode for every art file, so an engine change that moves it fails there.
+static func decode_imported(path: String) -> Image:
+	var import := ConfigFile.new()
+	if import.load(path + ".import") != OK:
+		return null
+	var ctex := String(import.get_value("remap", "path", ""))
+	if not ctex.ends_with(".ctex"):
+		return null
+	var f := FileAccess.open(ctex, FileAccess.READ)
+	if f == null or f.get_length() < 56 or f.get_buffer(4).get_string_from_ascii() != "GST2" or f.get_32() > 1:
+		return null
+	f.seek(36) # width, height, format bits, mipmap limit and three reserved words
+	var data_format := f.get_32() # 1 PNG, 2 WebP
+	var width := f.get_16()
+	var height := f.get_16()
+	var mipmaps := f.get_32()
+	var format := f.get_32()
+	if (data_format != 1 and data_format != 2) or mipmaps != 0:
+		return null
+	var size := f.get_32()
+	if size <= 0 or f.get_position() + size > f.get_length():
+		return null
+	var bytes := f.get_buffer(size)
+	var img := Image.new()
+	if (img.load_webp_from_buffer(bytes) if data_format == 2 else img.load_png_from_buffer(bytes)) != OK:
+		return null
+	if img.get_width() != width or img.get_height() != height:
+		return null
+	if img.get_format() != format:
+		img.convert(format)
+	if img.is_compressed():
+		img.decompress()
+	return img
+
+
+## Reads, decompresses and mipmaps an image off disk on the calling (main) thread, through the engine's texture loader.
 static func _decode(path: String) -> Image:
 	if not ResourceLoader.exists(path):
 		return null
@@ -267,11 +369,12 @@ static func _decode(path: String) -> Image:
 	return img
 
 
-## Makes the texture from a decoded image and caches it; a missing file caches null.
-static func _store(path: String, img: Image) -> Texture2D:
+## Makes the texture from a decoded image and caches it; a missing file caches null. `used` is the painted box when the
+## caller measured it already (a worker decode), else it is measured here.
+static func _store(path: String, img: Image, used := Rect2i(-1, -1, 0, 0)) -> Texture2D:
 	var tex: Texture2D = ImageTexture.create_from_image(img) if img != null else null
 	if img != null:
-		_used_rects[path] = img.get_used_rect()
+		_used_rects[path] = used if used.position.x >= 0 else img.get_used_rect()
 	_cache[path] = tex
 	return tex
 

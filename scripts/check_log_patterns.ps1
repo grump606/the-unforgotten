@@ -46,7 +46,7 @@ $script:CheckKnownPushErrors = @(
     '^ERROR: sim_exit_tests: deliberate bot error \(expected in this log\)$'                 # tests/sim_exit_tests.gd
     '^ERROR: sim_engine_error_tests: deliberate engine error \(expected in this log\)$'      # tests/sim_engine_error_tests.gd
     '^ERROR: Combat\._apply: no handler for CardEffect kind \d+$'                            # tests/sim_engine_error_tests.gd
-    '^ERROR: SmartPolicy\._effect_score: no valuation for CardEffect\.Kind -?\d+$'          # tests/sim_exit_tests.gd
+    '^ERROR: (SmartCardScore\.effect_score|SmartPlayValue\._effect_value): no valuation for CardEffect\.Kind -?\d+$' # tests/sim_exit_tests.gd
     '^ERROR: StarterContent\.character: unknown character ''(nobody|no_such_character)''$'  # content_tests.gd, run_state_flow_tests.gd, sim_engine_error_tests.gd
     '^ERROR: StarterContent\.created_card: unknown created card id (dread|no_such_card)$'    # tests/starter_tests.gd
     '^ERROR: StarterContent: missing or non-(CardData|EnemyData|EventData) resource: res://data/(cards|enemies|events)/[a-z_]+\.tres$' # combat_core_tests.gd, event_tests.gd

@@ -74,7 +74,7 @@ $knownExamples = @(
     'ERROR: sim_exit_tests: deliberate bot error (expected in this log)'
     'ERROR: sim_engine_error_tests: deliberate engine error (expected in this log)'
     'ERROR: Combat._apply: no handler for CardEffect kind 9999'
-    'ERROR: SmartPolicy._effect_score: no valuation for CardEffect.Kind 9999'
+    'ERROR: SmartCardScore.effect_score: no valuation for CardEffect.Kind 9999'
     'ERROR: StarterContent.character: unknown character ''nobody'''
     'ERROR: StarterContent.character: unknown character ''no_such_character'''
     'ERROR: StarterContent.created_card: unknown created card id dread'

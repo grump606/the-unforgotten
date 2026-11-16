@@ -3,13 +3,13 @@
 Last updated 2026-11-16. **Released:** v0.10.0 (2026-11-13), Chapter 2, the Registry; v0.10.1 (2026-11-15: Find the
 Seam+ keeps Ready in the export, a Draw after a Glimpse waits for the pick, the 400 MiB installer cap and the review
 fixes). **Version on `main`: 0.10.2** (safe save migration, the release floor check and the updater thread fallback).
-Threaded art reads (PaintedArt on the loader threads, about a third of the main-thread warm-up time) were tried and
-reverted before release: the UI flow test once logged `Parameter "t" is null`. In the headless (dummy) renderer that
-message comes from `texture_2d_get` or `texture_2d_initialize` on a texture id that does not exist yet or was freed. The
-engine's cross-thread queue looks ordered correctly on paper (a worker's texture creation is queued and flushed before
-any main-thread read or free), and the failure did not come back in 22 further UI flow runs (16 of them four at a time)
-or 480 tight-loop loads, so its cause is not pinned down. Retry only with a test that reproduces it; until then the
-art decodes on the main thread (about 29 ms a file, 67 ms for the largest screen, spread over frames by the queue). **On `main`, not released:** Chapter 3 and the finale, built and bot-tuned but switched off (`Chapters.COUNT` is still 2, so a run
+Art warm-up (after v0.10.2): the art now decodes on WorkerThreadPool tasks that never touch the RenderingServer
+(`PaintedArt.decode_imported` reads the imported .ctex and decodes its WebP itself; only the texture is made on the main
+thread). Warming all 48 screens costs about 220 ms of main-thread time instead of 1,700, and the worst frame about 8 ms
+instead of up to 67. An earlier try that loaded GPU textures on the loader threads was reverted before v0.10.2 (the UI
+flow test once logged `Parameter "t" is null`, a texture used before it existed or after it was freed); this design
+creates, reads and frees no texture off the main thread. `tests/painted_art_decode_tests.gd` and
+`tools/export_integrity.gd` check every art file decodes to the same pixels as the engine's own decode. **On `main`, not released:** Chapter 3 and the finale, built and bot-tuned but switched off (`Chapters.COUNT` is still 2, so a run
 still ends with "To be continued"), plus a code review pass (below). The next work is the Chapter 3 playtest and the
 release that turns it on (`docs/CHAPTER3_PLAN.md`, "Order of work", step 6).
 Numbers such as the stop count and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`SIM.md`](SIM.md).

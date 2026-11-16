@@ -174,3 +174,11 @@ jobs:
           $env:GODOT_EXE = Join-Path $env:RUNNER_TEMP "godot\Godot_v${env:GODOT_VERSION}_win64_console.exe"
           powershell -ExecutionPolicy Bypass -File scripts/build_installer.ps1 -NoSign
           exit $LASTEXITCODE
+
+      # The built setup over a fake old "Card Battle Prototype" install and old saves (the runner is thrown away
+      # afterwards; the script refuses to run outside CI). See docs/CI.md.
+      - name: Installer migration test
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -File scripts/installer_migration_test.ps1
+          exit $LASTEXITCODE

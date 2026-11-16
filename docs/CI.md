@@ -17,6 +17,12 @@ The workflow's steps, in order:
 7. Cache and download the Windows export templates (checked against `GODOT_TEMPLATES_SHA512`).
 8. Install export templates and Inno Setup (a non-6.x Inno Setup fails the job).
 9. Build the installer, unsigned: `scripts/build_installer.ps1 -NoSign` (see "Export and installer build").
+10. Installer migration test: `scripts/installer_migration_test.ps1` runs the built setup silently, twice, over a fake old
+    "Card Battle Prototype" install (exe, uninstaller files and a file of the player's), its uninstall registry entry
+    and old saves, and checks what `installer/setup.iss` does: the saves are copied, a newer different settings file is
+    not overwritten and keeps the old data folder, identical files let the old data folder go, only the old setups'
+    files are deleted from the old install folder and an emptied folder is removed. It changes the user profile and
+    registry, so it refuses to run outside CI (the runner is thrown away afterwards).
 
 `scripts/check.ps1` runs these steps, in order, and stops at the first failure:
 
@@ -144,7 +150,8 @@ fails the pull request instead of release day:
 3. **`scripts/build_installer.ps1 -NoSign`**: imports (a failed import fails the build), exports the Windows
    build, checks the exe's file and product version against `config/version`, checks that every scripted `.tres`
    loads from the exported exe with the same data as in the project (`tools/export_integrity.gd`: the export's
-   text-to-binary conversion once dropped a card's upgrade keyword), compiles the installer and checks
+   text-to-binary conversion once dropped a card's upgrade keyword) and that every art file decodes from the export
+   to the same pixels through `PaintedArt.decode_imported` (the worker-thread art decode), compiles the installer and checks
    its version. It only warns when the installer is over 2/3 of the current 300 MiB cap. `-NoSign` skips the manifest and signature (no private key is ever on the runner); the output
    is discarded with the runner and must never be released. `release.ps1` never passes `-NoSign`.
 
