@@ -10,6 +10,7 @@ extends Control
 ## shield pop or entrance scale-in, and the defeat fade is instant. Damage and healing numbers still
 ## appear (and HP and Block still change) but do not rise, pop or fade.
 ## The figure is the enemy's painted figure layer when there is one, else a code-drawn stand-in.
+## This script holds the state, layout and animation; FighterPainter (run/fighter_painter.gd) draws it.
 
 const OVERHEAD := 58.0 ## room above the figure for the intent and the target marker
 const UNDER := 68.0 ## room below the feet for the HP bar and up to two rows of status pills
@@ -126,6 +127,8 @@ const BLOCKED_COLOR := Color(0.55, 0.78, 1.0)
 
 ## Child control above the drag ghost that draws the drop label (see set_drop_hover).
 var _drop_layer: Control
+## Draws the fighter and its drop label (see _draw); it reads the animation values below.
+var _painter: FighterPainter
 var _flash := 0.0
 var _shake := 0.0
 var _lunge := 0.0
@@ -152,6 +155,7 @@ var _scheduled_block := false
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP # also needed for the status tooltip
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	_painter = FighterPainter.new(self)
 
 
 func _ready() -> void:
@@ -160,7 +164,7 @@ func _ready() -> void:
 	_drop_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_drop_layer.z_index = DROP_LABEL_Z
 	_drop_layer.size = size
-	_drop_layer.draw.connect(_draw_drop_label)
+	_drop_layer.draw.connect(_painter.draw_drop_label)
 	add_child(_drop_layer)
 	visibility_changed.connect(_on_visibility_changed)
 	mouse_entered.connect(_on_hover.bind(true))
@@ -617,142 +621,14 @@ func _on_hover(inside: bool) -> void:
 
 # --- drawing ---------------------------------------------------------------------------
 
+## Everything on screen is drawn by FighterPainter (run/fighter_painter.gd).
 func _draw() -> void:
-	if unit == null:
-		return
-	var alive := fade < 1.0
-	var a := 1.0 - fade
-	var ground := feet()
-	if targeted and not is_defeated():
-		_draw_target_ring(ground)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	draw_ellipse_shadow(ground, figure_width() * 0.42 * (1.0 - fade * 0.5), Color(SHADOW, SHADOW.a * a))
-	_draw_figure(ground, a)
-	if alive:
-		if not is_player:
-			_draw_intent(a)
-		if not is_boss:
-			_draw_bar(a)
-		_draw_chips(a)
-	if targeted and not is_defeated():
-		var mx := size.x / 2.0
-		var my := 4.0 + sin(time * 4.0) * 2.0
-		draw_colored_polygon(PackedVector2Array([Vector2(mx - 9, my), Vector2(mx + 9, my), Vector2(mx, my + 9)]), MenuStyle.AMBER)
-	if drop_hover and not is_defeated():
-		_draw_drop_hover(ground)
-	_draw_floats()
+	_painter.draw()
 
 
-## The drag target look: a bright ring at the feet (the label is _draw_drop_label).
-func _draw_drop_hover(ground: Vector2) -> void:
-	var rx := figure_width() * 0.5 + 10.0
-	var pts := PackedVector2Array()
-	for i in 33:
-		var ang := TAU * i / 32.0
-		pts.append(ground + Vector2(cos(ang) * rx, sin(ang) * rx * 0.16))
-	draw_polyline(pts, Color(1, 1, 1, 0.95), 3.0, true)
-
-
-## The card's result in a pill over the figure (one line per clause, so it stays narrow); drawn on
-## the layer above the drag ghost.
-func _draw_drop_label() -> void:
-	if not drop_hover or is_defeated() or drop_text == "":
-		return
-	var lines := drop_text.split(", ")
-	var line_h := 20.0
-	var width := 0.0
-	for line in lines:
-		width = maxf(width, line.length() * 7.5 + 18.0)
-	var box := Rect2(Vector2(size.x / 2.0 - width / 2.0, OVERHEAD + figure_height * 0.4), Vector2(width, line_h * lines.size() + 6.0))
-	HudIcons.box(_drop_layer, box, Color(0.04, 0.03, 0.05, 0.92), 8, 2, MenuStyle.AMBER)
-	for i in lines.size():
-		HudIcons.text(_drop_layer, lines[i], Rect2(box.position + Vector2(0, 3.0 + line_h * i), Vector2(width, line_h)), 13, Color(0.97, 0.95, 0.92), true, 3)
-
-
+## A flat ellipse of radius `rx` (a sixth as tall) centred on `c`; only valid while this control draws.
 func draw_ellipse_shadow(c: Vector2, rx: float, col: Color) -> void:
-	var pts := PackedVector2Array()
-	for i in 24:
-		var ang := TAU * i / 24.0
-		pts.append(c + Vector2(cos(ang) * rx, sin(ang) * rx * 0.16))
-	draw_colored_polygon(pts, col)
-
-
-func _draw_target_ring(ground: Vector2) -> void:
-	var rx := figure_width() * 0.5 + 8.0
-	var pts := PackedVector2Array()
-	for i in 33:
-		var ang := TAU * i / 32.0
-		pts.append(ground + Vector2(cos(ang) * rx, sin(ang) * rx * 0.16))
-	draw_polyline(pts, Color(MenuStyle.AMBER, 0.85), 2.0, true)
-
-
-## The figure standing on its feet with the idle breath, the lunge toward the opponent, the recoil from
-## a hit, the hit flash and the defeat fade (it sinks and goes see-through).
-func _draw_figure(ground: Vector2, a: float) -> void:
-	var lunge := lunge_amount()
-	var stance := stance_motion()
-	var dx := facing * (lunge * 46.0) - facing * sin(_recoil * PI) * 16.0
-	var shake := sin(time * 70.0) * 2.5 * _flash + sin(time * 55.0) * 9.0 * _shake
-	var squash := 1.0 + breath() * 0.008 - stance.z + lunge * 0.04
-	var stretch := 1.0 + lunge * 0.04
-	var sink := fade * 18.0
-	var tint := Color(1, 1, 1, a)
-	if _flash > 0.0:
-		tint = Color(1.0, 1.0 - _flash * 0.6, 1.0 - _flash * 0.6, a)
-	elif _hovered and not is_defeated() and not is_player:
-		tint = Color(1.12, 1.12, 1.12, a)
-	var flip := 1.0 if is_equal_approx(facing, _art_facing) else -1.0
-	draw_set_transform(ground + Vector2(dx + shake + stance.x, sink), stance.y, Vector2(stretch * flip, squash) * (1.0 if Motion.reduced else entrance))
-	if _elite_tex != null:
-		# The elite canvas is the plain sprite plus padding for the flames: scale it like the sprite and keep the feet where
-		# they were (the padding is the same on both sides, so the mirroring above is harmless).
-		var scale := figure_height / _region.size.y
-		var tex_size := _elite_tex.get_size() * scale
-		var origin := Vector2(-figure_width() / 2.0 - _elite_pads.x * scale, -figure_height - _elite_pads.y * scale)
-		draw_texture_rect(_elite_tex, Rect2(origin, tex_size), false, tint)
-	elif _tex != null:
-		var w := figure_width()
-		draw_texture_rect_region(_tex, Rect2(-w / 2.0, -figure_height, w, figure_height), _region, tint)
-	else:
-		_draw_stand_in(tint)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-
-## The code-drawn figure used when there is no painted one: a cloaked silhouette in the class colours
-## (facing right, so the transform in _draw_figure mirrors it for enemies).
-func _draw_stand_in(tint: Color) -> void:
-	var colors: Array = CLASS_COLORS.get(class_id, [Color(0.36, 0.38, 0.44), Color(0.85, 0.90, 1.0)])
-	var cloak: Color = (colors[0] as Color) * tint
-	var accent: Color = colors[1]
-	var h := figure_height
-	var body := PackedVector2Array([
-		Vector2(-0.20, 0.0) * h, Vector2(0.20, 0.0) * h, Vector2(0.17, -0.50) * h, Vector2(0.10, -0.74) * h,
-		Vector2(-0.08, -0.74) * h, Vector2(-0.19, -0.50) * h,
-	])
-	draw_colored_polygon(body, cloak)
-	draw_polyline(body + PackedVector2Array([body[0]]), Color(0, 0, 0, 0.6 * tint.a), 1.5, true)
-	# A lighter cloak edge on the side toward the opponent, so the shape reads as lit from the front.
-	draw_colored_polygon(PackedVector2Array([Vector2(0.10, -0.74) * h, Vector2(0.17, -0.50) * h, Vector2(0.20, 0.0) * h, Vector2(0.12, 0.0) * h, Vector2(0.10, -0.50) * h]), Color(accent, 0.18 * tint.a))
-	var head := Vector2(0.03, -0.83) * h
-	draw_circle(head, 0.095 * h, cloak.darkened(0.25))
-	draw_arc(head, 0.095 * h, 0, TAU, 24, Color(0, 0, 0, 0.6 * tint.a), 1.5, true)
-	var eye := head + Vector2(0.05, 0.0) * h
-	draw_circle(eye, 0.03 * h, Color(accent, 0.25 * tint.a))
-	draw_circle(eye, 0.012 * h, Color(accent, tint.a))
-	var prop := Color(accent, tint.a)
-	match class_id:
-		CharacterIds.DESERTER: # a sword held low in front
-			draw_line(Vector2(0.18, -0.30) * h, Vector2(0.42, -0.62) * h, prop.darkened(0.2), 4.0, true)
-			draw_line(Vector2(0.15, -0.34) * h, Vector2(0.24, -0.26) * h, prop, 3.0, true)
-		CharacterIds.THIEF: # a dagger and a coin
-			draw_line(Vector2(0.18, -0.34) * h, Vector2(0.34, -0.50) * h, prop.darkened(0.2), 3.0, true)
-			draw_circle(Vector2(0.24, -0.20) * h, 0.03 * h, prop)
-		CharacterIds.MEDIUM: # a lantern with a pale flame
-			draw_line(Vector2(0.17, -0.40) * h, Vector2(0.30, -0.50) * h, prop.darkened(0.3), 2.5, true)
-			draw_circle(Vector2(0.32, -0.40) * h, 0.07 * h, Color(accent, 0.22 * tint.a))
-			draw_circle(Vector2(0.32, -0.40) * h, 0.03 * h, prop.lightened(0.3))
-		_:
-			pass
+	_painter.ellipse_shadow(c, rx, col)
 
 
 ## The short text beside the Omen badge: the amount (signed for Malice and Ward, "3x3" for a multi-hit
@@ -765,91 +641,4 @@ static func omen_text(intent: CardEffect) -> String:
 	if intent.is_damage() and intent.hits > 1:
 		return "%dx%d" % [intent.amount, intent.hits]
 	return str(intent.amount)
-
-
-## Width of an Omen number at the badge's font size; measured once per distinct text.
-static var _number_widths := {}
-
-
-static func _number_width(number: String) -> float:
-	if not _number_widths.has(number):
-		_number_widths[number] = ThemeDB.fallback_font.get_string_size(number, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
-	return _number_widths[number]
-
-
-## The intent floating above the head: a round badge with the action's icon and its amount beside it.
-## (The full description is in the figure's tooltip.)
-func _draw_intent(a: float) -> void:
-	var enemy := unit as EnemyUnit
-	var intent := effective_intent(enemy, intent_target)
-	if intent == null:
-		return
-	var col := CardView.kind_color(int(intent.kind))
-	if intent.kind in [CardEffect.Kind.MALICE, CardEffect.Kind.WARD] and intent.amount < 0:
-		col = CardView.STATUS_NEGATIVE
-	var c := intent_center()
-	var number := omen_text(intent)
-	var nw := _number_width(number)
-	var total := 30.0 + 5.0 + nw
-	var cx := c.x - total / 2.0 + 15.0
-	var badge := Vector2(cx, c.y)
-	draw_circle(badge, 16.0, Color(0, 0, 0, 0.6 * a))
-	draw_circle(badge, 14.5, Color(col.darkened(0.5), 0.95 * a))
-	draw_arc(badge, 14.5, 0, TAU, 28, Color(col, a), 1.8, true)
-	HudIcons.intent(self, int(intent.kind), badge, Color(col, a), 1.0)
-	HudIcons.text(self, number, Rect2(cx + 19.0, c.y - 14.0, nw + 4.0, 28.0), 22, Color(col.lightened(0.35), a), false, 4)
-
-
-## The HP bar under the feet with its numbers. Block shows as a blue frame and a shield badge on the left end.
-func _draw_bar(a: float) -> void:
-	var bar := bar_rect()
-	var has_block := unit.block > 0
-	var frame := CardView.kind_color(CardEffect.Kind.BLOCK) if has_block else Color(0.55, 0.22, 0.2)
-	HudIcons.box(self, bar, Color(HP_BACK, a), 4, 2 if has_block else 1, Color(frame, a))
-	var ratio := clampf(float(unit.hp) / maxf(float(unit.max_hp), 1.0), 0.0, 1.0)
-	if ratio > 0.0:
-		HudIcons.box(self, Rect2(bar.position + Vector2(1, 1), Vector2(maxf((bar.size.x - 2) * ratio, 4.0), bar.size.y - 2)), Color(CardView.HP_RED, a), 3)
-	if drop_hover and drop_lost > 0:
-		# The HP the card would take, ghosted in gold between what would remain and what is there now.
-		var inner := bar.size.x - 2.0
-		var left := clampf(float(unit.hp - drop_lost) / maxf(float(unit.max_hp), 1.0), 0.0, 1.0) * inner
-		var right := ratio * inner
-		if right > left:
-			HudIcons.box(self, Rect2(bar.position + Vector2(1.0 + left, 1.0), Vector2(right - left, bar.size.y - 2.0)), Color(MenuStyle.AMBER, 0.9 * a), 3)
-	HudIcons.text(self, "%d/%d" % [maxi(unit.hp, 0), unit.max_hp], bar, 12, Color(1, 1, 1, a), true, 3)
-	if has_block:
-		var pop := 1.0 + sin(_pop * PI) * 0.35
-		var c := Vector2(bar.position.x - 2.0, bar.get_center().y)
-		var col := CardView.kind_color(CardEffect.Kind.BLOCK)
-		HudIcons.shield(self, c, 15.0 * pop, Color(0, 0, 0, 0.6 * a))
-		HudIcons.shield(self, c, 13.0 * pop, Color(col.darkened(0.25), a))
-		HudIcons.text(self, str(unit.block), Rect2(c - Vector2(14, 12), Vector2(28, 24)), 14, Color(1, 1, 1, a), true, 3)
-
-
-func _draw_chips(a: float) -> void:
-	var chips := status_chips()
-	var rects := chip_rects()
-	for i in chips.size():
-		var chip: Dictionary = chips[i]
-		var r := rects[i]
-		var col: Color = chip.color
-		HudIcons.box(self, r, Color(0.04, 0.03, 0.05, 0.9 * a), 8, 1, Color(col, a))
-		HudIcons.status(self, chip.kind, Vector2(r.position.x + 9, r.position.y + 8), Color(col, a))
-		HudIcons.text(self, chip.label, Rect2(r.position.x + 16, r.position.y, r.size.x - 18, r.size.y), 11, Color(0.97, 0.95, 0.92, a), false)
-
-
-func _draw_floats() -> void:
-	var origin := Vector2(size.x / 2.0, OVERHEAD + figure_height * 0.35)
-	for f in _floats:
-		var t: float = f.age / FLOAT_TIME
-		var rise := 1.0 - pow(1.0 - t, 2.0)
-		var alpha := 1.0 - smoothstep(0.55, 1.0, t)
-		var pop := 1.0 + sin(minf(t * 5.0, 1.0) * PI) * 0.25
-		if Motion.reduced: # shown in place at full strength for the same time, then gone
-			rise = 0.5
-			alpha = 1.0
-			pop = 1.0
-		var fs := int(26.0 * pop)
-		var col: Color = f.color
-		HudIcons.text(self, f.text, Rect2(origin + Vector2(f.drift - 60.0, -rise * 60.0 - 14.0), Vector2(120, 28)), fs, Color(col, alpha), true, 5)
 

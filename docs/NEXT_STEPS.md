@@ -4,8 +4,12 @@ Last updated 2026-11-16. **Released:** v0.10.0 (2026-11-13), Chapter 2, the Regi
 Seam+ keeps Ready in the export, a Draw after a Glimpse waits for the pick, the 400 MiB installer cap and the review
 fixes). **Version on `main`: 0.10.2** (safe save migration, the release floor check and the updater thread fallback).
 Threaded art reads (PaintedArt on the loader threads, about a third of the main-thread warm-up time) were tried and
-reverted before release: the UI flow test once logged `Parameter "t" is null` (a texture read back before it was
-ready); not reproduced in 6 further runs. Retry only with a test that forces that race. **On `main`, not released:** Chapter 3 and the finale, built and bot-tuned but switched off (`Chapters.COUNT` is still 2, so a run
+reverted before release: the UI flow test once logged `Parameter "t" is null`. In the headless (dummy) renderer that
+message comes from `texture_2d_get` or `texture_2d_initialize` on a texture id that does not exist yet or was freed. The
+engine's cross-thread queue looks ordered correctly on paper (a worker's texture creation is queued and flushed before
+any main-thread read or free), and the failure did not come back in 22 further UI flow runs (16 of them four at a time)
+or 480 tight-loop loads, so its cause is not pinned down. Retry only with a test that reproduces it; until then the
+art decodes on the main thread (about 29 ms a file, 67 ms for the largest screen, spread over frames by the queue). **On `main`, not released:** Chapter 3 and the finale, built and bot-tuned but switched off (`Chapters.COUNT` is still 2, so a run
 still ends with "To be continued"), plus a code review pass (below). The next work is the Chapter 3 playtest and the
 release that turns it on (`docs/CHAPTER3_PLAN.md`, "Order of work", step 6).
 Numbers such as the stop count and card counts live in [`GAME_FACTS.md`](GAME_FACTS.md); sim results live in [`SIM.md`](SIM.md).
