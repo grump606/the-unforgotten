@@ -2,8 +2,9 @@
 
 Last updated 2026-11-16. **Released:** v0.10.0 (2026-11-13), Chapter 2, the Registry; v0.10.1 (2026-11-15: Find the
 Seam+ keeps Ready in the export, a Draw after a Glimpse waits for the pick, the 400 MiB installer cap and the review
-fixes). **Version on `main`: 0.10.2** (safe save migration, the release floor check and the updater thread fallback).
-Art warm-up (after v0.10.2): the art now decodes on WorkerThreadPool tasks that never touch the RenderingServer
+fixes); v0.10.2 (safe save migration, the release floor check and the updater thread fallback). **Version on `main`:
+0.10.3** (worker-thread art decoding, the file splits, the CI card snapshots and installer migration test).
+Art warm-up (v0.10.3): the art now decodes on WorkerThreadPool tasks that never touch the RenderingServer
 (`PaintedArt.decode_imported` reads the imported .ctex and decodes its WebP itself; only the texture is made on the main
 thread). Warming all 48 screens costs about 220 ms of main-thread time instead of 1,700, and the worst frame about 8 ms
 instead of up to 67. An earlier try that loaded GPU textures on the loader threads was reverted before v0.10.2 (the UI
