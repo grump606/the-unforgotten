@@ -260,6 +260,7 @@ static func pump(budget_ms := PUMP_BUDGET_MS) -> int:
 		var path: String = _queue.pop_front()
 		if _cache.has(path):
 			continue
+		_collect_at_exit()
 		var job := DecodeJob.new()
 		job.path = path
 		job.task = WorkerThreadPool.add_task(job.run, false, "PaintedArt decode")
@@ -288,7 +289,16 @@ static func _finish_decode(path: String) -> void:
 		_store(path, _decode(path))
 
 
-## Tests: empties the queue and collects every decode still running (a task must not be left behind).
+## A decode still running when the game (or a test) quits would be running GDScript on a worker while the engine tears
+## its scripts down, which can hang the exit (seen once in CI). So before the scene tree goes, every running decode is
+## collected: reset_queue runs when the root window leaves the tree, the first step of SceneTree's shutdown.
+static func _collect_at_exit() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null and tree.root != null and not tree.root.tree_exiting.is_connected(reset_queue):
+		tree.root.tree_exiting.connect(reset_queue)
+
+
+## Empties the queue and collects every decode still running (a task must not be left behind): at exit, and in tests.
 static func reset_queue() -> void:
 	_queue.clear()
 	for path: String in _decoding.keys():
