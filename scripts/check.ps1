@@ -85,7 +85,8 @@ try {
     # (a small window opens briefly). CI runners have no GPU and no OpenGL driver, so there it draws through ANGLE
     # (OpenGL ES on Direct3D 11, which falls back to Windows' software rasterizer, WARP); the test's tolerance absorbs
     # the small anti-aliasing differences. The renderer in use is the "OpenGL API ... Using Device" line of the step.
-    $snapshotArgs = @('--path', '.', '--resolution', '200x240', '-s', 'res://tests/card_snapshot_test.gd')
+    # No sound is needed, and a runner has no audio device (WASAPI would log errors), so the dummy audio driver is used.
+    $snapshotArgs = @('--audio-driver', 'Dummy', '--path', '.', '--resolution', '200x240', '-s', 'res://tests/card_snapshot_test.gd')
     if ($env:CI) { $snapshotArgs = @('--rendering-driver', 'opengl3_angle') + $snapshotArgs }
     Invoke-Step 'card snapshot' $snapshotArgs
     # The rules that decide what a clean log is: bad logs must fail, the suite's known noise must pass.
